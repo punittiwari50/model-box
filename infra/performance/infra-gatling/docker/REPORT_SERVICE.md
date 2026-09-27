@@ -161,23 +161,33 @@ curl -fsS http://localhost:8080/runs/{timestamp}_{simulation}/{index.html}
 
 ## Common Tasks
 
+For all Gatling + report-service operational commands, use the unified command reference:
+
+- `SERVICE_COMMANDS.md`
+
+If no command is passed, use the default create/start command for both services:
+
+```bash
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d gatling-service report-service
+```
+
 ### Rebuild Report Service After nginx Config Change
 
 ```bash
-# From infra/performance/infra-gatling/docker/
-docker compose --env-file performance-local.env -f compose.performance.yaml down
+# From repository root (model-box/)
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml down
 docker rmi model-box-report-service:local
-docker compose --env-file performance-local.env -f compose.performance.yaml up -d --build
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
 ```
 
 ### View Report Service Logs
 
 ```bash
-docker compose --env-file performance-local.env -f compose.performance.yaml logs -f report-service
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml logs -f report-service
 ```
 
 ### Access Container Shell (for debugging)
 
 ```bash
-docker compose --env-file performance-local.env -f compose.performance.yaml exec report-service sh
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml exec report-service sh
 ```

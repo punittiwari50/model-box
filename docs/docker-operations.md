@@ -269,7 +269,7 @@ Use this checklist when you need a clean rebuild of all containers in this repos
 - [ ] Stop and remove performance stack (containers, volumes, orphans):
 
 ```bash
-docker compose -f infra/performance/infra-gatling/docker/compose.performance.yaml down -v --remove-orphans
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml down -v --remove-orphans
 ```
 
 - [ ] Stop and remove Ollama GPU stack (containers, volumes, orphans):
@@ -351,7 +351,7 @@ docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/doc
 - [ ] Rebuild and start performance stack:
 
 ```bash
-docker compose -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build --wait --wait-timeout 180
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build --wait --wait-timeout 180
 ```
 
 #### Step 4: Verify all stacks
@@ -377,7 +377,7 @@ curl -fsS http://localhost:11435/api/tags | head -c 100
 - [ ] Verify performance stack is running:
 
 ```bash
-docker compose -f infra/performance/infra-gatling/docker/compose.performance.yaml ps
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml ps
 ```
 
 - [ ] Verify report service health:
@@ -433,7 +433,7 @@ docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/doc
 - [ ] Rebuild and start performance stack:
 
 ```bash
-docker compose -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
 ```
 
 - [ ] Verify both Ollama stacks are running:
@@ -441,7 +441,7 @@ docker compose -f infra/performance/infra-gatling/docker/compose.performance.yam
 ```bash
 docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml ps
 docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/docker/compose.cpu.yaml ps
-docker compose -f infra/performance/infra-gatling/docker/compose.performance.yaml ps
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml ps
 ```
 
 - [ ] Verify runtime health:

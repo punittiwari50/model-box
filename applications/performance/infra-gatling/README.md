@@ -158,7 +158,7 @@ docker exec ollama-model-service ollama list
 docker exec ollama-model-service ollama pull tinyllama:latest
 
 # 3) Start performance stack
-docker compose -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
 
 # 4) Watch Gatling execution
 docker logs -f gatling-service

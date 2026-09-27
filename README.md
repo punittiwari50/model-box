@@ -71,7 +71,7 @@ If you are in the parent folder and need to enter the repo first, use a relative
 ```bash
 cd model-box
 docker compose -f infra/ollama/docker/compose.ollama.yaml up -d
-docker compose -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
+docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
 ```
 
 If you are already inside the repo root, you can run the same Compose commands directly without changing into a Docker subfolder.
