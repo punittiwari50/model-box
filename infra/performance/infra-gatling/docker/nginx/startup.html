@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Report Service Starting</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      width: min(680px, 92vw);
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+    h1 { margin: 0 0 12px; font-size: 24px; }
+    p { margin: 8px 0; line-height: 1.5; }
+    code {
+      background: #f1f5f9;
+      border-radius: 6px;
+      padding: 2px 6px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Gatling report is being generated</h1>
+    <p>The report service is healthy, but the latest run has not published <code>/reports/index.html</code> yet.</p>
+    <p>Refresh this page in a few seconds.</p>
+    <p>Once ready, reports will be available under <code>/reports/</code> and <code>/reports/runs/</code>.</p>
+  </main>
+</body>
+</html>
