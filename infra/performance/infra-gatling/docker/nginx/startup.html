@@ -3,40 +3,100 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Report Service Starting</title>
+  <title>Gatling Reports</title>
   <style>
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #f8fafc;
       color: #0f172a;
-      display: grid;
-      place-items: center;
-      min-height: 100vh;
+      padding: 24px;
     }
     .card {
-      width: min(680px, 92vw);
+      width: min(980px, 96vw);
       background: #ffffff;
       border: 1px solid #e2e8f0;
       border-radius: 14px;
       padding: 28px;
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      margin: 0 auto;
     }
     h1 { margin: 0 0 12px; font-size: 24px; }
     p { margin: 8px 0; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    th, td { border: 1px solid #dbe3ef; padding: 10px 12px; text-align: left; }
+    th { background: #0f172a; color: #ffffff; }
+    tr:nth-child(even) { background: #f8fafc; }
+    a { color: #0f62fe; text-decoration: none; }
+    a:hover { text-decoration: underline; }
     code {
       background: #f1f5f9;
       border-radius: 6px;
       padding: 2px 6px;
     }
+    .hint { color: #334155; }
   </style>
 </head>
 <body>
   <main class="card">
-    <h1>Gatling report is being generated</h1>
-    <p>The report service is healthy, but the latest run has not published <code>/reports/index.html</code> yet.</p>
-    <p>Refresh this page in a few seconds.</p>
-    <p>Once ready, reports will be available under <code>/reports/</code> and <code>/reports/runs/</code>.</p>
+    <h1>Gatling Reports</h1>
+    <p class="hint">This fallback page is shown while <code>/reports/index.html</code> is being generated. Available runs are listed below.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Run Date</th>
+          <th>Run Folder</th>
+          <th>Report</th>
+        </tr>
+      </thead>
+      <tbody id="runs-body">
+        <tr>
+          <td colspan="3">Loading available runs...</td>
+        </tr>
+      </tbody>
+    </table>
   </main>
+
+  <script>
+    (async function renderRuns() {
+      const body = document.getElementById('runs-body');
+      try {
+        const response = await fetch('/reports/runs/');
+        if (!response.ok) {
+          throw new Error('Unable to load runs directory');
+        }
+
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const anchors = Array.from(doc.querySelectorAll('a[href]'));
+        const runNames = anchors
+          .map((a) => a.getAttribute('href'))
+          .filter((href) => href && href !== '../' && href.endsWith('/'))
+          .map((href) => href.replace(/\/$/, ''))
+          .sort()
+          .reverse();
+
+        if (runNames.length === 0) {
+          body.innerHTML = '<tr><td colspan="3">No completed runs yet. Refresh after Gatling publishes results.</td></tr>';
+          return;
+        }
+
+        body.innerHTML = '';
+        for (const runName of runNames) {
+          const datePart = runName.includes('~') ? runName.split('~')[0] : runName.split('_')[0];
+          const reportHref = '/reports/runs/' + runName + '/index.html';
+          const row = document.createElement('tr');
+          row.innerHTML =
+            '<td>' + datePart + '</td>' +
+            '<td><code>' + runName + '</code></td>' +
+            '<td><a href="' + reportHref + '">Open Report</a></td>';
+          body.appendChild(row);
+        }
+      } catch (err) {
+        body.innerHTML = '<tr><td colspan="3">Unable to load runs right now. Refresh in a few seconds.</td></tr>';
+      }
+    })();
+  </script>
 </body>
 </html>
