@@ -217,7 +217,7 @@ HTML
     simulation_name="${run_name##*~}"
     simulation_name="${simulation_name//_/\.}"
     if [[ -f "${run_dir}/index.html" ]]; then
-      printf '      <tr><td>%s</td><td>%s</td><td>%s</td><td><a href="runs/%s/index.html">Open</a></td></tr>\n' \
+      printf '      <tr><td>%s</td><td>%s</td><td>%s</td><td><a href="/reports/runs/%s/index.html">Open</a></td></tr>\n' \
         "${timestamp}" "${model_name}" "${simulation_name}" "${run_name}" >> "${index_file}"
     fi
   done
