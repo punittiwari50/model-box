@@ -13,6 +13,7 @@ RUN install -d -o ${APP_USER} -g ${APP_USER} -m 755 /var/cache/nginx /run/nginx 
 COPY --chown=${APP_USER}:${APP_USER} --chmod=644 nginx/nginx.conf /etc/nginx/nginx.conf
 COPY --chown=${APP_USER}:${APP_USER} --chmod=644 nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --chown=${APP_USER}:${APP_USER} --chmod=644 nginx/startup.html /usr/share/nginx/html/__startup.html
+COPY --chown=${APP_USER}:${APP_USER} --chmod=644 nginx/runs-index.html /usr/share/nginx/html/runs-index.html
 
 USER ${APP_USER}
 

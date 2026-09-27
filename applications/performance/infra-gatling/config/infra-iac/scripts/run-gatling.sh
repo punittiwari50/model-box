@@ -19,6 +19,30 @@ gatling::sanitize_tag() {
   printf '%s' "$1" | tr '/: ' '___' | tr -cd '[:alnum:]._-' | sed 's/__*/_/g; s/^_//; s/_$//'
 }
 
+gatling::derive_test_type() {
+  local simulation_class="$1"
+  local lower
+
+  lower="$(printf '%s' "${simulation_class}" | tr '[:upper:]' '[:lower:]')"
+  case "${lower}" in
+    *load*)
+      printf 'Load'
+      ;;
+    *stress*)
+      printf 'Stress'
+      ;;
+    *soak*)
+      printf 'Soak'
+      ;;
+    *spike*)
+      printf 'Spike'
+      ;;
+    *)
+      printf 'Unknown'
+      ;;
+  esac
+}
+
 gatling::normalize_jvm_args() {
   local raw="${1:-}"
   local normalized=""
@@ -159,6 +183,12 @@ gatling::run_simulation() {
   local timestamp="$(gatling::timestamp)"
   local output_dir="${GATLING_REPORT_ROOT}/runs/${timestamp}~${model_slug}~${simulation_slug}"
   local latest_run=""
+  local metadata_file=""
+  local req_total=""
+  local req_ok=""
+  local req_ko=""
+  local status=""
+  local test_type=""
 
   gatling::log "Running simulation=${simulation_class} model=${model_tag}"
 
@@ -178,6 +208,40 @@ gatling::run_simulation() {
   if [[ -n "${latest_run}" ]]; then
     mkdir -p "${output_dir}"
     cp -R "${latest_run}/." "${output_dir}/"
+
+    metadata_file="${output_dir}/metadata.env"
+    if [[ -f "${metadata_file}" ]]; then
+      req_total="$(sed -n 's/^REQ_TOTAL=//p' "${metadata_file}" | head -n 1)"
+      req_ok="$(sed -n 's/^REQ_OK=//p' "${metadata_file}" | head -n 1)"
+      req_ko="$(sed -n 's/^REQ_KO=//p' "${metadata_file}" | head -n 1)"
+      status="$(sed -n 's/^STATUS=//p' "${metadata_file}" | head -n 1)"
+    fi
+
+    if [[ -z "${status}" ]]; then
+      if [[ "${req_ko}" =~ ^[0-9]+$ ]] && (( req_ko > 0 )); then
+        status="FAIL"
+      elif [[ "${req_ko}" =~ ^[0-9]+$ ]]; then
+        status="PASS"
+      else
+        status="UNKNOWN"
+      fi
+    fi
+
+    test_type="$(gatling::derive_test_type "${simulation_class}")"
+    cat > "${metadata_file}" <<EOF
+MODEL_NAME=${model_tag}
+STATUS=${status}
+REQ_TOTAL=${req_total}
+REQ_OK=${req_ok}
+REQ_KO=${req_ko}
+MAX_USERS=${GATLING_MAX_USERS}
+CONCURRENCY=${GATLING_MAX_USERS}
+WARMUP_USERS=${GATLING_WARMUP_USERS}
+TEST_TYPE=${test_type}
+RUNTIME_PROFILE=${GATLING_RUNTIME_PROFILE}
+SIMULATION_CLASS=${simulation_class}
+RUN_TIMESTAMP=${timestamp}
+EOF
   fi
 }
 

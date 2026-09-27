@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gatling Runs</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .card {
+      width: min(1100px, 96vw);
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+    h1 { margin: 0 0 8px; }
+    p { margin: 0 0 14px; color: #334155; }
+    .toolbar { margin: 12px 0 16px; }
+    input[type="search"] {
+      width: min(520px, 100%);
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #ffffff;
+    }
+    th, td {
+      border: 1px solid #dbe3ef;
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+    th {
+      background: #0f172a;
+      color: #ffffff;
+      position: sticky;
+      top: 0;
+    }
+    tr:nth-child(even) { background: #f8fafc; }
+    a { color: #0f62fe; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-weight: 700;
+      border: 1px solid;
+    }
+    .pass { color: #166534; background: #ecfdf3; border-color: #86efac; }
+    .fail { color: #991b1b; background: #fef2f2; border-color: #fca5a5; }
+    .unknown { color: #334155; background: #f8fafc; border-color: #cbd5e1; }
+    .mono { font-family: Consolas, "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Gatling Runs</h1>
+    <p>Interactive summary of all run folders with date, model, performance test type, users/concurrency, report link, and final result.</p>
+
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Search by date, model, test type, run folder, result..." />
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date Executed</th>
+          <th>Model</th>
+          <th>Performance Test</th>
+          <th>Users / Concurrency</th>
+          <th>Final Result</th>
+          <th>Report Link</th>
+          <th>Run Folder</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="7">Loading runs...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    function parseEnv(text) {
+      var out = {};
+      text.split(/\r?\n/).forEach(function (line) {
+        if (!line || line.indexOf('=') === -1) return;
+        var idx = line.indexOf('=');
+        var key = line.slice(0, idx).trim();
+        var val = line.slice(idx + 1).trim();
+        if (key) out[key] = val;
+      });
+      return out;
+    }
+
+    function deriveDate(runName) {
+      var m = runName.match(/^(\d{4}-\d{2}-\d{2}T\d{2}[-:]\d{2}[-:]\d{2}Z)/);
+      if (m) return m[1];
+      var part = runName.split('~')[0].split('_')[0];
+      return part || runName;
+    }
+
+    function deriveTestType(runName) {
+      var lowered = runName.toLowerCase();
+      if (lowered.indexOf('load') !== -1) return 'Load';
+      if (lowered.indexOf('stress') !== -1) return 'Stress';
+      if (lowered.indexOf('soak') !== -1) return 'Soak';
+      if (lowered.indexOf('spike') !== -1) return 'Spike';
+      return 'Unknown';
+    }
+
+    function deriveModel(runName, meta) {
+      if (meta.MODEL_NAME && meta.MODEL_NAME.trim()) {
+        return meta.MODEL_NAME.trim();
+      }
+      if (runName.indexOf('~') !== -1) {
+        var parts = runName.split('~');
+        if (parts.length >= 3 && parts[1]) {
+          return parts[1];
+        }
+      }
+      return 'Unknown';
+    }
+
+    function deriveResult(meta) {
+      var status = (meta.STATUS || '').toUpperCase();
+      if (status === 'PASS' || status === 'FAIL') return status;
+      if (meta.REQ_KO && !isNaN(Number(meta.REQ_KO))) {
+        return Number(meta.REQ_KO) > 0 ? 'FAIL' : 'PASS';
+      }
+      return 'UNKNOWN';
+    }
+
+    function usersConcurrency(meta) {
+      var users = meta.MAX_USERS || meta.GATLING_MAX_USERS || meta.USERS || 'n/a';
+      var conc = meta.CONCURRENCY || meta.GATLING_MAX_USERS || meta.MAX_USERS || 'n/a';
+      return users + ' / ' + conc;
+    }
+
+    async function listRuns() {
+      var response = await fetch('/reports/runs-data/');
+      if (!response.ok) throw new Error('runs listing unavailable');
+      var html = await response.text();
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var names = Array.from(doc.querySelectorAll('a[href]'))
+        .map(function (a) { return a.getAttribute('href'); })
+        .filter(function (href) { return href && href !== '../' && href.endsWith('/'); })
+        .map(function (href) { return href.replace(/\/$/, ''); })
+        .sort()
+        .reverse();
+      return names;
+    }
+
+    async function fetchMeta(runName) {
+      try {
+        var res = await fetch('/reports/runs/' + encodeURIComponent(runName) + '/metadata.env');
+        if (!res.ok) return {};
+        var txt = await res.text();
+        return parseEnv(txt);
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function badgeClass(result) {
+      if (result === 'PASS') return 'badge pass';
+      if (result === 'FAIL') return 'badge fail';
+      return 'badge unknown';
+    }
+
+    function renderRows(items) {
+      var tbody = document.getElementById('rows');
+      tbody.innerHTML = '';
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="7">No run folders found yet.</td></tr>';
+        return;
+      }
+      items.forEach(function (item) {
+        var tr = document.createElement('tr');
+        tr.dataset.search = [
+          item.date,
+          item.model,
+          item.testType,
+          item.usersConc,
+          item.result,
+          item.runName
+        ].join(' ').toLowerCase();
+
+        tr.innerHTML =
+          '<td>' + item.date + '</td>' +
+          '<td>' + item.model + '</td>' +
+          '<td>' + item.testType + '</td>' +
+          '<td>' + item.usersConc + '</td>' +
+          '<td><span class="' + badgeClass(item.result) + '">' + item.result + '</span></td>' +
+          '<td><a href="' + item.reportHref + '">Open report</a></td>' +
+          '<td class="mono">' + item.runName + '</td>';
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function wireSearch() {
+      var input = document.getElementById('search');
+      input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        var rows = document.querySelectorAll('#rows tr');
+        rows.forEach(function (row) {
+          if (!row.dataset.search) return;
+          row.style.display = row.dataset.search.indexOf(q) !== -1 ? '' : 'none';
+        });
+      });
+    }
+
+    async function boot() {
+      var tbody = document.getElementById('rows');
+      wireSearch();
+      try {
+        var runNames = await listRuns();
+        if (!runNames.length) {
+          renderRows([]);
+          return;
+        }
+
+        var items = [];
+        for (var i = 0; i < runNames.length; i += 1) {
+          var runName = runNames[i];
+          var meta = await fetchMeta(runName);
+          var result = deriveResult(meta);
+          items.push({
+            runName: runName,
+            date: deriveDate(runName),
+            model: deriveModel(runName, meta),
+            testType: meta.TEST_TYPE || deriveTestType(runName),
+            usersConc: usersConcurrency(meta),
+            result: result,
+            reportHref: '/reports/runs/' + encodeURIComponent(runName) + '/index.html'
+          });
+        }
+        renderRows(items);
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="7">Unable to load runs summary right now. Refresh in a few seconds.</td></tr>';
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>
