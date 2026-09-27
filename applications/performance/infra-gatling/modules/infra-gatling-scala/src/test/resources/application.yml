@@ -1,0 +1,39 @@
+# Local environment configuration (default)
+ollama:
+  baseUrl: http://127.0.0.1:11435
+  model: auto
+  timeout: 60
+  retries: 3
+
+gatling:
+  warmupUsers: 5
+  maxUsers: 20
+  rampDuration: 30
+  holdDuration: 300
+  thinkTime: 1000
+  timeout: 30
+  requestPause: 500
+  profile.load.warmupUsers: 5
+  profile.load.maxUsers: 20
+  profile.load.rampDuration: 30
+  profile.load.holdDuration: 120
+  profile.load.thinkTime: 1000
+  profile.load.requestPause: 500
+  profile.stress.warmupUsers: 8
+  profile.stress.maxUsers: 40
+  profile.stress.rampDuration: 60
+  profile.stress.holdDuration: 90
+  profile.stress.thinkTime: 800
+  profile.stress.requestPause: 350
+  profile.soak.warmupUsers: 5
+  profile.soak.maxUsers: 16
+  profile.soak.rampDuration: 45
+  profile.soak.holdDuration: 1800
+  profile.soak.thinkTime: 1200
+  profile.soak.requestPause: 800
+  profile.spike.warmupUsers: 5
+  profile.spike.maxUsers: 60
+  profile.spike.rampDuration: 10
+  profile.spike.holdDuration: 20
+  profile.spike.thinkTime: 600
+  profile.spike.requestPause: 250

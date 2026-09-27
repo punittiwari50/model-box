@@ -1,0 +1,44 @@
+name: Ollama Compose Validation
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ollama-compose-validate.yml'
+      - 'infra/ollama/docker/**'
+      - 'docs/**'
+      - 'README.md'
+  pull_request:
+    paths:
+      - '.github/workflows/ollama-compose-validate.yml'
+      - 'infra/ollama/docker/**'
+      - 'docs/**'
+      - 'README.md'
+
+jobs:
+  validate-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate GPU Docker Compose configuration
+        run: docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml config
+
+      - name: Validate CPU Docker Compose configuration
+        run: docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/docker/compose.cpu.yaml config
+
+      - name: Start CPU Ollama runtime
+        run: |
+          cd infra/ollama/docker
+          docker compose --env-file ollama-cpu.env -f compose.cpu.yaml up -d --wait --wait-timeout 180
+
+      - name: Smoke test Ollama API
+        run: |
+          curl -fsS http://127.0.0.1:11435/api/tags > /tmp/ollama-tags.json
+          test -s /tmp/ollama-tags.json
+
+      - name: Stop and cleanup runtime
+        if: always()
+        run: |
+          cd infra/ollama/docker
+          docker compose --env-file ollama-cpu.env -f compose.cpu.yaml down -v --remove-orphans

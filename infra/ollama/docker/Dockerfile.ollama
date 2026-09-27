@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1.7
+ARG BASE_IMAGE=ollama/ollama:latest
+FROM ${BASE_IMAGE}
+
+USER root
+
+RUN mkdir -p /models \
+	&& chmod 755 /models
+
+ENV OLLAMA_MODELS=/models
+
+EXPOSE 11434
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD ollama list >/dev/null 2>&1 || exit 1
+
+ENTRYPOINT ["ollama"]
+CMD ["serve"]

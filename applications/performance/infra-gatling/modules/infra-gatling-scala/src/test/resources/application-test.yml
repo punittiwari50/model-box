@@ -1,0 +1,39 @@
+# Test environment configuration
+ollama:
+  baseUrl: http://127.0.0.1:11435
+  model: auto
+  timeout: 30
+  retries: 1
+
+gatling:
+  warmupUsers: 2
+  maxUsers: 5
+  rampDuration: 10
+  holdDuration: 45
+  thinkTime: 100
+  timeout: 10
+  requestPause: 200
+  profile.load.warmupUsers: 2
+  profile.load.maxUsers: 5
+  profile.load.rampDuration: 10
+  profile.load.holdDuration: 30
+  profile.load.thinkTime: 100
+  profile.load.requestPause: 200
+  profile.stress.warmupUsers: 2
+  profile.stress.maxUsers: 10
+  profile.stress.rampDuration: 15
+  profile.stress.holdDuration: 20
+  profile.stress.thinkTime: 80
+  profile.stress.requestPause: 120
+  profile.soak.warmupUsers: 2
+  profile.soak.maxUsers: 4
+  profile.soak.rampDuration: 10
+  profile.soak.holdDuration: 120
+  profile.soak.thinkTime: 150
+  profile.soak.requestPause: 250
+  profile.spike.warmupUsers: 2
+  profile.spike.maxUsers: 12
+  profile.spike.rampDuration: 8
+  profile.spike.holdDuration: 15
+  profile.spike.thinkTime: 60
+  profile.spike.requestPause: 100

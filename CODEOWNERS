@@ -1,0 +1,7 @@
+# Default ownership for the repository.
+* @punit
+
+# Runtime and infrastructure ownership.
+/infra/ @punit
+/docs/ @punit
+/README.md @punit

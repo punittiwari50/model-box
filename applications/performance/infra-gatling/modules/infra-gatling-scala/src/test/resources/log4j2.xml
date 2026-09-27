@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="60">
+  <Properties>
+    <Property name="logPattern">%d{ISO8601} %-5p [%t] %c{1.} - %m%n</Property>
+  </Properties>
+
+  <Appenders>
+    <RollingRandomAccessFile name="File"
+                             fileName="target/gatling.log"
+                             filePattern="target/gatling-%d{yyyy-MM-dd}-%i.log.gz">
+      <PatternLayout pattern="${logPattern}"/>
+      <Policies>
+        <SizeBasedTriggeringPolicy size="20 MB"/>
+      </Policies>
+      <DefaultRolloverStrategy max="5"/>
+    </RollingRandomAccessFile>
+  </Appenders>
+
+  <Loggers>
+    <Root level="warn">
+      <AppenderRef ref="File"/>
+    </Root>
+  </Loggers>
+</Configuration>

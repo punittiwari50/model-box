@@ -1,0 +1,39 @@
+# Development environment configuration
+ollama:
+  baseUrl: http://ollama-dev.internal:11434
+  model: mistral
+  timeout: 90
+  retries: 5
+
+gatling:
+  warmupUsers: 10
+  maxUsers: 50
+  rampDuration: 60
+  holdDuration: 300
+  thinkTime: 500
+  timeout: 60
+  requestPause: 300
+  profile.load.warmupUsers: 10
+  profile.load.maxUsers: 50
+  profile.load.rampDuration: 60
+  profile.load.holdDuration: 180
+  profile.load.thinkTime: 500
+  profile.load.requestPause: 300
+  profile.stress.warmupUsers: 12
+  profile.stress.maxUsers: 90
+  profile.stress.rampDuration: 90
+  profile.stress.holdDuration: 120
+  profile.stress.thinkTime: 400
+  profile.stress.requestPause: 200
+  profile.soak.warmupUsers: 8
+  profile.soak.maxUsers: 40
+  profile.soak.rampDuration: 60
+  profile.soak.holdDuration: 3600
+  profile.soak.thinkTime: 700
+  profile.soak.requestPause: 450
+  profile.spike.warmupUsers: 10
+  profile.spike.maxUsers: 120
+  profile.spike.rampDuration: 12
+  profile.spike.holdDuration: 30
+  profile.spike.thinkTime: 300
+  profile.spike.requestPause: 150

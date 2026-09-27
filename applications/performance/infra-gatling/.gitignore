@@ -1,0 +1,30 @@
+# Maven build
+target/
+.m2/
+*.jar
+*.war
+
+# Gradle build
+build/
+.gradle/
+*.class
+
+# Gatling simulation results
+results/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment-specific overrides (keep defaults, exclude local overrides)
+# Uncomment below if you have local-only config files:
+# application-local.yml
+# application-local.properties

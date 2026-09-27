@@ -1,0 +1,108 @@
+name: performance-model-box-test
+
+services:
+  gatling-service:
+    container_name: ${GATLING_CONTAINER_NAME}
+    image: ${GATLING_IMAGE}
+    build:
+      context: ${GATLING_BUILD_CONTEXT}
+      dockerfile: ${GATLING_DOCKERFILE}
+    init: ${GATLING_INIT}
+    restart: ${GATLING_RESTART}
+    user: "${GATLING_USER}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 512
+    stop_grace_period: 60s
+    working_dir: ${GATLING_WORKDIR}
+    env_file:
+      - ./.env
+      - ./performance-local.env
+    environment:
+      APP_PROFILE: ${APP_PROFILE}
+      GATLING_RUNTIME_PROFILE: ${GATLING_RUNTIME_PROFILE}
+      GATLING_SIMULATIONS: ${GATLING_SIMULATIONS}
+      OLLAMA_BASE_URL: http://${OLLAMA_SERVICE_NAME}:${OLLAMA_SERVICE_PORT}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      GATLING_WARMUP_USERS: ${GATLING_WARMUP_USERS}
+      GATLING_MAX_USERS: ${GATLING_MAX_USERS}
+      GATLING_JVM_ARGS: ${GATLING_JVM_ARGS}
+      MAVEN_OPTS: ${MAVEN_OPTS}
+      MAVEN_REPO_CONTAINER_PATH: ${MAVEN_REPO_CONTAINER_PATH}
+      REPORTS_DIR: ${REPORTS_DIR}
+    volumes:
+      - type: volume
+        source: report-data
+        target: ${REPORTS_DIR}
+      - type: volume
+        source: maven-repo-data
+        target: ${MAVEN_REPO_CONTAINER_PATH}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 10 http://${OLLAMA_SERVICE_NAME}:${OLLAMA_SERVICE_PORT}/api/tags >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - model-box-net
+    logging:
+      driver: ${LOG_DRIVER}
+      options:
+        max-size: ${LOG_MAX_SIZE}
+        max-file: "${LOG_MAX_FILE}"
+
+  report-service:
+    container_name: ${REPORT_CONTAINER_NAME}
+    image: ${REPORT_IMAGE}
+    build:
+      context: ${REPORT_BUILD_CONTEXT}
+      dockerfile: ${REPORT_DOCKERFILE}
+    depends_on:
+      gatling-service:
+        condition: service_healthy
+    restart: ${REPORT_RESTART}
+    user: "10002:10002"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10002,gid=10002
+      - /var/cache/nginx:rw,noexec,nosuid,nodev,size=64m,uid=10002,gid=10002
+      - /run/nginx:rw,noexec,nosuid,nodev,size=16m,uid=10002,gid=10002
+    pids_limit: 256
+    stop_grace_period: 30s
+    env_file:
+      - ./.env
+      - ./performance-local.env
+    ports:
+      - "${REPORT_UI_HOST_PORT}:${REPORT_UI_CONTAINER_PORT}"
+    volumes:
+      - report-data:${REPORTS_HTML_TARGET}:rw
+    healthcheck:
+      test: ["CMD-SHELL", "wget -S -O /dev/null http://127.0.0.1:8080/ 2>&1 | grep -Eq 'HTTP/[0-9.]+ (200|404)' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - model-box-net
+    logging:
+      driver: ${LOG_DRIVER}
+      options:
+        max-size: ${LOG_MAX_SIZE}
+        max-file: "${LOG_MAX_FILE}"
+
+networks:
+  model-box-net:
+    name: ${SHARED_NETWORK_NAME}
+    external: true
+
+volumes:
+  report-data:
+    driver: local
+  maven-repo-data:
+    driver: local

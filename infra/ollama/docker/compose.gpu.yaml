@@ -1,0 +1,80 @@
+# Ollama GPU Runtime Compose Configuration
+# 
+# Model Storage & Persistence:
+#   - Host volume: C:/DEV/WSB/CONFIG/volume/volume-docker_ollama (consolidated root)
+#   - Container mount: /models (read-write, bidirectional)
+#   - All 11 model manifests are stored in: /manifests/registry.ollama.ai/library/
+#   - Model blob data is stored in: /blobs/
+#   - Metadata is stored in: /metadata/
+#
+# Model Discovery & Visibility:
+#   - All 11 models are discoverable via 'ollama list' in this container
+#   - Models: tinyllama, qwen3, llama3.1, qwen3-coder, gemma4, phi4,
+#     llama3.2-vision, nemotron3, qwen2.5vl, deepseek-r1, minicpm-v
+#
+# Persistence & Synchronization:
+#   - read_only: false enables bidirectional read-write persistence
+#   - New models pulled via 'ollama pull <model>' persist to the host volume
+#   - Models remain visible after container restart or CPU/GPU mode switch
+#   - All model artifacts (manifests, blobs, metadata) stay at root level
+#
+# GPU Mode:
+#   - gpus: all exposes all GPU devices to the container
+#   - NVIDIA_VISIBLE_DEVICES=0 (first GPU device)
+#   - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+name: model-box
+
+services:
+  ollama:
+    container_name: ollama-model-service-gpu
+    image: ${COMPOSE_OLLAMA_IMAGE:-ollama/ollama:latest}
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    gpus: all
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    shm_size: ${COMPOSE_SHM_SIZE:-2g}
+    cpus: ${COMPOSE_CPUS:-6}
+    mem_limit: ${COMPOSE_MEM_LIMIT:-24g}
+    environment:
+      OLLAMA_HOST: ${OLLAMA_HOST:-0.0.0.0:11434}
+      OLLAMA_MODELS: /models
+      OLLAMA_NO_CLOUD: ${OLLAMA_NO_CLOUD:-true}
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-1}
+      OLLAMA_MAX_QUEUE: ${OLLAMA_MAX_QUEUE:-128}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-8192}
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-0}
+      NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}
+    ports:
+      - "${COMPOSE_BIND_IP:-127.0.0.1}:${COMPOSE_HOST_PORT:-11435}:${COMPOSE_CONTAINER_PORT:-11434}"
+    volumes:
+      - type: bind
+        source: ${COMPOSE_OLLAMA_MODELS_HOST:-C:/DEV/WSB/CONFIG/volume/volume-docker_ollama}
+        target: /models
+        bind:
+          create_host_path: true
+        read_only: false
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        mode: "non-blocking"
+        max-buffer-size: "4m"

@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1.7
+FROM openjdk:27-ea-jdk-slim
+
+ARG APP_USER=modelbox
+ARG APP_UID=1500
+ARG APP_GID=1500
+ARG MAVEN_REPO_PATH=/home/modelbox/.m2/repository
+ARG GRADLE_VERSION=8.10.2
+
+ENV MAVEN_CONFIG=/home/modelbox/.m2
+ENV MAVEN_REPO_PATH=${MAVEN_REPO_PATH}
+ENV MAVEN_OPTS="--sun-misc-unsafe-memory-access=allow"
+ENV GRADLE_HOME=/opt/gradle/gradle-${GRADLE_VERSION}
+ENV PATH=${GRADLE_HOME}/bin:${PATH}
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends maven ca-certificates curl unzip \
+    && mkdir -p /opt/gradle \
+    && curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
+    && unzip -q /tmp/gradle.zip -d /opt/gradle \
+    && ln -sf "/opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle" /usr/local/bin/gradle \
+    && rm -f /tmp/gradle.zip \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /workspace ${MAVEN_REPO_PATH} /reports/runs /reports/jfr \
+    && (getent group ${APP_USER} >/dev/null 2>&1 || groupadd --system --gid ${APP_GID} ${APP_USER}) \
+    && (id -u ${APP_USER} >/dev/null 2>&1 || useradd --system --uid ${APP_UID} --gid ${APP_GID} --home-dir /home/${APP_USER} --create-home ${APP_USER}) \
+    && chown -R ${APP_USER}:${APP_USER} /home/${APP_USER} /workspace /reports
+
+WORKDIR /workspace
+
+COPY --chown=${APP_USER}:${APP_USER} pom.xml ./
+COPY --chown=${APP_USER}:${APP_USER} build.gradle.kts ./
+COPY --chown=${APP_USER}:${APP_USER} build-jdk21.gradle.kts ./
+COPY --chown=${APP_USER}:${APP_USER} settings.gradle.kts ./
+COPY --chown=${APP_USER}:${APP_USER} gradle.properties ./
+COPY --chown=${APP_USER}:${APP_USER} modules/infra-gatling-java/pom.xml ./modules/infra-gatling-java/pom.xml
+COPY --chown=${APP_USER}:${APP_USER} modules/infra-gatling-scala/pom.xml ./modules/infra-gatling-scala/pom.xml
+
+COPY --chown=${APP_USER}:${APP_USER} modules ./modules
+COPY --chown=${APP_USER}:${APP_USER} config/infra-iac/scripts/run-gatling.sh /usr/local/bin/run-gatling.sh
+RUN chmod +x /usr/local/bin/run-gatling.sh
+
+USER ${APP_USER}
+
+CMD ["/usr/local/bin/run-gatling.sh"]

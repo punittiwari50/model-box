@@ -1,0 +1,39 @@
+# Production environment configuration
+ollama:
+  baseUrl: https://ollama-prod.internal:11434
+  model: llama3.2-13b
+  timeout: 120
+  retries: 10
+
+gatling:
+  warmupUsers: 20
+  maxUsers: 100
+  rampDuration: 120
+  holdDuration: 600
+  thinkTime: 200
+  timeout: 120
+  requestPause: 100
+  profile.load.warmupUsers: 20
+  profile.load.maxUsers: 100
+  profile.load.rampDuration: 120
+  profile.load.holdDuration: 240
+  profile.load.thinkTime: 200
+  profile.load.requestPause: 100
+  profile.stress.warmupUsers: 25
+  profile.stress.maxUsers: 180
+  profile.stress.rampDuration: 180
+  profile.stress.holdDuration: 180
+  profile.stress.thinkTime: 150
+  profile.stress.requestPause: 80
+  profile.soak.warmupUsers: 18
+  profile.soak.maxUsers: 80
+  profile.soak.rampDuration: 120
+  profile.soak.holdDuration: 7200
+  profile.soak.thinkTime: 300
+  profile.soak.requestPause: 150
+  profile.spike.warmupUsers: 20
+  profile.spike.maxUsers: 250
+  profile.spike.rampDuration: 15
+  profile.spike.holdDuration: 30
+  profile.spike.thinkTime: 100
+  profile.spike.requestPause: 60

@@ -1,0 +1,57 @@
+name: Gatling Dependency Security
+
+on:
+  push:
+    paths:
+      - '.github/workflows/gatling-dependency-security.yml'
+      - 'applications/performance/infra-gatling/**'
+  pull_request:
+    paths:
+      - '.github/workflows/gatling-dependency-security.yml'
+      - 'applications/performance/infra-gatling/**'
+
+jobs:
+  owasp-dependency-check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        provider:
+          - id: scala-jdk27
+            java-version: '27'
+            module-path: modules/infra-gatling-scala
+          - id: java-jdk27
+            java-version: '27'
+            module-path: modules/infra-gatling-java
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.provider.java-version }}
+          cache: maven
+
+      - name: Dependency check for Maven provider mapping
+        run: >
+          mvn -B -ntp
+          -f applications/performance/infra-gatling/pom.xml
+          -pl ${{ matrix.provider.module-path }}
+          -am
+          org.owasp:dependency-check-maven:13.0.0:check
+          -Dformats=HTML,JSON
+          -DfailBuildOnCVSS=0
+
+      - name: Upload dependency check reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatling-dependency-check-reports-${{ matrix.provider.id }}
+          path: |
+            applications/performance/infra-gatling/modules/infra-gatling-scala/target/dependency-check-report.html
+            applications/performance/infra-gatling/modules/infra-gatling-scala/target/dependency-check-report.json
+            applications/performance/infra-gatling/modules/infra-gatling-java/target/dependency-check-report.html
+            applications/performance/infra-gatling/modules/infra-gatling-java/target/dependency-check-report.json
+          if-no-files-found: warn
