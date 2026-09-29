@@ -2,7 +2,7 @@ name: performance-model-box-test
 
 services:
   gatling-service:
-    container_name: ${GATLING_CONTAINER_NAME}
+    container_name: ${GATLING_CONTAINER_NAME}-${GATLING_RUNTIME_PROFILE}
     image: ${GATLING_IMAGE}
     build:
       context: ${GATLING_BUILD_CONTEXT}

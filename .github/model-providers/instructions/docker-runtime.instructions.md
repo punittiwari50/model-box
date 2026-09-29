@@ -5,8 +5,11 @@ This repository must prefer containerized execution for software runtime tasks.
 ## Required
 - Use Docker for Python, Node.js, Java/JDK, Maven, Gradle, and shell-based project tasks.
 - Mount the repo into the container with `-v "${PWD}:/workspace" -w /workspace`.
-- Never bind-mount a host home directory such as `/home/<username>`, `C:\Users\<username>`, or `/Users/<username>` into a container for repo work.
-- Use official project images such as `python:3.13-slim`, `node:24-alpine`, `eclipse-temurin:27-jdk`, `maven:3.9-eclipse-temurin-27`, and `gradle:8.10-jdk27` for reproducible execution. Use JDK21 images only when the jdk21 suffix build files are explicitly requested.
+- Never bind-mount a host home directory into a container for repo work.
+- Prohibited examples include `<HOST_HOME_POSIX>`, `<HOST_HOME_WINDOWS>`, and `<HOST_HOME_MACOS>`.
+- Use official project images for reproducible execution.
+- Recommended defaults: `python:3.13-slim`, `node:24-alpine`, `eclipse-temurin:27-jdk`, `maven:3.9-eclipse-temurin-27`, and `gradle:8.10-jdk27`.
+- Use JDK21 images only when jdk21-suffix build files are explicitly requested.
 - Run scripts, dependency installs, and validations inside the container rather than on the host.
 - Use a virtual environment inside the Python container session for Python work.
 - Use project-local Node/npm execution inside the Node container session.
@@ -169,7 +172,7 @@ docker run --rm -v "${PWD}:/workspace" -w /workspace gradle:8.10-jdk27 gradle -v
 If the user asks `verify git`, `commit`, `commit to remote`, `push`, or `push to remote`, run this mandatory checklist before any commit or push.
 
 ### Mandatory checks
-- Scan all tracked and staged files for absolute physical host paths (for example `C:\`, `/Users/`, `/home/`, `/var/`, `D:\`).
+- Scan all tracked and staged files for absolute physical host paths (for example `<WINDOWS_ABS_PATH_PREFIX>`, `<POSIX_HOME_PREFIX>`, or `<POSIX_SYSTEM_PREFIX>`).
 - Do not commit files containing secrets, keys, tokens, credentials, or private endpoints even if modified.
 - Replace secret values with placeholders before commit (for example `REDACTED_SECRET`).
 - Replace physical machine-specific paths with neutral placeholders and use `/tmp/...` paths in examples when a filesystem path is required.
@@ -189,7 +192,7 @@ If the user asks `verify git`, `commit`, `commit to remote`, `push`, or `push to
 ### Pre-push command checklist (manual)
 ```bash
 # 1) Check absolute paths
-git grep -nE '([A-Za-z]:\\\\|/Users/|/home/|/var/|/private/)'
+git grep -nE '<ABSOLUTE_PATH_PATTERN>'
 
 # 2) Check likely secrets
 git grep -nEi '(password|secret|token|apikey|api_key|private key|BEGIN [A-Z ]*PRIVATE KEY)'

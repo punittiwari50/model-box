@@ -32,8 +32,11 @@ abstract class OllamaJavaSimulationBase extends Simulation {
     protected OllamaJavaSimulationBase(String profileName, String runLabel) {
         final String runtimeTaggedLabel = runLabel + "-java";
         this.profile = GatlingConfig.resolveProfile(profileName);
-        String resolvedModelName = OllamaConfig.model();
-        LOGGER.info("[gatling:{}] Initializing simulation profile={}, runLabel={}, baseUrl={}, resolvedModel={}", MODULE_NAME, profileName, runtimeTaggedLabel, baseUrl, resolvedModelName);
+                final String resolvedModelName = OllamaConfig.model();
+                final String modelTaggedLabel = runtimeTaggedLabel + " [model=" + resolvedModelName + "]";
+                LOGGER.info("[gatling:{}] Initializing simulation profile={}, runLabel={}, baseUrl={}, resolvedModel={}", MODULE_NAME, profileName, runtimeTaggedLabel, baseUrl, resolvedModelName);
+                LOGGER.info("[gatling:{}] [runtime=java] [model={}] [test={}] [simulation={}] START", MODULE_NAME, resolvedModelName, profileName, runtimeTaggedLabel);
+
         warmupWithVirtualThreadClient();
 
         HttpProtocolBuilder httpProtocol = http
@@ -43,17 +46,17 @@ abstract class OllamaJavaSimulationBase extends Simulation {
                 .shareConnections()
                 .warmUp(baseUrl + "/api/tags");
 
-        ScenarioBuilder tagsScenario = scenario(runtimeTaggedLabel + " - tags")
+        ScenarioBuilder tagsScenario = scenario(modelTaggedLabel + " - tags")
                 .exec(
-                        http("list models")
+                        http("list models [model=" + resolvedModelName + "]")
                                 .get("/api/tags")
                                 .check(status().is(200))
                 )
                 .pause(Duration.ofMillis(profile.requestPauseMillis()));
 
-        ScenarioBuilder generateScenario = scenario(runtimeTaggedLabel + " - generate")
+        ScenarioBuilder generateScenario = scenario(modelTaggedLabel + " - generate")
                 .exec(
-                        http("generate prompt")
+                        http("generate prompt [model=" + resolvedModelName + "]")
                                 .post("/api/generate")
                                 .asJson()
                                 .body(StringBody("{\"model\":\"" + resolvedModelName + "\",\"prompt\":\"Say hi in one short sentence.\",\"stream\":false,\"options\":{\"num_predict\":16}}"))

@@ -158,7 +158,11 @@ docker exec ollama-model-service ollama list
 docker exec ollama-model-service ollama pull tinyllama:latest
 
 # 3) Start performance stack
-docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
+docker compose \
+  --env-file infra/performance/infra-gatling/docker/.env \
+  --env-file infra/performance/infra-gatling/docker/performance-local.env \
+  -f infra/performance/infra-gatling/docker/compose.performance.yaml \
+  up -d --build
 
 # 4) Watch Gatling execution
 docker logs -f gatling-service
@@ -250,9 +254,11 @@ For each profile, configure:
 
 ### Model Discovery
 
-When `ollama.model=auto`, the harness queries `/api/tags` and uses the first available model tag for the run. That keeps the test configuration model-agnostic while still binding the run to the model that is actually installed in the runtime.
+The harness queries `/api/tags`, discovers all available model tags, and runs the configured simulation suite for each model individually. This ensures performance testing covers every model currently installed in the runtime.
 
-Multiple simulations can be run together by setting `GATLING_SIMULATIONS` to a comma-separated list. If it is not set, the harness falls back to `GATLING_SIMULATION`.
+If `OLLAMA_MODEL` is set to a single model value, it is ignored intentionally so the run still tests all discovered models.
+
+Multiple simulations can be run together by setting `GATLING_SIMULATIONS` to a comma-separated list. If it is not set, the harness falls back to the runtime defaults (load, stress, soak, spike).
 
 Default multi-simulation execution list:
 

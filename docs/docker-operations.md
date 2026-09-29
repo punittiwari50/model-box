@@ -1,6 +1,7 @@
 # Docker Operations for Ollama
 
-Manual-first policy: all steps in this guide are direct terminal procedures and do not require assistant or token-driven automation.
+Execution policy: all steps in this guide are direct terminal procedures and are tool-neutral.
+They apply equally to human operators, scripted automation, and AI-assisted workflows.
 
 ## 1. Execution Context
 
@@ -160,371 +161,60 @@ Current available models (consolidated 2026-09-27):
 | deepseek-r1:7b | 4.7 GB | ✓ Available |
 | minicpm-v:latest | 5.5 GB | ✓ Available |
 
-## 4. Complete Lifecycle Workflows
+## 3a. One-click repo orchestration
 
-### 4.1 Quick Start (GPU Mode)
-
-Execution context:
-
-```bash
-cd infra/ollama/docker
-```
-
-Start GPU Ollama runtime with all 11 models immediately available:
-
-```bash
-docker compose --env-file ollama-gpu.env -f compose.gpu.yaml up -d --build --wait --wait-timeout 180
-```
-
-Verify all models are accessible:
-
-```bash
-docker compose --env-file ollama-gpu.env -f compose.gpu.yaml exec -T ollama ollama list
-```
-
-Verify bidirectional R/W mount:
-
-```bash
-docker compose --env-file ollama-gpu.env -f compose.gpu.yaml exec -T ollama bash -c "mount | grep models"
-```
-
-Check API health:
-
-```bash
-curl -fsS http://localhost:11435/api/tags
-```
-
-### 4.2 Switch to CPU Mode (Runtime Mode Change)
-
-Stop GPU container:
-
-```bash
-docker compose --env-file ollama-gpu.env -f compose.gpu.yaml down
-```
-
-Start CPU container (models remain accessible on host):
-
-```bash
-docker compose --env-file ollama-cpu.env -f compose.cpu.yaml up -d --build --wait --wait-timeout 180
-```
-
-Verify all models are still accessible:
-
-```bash
-docker compose --env-file ollama-cpu.env -f compose.cpu.yaml exec -T ollama ollama list
-```
-
-### 4.3 Complete Removal (Containers, Images, Volumes)
+Use the repository-level orchestrator when you want one PowerShell entry point that discovers and manages all Compose stacks across the repo.
 
 Execution context:
-
-```bash
-cd infra/ollama/docker
-```
-
-**Remove GPU stack completely:**
-
-```bash
-docker compose --env-file ollama-gpu.env -f compose.gpu.yaml down -v --remove-orphans
-```
-
-**Remove CPU stack completely:**
-
-```bash
-docker compose --env-file ollama-cpu.env -f compose.cpu.yaml down -v --remove-orphans
-```
-
-**Remove Ollama images:**
-
-```bash
-docker rmi -f $(docker images --filter "reference=ollama/*" -q)
-```
-
-**Remove Ollama volumes (if any):**
-
-```bash
-docker volume ls --filter "name=*ollama*" -q | xargs -r docker volume rm -f
-```
-
-**Verify complete removal:**
-
-```bash
-docker ps -a --filter "name=ollama*"
-docker images --filter "reference=ollama*"
-docker volume ls --filter "name=*ollama*"
-```
-
-### 4.4 Rebuild and Cleanup Checklist (Repo-wide)
-
-Execution context for this section:
-
-```bash
-cd model-box
-```
-
-Use this checklist when you need a clean rebuild of all containers in this repository and want to remove unwanted Docker artifacts (images, volumes, networks, and build cache).
-
-#### Step 1: Remove all stacks
-
-- [ ] Stop and remove performance stack (containers, volumes, orphans):
-
-```bash
-docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml down -v --remove-orphans
-```
-
-- [ ] Stop and remove Ollama GPU stack (containers, volumes, orphans):
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml down -v --remove-orphans
-```
-
-- [ ] Stop and remove Ollama CPU stack (containers, volumes, orphans):
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/docker/compose.cpu.yaml down -v --remove-orphans
-```
-
-#### Step 2: Remove images and cleanup
-
-- [ ] Remove all Ollama images:
-
-```bash
-docker rmi -f $(docker images --filter "reference=ollama/*" -q) 2>/dev/null
-```
-
-- [ ] Remove all Gatling images:
-
-```bash
-docker rmi -f $(docker images --filter "reference=*gatling*" -q) 2>/dev/null
-```
-
-- [ ] Remove all report images:
-
-```bash
-docker rmi -f $(docker images --filter "reference=*report*" -q) 2>/dev/null
-```
-
-- [ ] Remove unused containers:
-
-```bash
-docker container prune -f
-```
-
-- [ ] Remove dangling images:
-
-```bash
-docker image prune -f
-```
-
-- [ ] Remove unused volumes:
-
-```bash
-docker volume prune -f
-```
-
-- [ ] Remove unused networks:
-
-```bash
-docker network prune -f
-```
-
-- [ ] Remove BuildKit cache:
-
-```bash
-docker buildx prune -a -f
-```
-
-#### Step 3: Rebuild all stacks
-
-- [ ] Rebuild and start Ollama GPU stack:
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml up -d --build --wait --wait-timeout 180
-```
-
-- [ ] Rebuild and start Ollama CPU stack (optional, for testing):
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/docker/compose.cpu.yaml up -d --build --wait --wait-timeout 180
-```
-
-- [ ] Rebuild and start performance stack:
-
-```bash
-docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build --wait --wait-timeout 180
-```
-
-#### Step 4: Verify all stacks
-
-- [ ] Verify Ollama GPU stack is running:
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml ps
-```
-
-- [ ] Verify all models are accessible:
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml exec -T ollama ollama list
-```
-
-- [ ] Verify Ollama health (HTTP 200 expected):
-
-```bash
-curl -fsS http://localhost:11435/api/tags | head -c 100
-```
-
-- [ ] Verify performance stack is running:
-
-```bash
-docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml ps
-```
-
-- [ ] Verify report service health:
-
-```bash
-curl -fsS http://localhost:8080/ | head -c 100
-```
-
-- [ ] Remove unused containers:
-
-```bash
-docker container prune -f
-```
-
-- [ ] Remove unwanted images (dangling first, then all unused):
-
-```bash
-docker image prune -f
-docker image prune -a -f
-```
-
-- [ ] Remove unused volumes:
-
-```bash
-docker volume prune -f
-```
-
-- [ ] Remove unused networks:
-
-```bash
-docker network prune -f
-```
-
-- [ ] Remove BuildKit/buildx cache:
-
-```bash
-docker buildx prune -a -f
-docker builder prune -a -f
-```
-
-- [ ] Rebuild and start Ollama GPU stack:
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml up -d --build
-```
-
-- [ ] Rebuild and start Ollama CPU stack:
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/docker/compose.cpu.yaml up -d --build
-```
-
-- [ ] Rebuild and start performance stack:
-
-```bash
-docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
-```
-
-- [ ] Verify both Ollama stacks are running:
-
-```bash
-docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml ps
-docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/docker/compose.cpu.yaml ps
-docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml ps
-```
-
-- [ ] Verify runtime health:
-
-```bash
-curl -fsS http://localhost:11435/api/tags
-curl -fsS http://localhost:8080/
-```
-
-GPU mode note:
-
-1. Use `compose.gpu.yaml` when the host has NVIDIA Container Toolkit configured.
-2. Use `compose.cpu.yaml` as the fallback when GPU access is unavailable or not desired.
-
-Optional aggressive cleanup (global):
-
-```bash
-docker system prune -a --volumes -f
-```
-
-Use the aggressive cleanup only when you intentionally want to remove all unused Docker resources on the machine, not only resources related to this repository.
-
-## 5. Bulk Model Lifecycle Operations
-
-### 5.1 PowerShell
 
 ```powershell
-$models = @(
-  "minicpm-v:latest",
-  "deepseek-r1:7b",
-  "qwen2.5vl:3b",
-  "nemotron3:33b",
-  "llama3.2-vision:latest",
-  "phi4:latest",
-  "gemma4:e4b",
-  "qwen3-coder:latest",
-  "llama3.1:8b",
-  "qwen3:8b"
-)
-$models | ForEach-Object { docker compose --env-file ollama.env -f compose.ollama.yaml exec -T ollama ollama pull $_ }
-docker compose --env-file ollama.env -f compose.ollama.yaml exec -T ollama ollama list
+# Run from the project root itself
+./Deploy-All-Compose.ps1
 ```
 
-### 5.2 Linux/macOS
+Default behavior:
 
-```bash
-models=(
-  minicpm-v:latest
-  deepseek-r1:7b
-  qwen2.5vl:3b
-  nemotron3:33b
-  llama3.2-vision:latest
-  phi4:latest
-  gemma4:e4b
-  qwen3-coder:latest
-  llama3.1:8b
-  qwen3:8b
-)
-for m in "${models[@]}"; do docker compose --env-file ollama.env -f compose.ollama.yaml exec -T ollama ollama pull "$m"; done
-docker compose --env-file ollama.env -f compose.ollama.yaml exec -T ollama ollama list
+- Starts all discovered Compose files under the repo by building and then bringing them up
+- Logs the exact docker command used for each stack before execution
+- Writes detailed operational logs to `logs/docker-compose-orchestrator-<timestamp>.log`
+- Produces a final summary table showing the result of each stack execution
+- Supports selective execution with `-Stacks` and actions such as `Up`, `Down`, `Build`, `BuildAndUp`, `Status`, `Logs`, and `Config`
+
+Common examples:
+
+```powershell
+# Default: start all stacks
+./Deploy-All-Compose.ps1
+
+# Only Ollama stacks
+./Deploy-All-Compose.ps1 -Stacks 'ollama'
+
+# Only performance stack
+./Deploy-All-Compose.ps1 -Stacks 'performance'
+
+# Build and then start all stacks
+./Deploy-All-Compose.ps1 -Action BuildAndUp -Build
+
+# Stop everything
+./Deploy-All-Compose.ps1 -Action Down
+
+# Stream logs for all stacks
+./Deploy-All-Compose.ps1 -Action Logs -FollowLogs
 ```
 
-## 6. Model Version Governance
+Use the single orchestrator for repo-wide operations and keep direct compose commands for stack-specific troubleshooting or precise runtime validation.
 
-1. Re-run `ollama pull <model:tag>` to refresh the same tag.
-2. Prefer pinned tags (`:7b`, `:3b`, `:e4b`) for reproducibility.
-3. Use `:latest` only when rolling updates are acceptable.
+## 4. Runbook and Policy Extensions
 
-## 7. Exposure policy
+The deep operational procedures were moved to a dedicated runbook to keep this core document concise and standards-focused.
 
-1. Default exposure is localhost-only (`127.0.0.1`) for safer development.
-2. For LAN access, set `COMPOSE_BIND_IP=0.0.0.0` in `.env` and restart.
+- [Docker Operations Runbook](./docker-operations-runbook.md)
 
-## 8. Runtime user policy
+Use the runbook for the following workflows:
 
-1. All Compose services in this repository must run as non-root users.
-2. Root user runtime (`0:0`) is forbidden for steady-state service execution.
-3. When adding a new service, define an explicit non-root `user` mapping in Compose.
-
-Current UID:GID mappings:
-
-| Stack | Service | UID:GID |
-|---|---|---|
-| `infra/ollama/docker/compose.ollama.yaml` | `ollama` | `10001:10001` |
-| `infra/performance/infra-gatling/docker/compose.performance.yaml` | `gatling-service` | `1500:1500` |
-| `infra/performance/infra-gatling/docker/compose.performance.yaml` | `report-service` | `10002:10002` |
+1. Quick start and mode switching (GPU and CPU).
+2. Complete teardown and cleanup workflows.
+3. Repo-wide rebuild and verification checklist.
+4. Bulk model pull/update procedures (PowerShell and Linux/macOS).
+5. Model version governance policy.
+6. Exposure policy and runtime user policy.

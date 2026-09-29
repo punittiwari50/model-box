@@ -5,10 +5,10 @@
 | Endpoint | Purpose | Command example | Output |
 | --- | --- | --- | --- |
 | `/api/tags` | Health and model inventory | `curl -fsS http://localhost:11435/api/tags` | JSON with `models` |
-| `/api/generate` (text) | Single-turn text generation | `curl -fsS http://localhost:11435/api/generate -H "Content-Type: application/json" -d '{"model":"deepseek-r1:7b","prompt":"Give one line summary of ModelBox.","stream":false}'` | JSON with `response` |
+| `/api/generate` (text) | Single-turn text generation | See Section 6.1 template | JSON with `response` |
 | `/api/generate` (image) | Vision prompt with image payload | Not available locally (install a vision model first, then call `/api/generate` with `images`) | JSON with image-grounded `response` |
-| `/api/chat` | Multi-turn conversation | `curl -fsS http://localhost:11435/api/chat -H "Content-Type: application/json" -d '{"model":"deepseek-r1:7b","messages":[{"role":"user","content":"Summarize ModelBox in one line"}],"stream":false}'` | JSON with assistant message |
-| `/api/embeddings` | Vector generation for retrieval | `curl -fsS http://localhost:11435/api/embeddings -H "Content-Type: application/json" -d '{"model":"<embedding-model>","prompt":"ModelBox runtime baseline"}'` | JSON vector/embedding payload |
+| `/api/chat` | Multi-turn conversation | See Section 6.2 template | JSON with assistant message |
+| `/api/embeddings` | Vector generation for retrieval | See Section 6.3 template | JSON vector/embedding payload |
 
 ## 2. Model-to-Endpoint Matrix
 
@@ -39,7 +39,10 @@ Source: `GET http://127.0.0.1:11435/api/tags`
 
 ## 3. Available Ollama Models and Download Commands
 
-The table below lists the model tags currently available in the local Ollama registry and the corresponding `ollama pull` commands. The Ollama runtime itself is published as the official Docker image `ollama/ollama`, which can be pulled with `docker pull ollama/ollama:latest`.
+The table below lists the model tags currently available in the local Ollama registry
+and the corresponding `ollama pull` commands.
+The Ollama runtime itself is published as the official Docker image `ollama/ollama`.
+Use `docker pull ollama/ollama:latest` to pull the runtime image.
 
 | Model family | Ollama tag | Pull command | Official Docker image reference |
 | --- | --- | --- | --- |
@@ -94,7 +97,7 @@ Note: real fit also depends on context length, quantization, GPU driver support,
 
 ## 6. Standard Request Templates
 
-1. Text generation:
+1. Text generation (Section 1 `/api/generate` text example):
 
 ```bash
 curl -fsS http://localhost:11435/api/generate \
@@ -102,7 +105,23 @@ curl -fsS http://localhost:11435/api/generate \
   -d '{"model":"deepseek-r1:7b","prompt":"Give one line summary of ModelBox.","stream":false}'
 ```
 
-2. Vision generation:
+2. Multi-turn chat (`/api/chat`):
+
+```bash
+curl -fsS http://localhost:11435/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"model":"deepseek-r1:7b","messages":[{"role":"user","content":"Summarize ModelBox in one line"}],"stream":false}'
+```
+
+3. Embeddings (`/api/embeddings`):
+
+```bash
+curl -fsS http://localhost:11435/api/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"model":"<embedding-model>","prompt":"ModelBox runtime baseline"}'
+```
+
+4. Vision generation:
 
 ```bash
 IMG_B64=$(base64 < /path/to/sample.jpg | tr -d '\n')
@@ -111,7 +130,7 @@ curl -fsS http://localhost:11435/api/generate \
   -d "{\"model\":\"<install-a-vision-model-first>\",\"prompt\":\"Describe this image in 1-2 sentences.\",\"images\":[\"${IMG_B64}\"],\"stream\":false}"
 ```
 
-3. Health and inventory:
+5. Health and inventory:
 
 ```bash
 curl -fsS http://localhost:11435/api/tags

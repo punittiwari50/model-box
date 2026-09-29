@@ -30,7 +30,7 @@ Apply this checklist when user asks for:
 ## Manual command checklist
 ```bash
 # 1) Absolute path scan
-git grep -nE '([A-Za-z]:\\\\|/Users/|/home/|/var/|/private/)'
+git grep -nE '<ABSOLUTE_PATH_PATTERN>'
 
 # 2) Secret scan
 git grep -nEi '(password|secret|token|apikey|api_key|private key|BEGIN [A-Z ]*PRIVATE KEY)'

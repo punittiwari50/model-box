@@ -68,6 +68,17 @@ configure<GatlingExtension> {
     simulations = selectedSimulations
 }
 
+tasks.matching { it.name.startsWith("gatling", ignoreCase = true) }.configureEach {
+    doFirst {
+        val modelHint = sequenceOf(
+            System.getProperty("ollama.model"),
+            System.getenv("OLLAMA_MODEL")
+        ).firstOrNull { !it.isNullOrBlank() } ?: "auto"
+        val profile = System.getenv("APP_PROFILE") ?: "local"
+        logger.lifecycle("[gatling:gradle-jdk21] runtime=gradle profile={} modelHint={} simulations={}", profile, modelHint, selectedSimulations.joinToString(","))
+    }
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 

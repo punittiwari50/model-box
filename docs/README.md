@@ -9,17 +9,20 @@ This directory is the single source of truth for runtime operations and endpoint
 | Document | Purpose | Format |
 |---|---|---|
 | [Docker Operations Guide](docker-operations.md) | Docker runtime lifecycle and model operations | Purpose / Command / Output |
+| [Docker Operations Runbook](docker-operations-runbook.md) | Detailed lifecycle runbooks, rebuild flows, and governance extensions | Procedure / Validation |
 | [Ollama Endpoint Guide](ollama-endpoints.md) | Endpoint selection, model mapping, and request templates | Purpose / Command / Output |
 
 ## 3. Governance Rules
 
-1. Keep Docker runtime commands only in the [Docker Operations Guide](docker-operations.md).
-2. Keep endpoint behavior and request templates only in the [Ollama Endpoint Guide](ollama-endpoints.md).
-3. Keep repository architecture and decision notes in the [Repository Overview](../README.md).
-4. Use [CODEOWNERS](../CODEOWNERS) for default ownership.
-5. Use [SECURITY.md](../SECURITY.md) for vulnerability reporting and secret policy.
-6. Keep procedures manual-first: every operational step must be executable with shell commands.
-7. Keep docs concise and enterprise-maintainable: target <= 250 lines per Markdown file; split into focused docs if a file grows beyond that.
+1. Keep core Docker runtime commands and policies in the [Docker Operations Guide](docker-operations.md).
+2. Keep detailed lifecycle runbooks and extended checklists in the [Docker Operations Runbook](docker-operations-runbook.md).
+3. Keep endpoint behavior and request templates only in the [Ollama Endpoint Guide](ollama-endpoints.md).
+4. Keep repository architecture and decision notes in the [Repository Overview](../README.md).
+5. Use [CODEOWNERS](../CODEOWNERS) for default ownership.
+6. Use [SECURITY.md](../SECURITY.md) for vulnerability reporting and secret policy.
+7. Keep procedures tool-neutral: every operational step must be executable with shell commands.
+8. Governance applies equally to human operators, scripted automation, and AI-assisted workflows.
+9. Keep docs concise and enterprise-maintainable: target <= 250 lines per Markdown file; split into focused docs if a file grows beyond that.
 
 ## 4. Build and validation status
 
@@ -35,7 +38,7 @@ This directory is the single source of truth for runtime operations and endpoint
 
 1. Migration-only documents are not kept unless an active migration project exists.
 2. Duplicated operational steps should be merged into one authoritative document.
-3. References must point to executable manual steps, not assistant-specific instructions.
+3. References must point to executable terminal procedures, not tool-specific narratives.
 
 ## 6. Remaining Enterprise-Grade Gaps
 

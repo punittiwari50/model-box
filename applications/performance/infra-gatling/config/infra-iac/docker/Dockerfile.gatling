@@ -4,10 +4,10 @@ FROM openjdk:27-ea-jdk-slim
 ARG APP_USER=modelbox
 ARG APP_UID=1500
 ARG APP_GID=1500
-ARG MAVEN_REPO_PATH=/home/modelbox/.m2/repository
+ARG MAVEN_REPO_PATH=/workspace/.cache/m2/repository
 ARG GRADLE_VERSION=8.10.2
 
-ENV MAVEN_CONFIG=/home/modelbox/.m2
+ENV MAVEN_CONFIG=/workspace/.cache/m2
 ENV MAVEN_REPO_PATH=${MAVEN_REPO_PATH}
 ENV MAVEN_OPTS="--sun-misc-unsafe-memory-access=allow"
 ENV GRADLE_HOME=/opt/gradle/gradle-${GRADLE_VERSION}
@@ -21,10 +21,10 @@ RUN apt-get update \
     && ln -sf "/opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle" /usr/local/bin/gradle \
     && rm -f /tmp/gradle.zip \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /workspace ${MAVEN_REPO_PATH} /reports/runs /reports/jfr \
+    && mkdir -p /workspace /workspace/.cache/m2 ${MAVEN_REPO_PATH} /reports/runs /reports/jfr \
     && (getent group ${APP_USER} >/dev/null 2>&1 || groupadd --system --gid ${APP_GID} ${APP_USER}) \
-    && (id -u ${APP_USER} >/dev/null 2>&1 || useradd --system --uid ${APP_UID} --gid ${APP_GID} --home-dir /home/${APP_USER} --create-home ${APP_USER}) \
-    && chown -R ${APP_USER}:${APP_USER} /home/${APP_USER} /workspace /reports
+    && (id -u ${APP_USER} >/dev/null 2>&1 || useradd --system --uid ${APP_UID} --gid ${APP_GID} --home-dir /workspace/runtime-home/${APP_USER} --create-home ${APP_USER}) \
+    && chown -R ${APP_USER}:${APP_USER} /workspace /reports
 
 WORKDIR /workspace
 

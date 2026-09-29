@@ -71,10 +71,57 @@ If you are in the parent folder and need to enter the repo first, use a relative
 ```bash
 cd model-box
 docker compose -f infra/ollama/docker/compose.ollama.yaml up -d
-docker compose --env-file infra/performance/infra-gatling/docker/.env --env-file infra/performance/infra-gatling/docker/performance-local.env -f infra/performance/infra-gatling/docker/compose.performance.yaml up -d --build
+docker compose \
+    --env-file infra/performance/infra-gatling/docker/.env \
+    --env-file infra/performance/infra-gatling/docker/performance-local.env \
+    -f infra/performance/infra-gatling/docker/compose.performance.yaml \
+    up -d --build
 ```
 
 If you are already inside the repo root, you can run the same Compose commands directly without changing into a Docker subfolder.
+
+## 4a. One-click repository Docker Compose launcher
+
+Use the repository root script for a single entry point that discovers every Compose file under the project and starts them in sequence.
+
+```powershell
+# Run from the project root itself
+./Deploy-All-Compose.ps1
+```
+
+Default behavior:
+
+- Action: `BuildAndUp`
+- Stack selection: all discovered compose files
+- Logging: writes to `logs/docker-compose-orchestrator-<timestamp>.log`
+- Output: exact docker commands used, tabular queue, and final execution summary
+
+Common examples:
+
+```powershell
+# Start all discovered stacks
+./Deploy-All-Compose.ps1
+
+# Start only the Ollama stack
+./Deploy-All-Compose.ps1 -Stacks 'ollama'
+
+# Start only the performance stack
+./Deploy-All-Compose.ps1 -Stacks 'performance'
+
+# Start all stacks and build images first
+./Deploy-All-Compose.ps1 -Action BuildAndUp -Build
+
+# Stop all stacks
+./Deploy-All-Compose.ps1 -Action Down
+
+# Show status for all stacks
+./Deploy-All-Compose.ps1 -Action Status
+
+# Show logs for all stacks
+./Deploy-All-Compose.ps1 -Action Logs -FollowLogs
+```
+
+This script is designed to be the central operational entry point for repo-wide Compose orchestration, while preserving explicit stack-specific commands for targeted troubleshooting.
 
 ## 5. Build and validation status
 
