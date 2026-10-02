@@ -4,9 +4,10 @@ import { UniversalConsole } from '@/components/UniversalConsole';
 import { MediaGallery } from '@/components/MediaGallery';
 import { RuntimeEnvironmentViewer } from '@/components/RuntimeEnvironmentViewer';
 import { StorageDashboard } from '@/components/StorageDashboard';
+import { PlaywrightMcpTesting } from '@/components/PlaywrightMcpTesting';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'console' | 'media' | 'env' | 'storage'>('console');
+  const [activeTab, setActiveTab] = useState<'console' | 'media' | 'env' | 'storage' | 'mcp'>('console');
   const [connections, setConnections] = useState<ModelConnection[]>([]);
   const [selectedConnection, setSelectedConnection] = useState<ModelConnection | null>(null);
   const [healthStatus, setHealthStatus] = useState<any>(null);
@@ -61,6 +62,12 @@ export const App: React.FC = () => {
             onClick={() => setActiveTab('storage')}
           >
             💾 Storage
+          </button>
+          <button
+            className={`nav-tab ${activeTab === 'mcp' ? 'active' : ''}`}
+            onClick={() => setActiveTab('mcp')}
+          >
+            🧪 Playwright MCP
           </button>
         </div>
 
@@ -147,6 +154,8 @@ export const App: React.FC = () => {
           {activeTab === 'env' && <RuntimeEnvironmentViewer />}
 
           {activeTab === 'storage' && <StorageDashboard connections={connections} />}
+
+          {activeTab === 'mcp' && <PlaywrightMcpTesting />}
         </section>
       </main>
     </div>

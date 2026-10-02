@@ -41,8 +41,17 @@ from model_connectors.domain.models.enums import (
 from enum import Enum
 from model_connectors.domain.models.media import MediaRequest
 from model_connectors.domain.models.project import Project
+from model_connectors.domain.models.mcp_testing import (
+    TestStep,
+    TestStepAction,
+    TestWorkflow,
+    TestWorkflowResult,
+)
 from model_connectors.domain.ports.connector import IUniversalModelConnector
 from model_connectors.infrastructure.config.environment import IEnvironment
+from model_connectors.infrastructure.connectors.playwright_mcp_connector import (
+    PlaywrightMcpConnector,
+)
 
 
 def _serialize_entity(obj: Any) -> Any:
@@ -131,9 +140,11 @@ def create_router(
     environment: IEnvironment | None = None,
     project_repo: Any = None,
     conversation_repo: Any = None,
+    playwright_connector: PlaywrightMcpConnector | None = None,
 ) -> APIRouter:
     """Builds and returns the configured FastAPI APIRouter."""
     router = APIRouter(prefix="/api/v1")
+    playwright_client = playwright_connector or PlaywrightMcpConnector()
 
     # --------------------------------------------------------------------------
     # Projects Endpoints (LinkedIn Job Hunter, Animation Films, etc.)
@@ -425,5 +436,111 @@ def create_router(
                 "4. System Environment Variables (SystemEnvironmentPropertySource)",
             ],
         })
+
+    # --------------------------------------------------------------------------
+    # Model Context Protocol (MCP) Playwright Testing & Workflow Endpoints
+    # --------------------------------------------------------------------------
+    @router.get("/mcp/playwright/schema")
+    async def get_playwright_test_schema() -> JSONResponse:
+        """Returns the full JSON Schema definitions for TestWorkflow and TestWorkflowResult."""
+        return JSONResponse(
+            content={
+                "title": "ModelBox MCP Playwright JSON Testing Schema",
+                "version": "1.0.0",
+                "description": "Standard schema for defining, executing, and reporting automated browser tests via Playwright MCP",
+                "test_workflow_schema": TestWorkflow.model_json_schema(),
+                "test_workflow_result_schema": TestWorkflowResult.model_json_schema(),
+            }
+        )
+
+    @router.get("/mcp/playwright/templates")
+    async def get_playwright_test_templates() -> JSONResponse:
+        """Returns pre-configured JSON testing workflow templates."""
+        templates = [
+            {
+                "workflow_id": "wf-modelbox-ui-smoke",
+                "name": "ModelBox UI Smoke & Title Verification Test",
+                "description": "Verifies that the React UI loads successfully and displays the expected title and branding",
+                "base_url": "http://model-connectors-ui:3000",
+                "timeout_ms": 30000,
+                "steps": [
+                    {
+                        "step_id": "step-1",
+                        "action": "navigate",
+                        "description": "Navigate to ModelBox Web UI root",
+                        "params": {"url": "http://model-connectors-ui:3000"},
+                    },
+                    {
+                        "step_id": "step-2",
+                        "action": "assert_title",
+                        "description": "Assert page title contains ModelBox",
+                        "params": {"expected_title": "ModelBox"},
+                    },
+                    {
+                        "step_id": "step-3",
+                        "action": "assert_text",
+                        "description": "Verify presence of ModelBox branding in DOM",
+                        "params": {"expected_text": "ModelBox | Connectors"},
+                    },
+                    {
+                        "step_id": "step-4",
+                        "action": "snapshot",
+                        "description": "Capture full DOM accessibility snapshot",
+                        "params": {},
+                    },
+                ],
+                "metadata": {"category": "smoke", "author": "QA Automation"},
+            },
+            {
+                "workflow_id": "wf-modelbox-console-interactivity",
+                "name": "ModelBox Console Prompt Input Interaction Test",
+                "description": "Verifies that prompt input accepts text and UI interactions work via Playwright MCP",
+                "base_url": "http://model-connectors-ui:3000",
+                "timeout_ms": 45000,
+                "steps": [
+                    {
+                        "step_id": "step-1",
+                        "action": "navigate",
+                        "description": "Navigate to Universal Console UI",
+                        "params": {"url": "http://model-connectors-ui:3000"},
+                    },
+                    {
+                        "step_id": "step-2",
+                        "action": "assert_visible",
+                        "description": "Verify root container is rendered and visible",
+                        "params": {"selector": "#root"},
+                    },
+                    {
+                        "step_id": "step-3",
+                        "action": "evaluate",
+                        "description": "Inspect window and document state via Playwright JS evaluation",
+                        "params": {"script": "() => ({ readyState: document.readyState, origin: window.location.origin })"},
+                    },
+                    {
+                        "step_id": "step-4",
+                        "action": "take_screenshot",
+                        "description": "Capture page screenshot verification",
+                        "params": {},
+                    },
+                ],
+                "metadata": {"category": "e2e", "author": "Frontend Team"},
+            },
+        ]
+        return JSONResponse(content=templates)
+
+    @router.post("/mcp/playwright/test")
+    async def execute_playwright_test_workflow(workflow: TestWorkflow) -> JSONResponse:
+        """Executes a JSON-defined browser test workflow against Playwright MCP and returns structured results."""
+        try:
+            result = await playwright_client.execute_workflow(workflow)
+            return JSONResponse(content=result.model_dump())
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Playwright test execution failed: {str(exc)}")
+
+    @router.get("/mcp/playwright/tools")
+    async def list_playwright_mcp_tools() -> JSONResponse:
+        """Lists all browser automation tools registered with the Playwright MCP server."""
+        tools = await playwright_client.list_tools()
+        return JSONResponse(content={"tools_count": len(tools), "tools": tools})
 
     return router

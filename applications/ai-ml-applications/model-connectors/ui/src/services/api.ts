@@ -136,4 +136,35 @@ export const apiClient = {
     const file = filename || serviceOrFilename;
     return `${BASE_URL}/media/videos/${encodeURIComponent(file)}`;
   },
+
+  async getPlaywrightSchema(): Promise<any> {
+    const res = await fetch(`${BASE_URL}/mcp/playwright/schema`);
+    if (!res.ok) throw new Error('Failed to fetch Playwright testing JSON schema');
+    return res.json();
+  },
+
+  async getPlaywrightTemplates(): Promise<any[]> {
+    const res = await fetch(`${BASE_URL}/mcp/playwright/templates`);
+    if (!res.ok) throw new Error('Failed to fetch Playwright testing templates');
+    return res.json();
+  },
+
+  async executePlaywrightTest(workflow: any): Promise<any> {
+    const res = await fetch(`${BASE_URL}/mcp/playwright/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(workflow),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Test execution failed' }));
+      throw new Error(err.detail || 'Test execution failed');
+    }
+    return res.json();
+  },
+
+  async getPlaywrightTools(): Promise<any> {
+    const res = await fetch(`${BASE_URL}/mcp/playwright/tools`);
+    if (!res.ok) throw new Error('Failed to fetch Playwright MCP tools');
+    return res.json();
+  },
 };
