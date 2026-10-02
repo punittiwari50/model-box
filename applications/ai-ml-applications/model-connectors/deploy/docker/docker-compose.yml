@@ -118,6 +118,28 @@ services:
     networks:
       - model-box-net
 
+  playwright-mcp:
+    container_name: ${PLAYWRIGHT_MCP_CONTAINER_NAME:-playwright-mcp}
+    image: ${PLAYWRIGHT_MCP_IMAGE_NAME:-mcr.microsoft.com/playwright/mcp:latest}
+    restart: ${PLAYWRIGHT_MCP_RESTART:-unless-stopped}
+    init: true
+    ipc: host
+    ports:
+      - "${PLAYWRIGHT_MCP_PORT:-8931}:8931"
+    environment:
+      - PORT=${PLAYWRIGHT_MCP_PORT:-8931}
+      - HOST=0.0.0.0
+      - HEADLESS=${PLAYWRIGHT_MCP_HEADLESS:-true}
+    command: ["--port", "8931", "--host", "0.0.0.0", "--headless", "--no-sandbox"]
+    networks:
+      - model-box-net
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/node", "-e", "const req = require('http').get('http://localhost:8931/sse', (r) => { r.destroy(); process.exit(r.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1));"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
 volumes:
   model-connectors-vault-data:
     name: ${VAULT_VOLUME_NAME:-model-connectors-vault-data}

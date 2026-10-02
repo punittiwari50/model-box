@@ -49,12 +49,27 @@ foreach ($f in $secureFiles) {
     Write-Host "  -> $($f.Name)" -ForegroundColor DarkCyan
 }
 
-# 3. Enable KV v2 secret engine if not enabled
+# 3. Enable KV v2 secret engine only if not already mounted
 Write-Host "[3/4] Ensuring Vault secret engine is active..." -ForegroundColor Yellow
-try {
-    $null = docker exec -e "VAULT_TOKEN=$VaultToken" $VaultContainerName vault secrets enable -path=secret kv-v2 2>&1
-} catch {
-    # Secret engine is already mounted
+$secretsJsonRaw = docker exec -e "VAULT_TOKEN=$VaultToken" $VaultContainerName vault secrets list -format=json 2>$null
+$alreadyMounted = $false
+if ($secretsJsonRaw) {
+    try {
+        $secretsObj = $secretsJsonRaw | ConvertFrom-Json
+        if ($secretsObj.PSObject.Properties['secret/']) {
+            $alreadyMounted = $true
+        }
+    } catch {
+        if ($secretsJsonRaw -match '"secret/":') {
+            $alreadyMounted = $true
+        }
+    }
+}
+if (-not $alreadyMounted) {
+    docker exec -e "VAULT_TOKEN=$VaultToken" $VaultContainerName vault secrets enable -path=secret kv-v2 2>$null | Out-Null
+    Write-Host "  [OK] Enabled KV-v2 secret engine at secret/" -ForegroundColor Green
+} else {
+    Write-Host "  [OK] Secret engine 'secret/' already active." -ForegroundColor Green
 }
 
 # 4. Parse each *-secure.env and push values to container vault

@@ -43,9 +43,14 @@ fi
 
 echo "[2/4] Discovered ${#SECURE_FILES[@]} secure configuration file(s)."
 
-# 3. Ensure secret engine active
-echo "[3/4] Ensuring Vault KV-v2 secret engine is enabled..."
-docker exec -e VAULT_TOKEN="${VAULT_TOKEN}" "${VAULT_CONTAINER_NAME}" vault secrets enable -path=secret kv-v2 2>/dev/null || true
+# 3. Ensure secret engine active only if not already mounted
+echo "[3/4] Ensuring Vault KV-v2 secret engine is active..."
+if ! docker exec -e VAULT_TOKEN="${VAULT_TOKEN}" "${VAULT_CONTAINER_NAME}" vault secrets list -format=json 2>/dev/null | grep -q '"secret/"'; then
+    docker exec -e VAULT_TOKEN="${VAULT_TOKEN}" "${VAULT_CONTAINER_NAME}" vault secrets enable -path=secret kv-v2 >/dev/null 2>&1 || true
+    echo "  [OK] Enabled KV-v2 secret engine at secret/"
+else
+    echo "  [OK] Secret engine 'secret/' already active."
+fi
 
 # 4. Push secrets
 echo "[4/4] Pushing secrets to container vault..."
