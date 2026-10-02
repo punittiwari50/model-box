@@ -148,6 +148,40 @@ class EndpointResolutionService:
                 return strategy.resolve(context)
         return target_url or fallback_url
 
+    def resolve_candidates(self, target_url: str, fallback_url: str = "") -> list[str]:
+        """Resolves an ordered sequence of candidate URLs for connection resilience and failover."""
+        primary = self.resolve(target_url, fallback_url)
+        candidates: list[str] = [primary]
+
+        target_lower = (target_url or fallback_url).lower()
+        is_container = self.is_container_environment()
+
+        if "ollama" in target_lower or "11434" in target_lower or "11435" in target_lower:
+            fallbacks = [
+                EndpointConstants.DEFAULT_OLLAMA_DOCKER,
+                "http://ollama:11434",
+                f"http://{EndpointConstants.DOCKER_HOST_FALLBACK}:11435" if is_container else "",
+                EndpointConstants.DEFAULT_OLLAMA_LOCAL,
+                "http://127.0.0.1:11434",
+                "http://localhost:11434",
+            ]
+        elif "comfy" in target_lower or "8188" in target_lower or "8189" in target_lower:
+            fallbacks = [
+                EndpointConstants.DEFAULT_COMFYUI_DOCKER,
+                "http://comfyui:8188",
+                f"http://{EndpointConstants.DOCKER_HOST_FALLBACK}:8189" if is_container else "",
+                EndpointConstants.DEFAULT_COMFYUI_LOCAL,
+                "http://127.0.0.1:8188",
+                "http://localhost:8188",
+            ]
+        else:
+            fallbacks = [fallback_url] if fallback_url else []
+
+        for fb in fallbacks:
+            if fb and fb not in candidates:
+                candidates.append(fb)
+        return candidates
+
 
 # Global default service instance for backward-compatible functional facade
 _default_service: EndpointResolutionService | None = None
@@ -163,6 +197,11 @@ def get_default_endpoint_resolver() -> EndpointResolutionService:
 def resolve_endpoint(endpoint_url: str, fallback_service_url: str = "") -> str:
     """Functional facade delegating to the OOP EndpointResolutionService strategy."""
     return get_default_endpoint_resolver().resolve(endpoint_url, fallback_service_url)
+
+
+def resolve_candidate_endpoints(endpoint_url: str, fallback_service_url: str = "") -> list[str]:
+    """Generates ordered candidate endpoints for resilient connection failover."""
+    return get_default_endpoint_resolver().resolve_candidates(endpoint_url, fallback_service_url)
 
 
 def is_running_in_docker() -> bool:

@@ -27,6 +27,7 @@ from model_connectors.domain.models.token_metrics import TokenMetrics
 from model_connectors.domain.ports.connector import IModelConnector
 from model_connectors.domain.results.result import Failure, Result, Success
 from model_connectors.infrastructure.connectors.endpoint_resolver import (
+    resolve_candidate_endpoints,
     resolve_endpoint,
 )
 
@@ -72,114 +73,143 @@ class WebSocketComfyUIConnector(IModelConnector):
         request: InferenceRequest,
         config: ModelConnectionConfig,
     ) -> Result[InferenceResponse, DomainError]:
-        """Submits prompt workflow to ComfyUI and streams status via WebSocket."""
-        client_id = f"client-{uuid.uuid4().hex[:8]}"
-        http_base = resolve_endpoint(config.endpoint_url, "http://comfyui-model-service-gpu:8188").rstrip("/")
-        ws_url = self._build_ws_url(http_base, client_id)
-        start_time = time.monotonic()
-
-        # Build standard workflow payload or use custom workflow if provided in parameters
+        """Submits prompt workflow to ComfyUI across candidate endpoints with failover."""
+        candidate_bases = resolve_candidate_endpoints(
+            config.endpoint_url, "http://comfyui-model-service-gpu:8188"
+        )
         workflow = request.parameters.get("workflow") or _build_default_workflow(request.prompt)
-        queue_payload = {"prompt": workflow, "client_id": client_id}
 
-        try:
-            client = self._get_http_client(config.timeout_seconds)
+        last_error_details: dict[str, Any] = {}
+        last_exception_msg = ""
+        last_attempted_endpoint = ""
+        effective_timeout = max(180.0, config.timeout_seconds)
 
-            # 1. Connect WebSocket first to ensure no events are dropped
-            prompt_id: str | None = None
-            async with websockets.connect(ws_url) as ws:
-                # 2. Queue prompt via HTTP POST
-                queue_resp = await client.post(
-                    f"{http_base}/prompt",
-                    json=queue_payload,
-                    headers=dict(config.auth_payload),
-                )
-                if queue_resp.status_code != 200:
-                    return Failure(
-                        ModelConnectionError(
-                            f"ComfyUI rejected prompt: {queue_resp.text}",
-                            {"status_code": str(queue_resp.status_code)},
+        timeout_cfg = httpx.Timeout(
+            timeout=effective_timeout,
+            connect=15.0,
+            read=effective_timeout,
+            write=30.0,
+            pool=30.0,
+        )
+
+        for base_url in candidate_bases:
+            http_base = base_url.rstrip("/")
+            client_id = f"client-{uuid.uuid4().hex[:8]}"
+            ws_url = self._build_ws_url(http_base, client_id)
+            queue_payload = {"prompt": workflow, "client_id": client_id}
+            last_attempted_endpoint = http_base
+            start_time = time.monotonic()
+
+            try:
+                async with httpx.AsyncClient(timeout=timeout_cfg) as client:
+                    # 1. Connect WebSocket first to ensure no events are dropped
+                    prompt_id: str | None = None
+                    async with websockets.connect(ws_url, open_timeout=15.0, close_timeout=10.0) as ws:
+                        # 2. Queue prompt via HTTP POST
+                        queue_resp = await client.post(
+                            f"{http_base}/prompt",
+                            json=queue_payload,
+                            headers=dict(config.auth_payload),
+                        )
+                        if queue_resp.status_code != 200:
+                            last_exception_msg = f"ComfyUI rejected prompt: {queue_resp.text}"
+                            last_error_details = {
+                                "status_code": str(queue_resp.status_code),
+                                "endpoint": http_base,
+                            }
+                            continue
+
+                        prompt_data = queue_resp.json()
+                        prompt_id = prompt_data.get("prompt_id", f"gen-{uuid.uuid4().hex[:8]}")
+
+                        # 3. Listen to WebSocket messages until execution completes or timeout
+                        executed_nodes: list[str] = []
+                        while True:
+                            raw_msg = await ws.recv()
+                            if isinstance(raw_msg, str):
+                                msg_data = json.loads(raw_msg)
+                                msg_type = msg_data.get("type")
+                                data_body = msg_data.get("data", {})
+
+                                if msg_type == "executing":
+                                    node = data_body.get("node")
+                                    if node is None and data_body.get("prompt_id") == prompt_id:
+                                        # Execution complete
+                                        break
+                                    elif node:
+                                        executed_nodes.append(str(node))
+
+                                elif msg_type == "execution_error":
+                                    return Failure(
+                                        ModelConnectionError(
+                                            f"ComfyUI execution error: {data_body.get('exception_message')}",
+                                            {"prompt_id": str(prompt_id), "endpoint": http_base},
+                                        )
+                                    )
+
+                    duration_ms = (time.monotonic() - start_time) * 1000.0
+
+                    # Estimate standardized tokens for diffusion compute: 200 base + 50 per node
+                    equivalent_tokens = 200 + (len(executed_nodes) * 50)
+                    token_metrics = TokenMetrics(
+                        tokens_consumed_total=equivalent_tokens,
+                        tokens_consumed_request=equivalent_tokens,
+                        tokens_available=max(0, config.token_capacity - equivalent_tokens),
+                        bucket_capacity=config.token_capacity,
+                        refill_rate_per_second=config.token_refill_rate_per_sec,
+                        wait_time_seconds=0.0,
+                        is_throttled=False,
+                        last_refill_timestamp=time.monotonic(),
+                    )
+
+                    result_content = (
+                        f"ComfyUI workflow '{prompt_id}' executed successfully. "
+                        f"Nodes processed: {len(executed_nodes)}. Execution time: {duration_ms:.1f}ms."
+                    )
+
+                    return Success(
+                        InferenceResponse(
+                            response_id=f"comfyui-{prompt_id}",
+                            session_id=request.session_id,
+                            content=result_content,
+                            token_metrics=token_metrics,
+                            execution_duration_ms=duration_ms,
+                            raw_payload={
+                                "prompt_id": prompt_id,
+                                "client_id": client_id,
+                                "nodes_executed": executed_nodes,
+                                "active_endpoint": http_base,
+                            },
+                            timestamp=datetime.now(timezone.utc),
                         )
                     )
 
-                prompt_data = queue_resp.json()
-                prompt_id = prompt_data.get("prompt_id", f"gen-{uuid.uuid4().hex[:8]}")
+            except (websockets.exceptions.WebSocketException, OSError, httpx.RequestError) as exc:
+                err_text = str(exc) or type(exc).__name__
+                last_exception_msg = f"{type(exc).__name__}: {err_text}"
+                last_error_details = {
+                    "endpoint": http_base,
+                    "ws_url": ws_url,
+                    "error": last_exception_msg,
+                }
+                # Failover to next candidate endpoint
+                continue
+            except Exception as exc:
+                err_text = str(exc) or type(exc).__name__
+                last_exception_msg = f"{type(exc).__name__}: {err_text}"
+                last_error_details = {
+                    "endpoint": http_base,
+                    "error": last_exception_msg,
+                }
+                break
 
-                # 3. Listen to WebSocket messages until execution completes or timeout
-                executed_nodes: list[str] = []
-                while True:
-                    raw_msg = await ws.recv()
-                    if isinstance(raw_msg, str):
-                        msg_data = json.loads(raw_msg)
-                        msg_type = msg_data.get("type")
-                        data_body = msg_data.get("data", {})
-
-                        if msg_type == "executing":
-                            node = data_body.get("node")
-                            if node is None and data_body.get("prompt_id") == prompt_id:
-                                # Execution complete
-                                break
-                            elif node:
-                                executed_nodes.append(str(node))
-
-                        elif msg_type == "execution_error":
-                            return Failure(
-                                ModelConnectionError(
-                                    f"ComfyUI execution error: {data_body.get('exception_message')}",
-                                    {"prompt_id": str(prompt_id)},
-                                )
-                            )
-
-            duration_ms = (time.monotonic() - start_time) * 1000.0
-
-            # Estimate standardized tokens for diffusion compute: 200 base + 50 per node
-            equivalent_tokens = 200 + (len(executed_nodes) * 50)
-            token_metrics = TokenMetrics(
-                tokens_consumed_total=equivalent_tokens,
-                tokens_consumed_request=equivalent_tokens,
-                tokens_available=max(0, config.token_capacity - equivalent_tokens),
-                bucket_capacity=config.token_capacity,
-                refill_rate_per_second=config.token_refill_rate_per_sec,
-                wait_time_seconds=0.0,
-                is_throttled=False,
-                last_refill_timestamp=time.monotonic(),
+        formatted_error = last_exception_msg or "All candidate ComfyUI endpoints unreachable"
+        return Failure(
+            ModelConnectionError(
+                f"Network error contacting ComfyUI at {last_attempted_endpoint}: {formatted_error}",
+                last_error_details or {"endpoint": last_attempted_endpoint, "error": formatted_error},
             )
-
-            result_content = (
-                f"ComfyUI workflow '{prompt_id}' executed successfully. "
-                f"Nodes processed: {len(executed_nodes)}. Execution time: {duration_ms:.1f}ms."
-            )
-
-            return Success(
-                InferenceResponse(
-                    response_id=f"comfyui-{prompt_id}",
-                    session_id=request.session_id,
-                    content=result_content,
-                    token_metrics=token_metrics,
-                    execution_duration_ms=duration_ms,
-                    raw_payload={
-                        "prompt_id": prompt_id,
-                        "client_id": client_id,
-                        "nodes_executed": executed_nodes,
-                    },
-                    timestamp=datetime.now(timezone.utc),
-                )
-            )
-
-        except websockets.exceptions.WebSocketException as exc:
-            return Failure(
-                ModelConnectionError(
-                    f"ComfyUI WebSocket connection failed at {ws_url}: {exc}",
-                    {"ws_url": ws_url, "error": str(exc)},
-                )
-            )
-        except Exception as exc:
-            return Failure(
-                ModelConnectionError(
-                    f"ComfyUI execution failed: {exc}",
-                    {"endpoint": http_base, "error": str(exc)},
-                )
-            )
+        )
 
     async def check_health(
         self,

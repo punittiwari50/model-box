@@ -56,7 +56,11 @@ tmp/
 !*.env.example
 !model-box-service.env
 !model-box-ui.env
-.envrc
+*-secure.env
+*.secure.env
+*.vault
+.vault/
+vault/
 secrets/
 **/*.pem
 **/*.key

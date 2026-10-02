@@ -1,26 +1,55 @@
 # ==============================================================================
 # ModelBox Connectors Orchestration Docker Compose
-# Decoupled microservices: Service (FastAPI), UI (React/Node), and Database (PostgreSQL)
-# Parameterized via model-box-service.env and model-box-ui.env
+# Decoupled microservices: Vault, Service (FastAPI), UI (React/Node), and Database (PostgreSQL)
+# Parameterized via model-box-service.env and *-secure.env files.
+# Sensitive values are injected via vault and *-secure.env (never committed).
 # ==============================================================================
 
 name: model-connectors-parent
 
 services:
+  vault:
+    container_name: ${VAULT_CONTAINER_NAME:-model-connectors-vault}
+    image: ${VAULT_IMAGE_NAME:-hashicorp/vault:latest}
+    restart: unless-stopped
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID:-modelbox-vault-root-token}
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      VAULT_ADDR: "http://127.0.0.1:8200"
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - model-connectors-vault-data:/vault/data
+    networks:
+      - model-box-net
+    healthcheck:
+      test: [ "CMD", "vault", "status", "-address=http://127.0.0.1:8200" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   postgres:
     container_name: ${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}
     image: ${POSTGRES_IMAGE_NAME:-postgres:17-alpine}
     restart: ${POSTGRES_RESTART:-unless-stopped}
+    env_file:
+      - ./model-box-db-secure.env
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-model_connectors}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_vault_pw_2026_sec}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - model-connectors-postgres-data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d:ro
+    depends_on:
+      vault:
+        condition: service_healthy
     networks:
       - model-box-net
     healthcheck:
@@ -41,14 +70,22 @@ services:
       - "${MODEL_CONNECTORS_PORT:-8000}:${SERVICE_INTERNAL_PORT:-8000}"
     env_file:
       - ./model-box-service.env
+      - ./model-box-service-secure.env
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
       - APP_HOST=${APP_HOST:-0.0.0.0}
       - APP_PORT=${APP_PORT:-8000}
+      - VAULT_ADDR=http://${VAULT_CONTAINER_NAME:-model-connectors-vault}:8200
+      - VAULT_TOKEN=${VAULT_DEV_ROOT_TOKEN_ID:-modelbox-vault-root-token}
       - POSTGRES_HOST=${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}
       - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - MODEL_BOX_POSTGRES_DSN=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}:5432/${POSTGRES_DB:-model_connectors}
+      - POSTGRES_DB=${POSTGRES_DB:-model_connectors}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_vault_pw_2026_sec}
+      - MODEL_BOX_POSTGRES_DSN=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_vault_pw_2026_sec}@${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}:5432/${POSTGRES_DB:-model_connectors}
     depends_on:
+      vault:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     networks:
@@ -82,6 +119,8 @@ services:
       - model-box-net
 
 volumes:
+  model-connectors-vault-data:
+    name: ${VAULT_VOLUME_NAME:-model-connectors-vault-data}
   model-connectors-postgres-data:
     name: ${POSTGRES_VOLUME_NAME:-model-connectors-postgres-data}
 
