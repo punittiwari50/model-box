@@ -1,0 +1,33 @@
+# ==============================================================================
+# ModelBox Connectors Application Configuration: DEV Profile
+# Overrides application.yml for local development and rapid prototyping
+# ==============================================================================
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+  cors_origins:
+    - "http://localhost:5173"
+    - "http://127.0.0.1:5173"
+    - "http://localhost:3000"
+    - "*"
+
+storage:
+  default_backend: "IN_MEMORY"
+  sqlite:
+    db_path: ":memory:"
+
+endpoints:
+  ollama_url: "http://127.0.0.1:11435"
+  comfyui_url: "http://127.0.0.1:8189"
+  grpc_service_url: "grpc://127.0.0.1:50051"
+  kafka_bootstrap_servers: "127.0.0.1:9092"
+  resolution_strategy: "localhost"
+
+security:
+  auth_method: "NONE"
+  audit_logging: false
+
+rate_limits:
+  default_token_capacity: 200000
+  default_refill_rate_per_sec: 5000.0

@@ -1,0 +1,63 @@
+// ==============================================================================
+// SCSS Mixins for Reusability & Maintainability
+// ==============================================================================
+@use "variables" as v;
+
+@mixin glass-panel($blur: 16px) {
+  background: v.$bg-surface;
+  backdrop-filter: blur($blur);
+  -webkit-backdrop-filter: blur($blur);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-lg;
+  box-shadow: v.$shadow-md;
+}
+
+@mixin glass-card {
+  background: v.$bg-secondary;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 1.25rem;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: v.$border-focus;
+    box-shadow: v.$shadow-glow;
+  }
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin badge-variant($bg-color, $text-color, $border-color) {
+  background: $bg-color;
+  color: $text-color;
+  border: 1px solid $border-color;
+}
+
+@mixin custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: v.$radius-full;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  }
+}

@@ -52,7 +52,7 @@ docker volume ls --filter "name=*ollama*" -q | xargs -r docker volume rm -f
 | `COMPOSE_MEM_LIMIT` | Memory limit | `8g`, `16g`, `24g`, `32g` | `24g` |
 | `COMPOSE_SHM_SIZE` | Shared memory | `1g`, `2g`, `4g` | `2g` |
 
-**Host Path:** `C:/volume-docker_ollama` → Container: `/models`
+**Host Path:** `COMPOSE_OLLAMA_MODELS_HOST` → Container: `/models`
 
 ### GPU Mode Properties (`ollama-gpu.env`)
 
@@ -72,7 +72,7 @@ docker volume ls --filter "name=*ollama*" -q | xargs -r docker volume rm -f
 | `NVIDIA_VISIBLE_DEVICES` | GPU device access | `0`, `1`, `2`, `all` | `0` |
 | `NVIDIA_DRIVER_CAPABILITIES` | GPU capabilities | `compute,utility`, `graphics,compute,utility` | `compute,utility` |
 
-**Host Path:** `C:/volume-docker_ollama` → Container: `/models`
+**Host Path:** `COMPOSE_OLLAMA_MODELS_HOST` → Container: `/models`
 
 **GPU Requirements:** NVIDIA Container Toolkit, NVIDIA GPU, `gpus: all` in compose
 
@@ -92,7 +92,7 @@ Operational notes:
 
 1. GPU mode (`ollama-gpu.env`) adds NVIDIA runtime settings: `NVIDIA_VISIBLE_DEVICES=0` and `NVIDIA_DRIVER_CAPABILITIES=compute,utility`. Requires host with NVIDIA Container Toolkit configured.
 2. CPU mode (`ollama-cpu.env`) omits GPU-specific variables and is the fallback for non-GPU or validation runs.
-3. Both modes keep the same persistent host model directory (`C:/volume-docker_ollama`) mounted at `/models` as a bidirectional read-write bind mount.
+3. Both modes keep the same persistent host model directory (configured via `COMPOSE_OLLAMA_MODELS_HOST`) mounted at `/models` as a bidirectional read-write bind mount.
 4. See `.env.example` for base configuration and `ollama-gpu.env`/`ollama-cpu.env` for mode-specific overrides.
 
 Consolidated model store (2026-09-27):

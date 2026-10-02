@@ -1,0 +1,29 @@
+# ==============================================================================
+# ModelBox Connectors Application Configuration: PROD Profile
+# Overrides application.yml for enterprise production deployments
+# ==============================================================================
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "https://modelbox.enterprise.internal"
+
+storage:
+  default_backend: "POSTGRESQL"
+  postgres:
+    dsn: "postgresql://postgres:postgres@postgres-cluster.internal:5432/model_connectors"
+    min_pool_size: 5
+    max_pool_size: 25
+    connection_timeout_seconds: 10.0
+
+security:
+  enabled: true
+  auth_method: "BEARER"
+  audit_logging: true
+
+connectors:
+  circuit_breaker:
+    failure_threshold: 3
+    recovery_timeout_seconds: 45.0
+    half_open_sample_size: 3

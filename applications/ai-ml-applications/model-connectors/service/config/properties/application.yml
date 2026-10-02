@@ -1,0 +1,109 @@
+# ==============================================================================
+# ModelBox Connectors Application Configuration (Base Profile)
+# Enterprise Grade Configuration adhering to Spring Boot Externalized Config Pattern
+# ==============================================================================
+
+spring:
+  application:
+    name: "model-connectors-service"
+  profiles:
+    active: "dev"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "*"
+  request_timeout_seconds: 60.0
+  worker_threads: 4
+
+storage:
+  default_backend: "IN_MEMORY"
+  sqlite:
+    db_path: ":memory:"
+  yaml:
+    config_dir: "./config/connections"
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/model_connectors"
+    min_pool_size: 2
+    max_pool_size: 10
+    connection_timeout_seconds: 15.0
+
+endpoints:
+  ollama_url: "http://127.0.0.1:11435"
+  ollama_docker_url: "http://ollama-model-service-gpu:11434"
+  comfyui_url: "http://127.0.0.1:8189"
+  comfyui_docker_url: "http://comfyui-model-service-gpu:8188"
+  grpc_service_url: "grpc://127.0.0.1:50051"
+  kafka_bootstrap_servers: "127.0.0.1:9092"
+  resolution_strategy: "auto"
+
+connectors:
+  rest:
+    timeout_seconds: 60.0
+    max_retries: 3
+    retry_backoff_factor: 1.5
+    pool_connections: 50
+  grpc:
+    timeout_seconds: 30.0
+    max_message_length_bytes: 33554432
+    enable_retries: true
+  websocket:
+    timeout_seconds: 120.0
+    ping_interval_seconds: 20.0
+    ping_timeout_seconds: 10.0
+    max_queue_size: 100
+  kafka:
+    client_id: "model-connectors-client"
+    consumer_group: "model-connectors-inference-group"
+    request_topic: "model.inference.requests"
+    response_topic: "model.inference.responses"
+    stream_topic: "model.inference.streams"
+    timeout_seconds: 45.0
+    acks: "all"
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout_seconds: 30.0
+    half_open_sample_size: 2
+
+security:
+  enabled: true
+  auth_method: "NONE"
+  api_key_header: "X-API-Key"
+  bearer_token_prefix: "Bearer "
+  session_cookie_name: "session_cookie"
+  hmac_secret: "model-box-default-secure-hmac-secret-change-in-prod"
+  token_encryption_key: "model-box-32-byte-hex-encryption-key!!"
+  allowed_roles:
+    - "admin"
+    - "ml-engineer"
+    - "service-account"
+  audit_logging: true
+
+media:
+  image_viewer:
+    max_size_mb: 25.0
+    cache_ttl_seconds: 3600
+    supported_mime_types:
+      - "image/png"
+      - "image/jpeg"
+      - "image/webp"
+      - "image/gif"
+  video_streaming:
+    chunk_size_bytes: 524288
+    buffer_seconds: 5.0
+    supported_codecs:
+      - "video/mp4"
+      - "video/webm"
+      - "video/ogg"
+
+rate_limits:
+  default_token_capacity: 100000
+  default_refill_rate_per_sec: 1000.0
+  compaction_token_threshold: 4000
+  compaction_target_ratio: 0.35
+
+telemetry:
+  metrics_enabled: true
+  tracing_enabled: true
+  metrics_path: "/metrics"

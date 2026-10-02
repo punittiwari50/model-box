@@ -37,7 +37,10 @@ Thumbs.db
 *.log
 *.out
 *.err
-logs/
+/logs/
+/infra/logs/*
+!/infra/logs/.gitkeep
+!/infra/logs/README.md
 *.pid
 .tmp/
 tmp/
@@ -60,6 +63,8 @@ target/
 build/
 out/
 .gradle/
+.gradle-cache/
+.gradle-test-kit/
 .mvn/timing.properties
 *.class
 *.jar
@@ -67,6 +72,14 @@ out/
 *.ear
 hs_err_pid*
 replay_pid*
+
+# Go
+bin/
+pkg/
+*.test
+cover.out
+coverage.out
+go.work.sum
 
 # Python
 __pycache__/
@@ -83,6 +96,9 @@ ENV/
 .hypothesis/
 .tox/
 .nox/
+.pyre/
+.pytype/
+.dmypy.json
 .coverage
 .coverage.*
 htmlcov/
@@ -104,10 +120,13 @@ pnpm-debug.log*
 .yarn/
 .yarn/cache/
 .yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
 .parcel-cache/
 .next/
 .nuxt/
 .svelte-kit/
+.vite/
 coverage/
 dist-ssr/
 *.tsbuildinfo

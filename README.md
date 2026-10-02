@@ -86,39 +86,67 @@ Use the repository root script for a single entry point that discovers every Com
 
 ```powershell
 # Run from the project root itself
-./Deploy-All-Compose.ps1
+./infra/scripts/Deploy-All-Compose.ps1
+```
+
+```bash
+# Run from the project root itself (Linux/macOS)
+./infra/scripts/Deploy-All-Compose.sh
 ```
 
 Default behavior:
 
 - Action: `BuildAndUp`
 - Stack selection: all discovered compose files
-- Logging: writes to `logs/docker-compose-orchestrator-<timestamp>.log`
+- Logging: writes to `infra/logs/docker-compose-orchestrator-<timestamp>.log`
 - Output: exact docker commands used, tabular queue, and final execution summary
 
 Common examples:
 
 ```powershell
 # Start all discovered stacks
-./Deploy-All-Compose.ps1
+./infra/scripts/Deploy-All-Compose.ps1
 
 # Start only the Ollama stack
-./Deploy-All-Compose.ps1 -Stacks 'ollama'
+./infra/scripts/Deploy-All-Compose.ps1 -Stacks 'ollama'
 
 # Start only the performance stack
-./Deploy-All-Compose.ps1 -Stacks 'performance'
+./infra/scripts/Deploy-All-Compose.ps1 -Stacks 'performance'
 
 # Start all stacks and build images first
-./Deploy-All-Compose.ps1 -Action BuildAndUp -Build
+./infra/scripts/Deploy-All-Compose.ps1 -Action BuildAndUp -Build
 
 # Stop all stacks
-./Deploy-All-Compose.ps1 -Action Down
+./infra/scripts/Deploy-All-Compose.ps1 -Action Down
 
 # Show status for all stacks
-./Deploy-All-Compose.ps1 -Action Status
+./infra/scripts/Deploy-All-Compose.ps1 -Action Status
 
 # Show logs for all stacks
-./Deploy-All-Compose.ps1 -Action Logs -FollowLogs
+./infra/scripts/Deploy-All-Compose.ps1 -Action Logs -FollowLogs
+```
+
+```bash
+# Start all discovered stacks
+./infra/scripts/Deploy-All-Compose.sh
+
+# Start only the Ollama stack
+./infra/scripts/Deploy-All-Compose.sh --stack ollama
+
+# Start only the performance stack
+./infra/scripts/Deploy-All-Compose.sh --stack performance
+
+# Build and then start all stacks
+./infra/scripts/Deploy-All-Compose.sh --action BuildAndUp --build
+
+# Stop all stacks
+./infra/scripts/Deploy-All-Compose.sh --action Down
+
+# Show status for all stacks
+./infra/scripts/Deploy-All-Compose.sh --action Status
+
+# Show logs for all stacks
+./infra/scripts/Deploy-All-Compose.sh --action Logs --follow-logs
 ```
 
 This script is designed to be the central operational entry point for repo-wide Compose orchestration, while preserving explicit stack-specific commands for targeted troubleshooting.

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: model-connectors-service
+description: Helm chart for Model-Connectors Python Microservice
+type: application
+version: 2.0.0
+appVersion: "2.0.0"

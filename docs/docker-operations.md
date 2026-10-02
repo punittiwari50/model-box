@@ -34,7 +34,7 @@ Relative path resolution note:
 2. To use alternative bind mounts, set relative or absolute paths in `.env`.
 3. Compose resolves relative paths from the directory that contains the selected compose file.
 4. Example bind override: `COMPOSE_OLLAMA_MODELS_HOST=./volumes/ollama`.
-5. Canonical host model repository: `C:/volume-docker_ollama`.
+5. Canonical host model repository: configured via `COMPOSE_OLLAMA_MODELS_HOST`.
 6. Keep the same host path in `compose.ollama.yaml`, `compose.gpu.yaml`, `compose.cpu.yaml`, `ollama.env`, `ollama-gpu.env`, `ollama-cpu.env`, `.env.example`, and `.env`.
 7. Use `ollama-gpu.env` for GPU mode and `ollama-cpu.env` for CPU-only mode; both reference the same host model path.
 7. The host volume is consolidated into a single root manifest tree; all 11 available models are discoverable via `ollama list` in both CPU and GPU containers.
@@ -44,7 +44,7 @@ Mount behavior matrix:
 
 | Mount type | Example | Host side | Container side | Typical use |
 |---|---|---|---|---|
-| Bind mount, read-write (bidirectional) | `C:/volume-docker_ollama:/models` | Writable | Writable | Default Ollama data and model persistence |
+| Bind mount, read-write (bidirectional) | `${COMPOSE_OLLAMA_MODELS_HOST}:/models` | Writable | Writable | Default Ollama data and model persistence |
 | Bind mount, host read-only | `./data:/workspace:ro` | Read-only to container | Read-only inside container | Static assets or source data |
 | Full container filesystem read-only | `read_only: true` | No direct change from host | Read-only for app filesystem | Only when app does not write to disk |
 
@@ -64,7 +64,7 @@ Notes:
 | Host bind scope | `COMPOSE_BIND_IP` | `127.0.0.1` |
 | Host API port | `COMPOSE_HOST_PORT` | `11435` |
 | Container API port | `COMPOSE_CONTAINER_PORT` | `11434` |
-| Model data storage source | `COMPOSE_OLLAMA_MODELS_HOST` | `C:/volume-docker_ollama` |
+| Model data storage source | `COMPOSE_OLLAMA_MODELS_HOST` | configured per host |
 | Model mount target | `COMPOSE_OLLAMA_MODELS_CONTAINER` | `/models` |
 | CPU limit | `COMPOSE_CPUS` | `6` |
 | Memory limit | `COMPOSE_MEM_LIMIT` | `24g` |
@@ -165,18 +165,25 @@ Current available models (consolidated 2026-09-27):
 
 Use the repository-level orchestrator when you want one PowerShell entry point that discovers and manages all Compose stacks across the repo.
 
+A Linux Bash entry point is available for non-PowerShell environments.
+
 Execution context:
 
 ```powershell
 # Run from the project root itself
-./Deploy-All-Compose.ps1
+./infra/scripts/Deploy-All-Compose.ps1
+```
+
+```bash
+# Run from the project root itself (Linux/macOS)
+./infra/scripts/Deploy-All-Compose.sh
 ```
 
 Default behavior:
 
 - Starts all discovered Compose files under the repo by building and then bringing them up
 - Logs the exact docker command used for each stack before execution
-- Writes detailed operational logs to `logs/docker-compose-orchestrator-<timestamp>.log`
+- Writes detailed operational logs to `infra/logs/docker-compose-orchestrator-<timestamp>.log`
 - Produces a final summary table showing the result of each stack execution
 - Supports selective execution with `-Stacks` and actions such as `Up`, `Down`, `Build`, `BuildAndUp`, `Status`, `Logs`, and `Config`
 
@@ -184,22 +191,42 @@ Common examples:
 
 ```powershell
 # Default: start all stacks
-./Deploy-All-Compose.ps1
+./infra/scripts/Deploy-All-Compose.ps1
 
 # Only Ollama stacks
-./Deploy-All-Compose.ps1 -Stacks 'ollama'
+./infra/scripts/Deploy-All-Compose.ps1 -Stacks 'ollama'
 
 # Only performance stack
-./Deploy-All-Compose.ps1 -Stacks 'performance'
+./infra/scripts/Deploy-All-Compose.ps1 -Stacks 'performance'
 
 # Build and then start all stacks
-./Deploy-All-Compose.ps1 -Action BuildAndUp -Build
+./infra/scripts/Deploy-All-Compose.ps1 -Action BuildAndUp -Build
 
 # Stop everything
-./Deploy-All-Compose.ps1 -Action Down
+./infra/scripts/Deploy-All-Compose.ps1 -Action Down
 
 # Stream logs for all stacks
-./Deploy-All-Compose.ps1 -Action Logs -FollowLogs
+./infra/scripts/Deploy-All-Compose.ps1 -Action Logs -FollowLogs
+```
+
+```bash
+# Default: start all stacks
+./infra/scripts/Deploy-All-Compose.sh
+
+# Only Ollama stacks
+./infra/scripts/Deploy-All-Compose.sh --stack ollama
+
+# Only performance stack
+./infra/scripts/Deploy-All-Compose.sh --stack performance
+
+# Build and then start all stacks
+./infra/scripts/Deploy-All-Compose.sh --action BuildAndUp --build
+
+# Stop everything
+./infra/scripts/Deploy-All-Compose.sh --action Down
+
+# Stream logs for all stacks
+./infra/scripts/Deploy-All-Compose.sh --action Logs --follow-logs
 ```
 
 Use the single orchestrator for repo-wide operations and keep direct compose commands for stack-specific troubleshooting or precise runtime validation.

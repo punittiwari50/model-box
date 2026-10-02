@@ -1,0 +1,12 @@
+name: model-box
+
+services:
+  ollama:
+    extends:
+      file: ../ollama/docker/compose.gpu.yaml
+      service: ollama
+
+networks:
+  model-box-net:
+    name: model-box-net
+    external: true

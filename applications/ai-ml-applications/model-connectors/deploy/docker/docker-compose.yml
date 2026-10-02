@@ -1,0 +1,46 @@
+# Parent Docker Compose orchestrating decoupled Model-Connectors Subprojects
+# 1. service subproject (Python FastAPI Backend Microservice)
+# 2. ui subproject (Node React / Vite Frontend Application)
+
+name: model-connectors-parent
+
+services:
+  service:
+    container_name: model-connectors-service
+    image: model-connectors-service:latest
+    build:
+      context: ../../service
+      dockerfile: deploy/docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${MODEL_CONNECTORS_PORT:-8000}:8000"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+    networks:
+      - model-box-net
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  ui:
+    container_name: model-connectors-ui
+    image: model-connectors-ui:latest
+    build:
+      context: ../../ui
+      dockerfile: deploy/docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${MODEL_CONNECTORS_UI_PORT:-3000}:80"
+    depends_on:
+      - service
+    networks:
+      - model-box-net
+
+networks:
+  model-box-net:
+    external: true

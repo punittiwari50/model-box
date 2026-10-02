@@ -1,0 +1,18 @@
+# Subproject Docker Compose for UI React / Vite Frontend
+name: model-connectors-ui
+
+services:
+  ui:
+    container_name: model-connectors-ui
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${MODEL_CONNECTORS_UI_PORT:-3000}:80"
+    networks:
+      - model-box-net
+
+networks:
+  model-box-net:
+    external: true

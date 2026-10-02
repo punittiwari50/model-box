@@ -1,0 +1,39 @@
+FROM nvidia/cuda:13.0.1-cudnn-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PIP_NO_CACHE_DIR=1
+ENV PYTHONUNBUFFERED=1
+
+ARG TORCH_VERSION=2.14.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        ffmpeg \
+        git \
+        libgl1 \
+        libglib2.0-0 \
+        python3 \
+        python3-pip \
+        python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/comfyui
+
+# Build ComfyUI from local cloned source.
+COPY applications/ai-ml-applications/repo_comfyui/ /opt/comfyui/
+
+RUN python3 -m venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    pip install --upgrade pip setuptools wheel && \
+    pip install --extra-index-url https://download.pytorch.org/whl/cu130 torch torchvision torchaudio && \
+    pip install -r requirements.txt && \
+    pip install PyOpenGL PyOpenGL-accelerate psycopg[binary]
+
+COPY infra/comfyui/docker/entrypoint.sh /opt/comfyui/entrypoint.sh
+RUN chmod +x /opt/comfyui/entrypoint.sh
+
+EXPOSE 8188
+
+ENTRYPOINT ["/bin/bash", "/opt/comfyui/entrypoint.sh"]

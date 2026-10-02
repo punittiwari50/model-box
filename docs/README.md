@@ -11,6 +11,17 @@ This directory is the single source of truth for runtime operations and endpoint
 | [Docker Operations Guide](docker-operations.md) | Docker runtime lifecycle and model operations | Purpose / Command / Output |
 | [Docker Operations Runbook](docker-operations-runbook.md) | Detailed lifecycle runbooks, rebuild flows, and governance extensions | Procedure / Validation |
 | [Ollama Endpoint Guide](ollama-endpoints.md) | Endpoint selection, model mapping, and request templates | Purpose / Command / Output |
+| [ComfyUI Pixar 3D Architecture](comfyui-pixar-3d-overview.md) | Multimodal pipeline architecture for Pixar 3D image, video, and audio | Topology / Flow / Matrix |
+| [Pixar 3D Image Models](comfyui-pixar-image-models.md) | Checkpoints, LoRAs, and prompt engineering for 3D stylized stills | Catalog / Recipes / Nodes |
+| [Pixar 3D Video Models](comfyui-pixar-video-models.md) | Video diffusion, character motion, and facial puppetry models | Matrix / Specs / VRAM |
+| [Pixar 3D Audio Models](comfyui-pixar-audio-models.md) | Orchestral scores, cartoon foley, voice acting, and lip-sync | Pillars / Prompts / Mux |
+| [Pixar 3D Deployment Runbook](comfyui-pixar-pipeline-runbook.md) | Operational downloads, custom nodes setup, and testing | Procedure / Validation |
+| [Cinematic Script Director System](cinematic-script-director-system.md) | Interactive screenwriter, producer & sensory director system | Architecture / Workflow / Schema |
+| [Cinematic Script Director Templates](cinematic-script-director-templates.md) | Ollama Modelfile, interactive director prompts & manifest templates | Modelfile / Walkthrough / JSON |
+| [Pixar Cinematic Studio System](pixar-cinematic-studio-system.md) | Enterprise architecture, collaborative story DAG, Android client & prompt portal | Architecture / Collaboration / Specs |
+| [Pixar Cinematic Pipeline Implementation](pixar-cinematic-pipeline-implementation.md) | Multimodal pipeline, character consistency, 'Merge-to-1' composite & VRAM management | Pipeline / Schema / Roadmap |
+| [Pixar Cinematic Master Plan](pixar-cinematic-master-plan.md) | Master architectural hub, end-to-end routing table, lifecycle sequence & roadmap | Master / Router / Roadmap |
+| [Chat Session History](chat-session-history.md) | Record of chat interactions, prompt inputs, decisions, and created files | Chronology / Summary / Links |
 
 ## 3. Governance Rules
 

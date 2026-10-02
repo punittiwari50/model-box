@@ -178,6 +178,15 @@ gatling::resolve_runtime() {
 gatling::prepare() {
   mkdir -p "${GATLING_REPORT_ROOT}/runs" "${GATLING_REPORT_ROOT}/jfr"
 
+  # Ensure maven local repository directory exists and is writable by current user
+  if ! mkdir -p "${GATLING_MAVEN_REPO_PATH}" 2>/dev/null || ! touch "${GATLING_MAVEN_REPO_PATH}/.write_test" 2>/dev/null; then
+    gatling::log "WARNING: Cannot write to configured repo path ${GATLING_MAVEN_REPO_PATH}; falling back to /workspace/.cache/m2/repository"
+    GATLING_MAVEN_REPO_PATH="/workspace/.cache/m2/repository"
+    mkdir -p "${GATLING_MAVEN_REPO_PATH}"
+  else
+    rm -f "${GATLING_MAVEN_REPO_PATH}/.write_test"
+  fi
+
   # gatling-maven-plugin expects JVM args in comma-separated format when provided via system property.
   GATLING_JVM_ARGS="$(gatling::normalize_jvm_args "${GATLING_JVM_ARGS}")"
 

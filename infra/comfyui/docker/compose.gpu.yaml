@@ -1,0 +1,106 @@
+# ComfyUI GPU Runtime Compose Configuration
+#
+# Persistence & Bidirectional Sync:
+#   - Primary host data root is configured via COMPOSE_COMFYUI_VOLUME_HOST
+#   - Workflows are persisted separately and mounted read-write
+#   - Source mount allows host<->container synchronization for configuration and workflow edits
+#
+# GPU Mode:
+#   - gpus: all exposes GPU acceleration in the container
+#   - CUDA-enabled torch wheels are installed during image build
+
+name: model-box
+
+services:
+  comfyui:
+    container_name: comfyui-model-service-gpu
+    image: model-box-comfyui:gpu
+    build:
+      context: ../../../
+      dockerfile: infra/comfyui/docker/Dockerfile.gpu
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    gpus: all
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 3072
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    shm_size: ${COMPOSE_SHM_SIZE:-4g}
+    cpus: ${COMPOSE_CPUS:-10}
+    mem_limit: ${COMPOSE_MEM_LIMIT:-24g}
+    mem_reservation: ${COMPOSE_MEM_RESERVATION:-12g}
+    working_dir: /opt/comfyui
+    entrypoint:
+      - /bin/bash
+      - /opt/comfyui/entrypoint.sh
+    command:
+      - --listen
+      - ${COMFYUI_LISTEN:-0.0.0.0}
+      - --port
+      - "${COMPOSE_CONTAINER_PORT:-8188}"
+      - --input-directory
+      - /data/comfyui/input
+      - --output-directory
+      - /data/comfyui/output
+      - --user-directory
+      - /data/comfyui/user
+    environment:
+      COMFYUI_DISABLE_AUTO_LAUNCH: ${COMFYUI_DISABLE_AUTO_LAUNCH:-1}
+      COMFYUI_FRONTEND_ROOT: ${COMFYUI_FRONTEND_ROOT:-}
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility,graphics}
+      CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-0}
+    ports:
+      - "${COMPOSE_BIND_IP:-127.0.0.1}:${COMPOSE_HOST_PORT:-8189}:${COMPOSE_CONTAINER_PORT:-8188}"
+    volumes:
+      - type: bind
+        source: ${COMPOSE_COMFYUI_SOURCE_HOST:-../../applications/ai-ml-applications/repo_comfyui}
+        target: /workspace/comfyui-source
+        bind:
+          create_host_path: true
+        read_only: false
+      - type: bind
+        source: ${COMPOSE_COMFYUI_VOLUME_HOST:-./volumes/comfyui}
+        target: /data/comfyui
+        bind:
+          create_host_path: true
+        read_only: false
+      - type: bind
+        source: ${COMPOSE_COMFYUI_WORKFLOWS_HOST:-./volumes/comfyui/workflows}
+        target: /data/comfyui/user/default/workflows
+        bind:
+          create_host_path: true
+        read_only: false
+      - type: bind
+        source: ${COMPOSE_COMFYUI_SKILLS_HOST:-./volumes/skills}
+        target: /workspace/skills
+        bind:
+          create_host_path: true
+        read_only: false
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${COMPOSE_CONTAINER_PORT:-8188}/ > /dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+    networks:
+      - model-box-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        mode: "non-blocking"
+        max-buffer-size: "4m"
+
+networks:
+  model-box-net:
+    name: model-box-net
+    driver: bridge
+    attachable: true

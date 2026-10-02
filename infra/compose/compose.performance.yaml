@@ -1,0 +1,22 @@
+name: model-box
+
+services:
+  gatling-service:
+    extends:
+      file: ../performance/infra-gatling/docker/compose.performance.yaml
+      service: gatling-service
+  gatling-report-service:
+    extends:
+      file: ../performance/infra-gatling/docker/compose.performance.yaml
+      service: report-service
+
+networks:
+  model-box-net:
+    name: model-box-net
+    external: true
+
+volumes:
+  report-data:
+    driver: local
+  maven-repo-data:
+    driver: local
