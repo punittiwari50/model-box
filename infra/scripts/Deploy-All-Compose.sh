@@ -239,6 +239,9 @@ preferred_env_names_for_file() {
     compose.ollama.yml|compose.ollama.yaml)
       printf '%s\n' 'ollama.env' '.env'
       ;;
+    compose.connectors.yml|compose.connectors.yaml)
+      printf '%s\n' 'connectors.env' '.env'
+      ;;
     compose.performance.yml|compose.performance.yaml)
       printf '%s\n' 'performance.env' '.env' 'performance-local.env'
       ;;

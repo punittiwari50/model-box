@@ -61,7 +61,11 @@ services:
       retries: 5
       start_period: 20s
     networks:
-      - model-box-net
+      model-box-net:
+        aliases:
+          - ollama-model-service-gpu
+          - ollama-model-service
+          - ollama
     logging:
       driver: "json-file"
       options:

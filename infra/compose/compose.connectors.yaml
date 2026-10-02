@@ -1,0 +1,17 @@
+name: model-box
+
+services:
+  service:
+    extends:
+      file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
+      service: service
+
+  ui:
+    extends:
+      file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
+      service: ui
+
+networks:
+  model-box-net:
+    name: model-box-net
+    external: true

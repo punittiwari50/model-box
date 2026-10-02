@@ -86,7 +86,11 @@ services:
       retries: 6
       start_period: 45s
     networks:
-      - model-box-net
+      model-box-net:
+        aliases:
+          - comfyui-model-service-cpu
+          - comfyui-model-service
+          - comfyui
     logging:
       driver: "json-file"
       options:

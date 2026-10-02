@@ -285,6 +285,7 @@ function Get-PreferredEnvFiles {
         'compose\.gpu\.ya?ml$'          { @('comfyui-gpu.env', 'ollama-gpu.env', '.env'); break }
         'compose\.cpu\.ya?ml$'          { @('comfyui-cpu.env', 'ollama-cpu.env', '.env'); break }
         'compose\.ollama\.ya?ml$'       { @('ollama.env', '.env'); break }
+        'compose\.connectors\.ya?ml$'   { @('connectors.env', '.env'); break }
         'compose\.performance\.ya?ml$'  { @('performance.env', '.env', 'performance-local.env'); break }
         default                         { @('.env'); break }
     }

@@ -35,7 +35,7 @@ services:
       dockerfile: deploy/docker/Dockerfile
     restart: unless-stopped
     ports:
-      - "${MODEL_CONNECTORS_UI_PORT:-3000}:80"
+      - "${MODEL_CONNECTORS_UI_PORT:-3000}:3000"
     depends_on:
       - service
     networks:
