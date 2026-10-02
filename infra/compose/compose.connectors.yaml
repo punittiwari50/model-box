@@ -5,11 +5,15 @@ services:
     extends:
       file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
       service: service
+    env_file:
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-service.env
 
   ui:
     extends:
       file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
       service: ui
+    env_file:
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-ui.env
 
 networks:
   model-box-net:

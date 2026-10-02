@@ -3,7 +3,7 @@
 # Adheres to STD-BLD-001/002 with minimal image footprint and unprivileged security
 
 # Stage 1: Hermetic Builder
-FROM python:3.14-slim AS builder
+FROM python:3-slim AS builder
 
 WORKDIR /build
 
@@ -25,7 +25,7 @@ RUN pip install --prefix=/install . && \
     find /install -type f -name "*.pyc" -delete
 
 # Stage 2: Minimal Distroless / Slim Production Runtime
-FROM python:3.14-slim AS runtime
+FROM python:3-slim AS runtime
 
 WORKDIR /app
 

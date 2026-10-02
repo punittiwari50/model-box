@@ -3,16 +3,25 @@ name: model-connectors-ui
 
 services:
   ui:
-    container_name: model-connectors-ui
+    container_name: ${UI_CONTAINER_NAME:-model-connectors-ui}
+    image: ${UI_IMAGE_NAME:-model-connectors-ui:latest}
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
-    restart: unless-stopped
+    restart: ${UI_RESTART:-unless-stopped}
     ports:
-      - "${MODEL_CONNECTORS_UI_PORT:-3000}:3000"
+      - "${MODEL_CONNECTORS_UI_PORT:-3000}:${UI_INTERNAL_PORT:-3000}"
+    env_file:
+      - ./model-box-ui.env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-3000}
+      - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://model-connectors-service:8000}
     networks:
       - model-box-net
 
 networks:
   model-box-net:
+    name: ${SHARED_NETWORK_NAME:-model-box-net}
     external: true

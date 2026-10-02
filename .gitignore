@@ -53,6 +53,9 @@ tmp/
 *.env
 !.env.example
 !.env.sample
+!*.env.example
+!model-box-service.env
+!model-box-ui.env
 .envrc
 secrets/
 **/*.pem

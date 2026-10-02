@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 # Pure Node.js Production Container for ModelBox Connectors UI (React + Vite + SCSS)
 
-FROM node:22-alpine AS runtime
+FROM node:alpine AS runtime
 
 WORKDIR /app
 

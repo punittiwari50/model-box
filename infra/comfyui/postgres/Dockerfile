@@ -1,6 +1,6 @@
-FROM postgres:16-bookworm
+FROM postgres:17-bookworm
 
-ARG PG_MAJOR=16
+ARG PG_MAJOR=17
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
