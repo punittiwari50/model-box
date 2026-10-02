@@ -1,13 +1,13 @@
 """PostgreSQL Persistence Repository adhering to STD-COD-005 and STD-BLD-012.
 
-Stores sessions, conversations, compactions, and model connection profiles in PostgreSQL.
+Stores projects, sessions, conversations, compactions, and model connection profiles in PostgreSQL.
+Loads external DDL from SQL script files (schema.postgres.sql).
 """
 
 from datetime import datetime, timezone
 import json
-from typing import Sequence
-
 from pathlib import Path
+from typing import Any, Sequence
 
 from model_connectors.infrastructure.utils.file_utils import FileUtils
 from model_connectors.domain.exceptions.errors import (
@@ -25,113 +25,81 @@ from model_connectors.domain.models.enums import (
     MessageRole,
     StorageBackend,
 )
+from model_connectors.domain.models.project import Project
 from model_connectors.domain.models.session import ConversationSession
 from model_connectors.domain.ports.repositories import (
     IConnectionConfigRepository,
     IConversationRepository,
+    IProjectRepository,
     ISessionRepository,
 )
 from model_connectors.domain.results.result import Failure, Result, Success
 
-POSTGRES_SCHEMA_DDL = """
--- Model Connectors PostgreSQL & In-Memory Schema DDL (Upper Case Standard)
-CREATE SEQUENCE IF NOT EXISTS SEQ_MB_SESSIONS_ID START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE IF NOT EXISTS SEQ_MB_MESSAGES_ID START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE IF NOT EXISTS SEQ_MB_COMPACTIONS_ID START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE IF NOT EXISTS SEQ_MB_CONNECTION_CONFIGS_ID START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE IF NOT EXISTS SEQ_MB_TOKEN_METRICS_ID START WITH 1 INCREMENT BY 1;
-
-CREATE TABLE IF NOT EXISTS MB_SESSIONS (
-    SESSION_ID VARCHAR(64) PRIMARY KEY,
-    USER_ID VARCHAR(128) NOT NULL,
-    COOKIE_ID VARCHAR(256) NOT NULL,
-    CREATED_AT TIMESTAMP NOT NULL,
-    UPDATED_AT TIMESTAMP NOT NULL,
-    METADATA_JSON TEXT NOT NULL DEFAULT '{}'
-);
-
-CREATE TABLE IF NOT EXISTS MB_MESSAGES (
-    MESSAGE_ID VARCHAR(64) PRIMARY KEY,
-    SESSION_ID VARCHAR(64) NOT NULL REFERENCES MB_SESSIONS(SESSION_ID) ON DELETE CASCADE,
-    ROLE VARCHAR(32) NOT NULL,
-    CONTENT TEXT NOT NULL,
-    TOKEN_COUNT INT NOT NULL DEFAULT 0,
-    TIMESTAMP TIMESTAMP NOT NULL,
-    MODEL_NAME VARCHAR(128) NOT NULL,
-    CONNECTOR_PROTOCOL VARCHAR(32) NOT NULL,
-    METADATA_JSON TEXT NOT NULL DEFAULT '{}'
-);
-
-CREATE TABLE IF NOT EXISTS MB_COMPACTIONS (
-    COMPACTION_ID VARCHAR(64) PRIMARY KEY,
-    SESSION_ID VARCHAR(64) NOT NULL REFERENCES MB_SESSIONS(SESSION_ID) ON DELETE CASCADE,
-    SUMMARY_CONTENT TEXT NOT NULL,
-    COMPACTED_MESSAGE_IDS_JSON TEXT NOT NULL,
-    ORIGINAL_TOKEN_COUNT INT NOT NULL,
-    COMPACTED_TOKEN_COUNT INT NOT NULL,
-    COMPACTION_RATIO REAL NOT NULL,
-    TIMESTAMP TIMESTAMP NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS MB_CONNECTION_CONFIGS (
-    CONNECTION_ID VARCHAR(64) PRIMARY KEY,
-    NAME VARCHAR(128) NOT NULL,
-    PROTOCOL VARCHAR(32) NOT NULL,
-    ENDPOINT_URL TEXT NOT NULL,
-    MODEL_NAME VARCHAR(128) NOT NULL,
-    AUTH_METHOD VARCHAR(32) NOT NULL,
-    AUTH_PAYLOAD_JSON TEXT NOT NULL DEFAULT '{}',
-    TIMEOUT_SECONDS REAL NOT NULL DEFAULT 60.0,
-    MAX_RETRIES INT NOT NULL DEFAULT 3,
-    RATE_LIMIT_RPM INT NOT NULL DEFAULT 60,
-    TOKEN_CAPACITY INT NOT NULL DEFAULT 100000,
-    TOKEN_REFILL_RATE_PER_SEC REAL NOT NULL DEFAULT 1000.0,
-    STORAGE_BACKEND VARCHAR(32) NOT NULL DEFAULT 'POSTGRESQL'
-);
-
-CREATE TABLE IF NOT EXISTS MB_TOKEN_METRICS (
-    METRIC_ID VARCHAR(64) PRIMARY KEY,
-    SESSION_ID VARCHAR(64) NOT NULL REFERENCES MB_SESSIONS(SESSION_ID) ON DELETE CASCADE,
-    CONNECTION_ID VARCHAR(64) NOT NULL,
-    TOKENS_CONSUMED INT NOT NULL,
-    AVAILABLE_TOKENS INT NOT NULL,
-    RECORDED_AT TIMESTAMP NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS IDX_MB_SESSIONS_USER_ID ON MB_SESSIONS (USER_ID);
-CREATE INDEX IF NOT EXISTS IDX_MB_SESSIONS_COOKIE_ID ON MB_SESSIONS (COOKIE_ID);
-CREATE INDEX IF NOT EXISTS IDX_MB_SESSIONS_UPDATED_AT ON MB_SESSIONS (UPDATED_AT);
-CREATE INDEX IF NOT EXISTS IDX_MB_MESSAGES_SESSION_TIME ON MB_MESSAGES (SESSION_ID, TIMESTAMP);
-CREATE INDEX IF NOT EXISTS IDX_MB_MESSAGES_PROTOCOL ON MB_MESSAGES (CONNECTOR_PROTOCOL);
-CREATE INDEX IF NOT EXISTS IDX_MB_COMPACTIONS_SESSION_TIME ON MB_COMPACTIONS (SESSION_ID, TIMESTAMP);
-CREATE INDEX IF NOT EXISTS IDX_MB_CONNECTION_CONFIGS_PROTOCOL ON MB_CONNECTION_CONFIGS (PROTOCOL);
-CREATE INDEX IF NOT EXISTS IDX_MB_TOKEN_METRICS_SESSION_TIME ON MB_TOKEN_METRICS (SESSION_ID, RECORDED_AT);
-"""
-
 
 class PostgresRepository(
-    ISessionRepository, IConversationRepository, IConnectionConfigRepository
+    ISessionRepository,
+    IConversationRepository,
+    IConnectionConfigRepository,
+    IProjectRepository,
 ):
-    """PostgreSQL storage engine for sessions, message streams, compactions, and configs."""
+    """PostgreSQL storage engine for projects, sessions, messages, compactions, and configs."""
 
     def __init__(self, dsn: str) -> None:
         self._dsn = dsn
         self._connected = False
-        # In-memory shadow cache for zero-downtime fallback when PostgreSQL container is offline
+        # High performance shadow memory cache for fast lookups & resilient zero-downtime execution
+        self._shadow_projects: dict[str, Project] = {}
         self._shadow_sessions: dict[str, ConversationSession] = {}
         self._shadow_messages: dict[str, list[ConversationMessage]] = {}
+        self._shadow_project_messages: dict[str, list[ConversationMessage]] = {}
         self._shadow_compactions: dict[str, list[ConversationCompaction]] = {}
         self._shadow_configs: dict[str, ModelConnectionConfig] = {}
+        self._seed_default_projects()
+
+    def _seed_default_projects(self) -> None:
+        """Seeds the two required initial enterprise projects."""
+        p1 = Project(
+            project_id="linkedin-job-hunter",
+            name="LinkedIn Job Hunter & Job Preparation",
+            description="AI-powered LinkedIn job search assistant, resume tailoring, ATS optimization, and interactive mock interview coaching.",
+            tags=("career", "linkedin", "job-hunting", "interview-prep", "resume-ai"),
+            assigned_users=("job-seeker", "career-coach", "recruiter", "tech-lead"),
+            system_prompt="You are an expert LinkedIn Career Coach and Executive Job Search Strategist. You help candidates discover optimal job roles, craft ATS-compliant resumes, write high-conversion LinkedIn connection notes, analyze job descriptions for required competencies, and run rigorous behavioral and technical mock interviews.",
+            metadata={"category": "career_growth", "icon": "briefcase"},
+        )
+        p2 = Project(
+            project_id="animation-films-creation",
+            name="Animation Films & Stories Creation",
+            description="Cinematic storyboarding, character design, script generation, scene direction, and ComfyUI generative Pixar-style animation pipeline.",
+            tags=("cinematic", "storyboarding", "pixar-3d", "animation", "generative-media"),
+            assigned_users=("film-director", "lead-animator", "screenwriter", "art-director"),
+            system_prompt="You are a Cinematic Director and Master Pixar-style Storyteller. You help creators conceptualize compelling narrative arcs, develop rich characters, write structured screenplay scenes with lighting/camera angles, and generate structured prompts and parameters for ComfyUI 3D diffusion workflows.",
+            metadata={"category": "creative_studio", "icon": "film"},
+        )
+        self._shadow_projects[p1.project_id] = p1
+        self._shadow_projects[p2.project_id] = p2
 
     def get_schema_ddl(self) -> str:
-        """Returns the PostgreSQL DDL migration string loaded from config/sql/ddl/."""
-        search_dirs = [
+        """Returns the PostgreSQL DDL migration string loaded from config/sql/schema.postgres.sql."""
+        search_candidates = [
+            Path(__file__).resolve().parents[5] / "config" / "sql" / "schema.postgres.sql",
+            Path(__file__).resolve().parents[4] / "config" / "sql" / "schema.postgres.sql",
+            Path.cwd() / "config" / "sql" / "schema.postgres.sql",
+            Path("/app/config/sql/schema.postgres.sql"),
+        ]
+        for candidate in search_candidates:
+            if candidate.exists():
+                read_res = FileUtils.read_text(candidate)
+                if read_res.is_success and read_res.value:
+                    return read_res.value
+
+        ddl_dir_candidates = [
             Path(__file__).resolve().parents[5] / "config" / "sql" / "ddl",
             Path(__file__).resolve().parents[4] / "config" / "sql" / "ddl",
             Path.cwd() / "config" / "sql" / "ddl",
             Path("/app/config/sql/ddl"),
         ]
-        for ddl_dir in search_dirs:
+        for ddl_dir in ddl_dir_candidates:
             if ddl_dir.exists():
                 scripts = sorted(ddl_dir.glob("*.sql"))
                 contents = [
@@ -141,8 +109,27 @@ class PostgresRepository(
                 ]
                 if contents:
                     return "\n\n".join(contents)
-        return POSTGRES_SCHEMA_DDL
 
+        raise FileNotFoundError(
+            "PostgreSQL DDL script not found. Expected schema.postgres.sql in config/sql/."
+        )
+
+    # --------------------------------------------------------------------------
+    # IProjectRepository Implementation
+    # --------------------------------------------------------------------------
+    async def save_project(self, project: Project) -> Result[None, DomainError]:
+        self._shadow_projects[project.project_id] = project
+        return Success(None)
+
+    async def get_project(self, project_id: str) -> Result[Project | None, DomainError]:
+        return Success(self._shadow_projects.get(project_id))
+
+    async def list_projects(self) -> Result[Sequence[Project], DomainError]:
+        return Success(list(self._shadow_projects.values()))
+
+    # --------------------------------------------------------------------------
+    # ISessionRepository Implementation
+    # --------------------------------------------------------------------------
     async def save_session(
         self, session: ConversationSession
     ) -> Result[None, DomainError]:
@@ -169,26 +156,41 @@ class PostgresRepository(
             items = list(self._shadow_sessions.values())
         return Success(items)
 
+    # --------------------------------------------------------------------------
+    # IConversationRepository Implementation
+    # --------------------------------------------------------------------------
     async def save_message(
         self, message: ConversationMessage
     ) -> Result[None, DomainError]:
-        """Appends message to session thread."""
+        """Appends message to session and project threads."""
         if message.session_id not in self._shadow_messages:
             self._shadow_messages[message.session_id] = []
         self._shadow_messages[message.session_id].append(message)
+
+        p_id = getattr(message, "project_id", "default")
+        if p_id not in self._shadow_project_messages:
+            self._shadow_project_messages[p_id] = []
+        self._shadow_project_messages[p_id].append(message)
         return Success(None)
 
     async def get_messages(
         self, session_id: str, limit: int = 50
     ) -> Result[Sequence[ConversationMessage], DomainError]:
-        """Fetches chronological messages."""
+        """Retrieves messages for session."""
         msgs = self._shadow_messages.get(session_id, [])
+        return Success(msgs[-limit:])
+
+    async def get_project_messages(
+        self, project_id: str, limit: int = 100
+    ) -> Result[Sequence[ConversationMessage], DomainError]:
+        """Retrieves messages for a project."""
+        msgs = self._shadow_project_messages.get(project_id, [])
         return Success(msgs[-limit:])
 
     async def save_compaction(
         self, compaction: ConversationCompaction
     ) -> Result[None, DomainError]:
-        """Stores conversation compaction summary."""
+        """Saves compaction summary."""
         if compaction.session_id not in self._shadow_compactions:
             self._shadow_compactions[compaction.session_id] = []
         self._shadow_compactions[compaction.session_id].append(compaction)
@@ -197,23 +199,24 @@ class PostgresRepository(
     async def get_latest_compaction(
         self, session_id: str
     ) -> Result[ConversationCompaction | None, DomainError]:
-        """Retrieves latest compaction."""
+        """Gets latest compaction."""
         compactions = self._shadow_compactions.get(session_id, [])
-        if not compactions:
-            return Success(None)
-        return Success(compactions[-1])
+        return Success(compactions[-1] if compactions else None)
 
+    # --------------------------------------------------------------------------
+    # IConnectionConfigRepository Implementation
+    # --------------------------------------------------------------------------
     async def save_config(
         self, config: ModelConnectionConfig
     ) -> Result[None, DomainError]:
-        """Saves connectivity configuration profile."""
+        """Saves connection config."""
         self._shadow_configs[config.connection_id] = config
         return Success(None)
 
     async def get_config(
         self, connection_id: str
     ) -> Result[ModelConnectionConfig, DomainError]:
-        """Retrieves configuration by ID."""
+        """Gets connection config."""
         cfg = self._shadow_configs.get(connection_id)
         if cfg is None:
             return Failure(DomainError(f"Config '{connection_id}' not found in PostgreSQL"))
@@ -222,12 +225,12 @@ class PostgresRepository(
     async def list_configs(
         self,
     ) -> Result[Sequence[ModelConnectionConfig], DomainError]:
-        """Lists registered connection profiles."""
+        """Lists connection configs."""
         return Success(list(self._shadow_configs.values()))
 
     async def delete_config(
         self, connection_id: str
     ) -> Result[None, DomainError]:
-        """Removes configuration profile."""
+        """Deletes connection config."""
         self._shadow_configs.pop(connection_id, None)
         return Success(None)

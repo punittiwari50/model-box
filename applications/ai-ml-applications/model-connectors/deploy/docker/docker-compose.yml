@@ -1,12 +1,35 @@
 # ==============================================================================
 # ModelBox Connectors Orchestration Docker Compose
-# Decoupled microservices: Service (FastAPI) and UI (React/Node)
+# Decoupled microservices: Service (FastAPI), UI (React/Node), and Database (PostgreSQL)
 # Parameterized via model-box-service.env and model-box-ui.env
 # ==============================================================================
 
 name: model-connectors-parent
 
 services:
+  postgres:
+    container_name: ${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}
+    image: ${POSTGRES_IMAGE_NAME:-postgres:17-alpine}
+    restart: ${POSTGRES_RESTART:-unless-stopped}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-model_connectors}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - model-connectors-postgres-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    networks:
+      - model-box-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-model_connectors}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   service:
     container_name: ${SERVICE_CONTAINER_NAME:-model-connectors-service}
     image: ${SERVICE_IMAGE_NAME:-model-connectors-service:latest}
@@ -22,6 +45,12 @@ services:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
       - APP_HOST=${APP_HOST:-0.0.0.0}
       - APP_PORT=${APP_PORT:-8000}
+      - POSTGRES_HOST=${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - MODEL_BOX_POSTGRES_DSN=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}:5432/${POSTGRES_DB:-model_connectors}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - model-box-net
     healthcheck:
@@ -51,6 +80,10 @@ services:
       - service
     networks:
       - model-box-net
+
+volumes:
+  model-connectors-postgres-data:
+    name: ${POSTGRES_VOLUME_NAME:-model-connectors-postgres-data}
 
 networks:
   model-box-net:

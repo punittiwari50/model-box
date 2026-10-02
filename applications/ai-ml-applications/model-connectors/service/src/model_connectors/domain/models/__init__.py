@@ -17,6 +17,7 @@ from model_connectors.domain.models.inference import (
     InferenceRequest,
     InferenceResponse,
 )
+from model_connectors.domain.models.project import Project
 from model_connectors.domain.models.session import ConversationSession
 from model_connectors.domain.models.token_metrics import TokenMetrics
 
@@ -27,6 +28,7 @@ __all__ = [
     "StorageBackend",
     "ConnectorHealthState",
     "ModelConnectionConfig",
+    "Project",
     "ConversationSession",
     "ConversationMessage",
     "ConversationCompaction",

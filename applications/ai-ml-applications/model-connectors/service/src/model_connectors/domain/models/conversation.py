@@ -19,6 +19,8 @@ class ConversationMessage:
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     model_name: str = "default"
     connector_protocol: ConnectionProtocol = ConnectionProtocol.REST
+    project_id: str = "default"
+    user_tag: str = "general"
     metadata: Mapping[str, str] = field(default_factory=dict)
 
 

@@ -184,6 +184,8 @@ def create_app(
         compaction_uc=compaction_use_case,
         universal_connector=universal_connector,
         environment=env,
+        project_repo=storage_manager.project_repository,
+        conversation_repo=storage_manager.conversation_repository,
     )
     app.include_router(api_router)
 

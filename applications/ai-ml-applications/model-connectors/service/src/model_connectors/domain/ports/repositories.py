@@ -1,6 +1,6 @@
 """Repository port interfaces for persistence abstraction adhering to STD-COD-005."""
 
-from typing import Protocol, Sequence
+from typing import Any, Protocol, Sequence
 
 from model_connectors.domain.exceptions.errors import DomainError
 from model_connectors.domain.models.connection_config import ModelConnectionConfig
@@ -49,6 +49,12 @@ class IConversationRepository(Protocol):
         """Retrieves chronological message history for a session."""
         ...
 
+    async def get_project_messages(
+        self, project_id: str, limit: int = 100
+    ) -> Result[Sequence[ConversationMessage], DomainError]:
+        """Retrieves chronological message history for a project across all sessions."""
+        ...
+
     async def save_compaction(
         self, compaction: ConversationCompaction
     ) -> Result[None, DomainError]:
@@ -59,6 +65,22 @@ class IConversationRepository(Protocol):
         self, session_id: str
     ) -> Result[ConversationCompaction | None, DomainError]:
         """Retrieves the most recent conversation compaction for a session."""
+        ...
+
+
+class IProjectRepository(Protocol):
+    """Port for persisting and querying enterprise model projects."""
+
+    async def save_project(self, project: Any) -> Result[None, DomainError]:
+        """Saves or updates a project."""
+        ...
+
+    async def get_project(self, project_id: str) -> Result[Any | None, DomainError]:
+        """Retrieves project by ID."""
+        ...
+
+    async def list_projects(self) -> Result[Sequence[Any], DomainError]:
+        """Lists all registered projects."""
         ...
 
 

@@ -41,6 +41,10 @@ class IStorageBundle(ABC):
     @abstractmethod
     def config_repo(self) -> IConnectionConfigRepository: ...
 
+    @property
+    @abstractmethod
+    def project_repo(self) -> Any: ...
+
 
 class InMemoryStorageBundle(IStorageBundle):
     """Storage bundle backed by in-memory SQLite tables."""
@@ -60,6 +64,10 @@ class InMemoryStorageBundle(IStorageBundle):
     def config_repo(self) -> IConnectionConfigRepository:
         return self._repo
 
+    @property
+    def project_repo(self) -> Any:
+        return self._repo
+
 
 class PostgresStorageBundle(IStorageBundle):
     """Storage bundle backed by enterprise PostgreSQL persistence."""
@@ -77,6 +85,10 @@ class PostgresStorageBundle(IStorageBundle):
 
     @property
     def config_repo(self) -> IConnectionConfigRepository:
+        return self._repo
+
+    @property
+    def project_repo(self) -> Any:
         return self._repo
 
 
@@ -114,6 +126,10 @@ class StorageManager:
     @property
     def conversation_repository(self) -> IConversationRepository:
         return self.active_bundle.conversation_repo
+
+    @property
+    def project_repository(self) -> Any:
+        return self.active_bundle.project_repo
 
     @property
     def config_repositories(self) -> Mapping[StorageBackend, IConnectionConfigRepository]:

@@ -2,6 +2,8 @@
  * Enterprise API client layer communicating with ModelBox Backend Services.
  */
 
+import { envConfig } from '@/config/env.config';
+
 export interface ModelConnection {
   connection_id: string;
   name: string;
@@ -11,6 +13,32 @@ export interface ModelConnection {
   token_capacity: number;
   token_refill_rate_per_sec: number;
   storage_backend: string;
+}
+
+export interface Project {
+  project_id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  assigned_users: string[];
+  system_prompt: string;
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, any>;
+}
+
+export interface ChatMessage {
+  message_id: string;
+  session_id: string;
+  project_id?: string;
+  user_tag?: string;
+  role: 'USER' | 'ASSISTANT' | 'SYSTEM' | string;
+  content: string;
+  token_count: number;
+  timestamp: string;
+  model_name: string;
+  connector_protocol: string;
+  metadata?: Record<string, any>;
 }
 
 export interface EnvironmentInfo {
@@ -38,13 +66,23 @@ export interface InferenceResponse {
   raw_payload?: Record<string, any>;
 }
 
-import { envConfig } from '@/config/env.config';
-
 const BASE_URL = envConfig.backendBaseUrl;
 
 export const apiClient = {
   async getHealth(): Promise<any> {
     const res = await fetch('/health');
+    return res.json();
+  },
+
+  async getProjects(): Promise<Project[]> {
+    const res = await fetch(`${BASE_URL}/projects`);
+    if (!res.ok) throw new Error('Failed to fetch projects');
+    return res.json();
+  },
+
+  async getProjectMessages(projectId: string): Promise<ChatMessage[]> {
+    const res = await fetch(`${BASE_URL}/projects/${encodeURIComponent(projectId)}/messages`);
+    if (!res.ok) throw new Error('Failed to fetch project messages');
     return res.json();
   },
 
@@ -55,7 +93,7 @@ export const apiClient = {
   },
 
   async getEnvironment(): Promise<EnvironmentInfo> {
-    const res = await fetch(`${BASE_URL}/environment`);
+    const res = await fetch(`${BASE_URL}/env`);
     if (!res.ok) throw new Error('Failed to fetch environment configuration');
     return res.json();
   },
@@ -67,6 +105,8 @@ export const apiClient = {
     user_id?: string;
     cookie_id?: string;
     model_name?: string;
+    project_id?: string;
+    user_tag?: string;
     parameters?: Record<string, any>;
   }): Promise<InferenceResponse> {
     const res = await fetch(`${BASE_URL}/inference`, {
@@ -87,11 +127,13 @@ export const apiClient = {
     return res.json();
   },
 
-  getImageUrl(connectionId: string, filename: string): string {
-    return `${BASE_URL}/media/image?connection_id=${encodeURIComponent(connectionId)}&filename=${encodeURIComponent(filename)}`;
+  getImageUrl(serviceOrFilename: string, filename?: string): string {
+    const file = filename || serviceOrFilename;
+    return `${BASE_URL}/media/images/${encodeURIComponent(file)}`;
   },
 
-  getVideoStreamUrl(connectionId: string, videoId: string): string {
-    return `${BASE_URL}/media/video?connection_id=${encodeURIComponent(connectionId)}&video_id=${encodeURIComponent(videoId)}`;
-  }
+  getVideoStreamUrl(serviceOrFilename: string, filename?: string): string {
+    const file = filename || serviceOrFilename;
+    return `${BASE_URL}/media/videos/${encodeURIComponent(file)}`;
+  },
 };

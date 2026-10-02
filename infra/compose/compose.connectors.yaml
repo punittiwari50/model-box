@@ -1,6 +1,13 @@
 name: model-box
 
 services:
+  postgres:
+    extends:
+      file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
+      service: postgres
+    env_file:
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-service.env
+
   service:
     extends:
       file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
@@ -14,6 +21,10 @@ services:
       service: ui
     env_file:
       - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-ui.env
+
+volumes:
+  model-connectors-postgres-data:
+    name: model-connectors-postgres-data
 
 networks:
   model-box-net:
