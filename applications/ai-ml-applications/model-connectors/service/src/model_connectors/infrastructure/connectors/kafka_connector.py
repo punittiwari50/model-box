@@ -5,13 +5,12 @@ Supports asynchronous pub/sub model inference, event streaming, and distributed 
 
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
-import json
 import time
-from typing import Any, Mapping
+from typing import Any
 import uuid
 
-from model_connectors.domain.constants import KafkaConstants
-from model_connectors.domain.exceptions.errors import DomainError, ModelConnectionError
+from model_connectors.domain.constants import HttpConstants, KafkaConstants
+from model_connectors.domain.exceptions.errors import DomainError
 from model_connectors.domain.models.connection_config import ModelConnectionConfig
 from model_connectors.domain.models.enums import ConnectorHealthState
 from model_connectors.domain.models.inference import (
@@ -21,7 +20,7 @@ from model_connectors.domain.models.inference import (
 )
 from model_connectors.domain.models.token_metrics import TokenMetrics
 from model_connectors.domain.ports.connector import IModelConnector
-from model_connectors.domain.results.result import Failure, Result, Success
+from model_connectors.domain.results.result import Result, Success
 
 
 class KafkaModelConnector(IModelConnector):
@@ -53,7 +52,7 @@ class KafkaModelConnector(IModelConnector):
             "source": f"urn:modelbox:client:{self._client_id}",
             "id": correlation_id,
             "time": datetime.now(timezone.utc).isoformat(),
-            "datacontenttype": "application/json",
+            "datacontenttype": HttpConstants.CONTENT_TYPE_JSON,
             "data": {
                 "session_id": request.session_id,
                 "model_name": config.model_name or request.model_name,

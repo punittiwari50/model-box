@@ -1,0 +1,53 @@
+{
+  "id": "wf-auth-endpoint-scanner",
+  "name": "API Endpoint & Auth Classification Scanner",
+  "description": "Scans endpoints, sniffs HTTP headers, cookies, query parameters, status codes, and tags authentication requirements",
+  "version": "1.0.0",
+  "baseUrl": "{{vars.targetUrl}}",
+  "variables": {
+    "targetUrl": "https://httpbin.org",
+    "testUsername": "demoUser",
+    "scanDelayMs": 1500
+  },
+  "headless": true,
+  "timeoutMs": 60000,
+  "stepTimeoutMs": 15000,
+  "steps": [
+    {
+      "id": "step-open-portal",
+      "action": "navigate",
+      "description": "Open portal to initiate background traffic",
+      "targetUrl": "{{vars.targetUrl}}"
+    },
+    {
+      "id": "step-probe-bearer-auth",
+      "action": "evaluate",
+      "description": "Probe a protected endpoint using Authorization: Bearer header",
+      "evaluateExpression": "fetch('/bearer', { headers: { 'Authorization': 'Bearer test-jwt-token-xyz' } }).catch(() => {})"
+    },
+    {
+      "id": "step-probe-basic-auth",
+      "action": "evaluate",
+      "description": "Probe a protected endpoint using HTTP Basic Auth",
+      "evaluateExpression": "fetch('/basic-auth/user/passwd', { headers: { 'Authorization': 'Basic dXNlcjpwYXNzd2Q=' } }).catch(() => {})"
+    },
+    {
+      "id": "step-probe-unauthorized",
+      "action": "evaluate",
+      "description": "Probe an endpoint returning HTTP 401 Unauthorized",
+      "evaluateExpression": "fetch('/status/401').catch(() => {})"
+    },
+    {
+      "id": "step-probe-forbidden",
+      "action": "evaluate",
+      "description": "Probe an endpoint returning HTTP 403 Forbidden",
+      "evaluateExpression": "fetch('/status/403').catch(() => {})"
+    },
+    {
+      "id": "step-settle-traffic",
+      "action": "wait_for_timeout",
+      "description": "Allow all network requests and responses to settle and be indexed",
+      "value": 2000
+    }
+  ]
+}

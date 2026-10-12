@@ -21,6 +21,7 @@ from model_connectors.domain.models.inference import (
     InferenceRequest,
     InferenceResponse,
 )
+from model_connectors.domain.constants import HttpConstants
 from model_connectors.domain.models.token_metrics import TokenMetrics
 from model_connectors.domain.ports.connector import IModelConnector
 from model_connectors.domain.results.result import Failure, Result, Success
@@ -63,7 +64,7 @@ class CookieSessionConnector(IModelConnector):
             "Cookie": cookie_header,
             "X-Session-ID": request.session_id,
             "X-User-ID": request.user_id,
-            "Content-Type": "application/json",
+            HttpConstants.HEADER_CONTENT_TYPE: HttpConstants.CONTENT_TYPE_JSON,
         }
         # Include custom headers from config
         for k, v in config.auth_payload.items():

@@ -4,18 +4,14 @@ Supports binary image retrieval, MIME verification, and chunked seekable video s
 """
 
 from collections.abc import AsyncIterator
-import io
 import math
-import mimetypes
-from pathlib import Path
-from typing import Any, Final
 import httpx
 
 from model_connectors.domain.constants import MediaConstants
-from model_connectors.domain.exceptions.errors import DomainError, ModelConnectionError
+from model_connectors.domain.exceptions.errors import DomainError
 from model_connectors.domain.models.connection_config import ModelConnectionConfig
 from model_connectors.domain.models.media import MediaAsset, MediaRequest
-from model_connectors.domain.results.result import Failure, Result, Success
+from model_connectors.domain.results.result import Result, Success
 from model_connectors.infrastructure.connectors.endpoint_resolver import resolve_endpoint
 
 

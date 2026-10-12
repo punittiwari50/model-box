@@ -1,0 +1,495 @@
+{
+  "id": "linkedin-manual-codegen-flow",
+  "name": "LinkedIn Manual Flow",
+  "description": "Manually recorded workflow via Playwright interactive codegen for https://www.linkedin.com",
+  "version": "1.0.0",
+  "baseUrl": "https://www.linkedin.com",
+  "variables": {
+    "username": "user@example.com",
+    "password": "YOUR_PASSWORD_HERE"
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browserType": "chromium",
+  "headless": true,
+  "timeoutMs": 180000,
+  "stepTimeoutMs": 30000,
+  "retryConfig": {
+    "maxRetries": 3,
+    "initialDelayMs": 1000,
+    "backoffFactor": 2
+  },
+  "circuitBreakerDomain": "www.linkedin.com",
+  "steps": [
+    {
+      "id": "step-1",
+      "action": "navigate",
+      "description": "Navigate to https://www.linkedin.com/",
+      "targetUrl": "https://www.linkedin.com/",
+      "timeoutMs": 30000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-2",
+      "action": "click",
+      "description": "Click link \"Sign in with email\"",
+      "selector": {
+        "primary": "role=link[name=\"Sign in with email\"]",
+        "fallbacks": [
+          "link:has-text(\"Sign in with email\")",
+          "[aria-label=\"Sign in with email\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-3",
+      "action": "click",
+      "description": "Click textbox \"Email or phone\"",
+      "selector": {
+        "primary": "role=textbox[name=\"Email or phone\"]",
+        "fallbacks": [
+          "textbox:has-text(\"Email or phone\")",
+          "[aria-label=\"Email or phone\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-4",
+      "action": "fill",
+      "description": "Fill textbox \"Email or phone\"",
+      "selector": {
+        "primary": "role=textbox[name=\"Email or phone\"]",
+        "fallbacks": [
+          "textbox:has-text(\"Email or phone\")",
+          "[aria-label=\"Email or phone\"]"
+        ]
+      },
+      "value": "{{variables.username}}",
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-5",
+      "action": "click",
+      "description": "Click textbox \"Password\"",
+      "selector": {
+        "primary": "role=textbox[name=\"Password\"]",
+        "fallbacks": [
+          "textbox:has-text(\"Password\")",
+          "[aria-label=\"Password\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-6",
+      "action": "fill",
+      "description": "Fill textbox \"Password\"",
+      "selector": {
+        "primary": "role=textbox[name=\"Password\"]",
+        "fallbacks": [
+          "textbox:has-text(\"Password\")",
+          "[aria-label=\"Password\"]"
+        ]
+      },
+      "value": "{{variables.password}}",
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-7",
+      "action": "click",
+      "description": "Click button \"Show password\"",
+      "selector": {
+        "primary": "role=button[name=\"Show password\"]",
+        "fallbacks": [
+          "button:has-text(\"Show password\")",
+          "[aria-label=\"Show password\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-8",
+      "action": "click",
+      "description": "Click button \"Hide password\"",
+      "selector": {
+        "primary": "role=button[name=\"Hide password\"]",
+        "fallbacks": [
+          "button:has-text(\"Hide password\")",
+          "[aria-label=\"Hide password\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-9",
+      "action": "click",
+      "description": "Click button \"Sign in\"",
+      "selector": {
+        "primary": "role=button[name=\"Sign in\"]",
+        "fallbacks": [
+          "button:has-text(\"Sign in\")",
+          "[aria-label=\"Sign in\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-10",
+      "action": "navigate",
+      "description": "Navigate to https://www.linkedin.com/feed/",
+      "targetUrl": "https://www.linkedin.com/feed/",
+      "timeoutMs": 30000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-11",
+      "action": "navigate",
+      "description": "Navigate to https://www.linkedin.com/feed/",
+      "targetUrl": "https://www.linkedin.com/feed/",
+      "timeoutMs": 30000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-12",
+      "action": "click",
+      "description": "Click link \"Jobs, 0 new notifications\"",
+      "selector": {
+        "primary": "role=link[name=\"Jobs, 0 new notifications\"]",
+        "fallbacks": [
+          "link:has-text(\"Jobs, 0 new notifications\")",
+          "[aria-label=\"Jobs, 0 new notifications\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-13",
+      "action": "click",
+      "description": "Click link \"Lead Software Engineer (\"",
+      "selector": {
+        "primary": "role=link[name=\"Lead Software Engineer (\"]",
+        "fallbacks": [
+          "link:has-text(\"Lead Software Engineer (\")",
+          "[aria-label=\"Lead Software Engineer (\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-14",
+      "action": "click",
+      "description": "Click #workspace",
+      "selector": {
+        "primary": "#workspace",
+        "fallbacks": [
+          "#workspace"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-15",
+      "action": "click",
+      "description": "Click button \"More about Company focus areas\"",
+      "selector": {
+        "primary": "role=button[name=\"More about Company focus areas\"]",
+        "fallbacks": [
+          "button:has-text(\"More about Company focus areas\")",
+          "[aria-label=\"More about Company focus areas\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-16",
+      "action": "click",
+      "description": "Click test-id \"expandable-text-button\"",
+      "selector": {
+        "primary": "[data-testid=\"expandable-text-button\"]",
+        "fallbacks": [
+          "[data-test-id=\"expandable-text-button\"]",
+          "[data-test=\"expandable-text-button\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-17",
+      "action": "click",
+      "description": "Click test-id \"expandable-text-button\"",
+      "selector": {
+        "primary": "[data-testid=\"expandable-text-button\"]",
+        "fallbacks": [
+          "[data-test-id=\"expandable-text-button\"]",
+          "[data-test=\"expandable-text-button\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-17-extract",
+      "action": "extract_job_requirement",
+      "description": "Extract and structure job requirements for Lead Software Engineer (job 4438692931) using Ollama, save to MD and Postgres with direct LinkedIn URL",
+      "timeoutMs": 60000,
+      "optional": true,
+      "continueOnError": true
+    },
+    {
+      "id": "step-18",
+      "action": "click",
+      "description": "Click test-id \"typeahead-input\"",
+      "selector": {
+        "primary": "[data-testid=\"typeahead-input\"]",
+        "fallbacks": [
+          "[data-test-id=\"typeahead-input\"]",
+          "[data-test=\"typeahead-input\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-19",
+      "action": "fill",
+      "description": "Fill test-id \"typeahead-input\"",
+      "selector": {
+        "primary": "[data-testid=\"typeahead-input\"]",
+        "fallbacks": [
+          "[data-test-id=\"typeahead-input\"]",
+          "[data-test=\"typeahead-input\"]"
+        ]
+      },
+      "value": "Solution Architect",
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-20",
+      "action": "press",
+      "description": "Press key \"Enter\"",
+      "selector": {
+        "primary": "[data-testid=\"typeahead-input\"]",
+        "fallbacks": [
+          "[data-test-id=\"typeahead-input\"]",
+          "[data-test=\"typeahead-input\"]"
+        ]
+      },
+      "value": "Enter",
+      "timeoutMs": 10000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-21",
+      "action": "click",
+      "description": "Click button \"Filter by Date posted\"",
+      "selector": {
+        "primary": "role=button[name=\"Filter by Date posted\"]",
+        "fallbacks": [
+          "button:has-text(\"Filter by Date posted\")",
+          "[aria-label=\"Filter by Date posted\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-22",
+      "action": "click",
+      "description": "Click checkbox \"Date posted\"",
+      "selector": {
+        "primary": "role=checkbox[name=\"Date posted\"]",
+        "fallbacks": [
+          "checkbox:has-text(\"Date posted\")",
+          "[aria-label=\"Date posted\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-23",
+      "action": "click",
+      "description": "Click element",
+      "selector": {
+        "primary": "button",
+        "fallbacks": [
+          "a",
+          "[role=\"button\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-24",
+      "action": "click",
+      "description": "Click link \"Show results\"",
+      "selector": {
+        "primary": "role=link[name=\"Show results\"]",
+        "fallbacks": [
+          "link:has-text(\"Show results\")",
+          "[aria-label=\"Show results\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-25",
+      "action": "click",
+      "description": "Click button \"Consulting Solutions Engineer (Verified job) NetApp Mumbai Metropolitan Region\"",
+      "selector": {
+        "primary": "role=button[name=\"Consulting Solutions Engineer (Verified job) NetApp Mumbai Metropolitan Region\"]",
+        "fallbacks": [
+          "button:has-text(\"Consulting Solutions Engineer (Verified job) NetApp Mumbai Metropolitan Region\")",
+          "[aria-label=\"Consulting Solutions Engineer (Verified job) NetApp Mumbai Metropolitan Region\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-25-extract",
+      "action": "extract_job_requirement",
+      "description": "Extract and structure requirements for Consulting Solutions Engineer at NetApp using Ollama, save to MD and Postgres with direct LinkedIn URL",
+      "timeoutMs": 60000,
+      "optional": true,
+      "continueOnError": true
+    },
+    {
+      "id": "step-26",
+      "action": "click",
+      "description": "Click button \"Solutions Architect Sr. Manager - Power (Verified job) Vertiv Thane Dismiss\"",
+      "selector": {
+        "primary": "role=button[name=\"Solutions Architect Sr. Manager - Power (Verified job) Vertiv Thane Dismiss\"]",
+        "fallbacks": [
+          "button:has-text(\"Solutions Architect Sr. Manager - Power (Verified job) Vertiv Thane Dismiss\")",
+          "[aria-label=\"Solutions Architect Sr. Manager - Power (Verified job) Vertiv Thane Dismiss\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-26-extract",
+      "action": "extract_job_requirement",
+      "description": "Extract and structure requirements for Solutions Architect Sr. Manager at Vertiv using Ollama, save to MD and Postgres with direct LinkedIn URL",
+      "timeoutMs": 60000,
+      "optional": true,
+      "continueOnError": true
+    },
+    {
+      "id": "step-27",
+      "action": "click",
+      "description": "Click button \"SAP Data-AD (Verified job) EY\"",
+      "selector": {
+        "primary": "role=button[name=\"SAP Data-AD (Verified job) EY\"]",
+        "fallbacks": [
+          "button:has-text(\"SAP Data-AD (Verified job) EY\")",
+          "[aria-label=\"SAP Data-AD (Verified job) EY\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-27-extract",
+      "action": "extract_job_requirement",
+      "description": "Extract and structure requirements for SAP Data-AD at EY using Ollama, save to MD and Postgres with direct LinkedIn URL",
+      "timeoutMs": 60000,
+      "optional": true,
+      "continueOnError": true
+    },
+    {
+      "id": "step-28",
+      "action": "click",
+      "description": "Click button \"Sr. Technical Engineer – SAP Platform, Dev (Verified job) General Mills Mumbai\"",
+      "selector": {
+        "primary": "role=button[name=\"Sr. Technical Engineer – SAP Platform, Dev (Verified job) General Mills Mumbai\"]",
+        "fallbacks": [
+          "button:has-text(\"Sr. Technical Engineer – SAP Platform, Dev (Verified job) General Mills Mumbai\")",
+          "[aria-label=\"Sr. Technical Engineer – SAP Platform, Dev (Verified job) General Mills Mumbai\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-28-extract",
+      "action": "extract_job_requirement",
+      "description": "Extract and structure requirements for Sr. Technical Engineer at General Mills using Ollama, save to MD and Postgres with direct LinkedIn URL",
+      "timeoutMs": 60000,
+      "optional": true,
+      "continueOnError": true
+    },
+    {
+      "id": "step-29",
+      "action": "click",
+      "description": "Click button \"Azure Security Architect (\"",
+      "selector": {
+        "primary": "role=button[name=\"Azure Security Architect (\"]",
+        "fallbacks": [
+          "button:has-text(\"Azure Security Architect (\")",
+          "[aria-label=\"Azure Security Architect (\"]"
+        ]
+      },
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-29-extract",
+      "action": "extract_job_requirement",
+      "description": "Extract and structure requirements for Azure Security Architect using Ollama, save to MD and Postgres with direct LinkedIn URL",
+      "timeoutMs": 60000,
+      "optional": true,
+      "continueOnError": true
+    }
+  ]
+}

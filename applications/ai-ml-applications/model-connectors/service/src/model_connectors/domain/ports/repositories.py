@@ -1,6 +1,6 @@
 """Repository port interfaces for persistence abstraction adhering to STD-COD-005."""
 
-from typing import Any, Protocol, Sequence
+from typing import Any, Protocol, Sequence, runtime_checkable
 
 from model_connectors.domain.exceptions.errors import DomainError
 from model_connectors.domain.models.connection_config import ModelConnectionConfig
@@ -110,3 +110,74 @@ class IConnectionConfigRepository(Protocol):
     ) -> Result[None, DomainError]:
         """Removes a model connection configuration."""
         ...
+
+
+@runtime_checkable
+class IXRayBestPracticeRepository(Protocol):
+    """Port for persisting and retrieving enterprise Google X-Ray search best practices."""
+
+    async def list_practices(
+        self, category: str | None = None
+    ) -> Result[Sequence[Any], DomainError]:
+        """Lists active enterprise Google X-Ray search best practices from DML."""
+        ...
+
+    async def get_practice(
+        self, practice_id: str
+    ) -> Result[Any, DomainError]:
+        """Retrieves an X-Ray search best practice by ID."""
+        ...
+
+    async def save_practice(
+        self, practice: Any
+    ) -> Result[None, DomainError]:
+        """Saves or updates an X-Ray search best practice."""
+        ...
+
+
+@runtime_checkable
+class ITrustedPortalRepository(Protocol):
+    """Port for persisting and querying official company portals and verified logos from DML."""
+
+    async def list_portals(
+        self, portal_type: str | None = None, is_active: bool = True
+    ) -> Result[Sequence[Any], DomainError]:
+        """Lists official portals with verified logos loaded from DML."""
+        ...
+
+    async def get_portal(
+        self, portal_id: str
+    ) -> Result[Any, DomainError]:
+        """Retrieves official portal info by portal ID."""
+        ...
+
+    async def save_portal(
+        self, portal: Any
+    ) -> Result[None, DomainError]:
+        """Persists or updates official portal record."""
+        ...
+
+
+@runtime_checkable
+class IOfficialSchemaRepository(Protocol):
+    """Port for persisting and querying official response schemas (e.g. Schema.org JobPosting)."""
+
+    async def list_schemas(
+        self, is_active: bool = True
+    ) -> Result[Sequence[Any], DomainError]:
+        """Lists official response JSON schemas loaded from DML."""
+        ...
+
+    async def get_schema(
+        self, schema_id: str
+    ) -> Result[Any, DomainError]:
+        """Retrieves official response JSON schema by ID."""
+        ...
+
+    async def save_schema(
+        self, schema: Any
+    ) -> Result[None, DomainError]:
+        """Persists or updates official response JSON schema."""
+        ...
+
+

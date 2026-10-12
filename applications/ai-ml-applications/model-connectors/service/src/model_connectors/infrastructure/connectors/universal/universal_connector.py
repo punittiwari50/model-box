@@ -8,13 +8,12 @@ Adheres to:
 """
 
 from collections.abc import AsyncIterator
-from typing import Any, Final, Mapping
+from typing import Any
 
 from model_connectors.domain.constants import ErrorConstants
 from model_connectors.domain.exceptions.errors import (
     ConfigurationError,
     DomainError,
-    ModelConnectionError,
 )
 from model_connectors.domain.models.connection_config import ModelConnectionConfig
 from model_connectors.domain.models.enums import ConnectionProtocol

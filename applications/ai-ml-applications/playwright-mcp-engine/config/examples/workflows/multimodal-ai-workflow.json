@@ -1,0 +1,44 @@
+{
+  "id": "wf-multimodal-ai-connector",
+  "name": "Multimodal AI Orchestrator Workflow",
+  "description": "Demonstrates connecting Playwright MCP to Ollama for prompt synthesis and ComfyUI for generation",
+  "version": "1.0.0",
+  "baseUrl": "https://example.com",
+  "variables": {
+    "targetUrl": "https://example.com",
+    "generationPrompt": "Cinematic futuristic robotic explorer discovering glowing crystal caves, octane render 8k",
+    "ollamaModel": "qwen2.5:latest"
+  },
+  "headless": true,
+  "timeoutMs": 90000,
+  "stepTimeoutMs": 30000,
+  "steps": [
+    {
+      "id": "step-open-portal",
+      "action": "navigate",
+      "targetUrl": "{{vars.targetUrl}}"
+    },
+    {
+      "id": "step-ask-ollama-assistance",
+      "action": "call_ollama",
+      "description": "Call Ollama service on model-box-net to analyze page structure and summarize content",
+      "aiPrompt": {
+        "model": "{{vars.ollamaModel}}",
+        "prompt": "Analyze the web page content and produce a 1-sentence prompt optimization for image generation based on it.",
+        "includeScreenshot": false
+      },
+      "outputKey": "ollamaRecommendation"
+    },
+    {
+      "id": "step-trigger-comfyui",
+      "action": "call_comfyui",
+      "description": "Dispatch prompt graph to ComfyUI service on model-box-net to generate visual asset",
+      "comfyPrompt": {
+        "positivePrompt": "{{vars.generationPrompt}}",
+        "negativePrompt": "blurry, low quality, distorted, watermark",
+        "seed": 42
+      },
+      "outputKey": "comfyGenerationTask"
+    }
+  ]
+}

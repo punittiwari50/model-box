@@ -4,15 +4,18 @@ import { UniversalConsole } from '@/components/UniversalConsole';
 import { MediaGallery } from '@/components/MediaGallery';
 import { RuntimeEnvironmentViewer } from '@/components/RuntimeEnvironmentViewer';
 import { StorageDashboard } from '@/components/StorageDashboard';
-import { PlaywrightMcpTesting } from '@/components/PlaywrightMcpTesting';
+import { PlaywrightMcpAutomation } from '@/components/PlaywrightMcpAutomation';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'console' | 'media' | 'env' | 'storage' | 'mcp'>('console');
   const [connections, setConnections] = useState<ModelConnection[]>([]);
   const [selectedConnection, setSelectedConnection] = useState<ModelConnection | null>(null);
   const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [routingMode, setRoutingMode] = useState<string>(apiClient.getRoutingMode());
 
   useEffect(() => {
+    const unsubscribe = apiClient.subscribeRoutingMode((mode) => setRoutingMode(mode));
+
     // Initial fetch of connections and health
     apiClient.getConnections()
       .then((data) => {
@@ -24,6 +27,10 @@ export const App: React.FC = () => {
     apiClient.getHealth()
       .then(setHealthStatus)
       .catch(console.error);
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return (
@@ -126,6 +133,73 @@ export const App: React.FC = () => {
             </div>
           </div>
 
+          {/* Security Feature Flag & Execution Routing Flow Strategy */}
+          <div className="glass-card" style={{ border: routingMode === 'DIRECT_CONTAINER_MESH' ? '1px solid var(--accent-amber)' : '1px solid var(--accent-cyan)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', margin: 0 }}>
+                Execution Flow Flag
+              </h3>
+              <button
+                id="toggle-routing-feature-flag"
+                onClick={() => {
+                  const next = apiClient.toggleRoutingMode();
+                  setRoutingMode(next);
+                }}
+                style={{
+                  background: routingMode === 'DIRECT_CONTAINER_MESH' ? 'var(--accent-amber)' : 'var(--accent-cyan)',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '0.2rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {routingMode === 'DIRECT_CONTAINER_MESH' ? '⚡ Direct Mesh ON' : '🔒 Gateway (BFF) Flow'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8125rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Active Flow:</span>
+                <span style={{ fontWeight: 600, color: routingMode === 'DIRECT_CONTAINER_MESH' ? 'var(--accent-amber)' : 'var(--accent-emerald)' }}>
+                  {routingMode === 'DIRECT_CONTAINER_MESH' ? 'Direct Container Mesh' : 'UI → Service (BFF)'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Security Level:</span>
+                <span style={{ color: routingMode === 'DIRECT_CONTAINER_MESH' ? 'var(--accent-amber)' : 'var(--accent-emerald)' }}>
+                  {routingMode === 'DIRECT_CONTAINER_MESH' ? 'Debug / Direct Mesh' : 'Hardened (Least Privilege)'}
+                </span>
+              </div>
+              {routingMode === 'DIRECT_CONTAINER_MESH' && (
+                <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.75rem' }}>
+                  <div style={{ color: 'var(--text-dim)', fontWeight: 600 }}>Active Mesh Endpoints:</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Vault:</span>
+                    <code>:8200</code>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>PostgreSQL:</span>
+                    <code>:5432</code>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Ollama:</span>
+                    <code>:11434</code>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>ComfyUI:</span>
+                    <code>:8188</code>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Playwright MCP:</span>
+                    <code>:8931</code>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="glass-card">
             <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
               Supported Protocols
@@ -155,7 +229,7 @@ export const App: React.FC = () => {
 
           {activeTab === 'storage' && <StorageDashboard connections={connections} />}
 
-          {activeTab === 'mcp' && <PlaywrightMcpTesting />}
+          {activeTab === 'mcp' && <PlaywrightMcpAutomation />}
         </section>
       </main>
     </div>

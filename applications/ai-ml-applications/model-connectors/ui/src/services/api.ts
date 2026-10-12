@@ -3,6 +3,21 @@
  */
 
 import { envConfig } from '@/config/env.config';
+import { HttpConstants } from '@/config/constants';
+import type { SearchExecutionPayload } from '@/types/automation';
+import {
+  routingRegistry,
+  ContainerServiceTarget,
+  ExecutionRoutingMode,
+} from '@/services/routing';
+
+const resolveEndpoint = (target: ContainerServiceTarget, path: string): string => {
+  return routingRegistry.resolveEndpoint(target, path);
+};
+
+const resolveHeaders = (target: ContainerServiceTarget, custom?: Record<string, string>): Record<string, string> => {
+  return routingRegistry.resolveHeaders(target, custom);
+};
 
 export interface ModelConnection {
   connection_id: string;
@@ -66,6 +81,41 @@ export interface InferenceResponse {
   raw_payload?: Record<string, any>;
 }
 
+export interface PortalJobRequirement {
+  job_id: string;
+  job_title: string;
+  company_name: string;
+  location?: string;
+  workplace_type?: string;
+  experience_level?: string;
+  linkedin_url?: string;
+  official_apply_url?: string;
+  first_listed_at?: string;
+  salary_insights?: string;
+  tech_stack_json?: string[];
+  markdown_file_path?: string;
+  extracted_at: string;
+}
+
+export interface AuthCookieState {
+  exists: boolean;
+  cookieCount: number;
+  originCount?: number;
+  domains: string[];
+  lastModified?: string;
+  storageStatePath?: string;
+  cookies?: Array<{
+    name: string;
+    value: string;
+    domain: string;
+    path: string;
+    expires?: number;
+    httpOnly?: boolean;
+    secure?: boolean;
+    sameSite?: string;
+  }>;
+}
+
 const BASE_URL = envConfig.backendBaseUrl;
 
 export const apiClient = {
@@ -111,7 +161,7 @@ export const apiClient = {
   }): Promise<InferenceResponse> {
     const res = await fetch(`${BASE_URL}/inference`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { [HttpConstants.HEADER_CONTENT_TYPE]: HttpConstants.CONTENT_TYPE_JSON },
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -152,7 +202,7 @@ export const apiClient = {
   async executePlaywrightTest(workflow: any): Promise<any> {
     const res = await fetch(`${BASE_URL}/mcp/playwright/test`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { [HttpConstants.HEADER_CONTENT_TYPE]: HttpConstants.CONTENT_TYPE_JSON },
       body: JSON.stringify(workflow),
     });
     if (!res.ok) {
@@ -167,4 +217,201 @@ export const apiClient = {
     if (!res.ok) throw new Error('Failed to fetch Playwright MCP tools');
     return res.json();
   },
+
+  async getTrustedPortals(): Promise<any> {
+    const res = await fetch(`${BASE_URL}/mcp/playwright/portals`);
+    const statusHandler = new Map<boolean, () => void>([
+      [false, () => { throw new Error('Failed to fetch official trusted portals'); }],
+      [true, () => {}],
+    ]);
+    (statusHandler.get(res.ok) ?? (() => {}))();
+    return res.json();
+  },
+
+  async generatePlaywrightFlow(req: {
+    flow_id?: string;
+    purpose: string;
+    target_role_or_query: string;
+    user_query?: string;
+    sort_by?: string;
+    audio_transcript?: string;
+    image_url?: string;
+    base_url?: string;
+    data_source?: {
+      source_type: string;
+      path_or_table?: string;
+      sheet_name?: string;
+      row_or_key?: string;
+      query_params?: Record<string, any>;
+    };
+    existing_flow_changes?: Record<string, any>;
+    dry_run?: boolean;
+    model_name?: string;
+    use_google_xray?: boolean;
+  }): Promise<any> {
+    const res = await fetch(`${BASE_URL}/mcp/playwright/flow/generate`, {
+      method: 'POST',
+      headers: { [HttpConstants.HEADER_CONTENT_TYPE]: HttpConstants.CONTENT_TYPE_JSON },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Flow generation failed' }));
+      throw new Error(err.detail || 'Flow generation failed');
+    }
+    return res.json();
+  },
+
+  async listPlaywrightFlows(purpose?: string): Promise<any[]> {
+    const query = purpose ? `?purpose=${encodeURIComponent(purpose)}` : '';
+    const res = await fetch(`${BASE_URL}/mcp/playwright/flows${query}`);
+    if (!res.ok) throw new Error('Failed to fetch Playwright test flows');
+    return res.json();
+  },
+
+  async getXRayPractices(category?: string): Promise<any> {
+    const query = category ? `?category=${encodeURIComponent(category)}` : '';
+    const res = await fetch(`${BASE_URL}/xray/practices${query}`);
+    if (!res.ok) throw new Error('Failed to fetch X-Ray best practices');
+    return res.json();
+  },
+
+  async executeEnterpriseSearch(data: SearchExecutionPayload): Promise<any> {
+    const res = await fetch(`${BASE_URL}/xray/search`, {
+      method: 'POST',
+      headers: { [HttpConstants.HEADER_CONTENT_TYPE]: HttpConstants.CONTENT_TYPE_JSON },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Search execution failed' }));
+      throw new Error(err.detail || 'Enterprise search execution failed');
+    }
+    return res.json();
+  },
+
+  async getCurrentGeography(): Promise<any> {
+    const res = await fetch(`${BASE_URL}/geography/current`);
+    if (!res.ok) throw new Error('Failed to fetch user geography');
+    return res.json();
+  },
+
+  async getPlaywrightFlow(flowId: string): Promise<any> {
+    const url = resolveEndpoint(ContainerServiceTarget.GATEWAY_SERVICE, `/mcp/playwright/flow/${encodeURIComponent(flowId)}`);
+    const res = await fetch(url, { headers: resolveHeaders(ContainerServiceTarget.GATEWAY_SERVICE) });
+    if (!res.ok) throw new Error('Failed to fetch Playwright flow');
+    return res.json();
+  },
+
+  async createPlaywrightFlow(record: any): Promise<any> {
+    const url = resolveEndpoint(ContainerServiceTarget.GATEWAY_SERVICE, '/mcp/playwright/flow');
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: resolveHeaders(ContainerServiceTarget.GATEWAY_SERVICE, {
+        [HttpConstants.HEADER_CONTENT_TYPE]: HttpConstants.CONTENT_TYPE_JSON,
+      }),
+      body: JSON.stringify(record),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Create flow failed' }));
+      throw new Error(err.detail || 'Failed to create flow');
+    }
+    return res.json();
+  },
+
+  async updatePlaywrightFlow(flowId: string, record: any): Promise<any> {
+    const url = resolveEndpoint(ContainerServiceTarget.GATEWAY_SERVICE, `/mcp/playwright/flow/${encodeURIComponent(flowId)}`);
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: resolveHeaders(ContainerServiceTarget.GATEWAY_SERVICE, {
+        [HttpConstants.HEADER_CONTENT_TYPE]: HttpConstants.CONTENT_TYPE_JSON,
+      }),
+      body: JSON.stringify(record),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Update flow failed' }));
+      throw new Error(err.detail || 'Failed to update flow');
+    }
+    return res.json();
+  },
+
+  async deletePlaywrightFlow(flowId: string): Promise<any> {
+    const url = resolveEndpoint(ContainerServiceTarget.GATEWAY_SERVICE, `/mcp/playwright/flow/${encodeURIComponent(flowId)}`);
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: resolveHeaders(ContainerServiceTarget.GATEWAY_SERVICE),
+    });
+    if (!res.ok) throw new Error(`Failed to delete flow '${flowId}'`);
+    return res.json();
+  },
+
+  // Strategy Pattern Routing Controls
+  getRoutingMode(): ExecutionRoutingMode {
+    return routingRegistry.getMode();
+  },
+
+  setRoutingMode(mode: ExecutionRoutingMode): void {
+    routingRegistry.setMode(mode);
+  },
+
+  toggleRoutingMode(): ExecutionRoutingMode {
+    return routingRegistry.toggle();
+  },
+
+  isDirectMeshActive(): boolean {
+    return routingRegistry.isDirectMeshActive();
+  },
+
+  subscribeRoutingMode(listener: (mode: ExecutionRoutingMode) => void): () => void {
+    return routingRegistry.subscribe(listener);
+  },
+
+  async probeContainerDirect(target: ContainerServiceTarget, path = ''): Promise<{ target: string; url: string; status: number; ok: boolean }> {
+    const url = routingRegistry.resolveEndpoint(target, path);
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: routingRegistry.resolveHeaders(target),
+      });
+      return { target, url, status: res.status, ok: res.ok };
+    } catch {
+      return { target, url, status: 0, ok: false };
+    }
+  },
+
+  async getPortalJobs(limit = 50, offset = 0): Promise<{ jobs: PortalJobRequirement[]; count: number; sorted_by: string }> {
+    const res = await fetch(`${BASE_URL}/jobs?limit=${limit}&offset=${offset}`);
+    if (!res.ok) throw new Error('Failed to fetch portal job requirements');
+    return res.json();
+  },
+
+  async getAuthCookies(): Promise<AuthCookieState> {
+    const res = await fetch(`${BASE_URL}/jobs/cookies`);
+    if (!res.ok) throw new Error('Failed to fetch browser authentication cookies');
+    return res.json();
+  },
+
+  async importAuthCookies(cookies: any[], origins: any[] = []): Promise<any> {
+    const res = await fetch(`${BASE_URL}/jobs/cookies`, {
+      method: 'POST',
+      headers: { [HttpConstants.HEADER_CONTENT_TYPE]: HttpConstants.CONTENT_TYPE_JSON },
+      body: JSON.stringify({ cookies, origins }),
+    });
+    if (!res.ok) throw new Error('Failed to import authentication cookies');
+    return res.json();
+  },
+
+  async exportAuthCookies(): Promise<any> {
+    const res = await fetch(`${BASE_URL}/jobs/cookies/export`);
+    if (!res.ok) throw new Error('Failed to export authentication cookies');
+    return res.json();
+  },
+
+  async clearAuthCookies(): Promise<any> {
+    const res = await fetch(`${BASE_URL}/jobs/cookies`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to clear authentication cookies');
+    return res.json();
+  },
 };
+
+

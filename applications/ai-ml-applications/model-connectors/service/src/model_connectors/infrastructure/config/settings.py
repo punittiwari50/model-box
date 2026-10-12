@@ -6,8 +6,6 @@ Initializes strictly via SpringEnvironment without any direct os.getenv calls.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Mapping, Sequence
-
 from model_connectors.domain.constants import (
     ConfigKeyConstants,
     EndpointConstants,

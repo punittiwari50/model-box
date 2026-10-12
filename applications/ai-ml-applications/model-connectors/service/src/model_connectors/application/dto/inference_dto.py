@@ -1,13 +1,11 @@
 """Application Data Transfer Objects (DTOs) adhering to STD-COD-007.2 and STD-COD-007.5."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Mapping
 
 from model_connectors.domain.models.enums import (
     AuthMethod,
     ConnectionProtocol,
-    ConnectorHealthState,
     MessageRole,
     StorageBackend,
 )

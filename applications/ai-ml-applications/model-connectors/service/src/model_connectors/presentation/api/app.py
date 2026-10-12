@@ -26,10 +26,7 @@ from model_connectors.application.use_cases.token_metrics_use_case import (
 from model_connectors.application.workflow.langgraph_workflow import (
     ModelConnectorsWorkflow,
 )
-from model_connectors.domain.models.enums import (
-    ConnectionProtocol,
-    StorageBackend,
-)
+from model_connectors.domain.models.enums import ConnectionProtocol
 from model_connectors.infrastructure.config.environment import (
     IEnvironment,
     SpringEnvironment,
@@ -186,6 +183,9 @@ def create_app(
         environment=env,
         project_repo=storage_manager.project_repository,
         conversation_repo=storage_manager.conversation_repository,
+        xray_repo=storage_manager.xray_repository,
+        portal_repo=storage_manager.portal_repository,
+        schema_repo=storage_manager.schema_repository,
     )
     app.include_router(api_router)
 

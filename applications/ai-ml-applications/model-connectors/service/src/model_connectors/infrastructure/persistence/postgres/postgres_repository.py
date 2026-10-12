@@ -4,10 +4,8 @@ Stores projects, sessions, conversations, compactions, and model connection prof
 Loads external DDL from SQL script files (schema.postgres.sql).
 """
 
-from datetime import datetime, timezone
-import json
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Sequence
 
 from model_connectors.infrastructure.utils.file_utils import FileUtils
 from model_connectors.domain.exceptions.errors import (
@@ -18,12 +16,6 @@ from model_connectors.domain.models.connection_config import ModelConnectionConf
 from model_connectors.domain.models.conversation import (
     ConversationCompaction,
     ConversationMessage,
-)
-from model_connectors.domain.models.enums import (
-    AuthMethod,
-    ConnectionProtocol,
-    MessageRole,
-    StorageBackend,
 )
 from model_connectors.domain.models.project import Project
 from model_connectors.domain.models.session import ConversationSession

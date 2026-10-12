@@ -63,15 +63,20 @@ class DockerContainerResolutionStrategy(IEndpointResolutionStrategy):
         hostname = parsed.hostname or ""
         port = parsed.port
 
-        # 1. Match known port mapping
-        if port in self._port_mappings and hostname in ("127.0.0.1", "localhost", "0.0.0.0"):
+        # Preserve explicit container hostnames (e.g. ollama-model-service-cpu, comfyui-model-service-gpu)
+        if hostname and hostname not in ("127.0.0.1", "localhost", "0.0.0.0"):
+            return context.target_url
+
+        # 1. Match known port mapping for loopback
+        if port in self._port_mappings and hostname in ("127.0.0.1", "localhost", "0.0.0.0", ""):
             return self._port_mappings[port]
 
-        # 2. Match keyword in URL
+        # 2. Match keyword in URL for loopback or unspecified host
         url_lower = context.target_url.lower()
-        for keyword, mapped_url in self._keyword_mappings.items():
-            if keyword in url_lower:
-                return mapped_url
+        if hostname in ("127.0.0.1", "localhost", "0.0.0.0", ""):
+            for keyword, mapped_url in self._keyword_mappings.items():
+                if keyword in url_lower:
+                    return mapped_url
 
         # 3. Fallback host gateway mapping
         if hostname in ("127.0.0.1", "localhost", "0.0.0.0"):
@@ -158,21 +163,29 @@ class EndpointResolutionService:
 
         if "ollama" in target_lower or "11434" in target_lower or "11435" in target_lower:
             fallbacks = [
-                EndpointConstants.DEFAULT_OLLAMA_DOCKER,
+                EndpointConstants.DEFAULT_OLLAMA_DOCKER_GPU,
+                EndpointConstants.DEFAULT_OLLAMA_DOCKER_CPU,
+                EndpointConstants.DEFAULT_OLLAMA_DOCKER_GENERIC,
                 "http://ollama:11434",
-                f"http://{EndpointConstants.DOCKER_HOST_FALLBACK}:11435" if is_container else "",
                 EndpointConstants.DEFAULT_OLLAMA_LOCAL,
-                "http://127.0.0.1:11434",
+                EndpointConstants.DEFAULT_OLLAMA_LOCAL_ALT,
+                "http://localhost:11435",
                 "http://localhost:11434",
+                f"http://{EndpointConstants.DOCKER_HOST_FALLBACK}:11435" if is_container else "",
+                f"http://{EndpointConstants.DOCKER_HOST_FALLBACK}:11434" if is_container else "",
             ]
         elif "comfy" in target_lower or "8188" in target_lower or "8189" in target_lower:
             fallbacks = [
-                EndpointConstants.DEFAULT_COMFYUI_DOCKER,
+                EndpointConstants.DEFAULT_COMFYUI_DOCKER_GPU,
+                EndpointConstants.DEFAULT_COMFYUI_DOCKER_CPU,
+                EndpointConstants.DEFAULT_COMFYUI_DOCKER_GENERIC,
                 "http://comfyui:8188",
-                f"http://{EndpointConstants.DOCKER_HOST_FALLBACK}:8189" if is_container else "",
                 EndpointConstants.DEFAULT_COMFYUI_LOCAL,
-                "http://127.0.0.1:8188",
+                EndpointConstants.DEFAULT_COMFYUI_LOCAL_ALT,
+                "http://localhost:8189",
                 "http://localhost:8188",
+                f"http://{EndpointConstants.DOCKER_HOST_FALLBACK}:8189" if is_container else "",
+                f"http://{EndpointConstants.DOCKER_HOST_FALLBACK}:8188" if is_container else "",
             ]
         else:
             fallbacks = [fallback_url] if fallback_url else []

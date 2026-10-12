@@ -1,7 +1,5 @@
 """Creational Factory for Model Connectors adhering to STD-COD-005 (GoF Factory Pattern)."""
 
-from typing import Mapping
-
 from model_connectors.domain.exceptions.errors import ConfigurationError, DomainError
 from model_connectors.domain.models.enums import ConnectionProtocol
 from model_connectors.domain.ports.connector import IModelConnector, IUniversalModelConnector

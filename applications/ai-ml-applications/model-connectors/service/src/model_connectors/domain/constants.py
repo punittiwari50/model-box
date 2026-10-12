@@ -53,12 +53,31 @@ class EndpointConstants:
     """Final static defaults for service endpoints and Docker network discovery."""
 
     DEFAULT_OLLAMA_LOCAL: Final[str] = "http://127.0.0.1:11435"
+    DEFAULT_OLLAMA_LOCAL_ALT: Final[str] = "http://127.0.0.1:11434"
+    DEFAULT_OLLAMA_DOCKER_GPU: Final[str] = "http://ollama-model-service-gpu:11434"
+    DEFAULT_OLLAMA_DOCKER_CPU: Final[str] = "http://ollama-model-service-cpu:11434"
+    DEFAULT_OLLAMA_DOCKER_GENERIC: Final[str] = "http://ollama-model-service:11434"
     DEFAULT_OLLAMA_DOCKER: Final[str] = "http://ollama-model-service-gpu:11434"
+
     DEFAULT_COMFYUI_LOCAL: Final[str] = "http://127.0.0.1:8189"
+    DEFAULT_COMFYUI_LOCAL_ALT: Final[str] = "http://127.0.0.1:8188"
+    DEFAULT_COMFYUI_DOCKER_GPU: Final[str] = "http://comfyui-model-service-gpu:8188"
+    DEFAULT_COMFYUI_DOCKER_CPU: Final[str] = "http://comfyui-model-service-cpu:8188"
+    DEFAULT_COMFYUI_DOCKER_GENERIC: Final[str] = "http://comfyui-model-service:8188"
     DEFAULT_COMFYUI_DOCKER: Final[str] = "http://comfyui-model-service-gpu:8188"
+
     DEFAULT_GRPC_LOCAL: Final[str] = "grpc://127.0.0.1:50051"
     DEFAULT_KAFKA_LOCAL: Final[str] = "127.0.0.1:9092"
     DOCKER_HOST_FALLBACK: Final[str] = "host.docker.internal"
+
+
+class ModelConstants:
+    """Final static definitions for models deployed in Ollama and ComfyUI containers."""
+
+    DEFAULT_QWEN: Final[str] = "qwen3:8b"
+    QWEN_3_8B: Final[str] = "qwen3:8b"
+    QWEN_3_CODER: Final[str] = "qwen3-coder:latest"
+    QWEN_2_5_VL: Final[str] = "qwen2.5vl:3b"
 
 
 class SecurityConstants:
@@ -86,9 +105,20 @@ class SecurityConstants:
     ROLE_SERVICE_ACCOUNT: Final[str] = "service-account"
 
 
+class HttpConstants:
+    """Final static definitions for HTTP content types, headers, and media negotiations."""
+
+    HEADER_CONTENT_TYPE: Final[str] = "Content-Type"
+    HEADER_ACCEPT: Final[str] = "Accept"
+    CONTENT_TYPE_JSON: Final[str] = "application/json"
+    CONTENT_TYPE_EVENT_STREAM: Final[str] = "text/event-stream"
+    ACCEPT_JSON_OR_SSE: Final[str] = "application/json, text/event-stream"
+
+
 class MediaConstants:
     """Final static definitions for media handling, MIME types, and streaming buffers."""
 
+    MIME_JSON: Final[str] = "application/json"
     MIME_PNG: Final[str] = "image/png"
     MIME_JPEG: Final[str] = "image/jpeg"
     MIME_WEBP: Final[str] = "image/webp"

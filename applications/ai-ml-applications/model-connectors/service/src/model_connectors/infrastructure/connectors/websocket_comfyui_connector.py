@@ -7,7 +7,7 @@ Handles prompt queueing, real-time WebSocket progress updates, and output retrie
 from datetime import datetime, timezone
 import json
 import time
-from typing import Any, Mapping
+from typing import Any
 import uuid
 import httpx
 import websockets

@@ -118,6 +118,8 @@ pip-wheel-metadata/
 
 # Node.js
 node_modules/
+**/browsers/**
+**/downloads/**
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -141,6 +143,8 @@ dist-ssr/
 # Docker local data
 volumes/**
 !volumes/**/.gitkeep
+**/volumes/**
+!**/volumes/**/.gitkeep
 
 # Performance report/cache artifacts
 infra/performance/infra-gatling/docker/volumes/reports/*

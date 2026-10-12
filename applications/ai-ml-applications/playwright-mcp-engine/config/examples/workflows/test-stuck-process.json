@@ -1,0 +1,29 @@
+{
+  "id": "wf-stuck-process-killer-test",
+  "name": "Stuck Process Killer Verification",
+  "description": "Verifies that watchdog detects a hanging step, forcefully kills the stuck process, and marks the response",
+  "version": "1.0.0",
+  "baseUrl": "https://example.com",
+  "headless": true,
+  "timeoutMs": 15000,
+  "stepTimeoutMs": 3000,
+  "retryConfig": {
+    "maxRetries": 1,
+    "initialDelayMs": 500,
+    "backoffFactor": 1.5
+  },
+  "steps": [
+    {
+      "id": "step-open-page",
+      "action": "navigate",
+      "targetUrl": "https://example.com"
+    },
+    {
+      "id": "step-hanging-action",
+      "action": "wait_for_selector",
+      "description": "Intentionally hangs to trigger watchdog stuck kill",
+      "selector": "#element-that-will-never-exist-in-the-dom",
+      "timeoutMs": 10000
+    }
+  ]
+}

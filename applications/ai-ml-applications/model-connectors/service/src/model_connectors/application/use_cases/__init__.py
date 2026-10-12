@@ -15,6 +15,9 @@ from model_connectors.application.use_cases.manage_session_use_case import (
 from model_connectors.application.use_cases.token_metrics_use_case import (
     TokenMetricsUseCase,
 )
+from model_connectors.application.use_cases.manage_playwright_flow_use_case import (
+    ManagePlaywrightFlowUseCase,
+)
 
 __all__ = [
     "ExecuteInferenceUseCase",
@@ -22,4 +25,6 @@ __all__ = [
     "ManageConnectionUseCase",
     "TokenMetricsUseCase",
     "CompactConversationUseCase",
+    "ManagePlaywrightFlowUseCase",
 ]
+

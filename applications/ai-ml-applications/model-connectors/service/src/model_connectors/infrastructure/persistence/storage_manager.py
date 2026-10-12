@@ -5,7 +5,7 @@ and YAML storage engines based on the active Spring configuration profile.
 """
 
 from abc import ABC, abstractmethod
-from typing import Final, Mapping
+from typing import Mapping
 
 from model_connectors.domain.constants import StorageConstants
 from model_connectors.domain.models.enums import StorageBackend
@@ -14,7 +14,7 @@ from model_connectors.domain.ports.repositories import (
     IConversationRepository,
     ISessionRepository,
 )
-from model_connectors.infrastructure.config.settings import AppConfig, StorageConfig
+from model_connectors.infrastructure.config.settings import StorageConfig
 from model_connectors.infrastructure.persistence.in_memory.sqlite_repository import (
     InMemorySqliteRepository,
 )
@@ -45,6 +45,18 @@ class IStorageBundle(ABC):
     @abstractmethod
     def project_repo(self) -> Any: ...
 
+    @property
+    @abstractmethod
+    def xray_repo(self) -> Any: ...
+
+    @property
+    @abstractmethod
+    def portal_repo(self) -> Any: ...
+
+    @property
+    @abstractmethod
+    def schema_repo(self) -> Any: ...
+
 
 class InMemoryStorageBundle(IStorageBundle):
     """Storage bundle backed by in-memory SQLite tables."""
@@ -68,12 +80,25 @@ class InMemoryStorageBundle(IStorageBundle):
     def project_repo(self) -> Any:
         return self._repo
 
+    @property
+    def xray_repo(self) -> Any:
+        return self._repo
+
+    @property
+    def portal_repo(self) -> Any:
+        return self._repo
+
+    @property
+    def schema_repo(self) -> Any:
+        return self._repo
+
 
 class PostgresStorageBundle(IStorageBundle):
     """Storage bundle backed by enterprise PostgreSQL persistence."""
 
     def __init__(self, dsn: str = StorageConstants.DEFAULT_POSTGRES_DSN) -> None:
         self._repo = PostgresRepository(dsn)
+        self._sqlite_fallback = InMemorySqliteRepository()
 
     @property
     def session_repo(self) -> ISessionRepository:
@@ -90,6 +115,18 @@ class PostgresStorageBundle(IStorageBundle):
     @property
     def project_repo(self) -> Any:
         return self._repo
+
+    @property
+    def xray_repo(self) -> Any:
+        return self._sqlite_fallback
+
+    @property
+    def portal_repo(self) -> Any:
+        return self._sqlite_fallback
+
+    @property
+    def schema_repo(self) -> Any:
+        return self._sqlite_fallback
 
 
 class StorageManager:
@@ -132,5 +169,18 @@ class StorageManager:
         return self.active_bundle.project_repo
 
     @property
+    def xray_repository(self) -> Any:
+        return self.active_bundle.xray_repo
+
+    @property
+    def portal_repository(self) -> Any:
+        return self.active_bundle.portal_repo
+
+    @property
+    def schema_repository(self) -> Any:
+        return self.active_bundle.schema_repo
+
+    @property
     def config_repositories(self) -> Mapping[StorageBackend, IConnectionConfigRepository]:
         return self._config_repositories
+

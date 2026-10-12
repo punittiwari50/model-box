@@ -31,16 +31,15 @@ services:
     env_file:
       - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-ui.env
 
-  playwright-mcp:
+  modelbox-playwright-mcp:
     extends:
       file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
-      service: playwright-mcp
+      service: modelbox-playwright-mcp
     env_file:
       - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-service.env
 
+
 volumes:
-  model-connectors-vault-data:
-    name: model-connectors-vault-data
   model-connectors-postgres-data:
     name: model-connectors-postgres-data
 

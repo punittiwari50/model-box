@@ -1,0 +1,39 @@
+# ==============================================================================
+# Playwright MCP Engine - Root Docker Build Ignore Rules
+# ==============================================================================
+
+node_modules/
+.pnpm-store/
+dist/
+build/
+*.tsbuildinfo
+.git/
+.github/
+.gitignore
+.env
+*.env
+*.env.*
+!config/deploy/*.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+coverage/
+.nyc_output/
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

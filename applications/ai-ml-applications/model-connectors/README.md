@@ -194,3 +194,23 @@ docker run --rm --network model-box-net --entrypoint python model-connectors-ser
 ```bash
 docker run --rm --entrypoint pytest model-connectors-service:latest tests/unit/
 ```
+
+---
+
+## 8. Multi-Service Container Orchestration & Bidirectional Persistence
+
+The full ModelBox Connectors stack runs hermetically on the shared external network `model-box-net`:
+
+| Service | Container Name | Port(s) | Storage / Mounts |
+| :--- | :--- | :--- | :--- |
+| **Model Connectors Service** | `model-connectors-service` | `8000:8000` | FastAPI Backend, Spring environment hierarchy |
+| **Model Connectors UI** | `model-connectors-ui` | `3000:3000` | Vite + React Glassmorphism Dashboard |
+| **HashiCorp Vault** | `model-connectors-vault` | `8200:8200` | Bidirectional: `${VAULT_VOLUME_HOST:-./volumes/vault}:/vault/file` |
+| **PostgreSQL 17** | `model-connectors-postgres` | `5432:5432` | Named Volume: `model-connectors-postgres-data:/var/lib/postgresql/data` |
+| **Playwright MCP Engine** | `modelbox-playwright-mcp` | `8940:8940`, `6080:6080` | Bidirectional: `workflows/`, `browsers/`, `downloads/` |
+
+### Playwright MCP Integration & Interactive Recording:
+- **MCP & REST Endpoints**: Port `8940` exposes `/mcp`, `/sse`, and REST APIs (`/api/workflow/describe-and-generate`, `/api/workflows`).
+- **Interactive Visual noVNC Streaming**: Port `6080` (`http://localhost:6080/vnc.html`) allows live manual recording via Playwright Codegen without host Node/Playwright dependencies.
+- **AI Synthesis**: Powered by containerized `llama3.2:latest` on `http://ollama-model-service-gpu:11434`.
+

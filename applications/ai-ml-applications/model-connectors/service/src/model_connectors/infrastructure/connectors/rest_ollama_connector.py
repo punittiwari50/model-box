@@ -28,7 +28,6 @@ from model_connectors.domain.ports.connector import IModelConnector
 from model_connectors.domain.results.result import Failure, Result, Success
 from model_connectors.infrastructure.connectors.endpoint_resolver import (
     resolve_candidate_endpoints,
-    resolve_endpoint,
 )
 
 

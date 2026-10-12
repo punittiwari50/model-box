@@ -97,7 +97,26 @@
 
 ---
 
-## 6. Documentation Index Updates
+---
+
+## 6. Topic 5: ModelBox Docker Compose Deployment Guide & Orchestration
+
+### User Prompt:
+> *"Provide me step to spin the modelbox docker compose provide detail step which must also be mentioned in md files."*
+
+### Key Actions & Results:
+1. **Repository Audit**:
+   - Reviewed parent compose manifests under `infra/compose/` (`compose.comfyui.*.yaml`, `compose.ollama.*.yaml`, `compose.connectors.yaml`, `compose.performance.yaml`).
+   - Inspected repository-wide orchestrator scripts: `infra/scripts/Deploy-All-Compose.ps1` and `Deploy-All-Compose.sh`.
+   - Identified requirement for shared external bridge network `model-box-net`.
+2. **Technical Artifacts Created & Updated**:
+   - [docs/docker-compose-deployment-guide.md](docker-compose-deployment-guide.md): Comprehensive step-by-step runbook for automated and manual compose spins, GPU/CPU modes, port mappings, health checks, and teardown.
+   - [infra/compose/README.md](../infra/compose/README.md): Synchronized parent compose catalog, network creation step, manual launch examples, and verification commands.
+   - [docs/README.md](README.md) & [README.md](../README.md): Updated documentation index and master README with direct reference to the deployment guide.
+
+---
+
+## 7. Documentation Index Updates
 
 All generated documentation files are indexed in [docs/README.md](README.md) following repository governance standards (Rule 9: target <= 250 lines per document).
 

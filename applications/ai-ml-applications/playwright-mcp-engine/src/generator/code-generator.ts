@@ -1,0 +1,171 @@
+import type { StepDefinition, WorkflowDefinition } from '@/types/workflow.js';
+
+// ============================================================================
+// Code Generation Strategy Pattern (SOLID: SRP, OCP, LSP, ISP, DIP)
+// ============================================================================
+
+export interface IStepCodeGeneratorStrategy {
+  generate(step: StepDefinition, indent: string): string;
+}
+
+export class NavigateCodeGeneratorStrategy implements IStepCodeGeneratorStrategy {
+  generate(step: StepDefinition, indent: string): string {
+    const target = step.targetUrl || String(step.value || '');
+    const cleanId = step.id.replace(/-/g, '_');
+    return `${indent}const navTarget_${cleanId} = DynamicResolver.resolveString(${JSON.stringify(target)}, context);\n` +
+      `${indent}await page.goto(navTarget_${cleanId}, { waitUntil: 'domcontentloaded', timeout: ${step.timeoutMs || 30000} });`;
+  }
+}
+
+export class ClickCodeGeneratorStrategy implements IStepCodeGeneratorStrategy {
+  generate(step: StepDefinition, indent: string): string {
+    const cleanId = step.id.replace(/-/g, '_');
+    return `${indent}const sel_${cleanId} = DynamicResolver.resolveSelectors(${JSON.stringify(step.selector)}, context)[0];\n` +
+      `${indent}await page.click(sel_${cleanId}, { timeout: ${step.timeoutMs || 15000} });`;
+  }
+}
+
+export class FillCodeGeneratorStrategy implements IStepCodeGeneratorStrategy {
+  generate(step: StepDefinition, indent: string): string {
+    const cleanId = step.id.replace(/-/g, '_');
+    return `${indent}const sel_${cleanId} = DynamicResolver.resolveSelectors(${JSON.stringify(step.selector)}, context)[0];\n` +
+      `${indent}const val_${cleanId} = DynamicResolver.resolveString(String(${JSON.stringify(step.value ?? '')}), context);\n` +
+      `${indent}await page.fill(sel_${cleanId}, val_${cleanId}, { timeout: ${step.timeoutMs || 15000} });`;
+  }
+}
+
+export class ExtractTextCodeGeneratorStrategy implements IStepCodeGeneratorStrategy {
+  generate(step: StepDefinition, indent: string): string {
+    const cleanId = step.id.replace(/-/g, '_');
+    return `${indent}const sel_${cleanId} = DynamicResolver.resolveSelectors(${JSON.stringify(step.selector)}, context)[0];\n` +
+      `${indent}const extracted_${cleanId} = await page.textContent(sel_${cleanId});\n` +
+      `${indent}context.extracted[${JSON.stringify(step.outputKey || step.id)}] = extracted_${cleanId}?.trim() || '';`;
+  }
+}
+
+export class WaitForSelectorCodeGeneratorStrategy implements IStepCodeGeneratorStrategy {
+  generate(step: StepDefinition, indent: string): string {
+    const cleanId = step.id.replace(/-/g, '_');
+    return `${indent}const sel_${cleanId} = DynamicResolver.resolveSelectors(${JSON.stringify(step.selector)}, context)[0];\n` +
+      `${indent}await page.waitForSelector(sel_${cleanId}, { timeout: ${step.timeoutMs || 15000} });`;
+  }
+}
+
+export class ScreenshotCodeGeneratorStrategy implements IStepCodeGeneratorStrategy {
+  generate(step: StepDefinition, indent: string): string {
+    const cleanId = step.id.replace(/-/g, '_');
+    return `${indent}const screenshotBuf_${cleanId} = await page.screenshot({ fullPage: true });\n` +
+      `${indent}context.extracted[${JSON.stringify(step.outputKey || step.id)}] = { sizeBytes: screenshotBuf_${cleanId}.length };`;
+  }
+}
+
+export class DefaultStepCodeGeneratorStrategy implements IStepCodeGeneratorStrategy {
+  generate(step: StepDefinition, indent: string): string {
+    return `${indent}// Action '${step.action}' handled via engine runtime executor`;
+  }
+}
+
+export class StepCodeGeneratorRegistry {
+  private static readonly STRATEGIES: Readonly<Record<string, IStepCodeGeneratorStrategy>> = {
+    navigate: new NavigateCodeGeneratorStrategy(),
+    click: new ClickCodeGeneratorStrategy(),
+    fill: new FillCodeGeneratorStrategy(),
+    extract_text: new ExtractTextCodeGeneratorStrategy(),
+    wait_for_selector: new WaitForSelectorCodeGeneratorStrategy(),
+    screenshot: new ScreenshotCodeGeneratorStrategy(),
+  };
+
+  static getStrategy(action: string): IStepCodeGeneratorStrategy {
+    return this.STRATEGIES[action] ?? new DefaultStepCodeGeneratorStrategy();
+  }
+}
+
+export class CodeGenerator {
+  static generatePlaywrightTypeScript(workflow: WorkflowDefinition): string {
+    const stepsCode = workflow.steps
+      .map((step) => CodeGenerator.generateStepCode(step))
+      .join('\n\n');
+
+    const at = '@';
+    return `import { chromium } from 'playwright';
+import { logger } from '${at}/core/logger.js';
+import { NetworkSniffer } from '${at}/network/sniffer.js';
+import { EndpointCatalog } from '${at}/network/endpoint-catalog.js';
+import { TaskWatchdog } from '${at}/concurrency/watchdog.js';
+import { DynamicResolver } from '${at}/engine/dynamic-resolver.js';
+import type { WorkflowContext } from '${at}/types/workflow.js';
+
+/**
+ * Generalized Playwright Automation for workflow: ${workflow.name} (${workflow.id})
+ * Generated by Playwright MCP Engine
+ */
+export async function executeGeneratedWorkflow(
+  customVariables: Record<string, unknown> = {}
+): Promise<{ success: boolean; outputs: Record<string, unknown>; endpointsCount: number }> {
+  logger.info('Starting execution of generated workflow: ${workflow.name}');
+
+  const context: WorkflowContext = {
+    variables: {
+      ...${JSON.stringify(workflow.variables || {}, null, 6)},
+      ...customVariables,
+    },
+    env: { ...process.env },
+    extracted: {},
+    stepResults: {},
+    trafficSummary: { totalRequests: 0, totalResponses: 0, authRequiredCount: 0 },
+  };
+
+  const browser = await chromium.launch({
+    headless: ${workflow.headless ?? true},
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  });
+
+  const browserContext = await browser.newContext({
+    viewport: ${JSON.stringify(workflow.viewport || { width: 1280, height: 720 })},
+    userAgent: ${workflow.userAgent ? JSON.stringify(workflow.userAgent) : 'undefined'},
+  });
+
+  const page = await browserContext.newPage();
+  const catalog = new EndpointCatalog(${workflow.baseUrl ? JSON.stringify(workflow.baseUrl) : "''"});
+  const sniffer = new NetworkSniffer(page, catalog);
+  sniffer.attach();
+
+  try {
+${stepsCode}
+
+    logger.info('Generated workflow completed successfully.');
+    const catalogSummary = catalog.getSummary();
+
+    return {
+      success: true,
+      outputs: context.extracted,
+      endpointsCount: catalogSummary.totalUniqueEndpoints,
+    };
+  } catch (error) {
+    logger.error('Generated workflow failed:', error);
+    throw error;
+  } finally {
+    sniffer.detach();
+    await browserContext.close();
+    await browser.close();
+  }
+}
+`;
+  }
+
+  private static generateStepCode(step: StepDefinition): string {
+    const indent = '    ';
+    const header = `${indent}// Step [${step.id}]: ${step.action} - ${step.description || ''}\n`;
+    const strategy = StepCodeGeneratorRegistry.getStrategy(step.action);
+    return `${header}${strategy.generate(step, indent)}`;
+  }
+
+  static generateMcpToolCall(workflow: WorkflowDefinition): Record<string, unknown> {
+    return {
+      tool: 'execute_workflow',
+      arguments: {
+        workflow,
+      },
+    };
+  }
+}

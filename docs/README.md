@@ -10,6 +10,7 @@ This directory is the single source of truth for runtime operations and endpoint
 |---|---|---|
 | [Docker Operations Guide](docker-operations.md) | Docker runtime lifecycle and model operations | Purpose / Command / Output |
 | [Docker Operations Runbook](docker-operations-runbook.md) | Detailed lifecycle runbooks, rebuild flows, and governance extensions | Procedure / Validation |
+| [Docker Compose Deployment Guide](docker-compose-deployment-guide.md) | End-to-end procedures for deploying ModelBox Compose stacks | Procedure / Validation |
 | [Ollama Endpoint Guide](ollama-endpoints.md) | Endpoint selection, model mapping, and request templates | Purpose / Command / Output |
 | [ComfyUI Pixar 3D Architecture](comfyui-pixar-3d-overview.md) | Multimodal pipeline architecture for Pixar 3D image, video, and audio | Topology / Flow / Matrix |
 | [Pixar 3D Image Models](comfyui-pixar-image-models.md) | Checkpoints, LoRAs, and prompt engineering for 3D stylized stills | Catalog / Recipes / Nodes |

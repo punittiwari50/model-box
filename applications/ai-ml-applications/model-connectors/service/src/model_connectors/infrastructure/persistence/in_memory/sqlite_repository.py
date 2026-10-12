@@ -4,12 +4,12 @@ Fulfills ISessionRepository, IConversationRepository, IConnectionConfigRepositor
 Loads external DDL from SQL script files (schema.sqlite.sql). No inline DDL statements in Python.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 import json
 from pathlib import Path
 import sqlite3
 import threading
-from typing import Any, Sequence
+from typing import Sequence
 
 from model_connectors.infrastructure.utils.file_utils import FileUtils
 
@@ -28,13 +28,17 @@ from model_connectors.domain.models.enums import (
     MessageRole,
     StorageBackend,
 )
+from model_connectors.domain.models.google_xray_search import XRayBestPractice
 from model_connectors.domain.models.project import Project
 from model_connectors.domain.models.session import ConversationSession
 from model_connectors.domain.ports.repositories import (
     IConnectionConfigRepository,
     IConversationRepository,
+    IOfficialSchemaRepository,
     IProjectRepository,
     ISessionRepository,
+    ITrustedPortalRepository,
+    IXRayBestPracticeRepository,
 )
 from model_connectors.domain.results.result import Failure, Result, Success
 
@@ -44,6 +48,7 @@ class InMemorySqliteRepository(
     IConversationRepository,
     IConnectionConfigRepository,
     IProjectRepository,
+    IXRayBestPracticeRepository,
 ):
     """Thread-safe SQLite storage engine for projects, sessions, messages, and configs."""
 
@@ -95,6 +100,23 @@ class InMemorySqliteRepository(
             "SQLite DDL script not found. Expected schema.sqlite.sql in config/sql/."
         )
 
+    def _execute_sql_file(self, filename: str) -> None:
+        """Finds and executes an external SQL file without if-else branching."""
+        search_candidates = [
+            Path(__file__).resolve().parents[5] / "config" / "sql" / filename,
+            Path(__file__).resolve().parents[4] / "config" / "sql" / filename,
+            Path.cwd() / "config" / "sql" / filename,
+            Path(f"/app/config/sql/{filename}"),
+        ]
+        for candidate in search_candidates:
+            if candidate.exists():
+                read_res = FileUtils.read_text(candidate)
+                if read_res.is_success and read_res.value:
+                    cursor = self._conn.cursor()
+                    cursor.executescript(read_res.value)
+                    self._conn.commit()
+                    return
+
     def _initialize_schema(self) -> None:
         """Executes external DDL script to create tables and indexes."""
         with self._lock:
@@ -103,6 +125,10 @@ class InMemorySqliteRepository(
             ddl_script = self.get_schema_ddl()
             cursor.executescript(ddl_script)
             self._conn.commit()
+            self._execute_sql_file("xray_best_practices_ddl.sql")
+            self._execute_sql_file("xray_best_practices_dml.sql")
+            self._execute_sql_file("portals_and_schemas_ddl.sql")
+            self._execute_sql_file("portals_and_schemas_dml.sql")
 
     def _seed_default_projects(self) -> None:
         """Seeds the two required initial enterprise projects if not present."""
@@ -684,3 +710,281 @@ class InMemorySqliteRepository(
                 return Success(None)
             except Exception as exc:
                 return Failure(DomainError(f"Failed to delete config: {exc}"))
+
+    # --------------------------------------------------------------------------
+    # IXRayBestPracticeRepository Implementation (DML-backed)
+    # --------------------------------------------------------------------------
+    async def list_practices(
+        self, category: str | None = None
+    ) -> Result[Sequence[XRayBestPractice], DomainError]:
+        """Lists active enterprise Google X-Ray search best practices from DML."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                query_dispatcher = {
+                    True: ("SELECT * FROM xray_best_practices WHERE category = ? AND is_active = 1 ORDER BY weight DESC", (category,)),
+                    False: ("SELECT * FROM xray_best_practices WHERE is_active = 1 ORDER BY weight DESC", ()),
+                }
+                sql, params = query_dispatcher.get(bool(category), query_dispatcher[False])
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
+                practices = [
+                    XRayBestPractice(
+                        practice_id=r["practice_id"],
+                        category=r["category"],
+                        name=r["name"],
+                        description=r["description"],
+                        boolean_pattern=r["boolean_pattern"],
+                        target_domains=json.loads(r["target_domains"]),
+                        weight=r["weight"],
+                        is_active=bool(r["is_active"]),
+                    )
+                    for r in rows
+                ]
+                return Success(practices)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to list X-Ray best practices: {exc}"))
+
+    async def get_practice(
+        self, practice_id: str
+    ) -> Result[XRayBestPractice, DomainError]:
+        """Retrieves an X-Ray search best practice by ID."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                cursor.execute("SELECT * FROM xray_best_practices WHERE practice_id = ?", (practice_id,))
+                r = cursor.fetchone()
+                row_handler = {
+                    True: lambda row: Success(
+                        XRayBestPractice(
+                            practice_id=row["practice_id"],
+                            category=row["category"],
+                            name=row["name"],
+                            description=row["description"],
+                            boolean_pattern=row["boolean_pattern"],
+                            target_domains=json.loads(row["target_domains"]),
+                            weight=row["weight"],
+                            is_active=bool(row["is_active"]),
+                        )
+                    ),
+                    False: lambda row: Failure(DomainError(f"Practice '{practice_id}' not found")),
+                }
+                return row_handler.get(r is not None, lambda row: Failure(DomainError("Not found")))(r)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to get X-Ray practice: {exc}"))
+
+    async def save_practice(
+        self, practice: XRayBestPractice
+    ) -> Result[None, DomainError]:
+        """Saves or updates an X-Ray search best practice."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO xray_best_practices (
+                        practice_id, category, name, description, boolean_pattern, target_domains, weight, is_active
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        practice.practice_id,
+                        practice.category,
+                        practice.name,
+                        practice.description,
+                        practice.boolean_pattern,
+                        json.dumps(practice.target_domains),
+                        practice.weight,
+                        1 if practice.is_active else 0,
+                    ),
+                )
+                self._conn.commit()
+                return Success(None)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to save X-Ray practice: {exc}"))
+
+    # --------------------------------------------------------------------------
+    # ITrustedPortalRepository Implementation (DML-Backed)
+    # --------------------------------------------------------------------------
+    async def list_portals(
+        self, portal_type: str | None = None, is_active: bool = True
+    ) -> Result[Sequence[dict[str, Any]], DomainError]:
+        """Lists official portals with verified logos loaded directly from DML."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                query_builder = {
+                    True: ("SELECT * FROM trusted_company_portals WHERE is_active = ? AND portal_type = ? ORDER BY company_name ASC", (1 if is_active else 0, portal_type or "")),
+                    False: ("SELECT * FROM trusted_company_portals WHERE is_active = ? ORDER BY company_name ASC", (1 if is_active else 0,)),
+                }
+                sql, params = query_builder.get(portal_type is not None, query_builder[False])
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
+                portals = [
+                    {
+                        "portal_id": r["portal_id"],
+                        "company_name": r["company_name"],
+                        "official_domain": r["official_domain"],
+                        "portal_url": r["portal_url"],
+                        "portal_type": r["portal_type"],
+                        "logo_url": r["logo_url"],
+                        "logo_format": r["logo_format"],
+                        "verification_source": r["verification_source"],
+                        "search_url_template": r["search_url_template"],
+                        "supported_schemas": json.loads(r["supported_schemas_json"]),
+                        "is_active": bool(r["is_active"]),
+                    }
+                    for r in rows
+                ]
+                return Success(portals)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to list trusted portals from DML: {exc}"))
+
+    async def get_portal(
+        self, portal_id: str
+    ) -> Result[dict[str, Any], DomainError]:
+        """Retrieves official portal record by portal ID from DML."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                cursor.execute("SELECT * FROM trusted_company_portals WHERE portal_id = ?", (portal_id,))
+                r = cursor.fetchone()
+                row_handler = {
+                    True: lambda row: Success({
+                        "portal_id": row["portal_id"],
+                        "company_name": row["company_name"],
+                        "official_domain": row["official_domain"],
+                        "portal_url": row["portal_url"],
+                        "portal_type": row["portal_type"],
+                        "logo_url": row["logo_url"],
+                        "logo_format": row["logo_format"],
+                        "verification_source": row["verification_source"],
+                        "search_url_template": row["search_url_template"],
+                        "supported_schemas": json.loads(row["supported_schemas_json"]),
+                        "is_active": bool(row["is_active"]),
+                    }),
+                    False: lambda row: Failure(DomainError(f"Portal '{portal_id}' not found")),
+                }
+                return row_handler.get(r is not None, lambda row: Failure(DomainError("Not found")))(r)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to get trusted portal '{portal_id}': {exc}"))
+
+    async def save_portal(
+        self, portal: dict[str, Any]
+    ) -> Result[None, DomainError]:
+        """Persists official portal record to DML table."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO trusted_company_portals (
+                        portal_id, company_name, official_domain, portal_url, portal_type,
+                        logo_url, logo_format, verification_source, search_url_template,
+                        supported_schemas_json, is_active
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        portal["portal_id"],
+                        portal["company_name"],
+                        portal["official_domain"],
+                        portal["portal_url"],
+                        portal["portal_type"],
+                        portal["logo_url"],
+                        portal.get("logo_format", "svg"),
+                        portal.get("verification_source", "official_vector_cdn"),
+                        portal.get("search_url_template", ""),
+                        json.dumps(portal.get("supported_schemas", ["https://schema.org/JobPosting"])),
+                        1 if portal.get("is_active", True) else 0,
+                    ),
+                )
+                self._conn.commit()
+                return Success(None)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to save trusted portal: {exc}"))
+
+    # --------------------------------------------------------------------------
+    # IOfficialSchemaRepository Implementation (DML-Backed)
+    # --------------------------------------------------------------------------
+    async def list_schemas(
+        self, is_active: bool = True
+    ) -> Result[Sequence[dict[str, Any]], DomainError]:
+        """Lists official response JSON schemas loaded directly from DML."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                cursor.execute(
+                    "SELECT * FROM official_response_schemas WHERE is_active = ? ORDER BY schema_name ASC",
+                    (1 if is_active else 0,),
+                )
+                rows = cursor.fetchall()
+                schemas = [
+                    {
+                        "schema_id": r["schema_id"],
+                        "schema_name": r["schema_name"],
+                        "specification_url": r["specification_url"],
+                        "target_site_or_standard": r["target_site_or_standard"],
+                        "json_schema_definition": json.loads(r["json_schema_definition"]),
+                        "sample_template": json.loads(r["sample_template_json"]),
+                        "is_active": bool(r["is_active"]),
+                    }
+                    for r in rows
+                ]
+                return Success(schemas)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to list official schemas from DML: {exc}"))
+
+    async def get_schema(
+        self, schema_id: str
+    ) -> Result[dict[str, Any], DomainError]:
+        """Retrieves official response JSON schema by ID from DML."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                cursor.execute("SELECT * FROM official_response_schemas WHERE schema_id = ?", (schema_id,))
+                r = cursor.fetchone()
+                row_handler = {
+                    True: lambda row: Success({
+                        "schema_id": row["schema_id"],
+                        "schema_name": row["schema_name"],
+                        "specification_url": row["specification_url"],
+                        "target_site_or_standard": row["target_site_or_standard"],
+                        "json_schema_definition": json.loads(row["json_schema_definition"]),
+                        "sample_template": json.loads(row["sample_template_json"]),
+                        "is_active": bool(row["is_active"]),
+                    }),
+                    False: lambda row: Failure(DomainError(f"Schema '{schema_id}' not found")),
+                }
+                return row_handler.get(r is not None, lambda row: Failure(DomainError("Not found")))(r)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to get official schema '{schema_id}': {exc}"))
+
+    async def save_schema(
+        self, schema: dict[str, Any]
+    ) -> Result[None, DomainError]:
+        """Persists official response JSON schema to DML table."""
+        with self._lock:
+            try:
+                cursor = self._conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO official_response_schemas (
+                        schema_id, schema_name, specification_url, target_site_or_standard,
+                        json_schema_definition, sample_template_json, is_active
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        schema["schema_id"],
+                        schema["schema_name"],
+                        schema["specification_url"],
+                        schema.get("target_site_or_standard", ""),
+                        json.dumps(schema.get("json_schema_definition", {})),
+                        json.dumps(schema.get("sample_template", {})),
+                        1 if schema.get("is_active", True) else 0,
+                    ),
+                )
+                self._conn.commit()
+                return Success(None)
+            except Exception as exc:
+                return Failure(DomainError(f"Failed to save official schema: {exc}"))
+
+

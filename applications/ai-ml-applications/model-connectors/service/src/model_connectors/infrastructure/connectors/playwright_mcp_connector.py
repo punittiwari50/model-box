@@ -15,12 +15,13 @@ from typing import Any
 
 import httpx
 
+from model_connectors.domain.constants import HttpConstants
 from model_connectors.domain.models.mcp_testing import (
+    Step,
+    StepAction,
     StepResult,
-    TestStep,
-    TestStepAction,
-    TestWorkflow,
-    TestWorkflowResult,
+    Workflow,
+    WorkflowResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class PlaywrightMcpConnector:
 
     def __init__(self, endpoint_url: str | None = None, timeout_seconds: float = 60.0) -> None:
         self.endpoint_url = endpoint_url or os.getenv(
-            "PLAYWRIGHT_MCP_URL", "http://playwright-mcp:8931/mcp"
+            "PLAYWRIGHT_MCP_URL", "http://modelbox-playwright-mcp:8940/mcp"
         )
         self.timeout_seconds = timeout_seconds
         self._session_id: str | None = None
@@ -44,10 +45,16 @@ class PlaywrightMcpConnector:
     def _get_candidate_endpoints(self) -> list[str]:
         """Provides failover candidate endpoints for Docker networks and localhost."""
         candidates = [self.endpoint_url]
-        if "playwright-mcp" in self.endpoint_url:
+        if "modelbox-playwright-mcp" in self.endpoint_url:
+            candidates.append(self.endpoint_url.replace("modelbox-playwright-mcp", "playwright-mcp"))
+            candidates.append(self.endpoint_url.replace("modelbox-playwright-mcp", "127.0.0.1"))
+            candidates.append(self.endpoint_url.replace("modelbox-playwright-mcp", "host.docker.internal"))
+        elif "playwright-mcp" in self.endpoint_url:
+            candidates.append(self.endpoint_url.replace("playwright-mcp", "modelbox-playwright-mcp"))
             candidates.append(self.endpoint_url.replace("playwright-mcp", "127.0.0.1"))
             candidates.append(self.endpoint_url.replace("playwright-mcp", "host.docker.internal"))
         elif "127.0.0.1" in self.endpoint_url or "localhost" in self.endpoint_url:
+            candidates.append(self.endpoint_url.replace("127.0.0.1", "modelbox-playwright-mcp").replace("localhost", "modelbox-playwright-mcp"))
             candidates.append(self.endpoint_url.replace("127.0.0.1", "playwright-mcp").replace("localhost", "playwright-mcp"))
         return candidates
 
@@ -67,8 +74,8 @@ class PlaywrightMcpConnector:
             },
         }
         headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
+            HttpConstants.HEADER_CONTENT_TYPE: HttpConstants.CONTENT_TYPE_JSON,
+            HttpConstants.HEADER_ACCEPT: HttpConstants.ACCEPT_JSON_OR_SSE,
             "Host": "localhost:8931",
         }
 
@@ -97,8 +104,8 @@ class PlaywrightMcpConnector:
                         "params": {"name": tool_name, "arguments": arguments},
                     }
                     headers = {
-                        "Content-Type": "application/json",
-                        "Accept": "application/json, text/event-stream",
+                        HttpConstants.HEADER_CONTENT_TYPE: HttpConstants.CONTENT_TYPE_JSON,
+                        HttpConstants.HEADER_ACCEPT: HttpConstants.ACCEPT_JSON_OR_SSE,
                         "Host": "localhost:8931",
                         "mcp-session-id": sess_id,
                     }
@@ -139,8 +146,8 @@ class PlaywrightMcpConnector:
                     sess_id = await self._ensure_session(client, endpoint)
                     payload = {"jsonrpc": "2.0", "id": self._next_id(), "method": "tools/list", "params": {}}
                     headers = {
-                        "Content-Type": "application/json",
-                        "Accept": "application/json, text/event-stream",
+                        HttpConstants.HEADER_CONTENT_TYPE: HttpConstants.CONTENT_TYPE_JSON,
+                        HttpConstants.HEADER_ACCEPT: HttpConstants.ACCEPT_JSON_OR_SSE,
                         "Host": "localhost:8931",
                         "mcp-session-id": sess_id,
                     }
@@ -156,7 +163,7 @@ class PlaywrightMcpConnector:
 
         return []
 
-    async def execute_workflow(self, workflow: TestWorkflow) -> TestWorkflowResult:
+    async def execute_workflow(self, workflow: Workflow) -> WorkflowResult:
         """Executes a JSON-defined browser test workflow against Playwright MCP."""
         start_time = time.perf_counter()
         step_results: list[StepResult] = []
@@ -217,7 +224,7 @@ class PlaywrightMcpConnector:
             f"Passed: {passed_count}/{len(workflow.steps)}, Failed: {failed_count}."
         )
 
-        return TestWorkflowResult(
+        return WorkflowResult(
             workflow_id=workflow.workflow_id,
             name=workflow.name,
             status="PASSED" if overall_passed else "FAILED",
@@ -230,18 +237,18 @@ class PlaywrightMcpConnector:
             report_summary=summary,
         )
 
-    async def _execute_step(self, step: TestStep, base_url: str) -> dict[str, Any]:
-        """Translates a TestStep into specific Playwright MCP tool invocations and assertions."""
+    async def _execute_step(self, step: Step, base_url: str) -> dict[str, Any]:
+        """Translates a Step into specific Playwright MCP tool invocations and assertions."""
         params = step.params or {}
 
-        if step.action == TestStepAction.NAVIGATE:
+        if step.action == StepAction.NAVIGATE:
             url = params.get("url", "")
             if base_url and not url.startswith("http://") and not url.startswith("https://"):
                 url = f"{base_url.rstrip('/')}/{url.lstrip('/')}"
             res = await self.call_tool("browser_navigate", {"url": url})
             return {"url": url, "result": res}
 
-        elif step.action == TestStepAction.ASSERT_TITLE:
+        elif step.action == StepAction.ASSERT_TITLE:
             expected = params.get("expected_title", "")
             eval_res = await self.call_tool(
                 "browser_evaluate", {"function": "() => document.title"}
@@ -251,7 +258,7 @@ class PlaywrightMcpConnector:
                 raise AssertionError(f"Expected title to contain '{expected}', but got: '{raw_text}'")
             return {"title": raw_text, "expected": expected, "match": True}
 
-        elif step.action == TestStepAction.ASSERT_TEXT:
+        elif step.action == StepAction.ASSERT_TEXT:
             expected_text = params.get("expected_text", "")
             selector = params.get("selector", "")
             js_fn = (
@@ -267,7 +274,7 @@ class PlaywrightMcpConnector:
                 )
             return {"matched_text": expected_text, "selector": selector or "body"}
 
-        elif step.action == TestStepAction.ASSERT_VISIBLE:
+        elif step.action == StepAction.ASSERT_VISIBLE:
             selector = params.get("selector", "")
             if not selector:
                 raise ValueError("assert_visible requires 'selector' parameter")
@@ -278,7 +285,7 @@ class PlaywrightMcpConnector:
                 raise AssertionError(f"Element '{selector}' is not visible on page")
             return {"selector": selector, "visible": True}
 
-        elif step.action == TestStepAction.CLICK:
+        elif step.action == StepAction.CLICK:
             selector = params.get("selector", "")
             text = params.get("text", "")
             if selector:
@@ -291,7 +298,7 @@ class PlaywrightMcpConnector:
             else:
                 raise ValueError("Click action requires either 'selector' or 'text' parameter")
 
-        elif step.action == TestStepAction.TYPE:
+        elif step.action == StepAction.TYPE:
             selector = params.get("selector", "")
             text = params.get("text", "")
             if selector:
@@ -302,12 +309,12 @@ class PlaywrightMcpConnector:
                 res = await self.call_tool("browser_type", {"text": text})
                 return {"typed_text": text, "output": res}
 
-        elif step.action == TestStepAction.PRESS_KEY:
+        elif step.action == StepAction.PRESS_KEY:
             key = params.get("key", "Enter")
             res = await self.call_tool("browser_press_key", {"key": key})
             return {"pressed_key": key, "output": res}
 
-        elif step.action == TestStepAction.WAIT_FOR:
+        elif step.action == StepAction.WAIT_FOR:
             selector = params.get("selector", "")
             timeout_ms = params.get("timeout_ms", 5000)
             if selector:
@@ -318,16 +325,16 @@ class PlaywrightMcpConnector:
                 time.sleep(timeout_ms / 1000.0)
                 return {"waited_ms": timeout_ms}
 
-        elif step.action == TestStepAction.EVALUATE:
+        elif step.action == StepAction.EVALUATE:
             script = params.get("script", "() => true")
             res = await self.call_tool("browser_evaluate", {"function": script})
             return {"evaluation": res}
 
-        elif step.action == TestStepAction.SNAPSHOT:
+        elif step.action == StepAction.SNAPSHOT:
             res = await self.call_tool("browser_snapshot", {})
             return {"snapshot": res}
 
-        elif step.action == TestStepAction.TAKE_SCREENSHOT:
+        elif step.action == StepAction.TAKE_SCREENSHOT:
             res = await self.call_tool("browser_take_screenshot", {})
             return {"screenshot": res}
 

@@ -1,0 +1,67 @@
+{
+  "id": "wf-dynamic-search-and-extract",
+  "name": "Dynamic Search & Data Extraction Workflow",
+  "description": "Demonstrates parameterized search, dynamic selector fallback cascade, data extraction, and endpoint sniffing with zero hardcoded values",
+  "version": "1.0.0",
+  "baseUrl": "{{vars.baseUrl}}",
+  "variables": {
+    "baseUrl": "https://news.ycombinator.com",
+    "searchQuery": "Playwright MCP",
+    "minScore": 50,
+    "maxResults": 10
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "headless": true,
+  "timeoutMs": 60000,
+  "stepTimeoutMs": 15000,
+  "retryConfig": {
+    "maxRetries": 2,
+    "initialDelayMs": 1000,
+    "backoffFactor": 2
+  },
+  "steps": [
+    {
+      "id": "step-navigate",
+      "action": "navigate",
+      "description": "Navigate dynamically to the configured baseUrl",
+      "targetUrl": "{{vars.baseUrl}}",
+      "waitCondition": "domcontentloaded"
+    },
+    {
+      "id": "step-intercept-check",
+      "action": "wait_for_timeout",
+      "description": "Wait briefly to capture all background network endpoints and authentication headers",
+      "value": 2000
+    },
+    {
+      "id": "step-extract-page-title",
+      "action": "extract_text",
+      "description": "Extract page header title using dynamic fallback selectors",
+      "selector": {
+        "primary": "td.title > span.titleline > a",
+        "fallbacks": ["a.storylink", ".titleline a", "a[href*='item']"],
+        "description": "First top story link"
+      },
+      "outputKey": "topStoryTitle"
+    },
+    {
+      "id": "step-extract-all-links",
+      "action": "extract_all",
+      "description": "Extract all top story headlines",
+      "selector": "span.titleline > a",
+      "outputKey": "allStoryHeadlines"
+    },
+    {
+      "id": "step-capture-snapshot",
+      "action": "screenshot",
+      "description": "Capture page screenshot for verification or AI multimodal analysis",
+      "screenshotOptions": {
+        "fullPage": false
+      },
+      "outputKey": "pageScreenshot"
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "id": "linkedin-search",
+  "name": "LinkedIn Search for AI and Machine Learning Engineers",
+  "description": "Search for AI and Machine Learning Engineers on LinkedIn",
+  "version": "1.0.0",
+  "baseUrl": "https://www.linkedin.com",
+  "variables": {
+    "queryTerms": "AI and Machine Learning Engineers"
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browserType": "chromium",
+  "headless": true,
+  "timeoutMs": 180000,
+  "stepTimeoutMs": 30000,
+  "retryConfig": {
+    "maxRetries": 3,
+    "initialDelayMs": 1000,
+    "backoffFactor": 2
+  },
+  "circuitBreakerDomain": "www.linkedin.com",
+  "steps": [
+    {
+      "id": "step-1",
+      "action": "navigate",
+      "description": "Navigate to LinkedIn",
+      "selector": {
+        "primary": "body",
+        "fallbacks": [
+          "#layout",
+          "#main-content"
+        ]
+      },
+      "value": "",
+      "targetUrl": "{{baseUrl}}",
+      "timeoutMs": 10000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-2",
+      "action": "fill",
+      "description": "Search for AI and Machine Learning Engineers",
+      "selector": {
+        "primary": "[name='q']",
+        "fallbacks": [
+          "#search-bar",
+          "[data-test='search-input']"
+        ]
+      },
+      "value": "{{variables.queryTerms}}",
+      "targetUrl": "{{baseUrl}}",
+      "timeoutMs": 10000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-3",
+      "action": "wait_for_selector",
+      "description": "Wait for search results to render",
+      "selector": {
+        "primary": ".result-card",
+        "fallbacks": [
+          "#search-results",
+          ".search-results"
+        ]
+      },
+      "value": "",
+      "targetUrl": "{{baseUrl}}",
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-4",
+      "action": "click",
+      "description": "Click on Remote filter",
+      "selector": {
+        "primary": "[data-test='location-filter']",
+        "fallbacks": [
+          "#location-filter",
+          "[data-test='remote-filter']"
+        ]
+      },
+      "value": "",
+      "targetUrl": "{{baseUrl}}",
+      "timeoutMs": 10000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-5",
+      "action": "wait_for_selector",
+      "description": "Wait for location filter to apply",
+      "selector": {
+        "primary": ".location-filter",
+        "fallbacks": [
+          "#location-filter",
+          ".remote-filter"
+        ]
+      },
+      "value": "",
+      "targetUrl": "{{baseUrl}}",
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-6",
+      "action": "click",
+      "description": "Click on profile links",
+      "selector": {
+        "primary": ".result-card .share-link",
+        "fallbacks": [
+          "#profile-link",
+          ".share-link"
+        ]
+      },
+      "value": "",
+      "targetUrl": "{{baseUrl}}",
+      "timeoutMs": 10000,
+      "optional": false,
+      "continueOnError": false
+    },
+    {
+      "id": "step-7",
+      "action": "extract_text",
+      "description": "Extract profile links and titles",
+      "selector": {
+        "primary": ".result-card .share-link",
+        "fallbacks": [
+          "#profile-link",
+          ".share-link"
+        ]
+      },
+      "value": "",
+      "targetUrl": "{{baseUrl}}",
+      "timeoutMs": 15000,
+      "optional": false,
+      "continueOnError": false
+    }
+  ]
+}

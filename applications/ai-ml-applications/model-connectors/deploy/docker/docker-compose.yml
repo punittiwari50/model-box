@@ -120,33 +120,73 @@ services:
     networks:
       - model-box-net
 
-  playwright-mcp:
-    container_name: ${PLAYWRIGHT_MCP_CONTAINER_NAME:-playwright-mcp}
-    image: ${PLAYWRIGHT_MCP_IMAGE_NAME:-mcr.microsoft.com/playwright/mcp:latest}
+  modelbox-playwright-mcp:
+    container_name: ${PLAYWRIGHT_MCP_CONTAINER_NAME:-modelbox-playwright-mcp}
+    image: ${PLAYWRIGHT_MCP_IMAGE_NAME:-modelbox-playwright-mcp:latest}
+    build:
+      context: ../../../playwright-mcp-engine
+      dockerfile: config/deploy/Dockerfile
     restart: ${PLAYWRIGHT_MCP_RESTART:-unless-stopped}
     init: true
     ipc: host
+    shm_size: ${PLAYWRIGHT_MCP_SHM_SIZE:-2gb}
     ports:
-      - "${PLAYWRIGHT_MCP_PORT:-8931}:8931"
+      - "${PLAYWRIGHT_MCP_PORT:-8940}:8940"
+      - "${PLAYWRIGHT_MCP_FALLBACK_PORT:-8931}:8940"
+      - "${PLAYWRIGHT_VNC_PORT:-6080}:6080"
+    env_file:
+      - ./model-box-service.env
     environment:
-      - PORT=${PLAYWRIGHT_MCP_PORT:-8931}
+      - NODE_ENV=${NODE_ENV:-production}
       - HOST=0.0.0.0
-      - HEADLESS=${PLAYWRIGHT_MCP_HEADLESS:-true}
-    command: ["--port", "8931", "--host", "0.0.0.0", "--headless", "--no-sandbox", "--isolated", "--shared-browser-context"]
+      - PORT=${PLAYWRIGHT_MCP_PORT:-8940}
+      - MCP_PORT=${PLAYWRIGHT_MCP_PORT:-8940}
+      - PLAYWRIGHT_HEADLESS=${PLAYWRIGHT_MCP_HEADLESS:-true}
+      - PLAYWRIGHT_MAX_CONCURRENCY=${PLAYWRIGHT_MAX_CONCURRENCY:-25}
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - UV_THREADPOOL_SIZE=64
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - OLLAMA_BASE_URL=${MODEL_BOX_OLLAMA_URL:-http://ollama-model-service-gpu:11434}
+      - OLLAMA_DEFAULT_MODEL=${MODEL_BOX_OLLAMA_MODEL:-llama3.2:latest}
+      - OLLAMA_TIMEOUT_MS=${PLAYWRIGHT_OLLAMA_TIMEOUT_MS:-180000}
+      - COMFYUI_BASE_URL=${MODEL_BOX_COMFYUI_URL:-http://comfyui-model-service-gpu:8188}
+    volumes:
+      - type: bind
+        source: ${PLAYWRIGHT_MCP_BROWSERS_PATH:-../../../playwright-mcp-engine/browsers}
+        target: /ms-playwright
+        bind:
+          create_host_path: true
+        read_only: false
+      - type: bind
+        source: ${PLAYWRIGHT_MCP_WORKFLOWS_PATH:-../../../playwright-mcp-engine/workflows}
+        target: /app/workflows
+        bind:
+          create_host_path: true
+        read_only: false
+      - type: bind
+        source: ${PLAYWRIGHT_MCP_DOWNLOADS_PATH:-../../../playwright-mcp-engine/downloads}
+        target: /app/downloads
+        bind:
+          create_host_path: true
+        read_only: false
     networks:
-      - model-box-net
+      model-box-net:
+        aliases:
+          - playwright-mcp
+          - modelbox-playwright-mcp
     healthcheck:
-      test: ["CMD", "/usr/local/bin/node", "-e", "const req = require('http').get('http://localhost:8931/sse', (r) => { r.destroy(); process.exit(r.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1));"]
+      test: ["CMD", "node", "-e", "import('node:http').then(h => h.get('http://localhost:8940/health', r => { r.destroy(); process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1)))"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 5s
 
+
 volumes:
-  model-connectors-vault-data:
-    name: ${VAULT_VOLUME_NAME:-model-connectors-vault-data}
   model-connectors-postgres-data:
     name: ${POSTGRES_VOLUME_NAME:-model-connectors-postgres-data}
+  model-connectors-vault-data:
+    name: ${VAULT_VOLUME_NAME:-model-connectors-vault-data}
 
 networks:
   model-box-net:
