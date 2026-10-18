@@ -7,8 +7,9 @@ import { DatabaseTable, DatabaseColumn } from '@/domain/constants/index.js';
 export interface IAuthRepository {
   saveModelAuth(auth: Omit<ModelAuth, 'id' | 'created_at' | 'updated_at'> & { id?: string }): Promise<ModelAuth>;
   getModelAuth(model: string): Promise<ModelAuth | null>;
+  getModelAuthById?(id: string): Promise<ModelAuth | null>;
   listAllModelAuth(): Promise<ModelAuth[]>;
-  deleteModelAuth(model: string): Promise<boolean>;
+  deleteModelAuth(target: string | { model?: string; id?: string; account_email?: string }): Promise<boolean>;
   deleteAllModelAuth(): Promise<number>;
 }
 
@@ -57,23 +58,32 @@ export class AuthRepository implements IAuthRepository {
     ];
 
     await driver.run(sql, params);
-    logger.datasource(`Persisted model_auth for model '${auth.model}' (status: ${auth.status})`);
+    logger.datasource(`Persisted model_auth for model '${auth.model}' [id: ${id}] (status: ${auth.status})`);
 
-    return (await this.getModelAuth(auth.model))!;
+    const saved = await this.getModelAuthById(id);
+    return saved || (await this.getModelAuth(auth.model))!;
+  }
+
+  async getModelAuthById(id: string): Promise<ModelAuth | null> {
+    const driver = await this.dataSource.getDriver();
+    const row = await driver.get<any>(
+      `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.ID} = ?`,
+      [id]
+    );
+    return row ? this.mapRow(row) : null;
   }
 
   async getModelAuth(model: string): Promise<ModelAuth | null> {
     const driver = await this.dataSource.getDriver();
     const row = await driver.get<any>(
-      `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ?`,
+      `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ? ORDER BY ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`,
       [model]
     );
 
     if (!row) {
-      // Check if fallback 'default' or '*' model exists
       if (model !== 'default' && model !== '*') {
         const fallback = await driver.get<any>(
-          `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ? OR ${DatabaseColumn.MODEL} = ?`,
+          `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ? OR ${DatabaseColumn.MODEL} = ? ORDER BY ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`,
           ['default', '*']
         );
         if (fallback) return this.mapRow(fallback);
@@ -86,17 +96,35 @@ export class AuthRepository implements IAuthRepository {
 
   async listAllModelAuth(): Promise<ModelAuth[]> {
     const driver = await this.dataSource.getDriver();
-    const rows = await driver.all<any>(`SELECT * FROM ${DatabaseTable.MODEL_AUTH}`);
+    const rows = await driver.all<any>(
+      `SELECT * FROM ${DatabaseTable.MODEL_AUTH} ORDER BY ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`
+    );
     return rows.map((r) => this.mapRow(r));
   }
 
-  async deleteModelAuth(model: string): Promise<boolean> {
+  async deleteModelAuth(target: string | { model?: string; id?: string; account_email?: string }): Promise<boolean> {
     const driver = await this.dataSource.getDriver();
-    const res = await driver.run(
-      `DELETE FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ?`,
-      [model]
-    );
-    logger.datasource(`Deleted model_auth for model '${model}' (changes: ${res.changes})`);
+    let sql = `DELETE FROM ${DatabaseTable.MODEL_AUTH} WHERE `;
+    const params: any[] = [];
+
+    if (typeof target === 'string') {
+      sql += `${DatabaseColumn.ID} = ? OR ${DatabaseColumn.MODEL} = ?`;
+      params.push(target, target);
+    } else if (target.id) {
+      sql += `${DatabaseColumn.ID} = ?`;
+      params.push(target.id);
+    } else if (target.model && target.account_email) {
+      sql += `${DatabaseColumn.MODEL} = ? AND ${DatabaseColumn.ACCOUNT_EMAIL} = ?`;
+      params.push(target.model, target.account_email);
+    } else if (target.model) {
+      sql += `${DatabaseColumn.MODEL} = ?`;
+      params.push(target.model);
+    } else {
+      return false;
+    }
+
+    const res = await driver.run(sql, params);
+    logger.datasource(`Deleted model_auth for target '${typeof target === 'object' ? JSON.stringify(target) : target}' (changes: ${res.changes})`);
     return res.changes > 0;
   }
 

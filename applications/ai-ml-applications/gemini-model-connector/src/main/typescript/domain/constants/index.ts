@@ -419,6 +419,86 @@ export const KNOWN_MODELS = Object.freeze([
 export type KnownModel = (typeof KNOWN_MODELS)[number];
 
 /**
+ * Resolves the primary category or group for any AI model identifier.
+ * Conforms to Requirement #1: each model must mention which category or group it belongs to.
+ */
+export function getModelFamily(model: string): string {
+  if (!model) return ModelFamily.GENERIC;
+  const normalized = model.toLowerCase().trim();
+
+  if (
+    normalized.includes('gemini') ||
+    normalized.startsWith('google') ||
+    (GEMINI_MODELS as readonly string[]).includes(normalized)
+  ) {
+    return ModelFamily.GEMINI;
+  }
+  if (
+    normalized.includes('grok') ||
+    normalized.includes('xai') ||
+    (GROK_MODELS as readonly string[]).includes(normalized)
+  ) {
+    return ModelFamily.GROK;
+  }
+  if (
+    normalized.includes('claude') ||
+    normalized.includes('anthropic') ||
+    (CLAUDE_MODELS as readonly string[]).includes(normalized)
+  ) {
+    return ModelFamily.CLAUDE;
+  }
+  if (
+    normalized.includes('copilot') ||
+    normalized.includes('github') ||
+    (COPILOT_MODELS as readonly string[]).includes(normalized)
+  ) {
+    return ModelFamily.COPILOT;
+  }
+  if (normalized.includes('cursor')) {
+    return ModelFamily.CURSOR;
+  }
+  if (
+    normalized.includes('codex') ||
+    normalized.includes('openai') ||
+    normalized.includes('gpt-') ||
+    normalized.includes('o3-mini') ||
+    (OPENAI_MODELS as readonly string[]).includes(normalized)
+  ) {
+    return ModelFamily.CODEX;
+  }
+  if (
+    normalized.includes('ollama') ||
+    normalized.includes('deepseek') ||
+    normalized.includes('llama') ||
+    normalized.includes('mistral') ||
+    normalized.includes('qwen') ||
+    normalized.includes('phi') ||
+    normalized.includes('gemma') ||
+    isFallbackModel(normalized) ||
+    (OLLAMA_MODELS as readonly string[]).includes(normalized) ||
+    (OLLAMA_MODELS as readonly string[]).some((m) => normalized.startsWith(m.toLowerCase()))
+  ) {
+    return ModelFamily.OLLAMA;
+  }
+
+  return ModelFamily.GENERIC;
+}
+
+/**
+ * Human-readable display metadata for model categories/groups.
+ */
+export const ModelGroupDisplay = Object.freeze({
+  [ModelFamily.GEMINI]: { label: 'Google Gemini', icon: '🔷', badgeClass: 'badge-gemini' },
+  [ModelFamily.GROK]: { label: 'xAI Grok', icon: '⚡', badgeClass: 'badge-grok' },
+  [ModelFamily.OLLAMA]: { label: 'Ollama Local', icon: '🦙', badgeClass: 'badge-ollama' },
+  [ModelFamily.CLAUDE]: { label: 'Anthropic Claude', icon: '🟣', badgeClass: 'badge-claude' },
+  [ModelFamily.COPILOT]: { label: 'GitHub Copilot', icon: '🐙', badgeClass: 'badge-copilot' },
+  [ModelFamily.CODEX]: { label: 'OpenAI Codex', icon: '🟩', badgeClass: 'badge-codex' },
+  [ModelFamily.CURSOR]: { label: 'Cursor AI', icon: '💻', badgeClass: 'badge-cursor' },
+  [ModelFamily.GENERIC]: { label: 'Other Models', icon: '🤖', badgeClass: 'badge-model' },
+});
+
+/**
  * Authentication Providers & Auth Types
  */
 export const AuthProviderId = Object.freeze({

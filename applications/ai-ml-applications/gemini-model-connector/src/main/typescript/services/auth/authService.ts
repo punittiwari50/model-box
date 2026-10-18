@@ -10,6 +10,7 @@ import {
   AuditAction,
   CommonStatus,
   AuthType,
+  getModelFamily,
 } from '@/domain/constants/index.js';
 import {
   authProviderRegistry,
@@ -134,25 +135,29 @@ export class AuthService implements IAuthService {
 
   /**
    * Direct programmatic token / API key login per model.
+   * Conforms to Requirement #3: Allows multiple logins with different ID or email.
    */
   async loginWithCredentials(
     model: string,
     token: string,
     email?: string,
     authType: (typeof AuthType)[keyof typeof AuthType] = AuthType.API_KEY,
-    clientIp?: string
+    clientIp?: string,
+    id?: string
   ): Promise<ModelAuth> {
     const provider = this.providerRegistry.getProvider(model);
+    const resolvedAccountName = email ? email.split('@')[0] : config.getAccountName(model);
 
     const saved = await this.authRepository.saveModelAuth({
+      id,
       model,
       auth_type: authType,
       account_email: email || config.getAccountEmail(model),
-      account_name: config.getAccountName(model),
+      account_name: resolvedAccountName,
       access_token: token,
       status: AuthStatusConstant.AUTHENTICATED,
       expires_at: new Date(Date.now() + TimeDurationMs.CREDENTIAL_DEFAULT_EXPIRY).toISOString(),
-      metadata: { direct_auth: true, provider: provider.providerId },
+      metadata: { direct_auth: true, provider: provider.providerId, session_id: id },
     });
 
     await provider.syncCredentials(saved);
@@ -162,7 +167,7 @@ export class AuthService implements IAuthService {
       client_ip: clientIp,
       model_used: model,
       status: CommonStatus.SUCCESS,
-      details: { model, auth_type: authType, provider: provider.providerId },
+      details: { model, auth_type: authType, provider: provider.providerId, id: saved.id },
     });
 
     return saved;
@@ -173,14 +178,15 @@ export class AuthService implements IAuthService {
   }
 
   /**
-   * Logs out a specific model or all authenticated models.
+   * Logs out a specific model session, account email, or all authenticated models.
+   * Conforms to Requirement #2: Logout is executed only when an active session exists.
    */
   async logout(
-    options: { model?: string; all?: boolean } | string = { all: true },
+    options: { model?: string; id?: string; account_email?: string; all?: boolean } | string = { all: true },
     clientIp?: string
   ): Promise<{ success: boolean; model?: string; count?: number; message: string }> {
     const opts = typeof options === 'string' ? { model: options } : options;
-    const shouldLogoutAll = Boolean(opts.all) || opts.model === 'all' || !opts.model;
+    const shouldLogoutAll = Boolean(opts.all) || opts.model === 'all';
 
     if (shouldLogoutAll) {
       const count = await this.authRepository.deleteAllModelAuth();
@@ -200,26 +206,32 @@ export class AuthService implements IAuthService {
       };
     }
 
-    const targetModel = opts.model!;
-    const deleted = await this.authRepository.deleteModelAuth(targetModel);
-    const provider = this.providerRegistry.getProvider(targetModel);
-    await provider.clearCredentials();
+    const target = opts.id
+      ? { id: opts.id }
+      : (opts.account_email ? { model: opts.model, account_email: opts.account_email } : (opts.model || ''));
+
+    const deleted = await this.authRepository.deleteModelAuth(target);
+    if (opts.model) {
+      const provider = this.providerRegistry.getProvider(opts.model);
+      await provider.clearCredentials();
+    }
 
     await this.auditRepository.logEvent({
       action: AuditAction.AUTH_LOGOUT,
       client_ip: clientIp,
-      model_used: targetModel,
+      model_used: opts.model,
       status: CommonStatus.SUCCESS,
-      details: { model: targetModel, deleted },
+      details: { target, deleted },
     });
 
-    logger.info('AUTH', `Logged out model '${targetModel}' (deleted: ${deleted})`);
+    const targetDesc = opts.id ? `Session '${opts.id}'` : `Model '${opts.model || 'target'}'`;
+    logger.info('AUTH', `Logged out ${targetDesc} (deleted: ${deleted})`);
     return {
       success: true,
-      model: targetModel,
+      model: opts.model,
       message: deleted
-        ? `Model '${targetModel}' has been logged out successfully.`
-        : `Model '${targetModel}' was not actively authenticated.`,
+        ? `${targetDesc} has been logged out successfully.`
+        : `${targetDesc} was not actively authenticated.`,
     };
   }
 
@@ -255,44 +267,72 @@ export class AuthService implements IAuthService {
   }
 
   /**
-   * Retrieves overall and per-model authentication status across all verified models.
+   * Retrieves overall, group-categorized, and per-model active sessions.
+   * Conforms to Requirement #1 & #3:
+   * 1. Models mention their category/group (Gemini, Grok, Ollama, etc.)
+   * 2. Active sessions organized by group with multi-ID support
    */
   async getStatus(): Promise<AuthStatusResponse> {
     const activeAuthList: ModelAuth[] = await this.authRepository.listAllModelAuth();
-    const activeMap = new Map<string, ModelAuth>(activeAuthList.map((a: ModelAuth) => [a.model, a]));
-    const modelsStatus: Record<string, any> = {};
 
-    // Check all verified available models
-    for (const m of KNOWN_MODELS) {
-      const auth = activeMap.get(m);
-      if (auth) {
-        modelsStatus[m] = {
-          authenticated: auth.status === AuthStatusConstant.AUTHENTICATED,
-          auth_type: auth.auth_type,
-          account_email: auth.account_email,
-          expires_at: auth.expires_at,
-          status: auth.status,
-        };
-      } else {
-        modelsStatus[m] = {
-          authenticated: false,
-          auth_type: undefined,
-          account_email: undefined,
-          expires_at: undefined,
-          status: AuthStatusConstant.UNAUTHENTICATED,
-        };
-      }
+    // Group active sessions by model
+    const sessionsByModel = new Map<string, ModelAuth[]>();
+    for (const auth of activeAuthList) {
+      const list = sessionsByModel.get(auth.model) || [];
+      list.push(auth);
+      sessionsByModel.set(auth.model, list);
     }
 
-    // Add any custom authenticated models
-    for (const [m, auth] of activeMap.entries()) {
+    const modelsStatus: Record<string, any> = {};
+
+    // Populate all known verified models
+    for (const m of KNOWN_MODELS) {
+      const modelSessions = sessionsByModel.get(m) || [];
+      const primaryAuth = modelSessions[0];
+      const family = getModelFamily(m);
+
+      modelsStatus[m] = {
+        family,
+        authenticated: modelSessions.some((s) => s.status === AuthStatusConstant.AUTHENTICATED),
+        auth_type: primaryAuth?.auth_type,
+        account_email: primaryAuth?.account_email,
+        expires_at: primaryAuth?.expires_at,
+        status: primaryAuth ? primaryAuth.status : AuthStatusConstant.UNAUTHENTICATED,
+        active_sessions: modelSessions.map((s) => ({
+          id: s.id,
+          model: s.model,
+          family,
+          auth_type: s.auth_type,
+          account_email: s.account_email,
+          account_name: s.account_name,
+          status: s.status,
+          created_timestamp: s.created_timestamp,
+        })),
+      };
+    }
+
+    // Include custom dynamic models
+    for (const [m, modelSessions] of sessionsByModel.entries()) {
       if (!modelsStatus[m]) {
+        const primaryAuth = modelSessions[0];
+        const family = getModelFamily(m);
         modelsStatus[m] = {
-          authenticated: auth.status === AuthStatusConstant.AUTHENTICATED,
-          auth_type: auth.auth_type,
-          account_email: auth.account_email,
-          expires_at: auth.expires_at,
-          status: auth.status,
+          family,
+          authenticated: modelSessions.some((s) => s.status === AuthStatusConstant.AUTHENTICATED),
+          auth_type: primaryAuth?.auth_type,
+          account_email: primaryAuth?.account_email,
+          expires_at: primaryAuth?.expires_at,
+          status: primaryAuth ? primaryAuth.status : AuthStatusConstant.UNAUTHENTICATED,
+          active_sessions: modelSessions.map((s) => ({
+            id: s.id,
+            model: s.model,
+            family,
+            auth_type: s.auth_type,
+            account_email: s.account_email,
+            account_name: s.account_name,
+            status: s.status,
+            created_timestamp: s.created_timestamp,
+          })),
         };
       }
     }
@@ -301,10 +341,24 @@ export class AuthService implements IAuthService {
       (a: ModelAuth) => a.status === AuthStatusConstant.AUTHENTICATED
     );
 
+    const rootActiveSessions = activeAuthList
+      .filter((a) => a.status === AuthStatusConstant.AUTHENTICATED)
+      .map((s) => ({
+        id: s.id,
+        model: s.model,
+        family: getModelFamily(s.model),
+        auth_type: s.auth_type,
+        account_email: s.account_email || s.account_name || 'Authenticated Session',
+        account_name: s.account_name,
+        status: s.status,
+        created_timestamp: s.created_timestamp,
+      }));
+
     return {
       overall_authenticated: overallAuthenticated,
       global_authenticated: overallAuthenticated,
       models: modelsStatus,
+      active_sessions: rootActiveSessions,
     };
   }
 }

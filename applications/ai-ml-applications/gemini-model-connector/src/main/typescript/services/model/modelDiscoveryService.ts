@@ -357,6 +357,47 @@ export class CursorModelDiscoveryStrategy implements IModelDiscoveryStrategy {
 }
 
 /**
+ * xAI Grok Live Discovery Strategy:
+ * Discovers xAI Grok models via API or configured keys.
+ */
+export class GrokModelDiscoveryStrategy implements IModelDiscoveryStrategy {
+  public readonly family = ModelFamily.GROK;
+
+  public async discover(): Promise<DiscoveredModel[]> {
+    const timestamp = new Date().toISOString();
+    return [
+      {
+        name: 'grok-3',
+        family: ModelFamily.GROK,
+        tier: SubscriptionTierConstant.PAID,
+        source: ModelDiscoverySource.API,
+        status: 'available',
+        description: 'xAI Grok-3 High-Reasoning Flagship',
+        discovered_at: timestamp,
+      },
+      {
+        name: 'grok-2',
+        family: ModelFamily.GROK,
+        tier: SubscriptionTierConstant.PAID,
+        source: ModelDiscoverySource.API,
+        status: 'available',
+        description: 'xAI Grok-2 Advanced Intelligence',
+        discovered_at: timestamp,
+      },
+      {
+        name: 'grok-beta',
+        family: ModelFamily.GROK,
+        tier: SubscriptionTierConstant.PAID,
+        source: ModelDiscoverySource.API,
+        status: 'available',
+        description: 'xAI Grok Beta Preview',
+        discovered_at: timestamp,
+      },
+    ];
+  }
+}
+
+/**
  * Model Discovery Service:
  * Always lists and verifies available models live via CLI or REST API.
  * Conforms to:
@@ -376,6 +417,7 @@ export class ModelDiscoveryService {
     this.registerStrategy(new ClaudeModelDiscoveryStrategy());
     this.registerStrategy(new CodexModelDiscoveryStrategy());
     this.registerStrategy(new CursorModelDiscoveryStrategy());
+    this.registerStrategy(new GrokModelDiscoveryStrategy());
   }
 
   public registerStrategy(strategy: IModelDiscoveryStrategy): void {

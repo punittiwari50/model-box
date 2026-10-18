@@ -110,8 +110,8 @@ export class AuthController {
 
   public async logout(req: Request, res: Response): Promise<void> {
     try {
-      const { model, all } = req.body || {};
-      const result = await this.authService.logout({ model, all }, getClientIp(req));
+      const { model, id, account_email, all } = req.body || {};
+      const result = await this.authService.logout({ model, id, account_email, all }, getClientIp(req));
       sendJsonResponse(res, HttpStatus.OK, result);
     } catch (error: any) {
       sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to logout model(s).');
@@ -145,14 +145,21 @@ export class AuthController {
   }
 
   private async handleTokenLogin(req: Request, res: Response, effectiveToken: string): Promise<void> {
-    const { model = ModelCatalog.DEFAULT, email, account_email, auth_type } = req.body;
-    const resolvedEmail = email || account_email;
+    const { model = ModelCatalog.DEFAULT, email, account_email, account_id, id, auth_type } = req.body;
+    const resolvedEmail = email || account_email || account_id;
     const resolvedAuthType = authTypeResolver.resolveAuthType({
       model,
       token: effectiveToken,
       explicitAuthType: auth_type,
     });
-    const saved = await this.authService.loginWithCredentials(model, effectiveToken, resolvedEmail, resolvedAuthType, getClientIp(req));
+    const saved = await this.authService.loginWithCredentials(
+      model,
+      effectiveToken,
+      resolvedEmail,
+      resolvedAuthType,
+      getClientIp(req),
+      id || account_id
+    );
     sendJsonResponse(res, HttpStatus.OK, {
       success: true,
       message: `Model '${model}' successfully authenticated with ${resolvedAuthType}.`,

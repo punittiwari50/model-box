@@ -305,27 +305,59 @@
           <div>
             <h3 style="font-size: 16px; font-weight: 700;">Authentication & Model Subscription Hub</h3>
             <span style="font-size: 12px; color: var(--text-muted);">
-              Manage OAuth sessions and API keys across Gemini, Claude, Copilot, OpenAI, and Ollama.
+              Manage active sessions and credentials grouped by provider: Gemini, Grok, Ollama, Claude, Copilot, Codex, and Cursor.
             </span>
           </div>
-          <div style="display: flex; gap: 10px;">
+          <div style="display: flex; gap: 10px; align-items: center;">
             <button class="btn-secondary" id="btnRefreshAuth">Refresh Status</button>
-            <button class="btn-secondary" id="btnLogoutAll" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4);">Logout All</button>
+            <button class="btn-secondary" id="btnLogoutAll" style="display: none; color: #f87171; border-color: rgba(239, 68, 68, 0.4);">Logout All</button>
           </div>
         </div>
 
-        <!-- Model Cards Grid -->
-        <div class="model-auth-grid" id="authCardsGrid"></div>
+        <!-- Section 1: Active Sessions Grouped -->
+        <div id="activeSessionsSection">
+          <div class="auth-section-title">
+            <span>🟢 Active Sessions & Accounts</span>
+            <span class="badge badge-success" id="activeSessionsCountBadge">0 Active</span>
+          </div>
+          <div id="activeSessionsEmpty" style="padding: 24px; text-align: center; color: var(--text-muted); background: rgba(255,255,255,0.01); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);">
+            No active model sessions currently authenticated. Connect any model below using OAuth or direct credentials.
+          </div>
+          <div class="active-sessions-grid" id="activeSessionsGrid" style="display: none;"></div>
+        </div>
 
-        <!-- Direct Login Section -->
+        <!-- Section 2: Model Catalog by Category / Group -->
+        <div id="availableModelsAuthSection">
+          <div class="auth-section-title">
+            <span>📚 Model Catalog by Category</span>
+          </div>
+          
+          <!-- Category Filter Bar -->
+          <div class="auth-category-filter" id="authCategoryFilter">
+            <button class="category-filter-btn active" data-filter="all">All Groups</button>
+            <button class="category-filter-btn" data-filter="gemini">Gemini</button>
+            <button class="category-filter-btn" data-filter="grok">Grok</button>
+            <button class="category-filter-btn" data-filter="ollama">Ollama</button>
+            <button class="category-filter-btn" data-filter="claude">Claude</button>
+            <button class="category-filter-btn" data-filter="copilot">Copilot</button>
+            <button class="category-filter-btn" data-filter="codex">Codex</button>
+            <button class="category-filter-btn" data-filter="cursor">Cursor</button>
+          </div>
+
+          <!-- Grouped Models Container -->
+          <div id="authGroupedModelsContainer"></div>
+        </div>
+
+        <!-- Section 3: Direct Multi-ID / Key Assignment -->
         <div style="border-top: 1px solid var(--border-subtle); padding-top: 20px;">
-          <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">Direct Token / API Key Assignment</h4>
+          <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">Direct Token / Multi-Account API Key Assignment</h4>
           <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-            Assign an API Key or Google Cloud OAuth Bearer Token dynamically to any model family.
+            Authenticate a specific model under a distinct Account ID or Email. Multiple accounts can be registered simultaneously.
           </p>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <select id="directAuthModelSelect" style="min-width: 200px;"></select>
-            <input type="password" id="directAuthKeyInput" placeholder="Enter API Key or Bearer Token..." style="flex: 1; min-width: 260px;">
+            <select id="directAuthModelSelect" style="min-width: 220px;"></select>
+            <input type="text" id="directAuthEmailInput" placeholder="Account ID / Email (e.g. work@corp.com, user2)..." style="min-width: 200px;">
+            <input type="password" id="directAuthKeyInput" placeholder="Enter API Key or Bearer Token..." style="flex: 1; min-width: 240px;">
             <button class="btn" id="btnSaveDirectAuth">Authenticate</button>
           </div>
         </div>
@@ -446,6 +478,22 @@
     setInterval(updateTelemetry, 15000);
     updateTelemetry();
 
+    const FAMILY_CONFIG = {
+      gemini: { label: 'Google Gemini', icon: '✨', badgeClass: 'badge-gemini' },
+      grok: { label: 'xAI Grok', icon: '⚡', badgeClass: 'badge-grok' },
+      ollama: { label: 'Ollama Local', icon: '🦙', badgeClass: 'badge-ollama' },
+      claude: { label: 'Anthropic Claude', icon: '🧠', badgeClass: 'badge-claude' },
+      copilot: { label: 'GitHub Copilot', icon: '🐙', badgeClass: 'badge-copilot' },
+      codex: { label: 'OpenAI Codex', icon: '💡', badgeClass: 'badge-codex' },
+      cursor: { label: 'Cursor AI', icon: '🎯', badgeClass: 'badge-cursor' },
+      general: { label: 'General / Other', icon: '⚙️', badgeClass: 'badge-model' },
+    };
+
+    function getFamilyConfig(fam) {
+      const key = (fam || 'general').toLowerCase();
+      return FAMILY_CONFIG[key] || { label: (fam || 'General').toUpperCase(), icon: '⚙️', badgeClass: 'badge-model' };
+    }
+
     // Fetch and Populate Available Models
     async function loadAvailableModels() {
       try {
@@ -468,18 +516,24 @@
           // Group by model family
           const families = {};
           availableModels.forEach(m => {
-            const fam = m.family || 'general';
+            const fam = (m.family || 'general').toLowerCase();
             if (!families[fam]) families[fam] = [];
             families[fam].push(m);
           });
 
-          Object.keys(families).forEach(fam => {
+          // Ordered families display
+          const orderedFamilies = ['gemini', 'grok', 'ollama', 'claude', 'copilot', 'codex', 'cursor', 'general'];
+          const allFamilyKeys = Array.from(new Set([...orderedFamilies, ...Object.keys(families)]));
+
+          allFamilyKeys.forEach(fam => {
+            if (!families[fam] || families[fam].length === 0) return;
+            const conf = getFamilyConfig(fam);
             const grp = document.createElement('optgroup');
-            grp.label = fam.toUpperCase();
+            grp.label = `${conf.icon} ${conf.label.toUpperCase()}`;
             families[fam].forEach(m => {
               const opt = document.createElement('option');
               opt.value = m.name;
-              opt.textContent = `${m.name} (${m.tier || 'standard'})`;
+              opt.textContent = `${m.name} [${fam.toUpperCase()}] (${m.tier || 'standard'})`;
               grp.appendChild(opt);
             });
             sel.appendChild(grp);
@@ -1031,50 +1085,203 @@
     // =========================================================================
     // TAB 5: AUTH & SUBSCRIPTION HUB LOGIC
     // =========================================================================
-    const authCardsGrid = document.getElementById('authCardsGrid');
     const btnRefreshAuth = document.getElementById('btnRefreshAuth');
     const btnLogoutAll = document.getElementById('btnLogoutAll');
     const btnSaveDirectAuth = document.getElementById('btnSaveDirectAuth');
     const directAuthModelSelect = document.getElementById('directAuthModelSelect');
     const directAuthKeyInput = document.getElementById('directAuthKeyInput');
+    const directAuthEmailInput = document.getElementById('directAuthEmailInput');
+    const activeSessionsCountBadge = document.getElementById('activeSessionsCountBadge');
+    const activeSessionsEmpty = document.getElementById('activeSessionsEmpty');
+    const activeSessionsGrid = document.getElementById('activeSessionsGrid');
+    const authGroupedModelsContainer = document.getElementById('authGroupedModelsContainer');
+    const authCategoryFilter = document.getElementById('authCategoryFilter');
+
+    let currentCategoryFilter = 'all';
+
+    // Category filter button click handler
+    if (authCategoryFilter) {
+      authCategoryFilter.querySelectorAll('.category-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          authCategoryFilter.querySelectorAll('.category-filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentCategoryFilter = btn.getAttribute('data-filter') || 'all';
+          applyCategoryFilter();
+        });
+      });
+    }
+
+    function applyCategoryFilter() {
+      const blocks = document.querySelectorAll('.auth-group-block');
+      blocks.forEach(block => {
+        const group = block.getAttribute('data-group');
+        if (currentCategoryFilter === 'all' || currentCategoryFilter === group) {
+          block.style.display = 'block';
+        } else {
+          block.style.display = 'none';
+        }
+      });
+    }
 
     async function loadAuthStatus() {
       try {
         const res = await fetch('/api/v1/auth/status');
         const data = await res.json();
         const models = data.models || {};
-        authCardsGrid.innerHTML = '';
+        const activeSessions = data.active_sessions || [];
 
+        // 1. Render Active Sessions & Multi-ID Support
+        const activeCount = activeSessions.length;
+        if (activeCount > 0) {
+          btnLogoutAll.style.display = 'inline-flex';
+          activeSessionsCountBadge.textContent = `${activeCount} Active Session${activeCount > 1 ? 's' : ''}`;
+          activeSessionsEmpty.style.display = 'none';
+          activeSessionsGrid.style.display = 'grid';
+          activeSessionsGrid.innerHTML = '';
+
+          activeSessions.forEach(sess => {
+            const fam = (sess.family || 'general').toLowerCase();
+            const famConf = getFamilyConfig(fam);
+            const card = document.createElement('div');
+            card.className = 'session-card';
+            card.innerHTML = `
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:16px;">${famConf.icon}</span>
+                  <span style="font-weight:700; font-size:14px;">${escapeHtml(sess.model)}</span>
+                </div>
+                <span class="badge ${famConf.badgeClass}">${escapeHtml(famConf.label.toUpperCase())}</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
+                <div><strong>Account ID / Email:</strong> ${escapeHtml(sess.account_email || sess.id)}</div>
+                <div><strong>Auth Method:</strong> ${escapeHtml(sess.auth_type)}</div>
+                <div style="font-size:11px; color:var(--text-muted); font-family:monospace; margin-top:2px;">Session ID: ${escapeHtml(sess.id)}</div>
+              </div>
+              <div style="display:flex; justify-content:flex-end; margin-top:auto; padding-top:8px;">
+                <button class="btn-secondary" style="padding:6px 12px; font-size:12px; color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="logoutSession('${escapeHtml(sess.id)}', '${escapeHtml(sess.model)}')">
+                  Logout Session
+                </button>
+              </div>
+            `;
+            activeSessionsGrid.appendChild(card);
+          });
+        } else {
+          // Requirement #2: If not logged in, NO logout option shown!
+          btnLogoutAll.style.display = 'none';
+          activeSessionsCountBadge.textContent = '0 Active';
+          activeSessionsEmpty.style.display = 'block';
+          activeSessionsGrid.style.display = 'none';
+          activeSessionsGrid.innerHTML = '';
+        }
+
+        // 2. Render Inactive & Available Models Grouped by Category
+        authGroupedModelsContainer.innerHTML = '';
+        const groups = {};
         Object.entries(models).forEach(([modelName, info]) => {
-          const card = document.createElement('div');
-          card.className = `auth-card ${info.authenticated ? 'authenticated' : ''}`;
-          card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <h4 style="font-size:14px; font-weight:700;">${escapeHtml(modelName)}</h4>
-              <span class="badge ${info.authenticated ? 'badge-success' : 'badge-warning'}">
-                ${info.authenticated ? 'AUTHENTICATED' : 'NOT LOGGED IN'}
-              </span>
-            </div>
-            <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">
-              ${info.authenticated 
-                ? `Account: ${escapeHtml(info.account_email || 'Authenticated')} • Auth: ${info.auth_type}` 
-                : 'Session unauthenticated. Click Login or use API Key below.'}
-            </p>
-            <div style="display:flex; gap:8px; margin-top:auto;">
-              <button class="btn" style="flex:1; padding:6px 12px; font-size:12px;" onclick="window.open('/api/v1/auth/login?model=${encodeURIComponent(modelName)}&redirect=true', '_blank')">
-                Browser OAuth
-              </button>
-              <button class="btn-secondary" style="padding:6px 12px; font-size:12px; color:#f87171;" ${!info.authenticated ? 'disabled' : ''} onclick="logoutSingleModel('${modelName}')">
-                Logout
-              </button>
-            </div>
-          `;
-          authCardsGrid.appendChild(card);
+          const fam = (info.family || 'general').toLowerCase();
+          if (!groups[fam]) groups[fam] = [];
+          groups[fam].push({ name: modelName, ...info });
         });
+
+        const orderedFamilies = ['gemini', 'grok', 'ollama', 'claude', 'copilot', 'codex', 'cursor', 'general'];
+        const allGroupKeys = Array.from(new Set([...orderedFamilies, ...Object.keys(groups)]));
+
+        allGroupKeys.forEach(fam => {
+          const list = groups[fam];
+          if (!list || list.length === 0) return;
+          const famConf = getFamilyConfig(fam);
+          const activeInGroup = list.filter(m => m.authenticated).length;
+
+          const block = document.createElement('div');
+          block.className = 'auth-group-block';
+          block.setAttribute('data-group', fam);
+
+          const header = document.createElement('div');
+          header.className = 'auth-group-header';
+          header.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span>${famConf.icon}</span>
+              <span>${famConf.label} Category</span>
+            </div>
+            <span class="badge ${famConf.badgeClass}">${list.length} Models (${activeInGroup} Active)</span>
+          `;
+          block.appendChild(header);
+
+          const grid = document.createElement('div');
+          grid.className = 'model-auth-grid';
+
+          list.forEach(m => {
+            const card = document.createElement('div');
+            card.className = `auth-card ${m.authenticated ? 'authenticated' : ''}`;
+            
+            // Build action buttons strictly adhering to Requirement #2:
+            // "As logout option must be available only if its actually login if not login than no need to show logout."
+            let actionHtml = '';
+            if (m.authenticated) {
+              actionHtml = `
+                <button class="btn" style="flex:1; padding:6px 12px; font-size:12px;" onclick="window.open('/api/v1/auth/login?model=${encodeURIComponent(m.name)}&redirect=true', '_blank')">
+                  + Add Login
+                </button>
+                <button class="btn-secondary" style="padding:6px 12px; font-size:12px; color:#f87171;" onclick="logoutSingleModel('${escapeHtml(m.name)}')">
+                  Logout
+                </button>
+              `;
+            } else {
+              actionHtml = `
+                <button class="btn" style="width:100%; padding:6px 12px; font-size:12px;" onclick="window.open('/api/v1/auth/login?model=${encodeURIComponent(m.name)}&redirect=true', '_blank')">
+                  Connect OAuth
+                </button>
+              `;
+            }
+
+            card.innerHTML = `
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <h4 style="font-size:14px; font-weight:700;">${escapeHtml(m.name)}</h4>
+                </div>
+                <div style="display:flex; gap:4px; align-items:center;">
+                  <span class="badge ${famConf.badgeClass}">${escapeHtml(fam.toUpperCase())}</span>
+                  <span class="badge ${m.authenticated ? 'badge-success' : 'badge-warning'}">
+                    ${m.authenticated ? 'AUTHENTICATED' : 'NOT LOGGED IN'}
+                  </span>
+                </div>
+              </div>
+              <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">
+                ${m.authenticated 
+                  ? `Active Account: ${escapeHtml(m.account_email || 'Authenticated')} • Auth: ${m.auth_type}${m.active_sessions?.length > 1 ? ` (${m.active_sessions.length} sessions)` : ''}` 
+                  : `Category: ${famConf.label}. Session unauthenticated. Connect via OAuth or assign API key below.`}
+              </p>
+              <div style="display:flex; gap:8px; margin-top:auto;">
+                ${actionHtml}
+              </div>
+            `;
+            grid.appendChild(card);
+          });
+
+          block.appendChild(grid);
+          authGroupedModelsContainer.appendChild(block);
+        });
+
+        applyCategoryFilter();
       } catch (err) {
         console.error('Failed to load auth status:', err);
       }
     }
+
+    window.logoutSession = async function(sessionId, modelName) {
+      try {
+        const res = await fetch('/api/v1/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: sessionId, model: modelName }),
+        });
+        const data = await res.json();
+        showToast(data.message || 'Session logged out', 'info');
+        await loadAuthStatus();
+      } catch (err) {
+        showToast('Logout failed: ' + err.message, 'error');
+      }
+    };
 
     window.logoutSingleModel = async function(modelName) {
       try {
@@ -1092,7 +1299,7 @@
     };
 
     btnLogoutAll.onclick = async () => {
-      if (!confirm('Log out all authenticated models globally?')) return;
+      if (!confirm('Log out all authenticated models and sessions globally?')) return;
       try {
         const res = await fetch('/api/v1/auth/logout', {
           method: 'POST',
@@ -1110,20 +1317,28 @@
     btnSaveDirectAuth.onclick = async () => {
       const key = directAuthKeyInput.value.trim();
       const model = directAuthModelSelect.value;
+      const accountId = directAuthEmailInput ? directAuthEmailInput.value.trim() : '';
       if (!key) {
         showToast('Please enter an API Key or Bearer Token.', 'error');
         return;
       }
       try {
+        const payload = { model, api_key: key };
+        if (accountId) {
+          payload.account_id = accountId;
+          payload.email = accountId;
+          payload.id = accountId;
+        }
         const res = await fetch('/api/v1/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model, api_key: key }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        showToast(`Authenticated ${model} successfully!`, 'success');
+        showToast(`Authenticated ${model} ${accountId ? `(${accountId}) ` : ''}successfully!`, 'success');
         directAuthKeyInput.value = '';
+        if (directAuthEmailInput) directAuthEmailInput.value = '';
         await loadAuthStatus();
       } catch (err) {
         showToast('Authentication failed: ' + err.message, 'error');
