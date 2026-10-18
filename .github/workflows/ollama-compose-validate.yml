@@ -29,6 +29,8 @@ jobs:
 
       - name: Start CPU Ollama runtime
         run: |
+          mkdir -p infra/ollama/docker/volumes/ollama
+          chmod -R 777 infra/ollama/docker/volumes/ollama
           cd infra/ollama/docker
           docker compose --env-file ollama-cpu.env -f compose.cpu.yaml up -d --build
 
