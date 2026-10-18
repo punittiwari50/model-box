@@ -1,0 +1,117 @@
+# ==============================================================================
+# ModelBox Enterprise .gitignore
+# Conforms to Directive #5: Comprehensive ignore rules for IDE, Node, Java, Docker & unwanted extensions
+# ==============================================================================
+
+# Node & Package Managers
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.turbo/
+.npm/
+
+# Build Outputs & Compilation Cache
+dist/
+build/
+out/
+target/
+*.tsbuildinfo
+.tscache/
+
+# Test & Code Coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Java & JVM Ecosystem
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+build/
+target/
+.factorypath
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# IDEs & Editors
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# JetBrains Fleet & Sublime Text
+.fleet/
+*.sublime-project
+*.sublime-workspace
+
+# Docker & Container Overrides
+docker-compose.override.yml
+.docker/
+*.docker
+*.tar.gz
+*.tar
+
+# Runtime Storage, Databases & Persistent Mounts
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+config/data/*.db
+config/data/*.db-journal
+config/data/*.db-wal
+config/data/*.db-shm
+artifacts/*.md
+config/artifacts/*.md
+AGENTS/
+
+# Logs & Monitoring
+logs/
+*.log
+
+# Environment Variables & Security Credentials
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.jks
+
+# Operating System & Unwanted Temporary Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+*.orig

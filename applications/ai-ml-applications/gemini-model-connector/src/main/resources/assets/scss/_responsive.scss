@@ -1,0 +1,60 @@
+@use './variables' as *;
+
+// Responsive Layout Rules conforming to SCSS Best Practices
+
+@media (max-width: $breakpoint-desktop) {
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: $breakpoint-tablet) {
+  header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .nav-tabs {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chat-container {
+    height: calc(100vh - 220px) !important;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    max-height: 250px;
+  }
+
+  .main-content {
+    padding: 12px !important;
+  }
+
+  .audit-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 600px;
+  }
+}
+
+@media (max-width: $breakpoint-mobile) {
+  body {
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .tab-btn {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+}

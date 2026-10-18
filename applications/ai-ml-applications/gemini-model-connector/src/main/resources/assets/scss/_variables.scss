@@ -1,0 +1,20 @@
+// Enterprise SCSS Design Tokens
+// Conforms to Directive #4 & #6: Clean SCSS best practices inside core/web
+
+$bg-primary: #0f172a;
+$bg-secondary: #1e293b;
+$bg-card: rgba(30, 41, 59, 0.7);
+$border-color: #334155;
+$accent-color: #38bdf8;
+$accent-hover: #0284c7;
+$text-main: #f8fafc;
+$text-muted: #94a3b8;
+$success-color: #10b981;
+$warning-color: #f59e0b;
+$danger-color: #ef4444;
+$radius: 10px;
+
+// Responsive Breakpoints
+$breakpoint-mobile: 640px;
+$breakpoint-tablet: 768px;
+$breakpoint-desktop: 1024px;

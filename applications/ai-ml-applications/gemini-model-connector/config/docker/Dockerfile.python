@@ -1,0 +1,36 @@
+# Hermetic Python Runner Dockerfile for Verification & Client Operations
+# Located in config/docker/Dockerfile.python
+# Conforms to STD-BLD-001 & STD-BLD-002
+
+FROM python:3.14-slim-bookworm
+
+WORKDIR /workspace
+
+# Install system dependencies and ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install verification dependencies
+RUN pip install --no-cache-dir \
+    httpx \
+    pytest
+
+# Set environment defaults
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    BASE_URL=http://gemini-model-connector:8090
+
+# Non-root user setup
+RUN groupadd -g 10001 appgroup && \
+    useradd -u 10001 -g appgroup -s /bin/bash -m appuser && \
+    mkdir -p /workspace/artifacts && \
+    chown -R appuser:appgroup /workspace
+
+USER appuser
+
+# Copy verification script
+COPY --chown=appuser:appgroup config/scripts/verification/verify_server.py /workspace/verify_server.py
+
+CMD ["python", "/workspace/verify_server.py"]

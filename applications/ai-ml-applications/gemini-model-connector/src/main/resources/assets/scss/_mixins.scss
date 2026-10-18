@@ -1,0 +1,48 @@
+// SCSS Mixins & Utilities conforming to SCSS best practices
+@use './variables' as *;
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin glassmorphism($bg: $bg-card, $blur: 12px) {
+  background: $bg;
+  backdrop-filter: blur($blur);
+  -webkit-backdrop-filter: blur($blur);
+  border: 1px solid $border-color;
+  border-radius: $radius;
+}
+
+@mixin transition($prop: all, $duration: 0.2s, $timing: ease-in-out) {
+  transition: $prop $duration $timing;
+}
+
+@mixin scrollbar-style {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $border-color;
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: $text-muted;
+  }
+}
+
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  @include transition();
+}

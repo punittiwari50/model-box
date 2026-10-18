@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Model Connector Dashboard</title>
+  <link rel="stylesheet" href="/assets/scss/main.scss">
+  <link rel="icon" type="image/svg+xml" href="/assets/svg/modelbox.svg">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-badge">GEMINI CLI</div>
+      <h1>Model Connector Hub</h1>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="tabChatBtn">Conversation Chat</button>
+      <button class="tab-btn" id="tabJobBtn">Job Search Agent</button>
+      <button class="tab-btn" id="tabAuditBtn">SQLite Audit Trail</button>
+      <button class="tab-btn" id="tabAuthBtn">Gemini Auth & Models</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Tab 1: Conversational Chat -->
+    <div class="tab-content active" id="tabChat">
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <span style="font-weight: 600; font-size: 14px;">Conversations</span>
+          <button class="btn" style="padding: 4px 10px; font-size: 12px;" id="btnNewConv">+ New</button>
+        </div>
+        <div class="sidebar-list" id="convList"></div>
+      </div>
+
+      <div class="chat-container">
+        <div class="chat-header">
+          <div>
+            <h3 id="currentConvTitle">Select or start a conversation</h3>
+            <span id="currentConvMeta" style="font-size: 12px; color: var(--text-muted);">Model: gemini-3.5-flash | Storage: SQLite</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-secondary" id="btnResumeConv" style="display: none; padding: 6px 12px; font-size: 12px; color: #60a5fa; border-color: rgba(96, 165, 250, 0.3);">Resume in CLI</button>
+            <button class="btn-secondary" id="btnDeleteConv" style="display: none; padding: 6px 12px; font-size: 12px;">Delete</button>
+          </div>
+        </div>
+
+        <div class="messages-area" id="messagesArea">
+          <div style="color: var(--text-muted); text-align: center; margin-top: 40px;">
+            No conversation selected. Create a new conversation to start interacting with Google Gemini CLI.
+          </div>
+        </div>
+
+        <div class="chat-input-bar">
+          <input type="text" id="chatInput" placeholder="Type prompt for Gemini CLI..." style="flex: 1;" disabled>
+          <button class="btn" id="btnSendMsg" disabled>Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Job Search Agent -->
+    <div class="tab-content" id="tabJob">
+      <div class="job-panel">
+        <div class="job-form-col">
+          <h3>Job Search & Resume Alignment Agent</h3>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            Provide job specification (HTML, URL, or Text) along with candidate resume. The agent communicates with Gemini CLI to perform gap analysis and generate tailored Markdown files.
+          </p>
+
+          <label style="font-size: 12px; font-weight: 600;">Target Role Title</label>
+          <input type="text" id="jobTargetRole" placeholder="e.g. Senior AI Systems Engineer">
+
+          <label style="font-size: 12px; font-weight: 600;">Candidate Resume (Inline Text / Markdown)</label>
+          <textarea id="jobResumeContent" rows="6" placeholder="Paste full resume text or skills profile..."></textarea>
+
+          <label style="font-size: 12px; font-weight: 600;">Job Specification Source (HTML, URL, or Text)</label>
+          <textarea id="jobRequirementContent" rows="6" placeholder="Paste job description HTML, text, or enter URL..."></textarea>
+
+          <div style="display: flex; gap: 10px; margin-top: 6px;">
+            <button class="btn" id="btnRunJobSearch" style="flex: 1;">Run Gemini Job Agent</button>
+            <button class="btn-secondary" id="btnPrefillJobDemo">Auto-fill Demo</button>
+          </div>
+        </div>
+
+        <div class="job-result-col" id="jobResultsCol">
+          <h3>Agent Analysis & Artifacts</h3>
+          <div id="jobPlaceholder" style="color: var(--text-muted); text-align: center; margin-top: 60px;">
+            Submit requirements to view the resume alignment score, gap analysis, and tailored Markdown artifacts.
+          </div>
+          <div id="jobResultContainer" style="display: none; flex-direction: column; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
+              <div>
+                <div style="font-size: 12px; color: var(--text-muted);">Alignment Match Score</div>
+                <div class="score-badge" id="resMatchScore">--%</div>
+              </div>
+              <button class="btn" id="btnDownloadMd">Download Tailored .MD</button>
+            </div>
+
+            <div>
+              <label style="font-size: 12px; font-weight: 600;">Matched Skills</label>
+              <div class="tag-cloud" id="resMatchedSkills"></div>
+            </div>
+
+            <div>
+              <label style="font-size: 12px; font-weight: 600;">Skill Gaps & Recommendations</label>
+              <div class="tag-cloud" id="resMissingSkills"></div>
+            </div>
+
+            <div>
+              <label style="font-size: 12px; font-weight: 600;">Evaluation Summary</label>
+              <p id="resEvaluation" style="font-size: 13px; line-height: 1.5; color: #cbd5e1; margin-top: 4px;"></p>
+            </div>
+
+            <div>
+              <label style="font-size: 12px; font-weight: 600;">Generated Markdown Preview</label>
+              <pre class="code-preview" id="resMarkdownPreview"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: SQLite Audit Trail -->
+    <div class="tab-content" id="tabAudit">
+      <div class="audit-container">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h3>SQLite Audit Logs & Inspection</h3>
+            <span style="font-size: 12px; color: var(--text-muted);">Immutable audit records saved on every Gemini CLI communication.</span>
+          </div>
+          <button class="btn-secondary" id="btnRefreshAudit">Refresh Logs</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp (UTC)</th>
+                <th>Action</th>
+                <th>Conversation ID</th>
+                <th>Model</th>
+                <th>Tokens</th>
+                <th>Latency</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Gemini Auth & Models -->
+    <div class="tab-content" id="tabAuth">
+      <div class="audit-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h3>Gemini Authentication & Model Access</h3>
+            <span style="font-size: 12px; color: var(--text-muted);">
+              Authenticate Gemini via Google Browser OAuth or API Key. Manage active sessions and log out models individually or globally.
+            </span>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn-secondary" id="btnRefreshAuth">Refresh Status</button>
+            <button class="btn-secondary" id="btnLogoutAll" style="border-color: rgba(239, 68, 68, 0.4); color: #f87171;">Logout All Models</button>
+          </div>
+        </div>
+
+        <div id="authNotice" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 13px;"></div>
+
+        <!-- Per-model authentication cards -->
+        <h4 style="margin-top: 8px;">Configured Gemini Models</h4>
+        <div class="model-grid" id="authGrid"></div>
+
+        <!-- Direct Key / Token Authentication fallback -->
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+          <h4>Direct API Key / Bearer Authentication</h4>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+            Alternatively, assign an API Key or Google Cloud OAuth Bearer Token directly to any model.
+          </p>
+          <div style="display: flex; gap: 10px; max-width: 650px;">
+            <select id="directAuthModel" style="width: 220px;">
+              <option value="default">Default (All Models)</option>
+              <optgroup label="Google Gemini (Active - Recommended)">
+                <option value="gemini-3.5-flash" selected>gemini-3.5-flash (Default)</option>
+                <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite</option>
+                <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+              </optgroup>
+              <optgroup label="Google Gemini (Deprecated / Legacy)">
+                <option value="gemini-2.5-flash">gemini-2.5-flash (Deprecated)</option>
+                <option value="gemini-2.5-pro">gemini-2.5-pro (Deprecated)</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash (Deprecated)</option>
+                <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (Deprecated)</option>
+                <option value="gemini-1.5-pro">gemini-1.5-pro (Deprecated)</option>
+                <option value="gemini-1.5-flash">gemini-1.5-flash (Deprecated)</option>
+              </optgroup>
+              <optgroup label="Anthropic Claude">
+                <option value="claude-3-7-sonnet">claude-3-7-sonnet</option>
+                <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+                <option value="claude-3-5-haiku">claude-3-5-haiku</option>
+              </optgroup>
+              <optgroup label="OpenAI / Codex">
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="o3-mini">o3-mini</option>
+                <option value="codex">codex</option>
+              </optgroup>
+            </select>
+            <input type="password" id="directAuthKey" placeholder="Enter GEMINI_API_KEY or Token..." style="flex: 1;">
+            <button class="btn" id="btnDirectLogin">Save & Authenticate</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // State management
+    let activeConversationId = null;
+    let conversations = [];
+    let currentArtifactFilename = null;
+
+    // Tab navigation
+    const tabChatBtn = document.getElementById('tabChatBtn');
+    const tabJobBtn = document.getElementById('tabJobBtn');
+    const tabAuditBtn = document.getElementById('tabAuditBtn');
+    const tabAuthBtn = document.getElementById('tabAuthBtn');
+    const tabChat = document.getElementById('tabChat');
+    const tabJob = document.getElementById('tabJob');
+    const tabAudit = document.getElementById('tabAudit');
+    const tabAuth = document.getElementById('tabAuth');
+
+    function switchTab(activeBtn, activeTab) {
+      [tabChatBtn, tabJobBtn, tabAuditBtn, tabAuthBtn].forEach(b => b.classList.remove('active'));
+      [tabChat, tabJob, tabAudit, tabAuth].forEach(t => t.classList.remove('active'));
+      activeBtn.classList.add('active');
+      activeTab.classList.add('active');
+    }
+
+    tabChatBtn.addEventListener('click', () => switchTab(tabChatBtn, tabChat));
+    tabJobBtn.addEventListener('click', () => switchTab(tabJobBtn, tabJob));
+    tabAuditBtn.addEventListener('click', () => {
+      switchTab(tabAuditBtn, tabAudit);
+      loadAuditLogs();
+    });
+    tabAuthBtn.addEventListener('click', () => {
+      switchTab(tabAuthBtn, tabAuth);
+      loadAuthStatus();
+    });
+
+    // Chat elements
+    const convList = document.getElementById('convList');
+    const btnNewConv = document.getElementById('btnNewConv');
+    const currentConvTitle = document.getElementById('currentConvTitle');
+    const currentConvMeta = document.getElementById('currentConvMeta');
+    const btnResumeConv = document.getElementById('btnResumeConv');
+    const btnDeleteConv = document.getElementById('btnDeleteConv');
+    const messagesArea = document.getElementById('messagesArea');
+    const chatInput = document.getElementById('chatInput');
+    const btnSendMsg = document.getElementById('btnSendMsg');
+
+    function createEl(tag, options = {}) {
+      const el = document.createElement(tag);
+      if (options.className) el.className = options.className;
+      if (options.textContent) el.textContent = options.textContent;
+      if (options.style) el.style.cssText = options.style;
+      if (options.attributes) {
+        for (const [k, v] of Object.entries(options.attributes)) {
+          el.setAttribute(k, v);
+        }
+      }
+      return el;
+    }
+
+    async function loadConversations() {
+      try {
+        const res = await fetch('/api/v1/conversations');
+        const data = await res.json();
+        conversations = data.items || [];
+        renderConversationList();
+      } catch (err) {
+        console.error('Failed to load conversations:', err);
+      }
+    }
+
+    function renderConversationList() {
+      convList.replaceChildren();
+      if (conversations.length === 0) {
+        const empty = createEl('div', { textContent: 'No conversations yet.', className: 'conv-meta' });
+        empty.style.padding = '10px';
+        convList.appendChild(empty);
+        return;
+      }
+
+      conversations.forEach(c => {
+        const item = createEl('div', { className: `conv-item ${c.id === activeConversationId ? 'active' : ''}` });
+        const title = createEl('div', { className: 'conv-title', textContent: c.title });
+        const meta = createEl('div', { className: 'conv-meta' });
+        const dateSpan = createEl('span', { textContent: new Date(c.updated_at).toLocaleTimeString() });
+        const tagSpan = createEl('span', { textContent: c.model });
+        const sessionShort = (c.session_id || c.id).slice(0, 8);
+        const sessionSpan = createEl('span', { textContent: `CLI: ${sessionShort}` });
+        meta.appendChild(dateSpan);
+        meta.appendChild(tagSpan);
+        meta.appendChild(sessionSpan);
+        item.appendChild(title);
+        item.appendChild(meta);
+
+        item.addEventListener('click', () => selectConversation(c.id));
+        convList.appendChild(item);
+      });
+    }
+
+    async function selectConversation(id) {
+      activeConversationId = id;
+      renderConversationList();
+      chatInput.disabled = false;
+      btnSendMsg.disabled = false;
+      btnResumeConv.style.display = 'block';
+      btnDeleteConv.style.display = 'block';
+
+      try {
+        const res = await fetch(`/api/v1/conversations/${id}`);
+        const conv = await res.json();
+        currentConvTitle.textContent = conv.title;
+        const sessionShort = (conv.session_id || conv.id).slice(0, 8);
+        const isResumed = conv.metadata?.is_resumed ? ` | Resumed (${conv.metadata.resumed_count || 1}x)` : '';
+        currentConvMeta.textContent = `Model: ${conv.model} | Session: ${sessionShort}${isResumed} | Updated: ${new Date(conv.updated_at).toLocaleTimeString()}`;
+        renderMessages(conv.messages || []);
+      } catch (err) {
+        console.error('Failed to load conversation details:', err);
+      }
+    }
+
+    function renderMessages(messages) {
+      messagesArea.replaceChildren();
+      if (messages.length === 0) {
+        const empty = createEl('div', { textContent: 'Thread is empty. Send a prompt to execute Gemini CLI.', className: 'msg-meta' });
+        empty.style.textAlign = 'center';
+        empty.style.marginTop = '40px';
+        messagesArea.appendChild(empty);
+        return;
+      }
+
+      messages.forEach(m => {
+        const bubble = createEl('div', { className: `msg-bubble msg-${m.role}`, textContent: m.content });
+        const meta = createEl('div', { className: 'msg-meta' });
+        const time = createEl('span', { textContent: new Date(m.created_at).toLocaleTimeString() });
+        meta.appendChild(time);
+
+        if (m.role === 'assistant' && m.latency_ms) {
+          const stats = createEl('span', { textContent: `Latency: ${m.latency_ms}ms | Tokens: ${m.total_tokens || 'N/A'}` });
+          meta.appendChild(stats);
+        }
+        bubble.appendChild(meta);
+        messagesArea.appendChild(bubble);
+      });
+      messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+
+    btnNewConv.addEventListener('click', async () => {
+      const title = prompt('Enter Conversation Title:', 'New Gemini Chat Session');
+      if (!title) return;
+
+      try {
+        const res = await fetch('/api/v1/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, model: 'gemini-3.5-flash' })
+        });
+        const created = await res.json();
+        await loadConversations();
+        selectConversation(created.id);
+      } catch (err) {
+        alert('Failed to create conversation: ' + err.message);
+      }
+    });
+
+    btnResumeConv.addEventListener('click', async () => {
+      if (!activeConversationId) return;
+      btnResumeConv.disabled = true;
+      btnResumeConv.textContent = 'Resuming...';
+      try {
+        const res = await fetch(`/api/v1/conversations/${activeConversationId}/resume`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+        await selectConversation(activeConversationId);
+        alert(`Successfully verified & resumed chat session "${data.conversation.title}" (Session ID: ${data.conversation.session_id || activeConversationId}) with Gemini CLI.`);
+      } catch (err) {
+        alert('Failed to resume conversation: ' + err.message);
+      } finally {
+        btnResumeConv.disabled = false;
+        btnResumeConv.textContent = 'Resume in CLI';
+      }
+    });
+
+    btnDeleteConv.addEventListener('click', async () => {
+      if (!activeConversationId) return;
+      if (!confirm('Are you sure you want to delete this conversation?')) return;
+
+      try {
+        await fetch(`/api/v1/conversations/${activeConversationId}`, { method: 'DELETE' });
+        activeConversationId = null;
+        chatInput.disabled = true;
+        btnSendMsg.disabled = true;
+        btnResumeConv.style.display = 'none';
+        btnDeleteConv.style.display = 'none';
+        currentConvTitle.textContent = 'Select or start a conversation';
+        messagesArea.replaceChildren();
+        await loadConversations();
+      } catch (err) {
+        alert('Failed to delete conversation');
+      }
+    });
+
+    async function sendChatMessage() {
+      const text = chatInput.value.trim();
+      if (!text || !activeConversationId) return;
+
+      chatInput.value = '';
+      btnSendMsg.disabled = true;
+
+      const userBubble = createEl('div', { className: 'msg-bubble msg-user', textContent: text });
+      messagesArea.appendChild(userBubble);
+      messagesArea.scrollTop = messagesArea.scrollHeight;
+
+      try {
+        const res = await fetch(`/api/v1/conversations/${activeConversationId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: text, resume: true })
+        });
+        const data = await res.json();
+        if (data.assistantMessage) {
+          const asstBubble = createEl('div', { className: 'msg-bubble msg-assistant', textContent: data.assistantMessage.content });
+          const meta = createEl('div', { className: 'msg-meta' });
+          meta.textContent = `Latency: ${data.assistantMessage.latency_ms || 0}ms | Tokens: ${data.assistantMessage.total_tokens || 'N/A'}`;
+          asstBubble.appendChild(meta);
+          messagesArea.appendChild(asstBubble);
+          messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+      } catch (err) {
+        const errBubble = createEl('div', { className: 'msg-bubble msg-assistant', textContent: 'Error executing Gemini CLI: ' + err.message });
+        messagesArea.appendChild(errBubble);
+      } finally {
+        btnSendMsg.disabled = false;
+      }
+    }
+
+    btnSendMsg.addEventListener('click', sendChatMessage);
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendChatMessage();
+    });
+
+    // Job Search Agent Handling
+    const jobTargetRole = document.getElementById('jobTargetRole');
+    const jobResumeContent = document.getElementById('jobResumeContent');
+    const jobRequirementContent = document.getElementById('jobRequirementContent');
+    const btnRunJobSearch = document.getElementById('btnRunJobSearch');
+    const btnPrefillJobDemo = document.getElementById('btnPrefillJobDemo');
+    const jobPlaceholder = document.getElementById('jobPlaceholder');
+    const jobResultContainer = document.getElementById('jobResultContainer');
+    const resMatchScore = document.getElementById('resMatchScore');
+    const resMatchedSkills = document.getElementById('resMatchedSkills');
+    const resMissingSkills = document.getElementById('resMissingSkills');
+    const resEvaluation = document.getElementById('resEvaluation');
+    const resMarkdownPreview = document.getElementById('resMarkdownPreview');
+    const btnDownloadMd = document.getElementById('btnDownloadMd');
+
+    btnPrefillJobDemo.addEventListener('click', () => {
+      jobTargetRole.value = 'Staff AI Systems & Node.js Engineer';
+      jobResumeContent.value = `Alex Vance - Senior Software Engineer\nSummary: 7+ years designing distributed systems, Node.js microservices, Docker containers, and LLM connectors.\nTechnical Skills: Node.js, TypeScript, REST APIs, Docker, SQLite, PostgreSQL, Python, Git.`;
+      jobRequirementContent.value = `Job Title: Staff AI Systems & Node.js Engineer\nCompany: DeepMind / Google Cloud AI\nRequirements:\n- 5+ years of experience with Node.js, TypeScript, and microservice architectures.\n- Hands-on expertise building Google Gemini CLI integrations and containerized Docker applications.\n- Strong proficiency in SQL database persistence, audit logging, and automated agent workflows.`;
+    });
+
+    btnRunJobSearch.addEventListener('click', async () => {
+      const resume = jobResumeContent.value.trim();
+      const jobDesc = jobRequirementContent.value.trim();
+      if (!resume || !jobDesc) {
+        alert('Please provide both the candidate resume and job description.');
+        return;
+      }
+
+      btnRunJobSearch.disabled = true;
+      btnRunJobSearch.textContent = 'Executing Gemini CLI Agent...';
+
+      try {
+        const isUrl = jobDesc.startsWith('http://') || jobDesc.startsWith('https://');
+        const payload = {
+          target_role: jobTargetRole.value.trim() || undefined,
+          resume_content: resume,
+          generate_markdown_files: true,
+        };
+
+        if (isUrl) {
+          payload.job_url = jobDesc;
+        } else if (jobDesc.includes('<') && jobDesc.includes('>')) {
+          payload.job_html = jobDesc;
+        } else {
+          payload.job_text = jobDesc;
+        }
+
+        const res = await fetch('/api/v1/job-search/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        jobPlaceholder.style.display = 'none';
+        jobResultContainer.style.display = 'flex';
+
+        resMatchScore.textContent = `${data.resume_match.match_score_percentage}%`;
+        resEvaluation.textContent = data.resume_match.summary_evaluation;
+
+        resMatchedSkills.replaceChildren();
+        (data.resume_match.matched_skills || []).forEach(s => {
+          resMatchedSkills.appendChild(createEl('span', { className: 'tag', textContent: s }));
+        });
+
+        resMissingSkills.replaceChildren();
+        (data.resume_match.missing_skills || []).forEach(s => {
+          resMissingSkills.appendChild(createEl('span', { className: 'tag tag-missing', textContent: s }));
+        });
+
+        resMarkdownPreview.textContent = data.markdown_content;
+
+        if (data.markdown_filepath) {
+          const parts = data.markdown_filepath.split(/[/\\]/);
+          currentArtifactFilename = parts[parts.length - 1];
+        }
+
+        await loadConversations();
+      } catch (err) {
+        alert('Job Search Agent execution failed: ' + err.message);
+      } finally {
+        btnRunJobSearch.disabled = false;
+        btnRunJobSearch.textContent = 'Run Gemini Job Agent';
+      }
+    });
+
+    btnDownloadMd.addEventListener('click', () => {
+      if (currentArtifactFilename) {
+        window.location.href = `/api/v1/job-search/artifacts/${currentArtifactFilename}`;
+      } else {
+        const blob = new Blob([resMarkdownPreview.textContent], { type: 'text/markdown' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'tailored_resume.md';
+        a.click();
+      }
+    });
+
+    // Audit logs
+    const auditTableBody = document.getElementById('auditTableBody');
+    const btnRefreshAudit = document.getElementById('btnRefreshAudit');
+
+    async function loadAuditLogs() {
+      try {
+        const res = await fetch('/api/v1/audit/logs?limit=50');
+        const data = await res.json();
+        auditTableBody.replaceChildren();
+
+        if (!data.logs || data.logs.length === 0) {
+          const row = createEl('tr');
+          const cell = createEl('td', { textContent: 'No audit records found.' });
+          cell.setAttribute('colspan', '7');
+          cell.style.textAlign = 'center';
+          row.appendChild(cell);
+          auditTableBody.appendChild(row);
+          return;
+        }
+
+        data.logs.forEach(l => {
+          const tr = createEl('tr');
+          const tdTime = createEl('td', { textContent: new Date(l.timestamp).toLocaleString() });
+          const tdAction = createEl('td', { textContent: l.action });
+          const tdConv = createEl('td', { textContent: l.conversation_id ? l.conversation_id.slice(0, 8) + '...' : '-' });
+          const tdModel = createEl('td', { textContent: l.model_used || '-' });
+          const tdTokens = createEl('td', { textContent: l.prompt_tokens ? `${l.prompt_tokens} in / ${l.completion_tokens || 0} out` : '-' });
+          const tdLat = createEl('td', { textContent: l.latency_ms ? `${l.latency_ms}ms` : '-' });
+          const tdStatus = createEl('td');
+          const statusBadge = createEl('span', { className: 'tag', textContent: l.status });
+          if (l.status === 'FAILED') statusBadge.className = 'tag tag-missing';
+          tdStatus.appendChild(statusBadge);
+
+          tr.appendChild(tdTime);
+          tr.appendChild(tdAction);
+          tr.appendChild(tdConv);
+          tr.appendChild(tdModel);
+          tr.appendChild(tdTokens);
+          tr.appendChild(tdLat);
+          tr.appendChild(tdStatus);
+          auditTableBody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Failed to load audit logs:', err);
+      }
+    }
+
+    btnRefreshAudit.addEventListener('click', loadAuditLogs);
+
+    // Auth & Model Management
+    const authGrid = document.getElementById('authGrid');
+    const btnRefreshAuth = document.getElementById('btnRefreshAuth');
+    const btnLogoutAll = document.getElementById('btnLogoutAll');
+    const btnDirectLogin = document.getElementById('btnDirectLogin');
+    const directAuthModel = document.getElementById('directAuthModel');
+    const directAuthKey = document.getElementById('directAuthKey');
+    const authNotice = document.getElementById('authNotice');
+
+    function showAuthNotice(msg, isError = false) {
+      authNotice.style.display = 'block';
+      authNotice.textContent = msg;
+      authNotice.style.background = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)';
+      authNotice.style.border = `1px solid ${isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`;
+      authNotice.style.color = isError ? '#fca5a5' : '#6ee7b7';
+      setTimeout(() => { authNotice.style.display = 'none'; }, 6000);
+    }
+
+    async function loadAuthStatus() {
+      try {
+        const res = await fetch('/api/v1/auth/status');
+        const data = await res.json();
+        authGrid.replaceChildren();
+
+        const models = data.models || {};
+        for (const [modelName, info] of Object.entries(models)) {
+          const card = createEl('div', {
+            className: `model-card ${info.authenticated ? 'authenticated' : ''}`
+          });
+
+          const titleRow = createEl('div', { style: 'display: flex; justify-content: space-between; align-items: center;' });
+          const title = createEl('h4', { textContent: modelName });
+          const badge = createEl('span', {
+            className: `tag ${info.authenticated ? '' : 'tag-missing'}`,
+            textContent: info.authenticated ? 'AUTHENTICATED' : 'NOT AUTHENTICATED'
+          });
+          titleRow.appendChild(title);
+          titleRow.appendChild(badge);
+
+          const desc = createEl('p', {
+            style: 'font-size: 12px; color: var(--text-muted);',
+            textContent: info.authenticated
+              ? `Account: ${info.account_email || 'Authenticated'} | Type: ${info.auth_type || 'oauth-google'}`
+              : 'No active session. Click login to authenticate with Google Gemini.'
+          });
+
+          const btnRow = createEl('div', { style: 'display: flex; gap: 8px; margin-top: auto;' });
+          const btnLogin = createEl('button', {
+            className: 'btn',
+            textContent: 'Login in Browser',
+            style: 'padding: 6px 12px; font-size: 12px;'
+          });
+          btnLogin.addEventListener('click', () => {
+            window.open(`/api/v1/auth/login?model=${encodeURIComponent(modelName)}&redirect=true`, '_blank');
+          });
+
+          const btnLogout = createEl('button', {
+            className: 'btn btn-secondary',
+            textContent: 'Logout',
+            style: 'padding: 6px 12px; font-size: 12px;'
+          });
+          btnLogout.disabled = !info.authenticated;
+          btnLogout.addEventListener('click', async () => {
+            await logoutModel(modelName);
+          });
+
+          btnRow.appendChild(btnLogin);
+          btnRow.appendChild(btnLogout);
+
+          card.appendChild(titleRow);
+          card.appendChild(desc);
+          card.appendChild(btnRow);
+          authGrid.appendChild(card);
+        }
+      } catch (err) {
+        console.error('Failed to load auth status:', err);
+      }
+    }
+
+    async function logoutModel(modelName) {
+      try {
+        const res = await fetch('/api/v1/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: modelName })
+        });
+        const data = await res.json();
+        showAuthNotice(data.message || `Model '${modelName}' logged out.`);
+        await loadAuthStatus();
+      } catch (err) {
+        showAuthNotice('Logout failed: ' + err.message, true);
+      }
+    }
+
+    btnLogoutAll.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to log out all authenticated Gemini models?')) return;
+      try {
+        const res = await fetch('/api/v1/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ all: true })
+        });
+        const data = await res.json();
+        showAuthNotice(data.message || 'All models logged out.');
+        await loadAuthStatus();
+      } catch (err) {
+        showAuthNotice('Global logout failed: ' + err.message, true);
+      }
+    });
+
+    btnRefreshAuth.addEventListener('click', loadAuthStatus);
+
+    btnDirectLogin.addEventListener('click', async () => {
+      const key = directAuthKey.value.trim();
+      const model = directAuthModel.value;
+      if (!key) {
+        alert('Please enter an API key or token.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, api_key: key })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        showAuthNotice(data.message || `Model '${model}' authenticated.`);
+        directAuthKey.value = '';
+        await loadAuthStatus();
+      } catch (err) {
+        showAuthNotice('Authentication failed: ' + err.message, true);
+      }
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'success') {
+      const authModel = urlParams.get('model') || 'default';
+      const authEmail = urlParams.get('email') || '';
+      showAuthNotice(`Google Gemini successfully authenticated for model '${authModel}' (${authEmail})!`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    loadConversations();
+    loadAuthStatus();
+  </script>
+</body>
+</html>

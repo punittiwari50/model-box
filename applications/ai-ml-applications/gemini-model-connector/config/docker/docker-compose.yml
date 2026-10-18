@@ -1,0 +1,90 @@
+# Hermetic Multi-Runtime Docker Compose Architecture
+# Located in config/docker/docker-compose.yml
+# Conforms to STD-BLD-001, STD-BLD-002, STD-BLD-008, STD-BLD-013
+
+name: gemini-model-connector
+
+services:
+  # Node.js Server Side Service communicating with Google Gemini CLI
+  gemini-model-connector:
+    build:
+      context: ../..
+      dockerfile: config/docker/Dockerfile
+    container_name: gemini-model-connector
+    ports:
+      - "127.0.0.1:8090:8090"
+    env_file:
+      - path: ../../.env
+        required: false
+      - path: ${ENV_FILE:-../env/.env.local}
+        required: false
+    environment:
+      - PORT=${PORT:-8090}
+      - HOST=${HOST:-0.0.0.0}
+      - GOOGLE_GENAI_USE_VERTEXAI=${GOOGLE_GENAI_USE_VERTEXAI:-false}
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-}
+      - GEMINI_CLI_COMMAND=${GEMINI_CLI_COMMAND:-gemini}
+      - GEMINI_DEFAULT_MODEL=${GEMINI_DEFAULT_MODEL:-gemini-3.8-flash}
+      - GEMINI_CLI_TRUST_WORKSPACE=${GEMINI_CLI_TRUST_WORKSPACE:-true}
+      - DATA_DIR=${DATA_DIR:-/app/config/data}
+      - ARTIFACTS_DIR=${ARTIFACTS_DIR:-/app/config/artifacts}
+      - ALLOW_MOCK_FALLBACK=${ALLOW_MOCK_FALLBACK:-true}
+      - DB_INIT_ENABLED=${DB_INIT_ENABLED:-true}
+      - DATASOURCE_INIT_ENABLED=${DATASOURCE_INIT_ENABLED:-true}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11435}
+      - AGENTS_DIR=${AGENTS_DIR:-/app/AGENTS}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../data:/app/config/data:rw
+      - ../artifacts:/app/config/artifacts:rw
+      - ../../AGENTS:/app/AGENTS:rw
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/api/v1/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - gemini-network
+
+  # Python Execution Container for Hermetic Verification & Client Operations
+  gemini-python-verifier:
+    build:
+      context: ../..
+      dockerfile: config/docker/Dockerfile.python
+    profiles:
+      - verify
+    depends_on:
+      gemini-model-connector:
+        condition: service_healthy
+    environment:
+      - BASE_URL=http://gemini-model-connector:8090
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../artifacts:/workspace/artifacts:rw
+    networks:
+      - gemini-network
+
+  # Automated Test Suite Container (Unit, Integration, Concurrent, Performance)
+  gemini-test-runner:
+    build:
+      context: ../..
+      dockerfile: config/docker/Dockerfile.test
+    profiles:
+      - test
+    environment:
+      - NODE_ENV=test
+      - ALLOW_MOCK_FALLBACK=true
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11435}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - gemini-network
+
+networks:
+  gemini-network:
+    driver: bridge
