@@ -56,6 +56,8 @@ tmp/
 !*.env.example
 !model-box-service.env
 !model-box-ui.env
+!infra/ollama/docker/ollama-gpu.env
+!infra/ollama/docker/ollama-cpu.env
 *-secure.env
 *.secure.env
 *.vault

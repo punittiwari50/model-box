@@ -1,0 +1,3 @@
+[submodule "applications/ai-ml-applications/repo_comfyui"]
+	path = applications/ai-ml-applications/repo_comfyui
+	url = https://github.com/Comfy-Org/ComfyUI.git

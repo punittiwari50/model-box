@@ -30,7 +30,7 @@ jobs:
       - name: Start CPU Ollama runtime
         run: |
           cd infra/ollama/docker
-          docker compose --env-file ollama-cpu.env -f compose.cpu.yaml up -d --wait --wait-timeout 180
+          docker compose --env-file ollama-cpu.env -f compose.cpu.yaml up -d --build --wait --wait-timeout 180
 
       - name: Smoke test Ollama API
         run: |
