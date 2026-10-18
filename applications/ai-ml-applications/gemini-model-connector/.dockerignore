@@ -16,3 +16,9 @@ coverage
 Thumbs.db
 .idea
 .vscode
+*.log
+*.tsbuildinfo
+.turbo
+.cache
+.npm
+scratch

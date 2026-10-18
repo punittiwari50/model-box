@@ -1,44 +1,61 @@
 # Multi-stage Dockerfile for Gemini Model Connector using official Node.js 26 (Current) runtime
-# Clean, hermetic container architecture without redundant NVM overhead
+# Optimized for minimal image size, zero redundant build layers, and non-root execution
 # Conforms to STD-BLD-001, STD-BLD-002, STD-BLD-008, STD-BLD-013
 
-# Build Stage
+# ==============================================================================
+# Stage 1: Build & Prune Stage
+# ==============================================================================
 FROM node:current-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Install project dependencies
+# Copy dependency manifests
 COPY package.json ./
 COPY config ./config
-RUN npm install
 
-# Copy source code and build (involves src/main/resources -> dist/resources)
+# Install all dependencies including devDependencies for build
+RUN npm install --no-audit --no-fund
+
+# Copy source code and build project (compiles TypeScript to dist and SCSS to CSS)
 COPY src ./src
 RUN npm run build
 
-# Production Stage
+# Prune devDependencies to keep strictly production dependencies and remove noise
+RUN npm prune --omit=dev --no-audit --no-fund && \
+    find node_modules -name "*.map" -type f -delete 2>/dev/null || true && \
+    find node_modules -type d \( -name "test" -o -name "tests" -o -name "__tests__" -o -name "docs" -o -name "example" -o -name "examples" \) -exec rm -rf {} + 2>/dev/null || true && \
+    npm cache clean --force && \
+    rm -rf /root/.npm /root/.cache /tmp/*
+
+# ==============================================================================
+# Stage 2: Minimal Production Runtime
+# ==============================================================================
 FROM node:current-bookworm-slim AS runner
 
 WORKDIR /app
 
-# Install system tools & GitHub CLI (gh)
+# Combine OS package installation, GitHub CLI (gh), cleanup in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     git \
     jq \
-    gnupg \
     && mkdir -p -m 755 /etc/apt/keyrings \
     && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
     && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
     && apt-get update && apt-get install -y --no-install-recommends gh \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc /usr/share/man /usr/share/locale
 
-# Install model CLIs: Google Gemini CLI and Anthropic Claude Code CLI
-RUN npm install -g @google/gemini-cli @anthropic-ai/claude-code && npm cache clean --force
+# Install model CLIs (Google Gemini CLI and Anthropic Claude Code CLI) with clean-up in single layer
+RUN npm install -g --no-audit --no-fund --omit=dev @google/gemini-cli @anthropic-ai/claude-code && \
+    find /usr/local/lib/node_modules -name "*.map" -type f -delete 2>/dev/null || true && \
+    find /usr/local/lib/node_modules -type d \( -name "test" -o -name "tests" -o -name "__tests__" -o -name "docs" -o -name "example" -o -name "examples" \) -exec rm -rf {} + 2>/dev/null || true && \
+    npm cache clean --force && \
+    rm -rf /root/.npm /root/.cache /tmp/*
 
-# Verify CLI installations
+# Verify CLI availability
 RUN gemini --version || echo "Gemini CLI ready" && \
     gh --version || echo "GitHub CLI ready"
 
@@ -47,14 +64,12 @@ RUN mkdir -p /app/config/data /app/config/artifacts /app/AGENTS /home/node/.gemi
     chmod -R 777 /app/config/data /app/config/artifacts /app/AGENTS /home/node/.gemini /root/.gemini /home/node/.config /root/.config && \
     chown -R node:node /app /home/node/.gemini /home/node/.config
 
-# Copy production package manifests and install production-only dependencies
-COPY package.json ./
-COPY config ./config
-RUN npm install --omit=dev && npm cache clean --force
-
-# Copy compiled artifacts from builder
+# Copy production artifacts & pruned node_modules from builder
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --chown=node:node src/main/resources ./src/main/resources
+COPY --chown=node:node config ./config
+COPY --chown=node:node package.json ./
 
 # Copy entrypoint script
 COPY config/docker/entrypoint.sh /usr/local/bin/entrypoint.sh

@@ -3,9 +3,9 @@
 // Multi-Model Unified Intelligence Dashboard
 // Conforms to SCSS modular standards with nested syntax, mixins, and design tokens
 // ==============================================================================
-@use "./variables" as *;
-@use "./mixins" as *;
-@use "./responsive" as *;
+@use "@/assets/scss/variables" as *;
+@use "@/assets/scss/mixins" as *;
+@use "@/assets/scss/responsive" as *;
 
 // CSS Custom Properties Export
 :root {

@@ -2,7 +2,7 @@
 // ModelBox Enterprise SCSS Responsive Layout Rules
 // Breakpoint-driven media queries conforming to SCSS standard practices
 // ==============================================================================
-@use "./variables" as *;
+@use "@/assets/scss/variables" as *;
 
 @media (max-width: $breakpoint-tablet) {
   .chat-layout {

@@ -2,7 +2,7 @@
 // ModelBox Enterprise SCSS Mixins & Utilities
 // Conforms to SCSS modular best practices
 // ==============================================================================
-@use "./variables" as *;
+@use "@/assets/scss/variables" as *;
 
 @mixin flex-center {
   display: flex;
