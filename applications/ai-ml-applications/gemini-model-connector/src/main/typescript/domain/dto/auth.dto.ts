@@ -3,11 +3,15 @@ import type { AuthStatus } from '@/domain/entities/modelAuth.entity.js';
 export interface ActiveAuthSession {
   readonly id: string;
   readonly model: string;
+  readonly original_model?: string;
+  readonly display_name?: string;
+  readonly display_model?: string;
   readonly family: string;
   readonly auth_type: string;
   readonly account_email?: string;
   readonly account_name?: string;
   readonly status: AuthStatus;
+  readonly login_state?: string;
   readonly created_timestamp?: string;
 }
 

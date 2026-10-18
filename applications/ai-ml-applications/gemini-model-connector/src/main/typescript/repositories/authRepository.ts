@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { dataSourceManager, DataSourceManager } from '@/core/datasource/dataSourceManager.js';
 import type { ModelAuth } from '@/domain/index.js';
 import { logger } from '@/core/observability/logging/logger.js';
+import { config } from '@/core/config/index.js';
 import { DatabaseTable, DatabaseColumn } from '@/domain/constants/index.js';
 
 export interface IAuthRepository {
@@ -108,7 +109,10 @@ export class AuthRepository implements IAuthRepository {
     const params: any[] = [];
 
     if (typeof target === 'string') {
-      sql += `${DatabaseColumn.ID} = ? OR ${DatabaseColumn.MODEL} = ?`;
+      const isDefaultTarget = target === config.geminiDefaultModel || target === 'gemini-3.8-flash';
+      sql += isDefaultTarget
+        ? `${DatabaseColumn.ID} = ? OR ${DatabaseColumn.MODEL} = ? OR ${DatabaseColumn.MODEL} = 'default' OR ${DatabaseColumn.MODEL} = '*'`
+        : `${DatabaseColumn.ID} = ? OR ${DatabaseColumn.MODEL} = ?`;
       params.push(target, target);
     } else if (target.id) {
       sql += `${DatabaseColumn.ID} = ?`;
@@ -117,7 +121,10 @@ export class AuthRepository implements IAuthRepository {
       sql += `${DatabaseColumn.MODEL} = ? AND ${DatabaseColumn.ACCOUNT_EMAIL} = ?`;
       params.push(target.model, target.account_email);
     } else if (target.model) {
-      sql += `${DatabaseColumn.MODEL} = ?`;
+      const isDefaultTarget = target.model === config.geminiDefaultModel || target.model === 'gemini-3.8-flash';
+      sql += isDefaultTarget
+        ? `(${DatabaseColumn.MODEL} = ? OR ${DatabaseColumn.MODEL} = 'default' OR ${DatabaseColumn.MODEL} = '*')`
+        : `${DatabaseColumn.MODEL} = ?`;
       params.push(target.model);
     } else {
       return false;

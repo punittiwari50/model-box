@@ -119,12 +119,44 @@ describe('Model Groups, Categories & Multi-Session Authentication Tests', () => 
       assert.ok(sessWork, 'Session work must be present');
       assert.equal(sessWork.family, ModelFamily.GEMINI);
       assert.equal(sessWork.account_email, 'work@company.com');
+      assert.equal(sessWork.display_name, 'work');
+      assert.equal(sessWork.login_state, 'Active (Logged In)');
 
       assert.ok(sessPersonal, 'Session personal must be present');
       assert.equal(sessPersonal.family, ModelFamily.GEMINI);
+      assert.equal(sessPersonal.login_state, 'Active (Logged In)');
 
       assert.ok(sessGrokFound, 'Session grok must be present');
       assert.equal(sessGrokFound.family, ModelFamily.GROK);
+      assert.equal(sessGrokFound.display_name, 'developer');
+      assert.equal(sessGrokFound.login_state, 'Active (Logged In)');
+    });
+
+    it('should resolve default model to canonical Gemini model with proper name and active state', async () => {
+      // Save session with model: 'default' and explicit account name
+      await authRepo.saveModelAuth({
+        id: 'sess-default-google',
+        model: 'default',
+        auth_type: 'oauth-google',
+        account_email: 'punit.developer@gmail.com',
+        account_name: 'Punit Tiwari',
+        access_token: 'test-oauth-token',
+        status: 'AUTHENTICATED',
+      });
+
+      const status = await authService.getStatus();
+      const defSession = status.active_sessions.find((s) => s.id === 'sess-default-google');
+      assert.ok(defSession, 'Default session must be returned in active_sessions');
+      assert.equal(defSession.display_name, 'Punit Tiwari');
+      assert.equal(defSession.model, 'gemini-3.8-flash');
+      assert.equal(defSession.display_model, 'gemini-3.8-flash (Default Engine)');
+      assert.equal(defSession.family, ModelFamily.GEMINI);
+      assert.equal(defSession.login_state, 'Active (Logged In)');
+
+      // Verify model catalog card is NOT created for artificial key 'default'
+      assert.equal(status.models['default'], undefined);
+      // But gemini-3.8-flash is marked authenticated
+      assert.equal(status.models['gemini-3.8-flash']?.authenticated, true);
     });
 
     it('should logout ONLY the targeted session ID leaving other sessions active', async () => {

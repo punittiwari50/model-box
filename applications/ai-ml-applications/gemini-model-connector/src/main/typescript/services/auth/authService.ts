@@ -10,6 +10,7 @@ import {
   AuditAction,
   CommonStatus,
   AuthType,
+  ModelFamily,
   getModelFamily,
 } from '@/domain/constants/index.js';
 import {
@@ -274,19 +275,30 @@ export class AuthService implements IAuthService {
    */
   async getStatus(): Promise<AuthStatusResponse> {
     const activeAuthList: ModelAuth[] = await this.authRepository.listAllModelAuth();
+    const defaultGeminiModel = config.geminiDefaultModel || 'gemini-3.8-flash';
 
     // Group active sessions by model
     const sessionsByModel = new Map<string, ModelAuth[]>();
     for (const auth of activeAuthList) {
-      const list = sessionsByModel.get(auth.model) || [];
+      const isDefault = auth.model === 'default' || auth.model === '*';
+      const effectiveModel = isDefault ? defaultGeminiModel : auth.model;
+
+      const list = sessionsByModel.get(effectiveModel) || [];
       list.push(auth);
-      sessionsByModel.set(auth.model, list);
+      sessionsByModel.set(effectiveModel, list);
+
+      if (effectiveModel !== auth.model) {
+        const origList = sessionsByModel.get(auth.model) || [];
+        origList.push(auth);
+        sessionsByModel.set(auth.model, origList);
+      }
     }
 
     const modelsStatus: Record<string, any> = {};
 
-    // Populate all known verified models
+    // Populate all known verified models (omit 'default' as an artificial model card)
     for (const m of KNOWN_MODELS) {
+      if (m === 'default' || (m as string) === '*') continue;
       const modelSessions = sessionsByModel.get(m) || [];
       const primaryAuth = modelSessions[0];
       const family = getModelFamily(m);
@@ -298,21 +310,33 @@ export class AuthService implements IAuthService {
         account_email: primaryAuth?.account_email,
         expires_at: primaryAuth?.expires_at,
         status: primaryAuth ? primaryAuth.status : AuthStatusConstant.UNAUTHENTICATED,
-        active_sessions: modelSessions.map((s) => ({
-          id: s.id,
-          model: s.model,
-          family,
-          auth_type: s.auth_type,
-          account_email: s.account_email,
-          account_name: s.account_name,
-          status: s.status,
-          created_timestamp: s.created_timestamp,
-        })),
+        active_sessions: modelSessions.map((s) => {
+          const isDef = s.model === 'default' || s.model === '*';
+          const resolvedM = isDef ? defaultGeminiModel : s.model;
+          const properName = s.account_name && s.account_name.trim()
+            ? s.account_name.trim()
+            : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
+          return {
+            id: s.id,
+            model: resolvedM,
+            original_model: s.model,
+            display_name: properName,
+            display_model: isDef ? `${resolvedM} (Default Engine)` : resolvedM,
+            family,
+            auth_type: s.auth_type,
+            account_email: s.account_email,
+            account_name: s.account_name || properName,
+            status: s.status,
+            login_state: 'Active (Logged In)',
+            created_timestamp: s.created_timestamp,
+          };
+        }),
       };
     }
 
     // Include custom dynamic models
     for (const [m, modelSessions] of sessionsByModel.entries()) {
+      if (m === 'default' || m === '*') continue;
       if (!modelsStatus[m]) {
         const primaryAuth = modelSessions[0];
         const family = getModelFamily(m);
@@ -323,16 +347,24 @@ export class AuthService implements IAuthService {
           account_email: primaryAuth?.account_email,
           expires_at: primaryAuth?.expires_at,
           status: primaryAuth ? primaryAuth.status : AuthStatusConstant.UNAUTHENTICATED,
-          active_sessions: modelSessions.map((s) => ({
-            id: s.id,
-            model: s.model,
-            family,
-            auth_type: s.auth_type,
-            account_email: s.account_email,
-            account_name: s.account_name,
-            status: s.status,
-            created_timestamp: s.created_timestamp,
-          })),
+          active_sessions: modelSessions.map((s) => {
+            const properName = s.account_name && s.account_name.trim()
+              ? s.account_name.trim()
+              : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
+            return {
+              id: s.id,
+              model: s.model,
+              display_name: properName,
+              display_model: s.model,
+              family,
+              auth_type: s.auth_type,
+              account_email: s.account_email,
+              account_name: s.account_name || properName,
+              status: s.status,
+              login_state: 'Active (Logged In)',
+              created_timestamp: s.created_timestamp,
+            };
+          }),
         };
       }
     }
@@ -343,16 +375,32 @@ export class AuthService implements IAuthService {
 
     const rootActiveSessions = activeAuthList
       .filter((a) => a.status === AuthStatusConstant.AUTHENTICATED)
-      .map((s) => ({
-        id: s.id,
-        model: s.model,
-        family: getModelFamily(s.model),
-        auth_type: s.auth_type,
-        account_email: s.account_email || s.account_name || 'Authenticated Session',
-        account_name: s.account_name,
-        status: s.status,
-        created_timestamp: s.created_timestamp,
-      }));
+      .map((s) => {
+        const isDefault = s.model === 'default' || s.model === '*';
+        const resolvedModel = isDefault ? defaultGeminiModel : s.model;
+        const resolvedFamily = (isDefault && s.auth_type?.includes('google'))
+          ? ModelFamily.GEMINI
+          : getModelFamily(resolvedModel);
+
+        const properName = s.account_name && s.account_name.trim()
+          ? s.account_name.trim()
+          : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
+
+        return {
+          id: s.id,
+          model: resolvedModel,
+          original_model: s.model,
+          display_name: properName,
+          display_model: isDefault ? `${resolvedModel} (Default Engine)` : resolvedModel,
+          family: resolvedFamily,
+          auth_type: s.auth_type,
+          account_email: s.account_email || 'Authenticated User',
+          account_name: s.account_name || properName,
+          status: s.status,
+          login_state: 'Active (Logged In)',
+          created_timestamp: s.created_timestamp,
+        };
+      });
 
     return {
       overall_authenticated: overallAuthenticated,

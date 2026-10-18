@@ -427,6 +427,8 @@ export function getModelFamily(model: string): string {
   const normalized = model.toLowerCase().trim();
 
   if (
+    normalized === 'default' ||
+    normalized === '*' ||
     normalized.includes('gemini') ||
     normalized.startsWith('google') ||
     (GEMINI_MODELS as readonly string[]).includes(normalized)

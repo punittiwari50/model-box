@@ -1142,23 +1142,68 @@
           activeSessions.forEach(sess => {
             const fam = (sess.family || 'general').toLowerCase();
             const famConf = getFamilyConfig(fam);
+            
+            // Resolve proper name
+            const properName = sess.account_name && sess.account_name.trim() 
+              ? sess.account_name.trim() 
+              : (sess.display_name || (sess.account_email ? sess.account_email.split('@')[0] : sess.id));
+
+            // Resolve proper model (never bare "default")
+            let modelDisplay = sess.display_model || sess.model;
+            if (!modelDisplay || modelDisplay === 'default' || modelDisplay === '*') {
+              modelDisplay = 'gemini-3.8-flash (Default Engine)';
+            }
+
+            // Format human-readable auth method
+            let authMethodDisplay = 'Direct API Key';
+            if (sess.auth_type) {
+              const at = sess.auth_type.toLowerCase();
+              if (at.includes('google')) authMethodDisplay = 'Google OAuth 2.0';
+              else if (at.includes('anthropic') || at.includes('claude')) authMethodDisplay = 'Anthropic OAuth';
+              else if (at.includes('copilot') || at.includes('github')) authMethodDisplay = 'GitHub Copilot OAuth';
+              else if (at.includes('openai') || at.includes('codex')) authMethodDisplay = 'OpenAI OAuth / Token';
+              else if (at.includes('ollama')) authMethodDisplay = 'Ollama Local Daemon';
+              else if (at.includes('api_key') || at.includes('api-key')) authMethodDisplay = 'Direct API Key';
+              else authMethodDisplay = sess.auth_type.toUpperCase();
+            }
+
+            // Creation time string
+            const createdStr = sess.created_timestamp 
+              ? new Date(sess.created_timestamp).toLocaleString() 
+              : 'Active Session';
+
             const card = document.createElement('div');
             card.className = 'session-card';
             card.innerHTML = `
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span style="font-size:16px;">${famConf.icon}</span>
-                  <span style="font-weight:700; font-size:14px;">${escapeHtml(sess.model)}</span>
+              <div class="session-card-header">
+                <div>
+                  <div class="session-user-name">
+                    <span>👤</span>
+                    <span>${escapeHtml(properName)}</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+                    ${escapeHtml(sess.account_email || 'Authenticated User')}
+                  </div>
                 </div>
                 <span class="badge ${famConf.badgeClass}">${escapeHtml(famConf.label.toUpperCase())}</span>
               </div>
-              <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
-                <div><strong>Account ID / Email:</strong> ${escapeHtml(sess.account_email || sess.id)}</div>
-                <div><strong>Auth Method:</strong> ${escapeHtml(sess.auth_type)}</div>
-                <div style="font-size:11px; color:var(--text-muted); font-family:monospace; margin-top:2px;">Session ID: ${escapeHtml(sess.id)}</div>
+
+              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; padding:6px 0; border-top:1px solid rgba(255,255,255,0.06); border-bottom:1px solid rgba(255,255,255,0.06);">
+                <div class="session-model-pill">
+                  <span>${famConf.icon}</span>
+                  <span>${escapeHtml(modelDisplay)}</span>
+                </div>
+                <span class="badge badge-success">● Active (Logged In)</span>
               </div>
-              <div style="display:flex; justify-content:flex-end; margin-top:auto; padding-top:8px;">
-                <button class="btn-secondary" style="padding:6px 12px; font-size:12px; color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="logoutSession('${escapeHtml(sess.id)}', '${escapeHtml(sess.model)}')">
+
+              <div class="session-meta-grid">
+                <div><span style="color:var(--text-muted);">Login Method:</span> <strong style="color:var(--text-main);">${escapeHtml(authMethodDisplay)}</strong></div>
+                <div><span style="color:var(--text-muted);">Session ID:</span> <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">${escapeHtml(sess.id)}</span></div>
+                <div><span style="color:var(--text-muted);">Logged In Since:</span> <span style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(createdStr)}</span></div>
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; margin-top:auto; padding-top:6px;">
+                <button class="btn-secondary" style="padding:6px 14px; font-size:12px; color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="logoutSession('${escapeHtml(sess.id)}', '${escapeHtml(sess.model)}')">
                   Logout Session
                 </button>
               </div>
