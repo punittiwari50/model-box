@@ -48,12 +48,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc /usr/share/man /usr/share/locale
 
-# Install model CLIs (Google Gemini CLI and Anthropic Claude Code CLI) with clean-up in single layer
-RUN npm install -g --no-audit --no-fund --omit=dev @google/gemini-cli @anthropic-ai/claude-code && \
+# Install model CLI (Google Gemini CLI) with clean-up in single layer; prune npm runtime to minimize image size
+RUN npm install -g --no-audit --no-fund --omit=dev @google/gemini-cli && \
     find /usr/local/lib/node_modules -name "*.map" -type f -delete 2>/dev/null || true && \
     find /usr/local/lib/node_modules -type d \( -name "test" -o -name "tests" -o -name "__tests__" -o -name "docs" -o -name "example" -o -name "examples" \) -exec rm -rf {} + 2>/dev/null || true && \
     npm cache clean --force && \
-    rm -rf /root/.npm /root/.cache /tmp/*
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm /root/.cache /tmp/*
 
 # Verify CLI availability
 RUN gemini --version || echo "Gemini CLI ready" && \
