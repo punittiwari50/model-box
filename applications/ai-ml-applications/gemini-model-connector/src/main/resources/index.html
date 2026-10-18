@@ -2,142 +2,1050 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gemini Model Connector Dashboard</title>
-  <link rel="stylesheet" href="/assets/scss/main.scss">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>ModelBox AI Connector Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="/assets/svg/modelbox.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==============================================================================
+       MODELBOX DESIGN SYSTEM (Vanilla Responsive CSS)
+       Clean, modern, glassmorphic dark theme with fluid grid & flex layouts
+       ============================================================================== */
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #0f172a;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --bg-input: rgba(15, 23, 42, 0.8);
+      
+      --border-subtle: rgba(148, 163, 184, 0.12);
+      --border-medium: rgba(148, 163, 184, 0.22);
+      --border-accent: rgba(56, 189, 248, 0.4);
+      
+      --accent-primary: #38bdf8;
+      --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #6366f1 100%);
+      --accent-hover: #0284c7;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      
+      --text-main: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.12);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.12);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.12);
+      --info: #818cf8;
+      
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+      --shadow-glow: 0 0 20px rgba(56, 189, 248, 0.15);
+      
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.08) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: var(--radius-full);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.45);
+    }
+
+    /* Header */
+    header {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 34px;
+      height: 34px;
+      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.4));
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #f8fafc 40%, var(--accent-primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: var(--accent-gradient);
+      color: #0b0f19;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    }
+
+    /* Live Telemetry Pill */
+    .telemetry-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-subtle);
+      font-size: 12px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: var(--border-accent);
+      color: var(--accent-primary);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 20px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-content {
+      display: none;
+      flex: 1;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Common Buttons & Inputs */
+    .btn {
+      background: var(--accent-gradient);
+      color: #0b0f19;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(56, 189, 248, 0.25);
+    }
+
+    .btn:hover:not(:disabled) {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(30, 41, 59, 0.6);
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-medium);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(51, 65, 85, 0.8);
+      color: var(--text-main);
+      border-color: rgba(148, 163, 184, 0.4);
+    }
+
+    input, select, textarea {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      padding: 9px 13px;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+
+    /* Badges & Tags */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-success { background: var(--success-bg); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-warning { background: var(--warning-bg); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-info { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
+    .badge-model { background: rgba(56, 189, 248, 0.12); color: var(--accent-primary); border: 1px solid rgba(56, 189, 248, 0.25); }
+
+    /* ==============================================================================
+       TAB 1: CHAT & CONVERSATIONS
+       ============================================================================== */
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+      height: calc(100vh - 120px);
+      min-height: 580px;
+    }
+
+    .chat-sidebar {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-top {
+      padding: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sidebar-conv-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .conv-item {
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .conv-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .conv-item.active {
+      background: rgba(56, 189, 248, 0.08);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+
+    .conv-title {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-main);
+    }
+
+    .conv-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .chat-main {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .messages-thread {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .msg-row {
+      display: flex;
+      flex-direction: column;
+      max-width: 82%;
+    }
+
+    .msg-user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 14px 14px 2px 14px;
+      padding: 12px 16px;
+      color: var(--text-main);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .msg-assistant {
+      align-self: flex-start;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px 14px 14px 2px;
+      padding: 14px 18px;
+      color: var(--text-main);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .msg-content {
+      font-size: 13.5px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .chat-composer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    .quick-prompts {
+      display: flex;
+      gap: 6px;
+      padding: 0 16px 8px;
+      overflow-x: auto;
+    }
+
+    .prompt-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .prompt-chip:hover {
+      background: rgba(56, 189, 248, 0.1);
+      border-color: var(--border-accent);
+      color: var(--accent-primary);
+    }
+
+    /* ==============================================================================
+       TAB 2: AUTONOMOUS AGENT STUDIO
+       ============================================================================== */
+    .agent-layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 20px;
+      min-height: 600px;
+    }
+
+    .glass-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .skills-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .skill-toggle {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+
+    .skill-toggle.selected {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.5);
+      color: #a5b4fc;
+    }
+
+    .exec-step-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ==============================================================================
+       TAB 3: JOB SEARCH RESUME MATCH
+       ============================================================================== */
+    .job-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .score-circle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, rgba(15, 23, 42, 0.6) 70%);
+      border: 2px solid var(--success);
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--success);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
+    }
+
+    /* ==============================================================================
+       TAB 4: AUDIT TRAIL TABLE
+       ============================================================================== */
+    .table-container {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-responsive {
+      overflow-x: auto;
+      max-height: 600px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.9);
+      padding: 12px 16px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+      color: var(--text-secondary);
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* ==============================================================================
+       TAB 5: AUTH & SUBSCRIPTION GRID
+       ============================================================================== */
+    .model-auth-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 16px;
+    }
+
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .auth-card:hover {
+      border-color: rgba(56, 189, 248, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .auth-card.authenticated {
+      border-color: rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.03);
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      padding: 16px;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .modal-box {
+      background: #0f172a;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: #1e293b;
+      border: 1px solid var(--border-medium);
+      color: var(--text-main);
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* ==============================================================================
+       RESPONSIVE BREAKPOINTS
+       ============================================================================== */
+    @media (max-width: 1024px) {
+      .chat-layout {
+        grid-template-columns: 260px 1fr;
+      }
+      .agent-layout {
+        grid-template-columns: 1fr;
+      }
+      .job-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 12px 16px;
+      }
+      .telemetry-bar {
+        display: none;
+      }
+      .chat-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .chat-sidebar {
+        max-height: 200px;
+      }
+      .messages-thread {
+        min-height: 350px;
+      }
+      .msg-row {
+        max-width: 95%;
+      }
+      main {
+        padding: 12px;
+      }
+    }
+  </style>
 </head>
 <body>
+
+  <!-- Top Navigation Header -->
   <header>
-    <div class="brand">
-      <div class="brand-badge">GEMINI CLI</div>
-      <h1>Model Connector Hub</h1>
+    <div class="brand-section">
+      <svg class="brand-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+      </svg>
+      <div>
+        <div class="brand-title">ModelBox Connectors</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Multi-Model Unified Intelligence</div>
+      </div>
+      <span class="brand-badge">v2.0</span>
     </div>
-    <div class="nav-tabs">
-      <button class="tab-btn active" id="tabChatBtn">Conversation Chat</button>
-      <button class="tab-btn" id="tabJobBtn">Job Search Agent</button>
-      <button class="tab-btn" id="tabAuditBtn">SQLite Audit Trail</button>
-      <button class="tab-btn" id="tabAuthBtn">Gemini Auth & Models</button>
+
+    <!-- Live Health Telemetry -->
+    <div class="telemetry-bar" id="telemetryPill">
+      <span class="pulse-dot"></span>
+      <span style="font-weight: 600;" id="serverStatusText">Connecting...</span>
+      <span style="color: var(--text-muted);" id="serverLatencyText">--ms</span>
+      <span class="badge badge-model" id="serverDefaultModel">gemini-3.8-flash</span>
+    </div>
+
+    <!-- Tab Buttons -->
+    <div class="nav-tabs" role="tablist">
+      <button class="tab-btn active" id="tabBtnChat" role="tab">💬 Chat</button>
+      <button class="tab-btn" id="tabBtnAgent" role="tab">🤖 Autonomous Agent</button>
+      <button class="tab-btn" id="tabBtnJob" role="tab">🎯 Job Match</button>
+      <button class="tab-btn" id="tabBtnAudit" role="tab">📊 Audit Trail</button>
+      <button class="tab-btn" id="tabBtnAuth" role="tab">🔐 Auth & Models</button>
     </div>
   </header>
 
   <main>
-    <!-- Tab 1: Conversational Chat -->
-    <div class="tab-content active" id="tabChat">
-      <div class="sidebar">
-        <div class="sidebar-header">
-          <span style="font-weight: 600; font-size: 14px;">Conversations</span>
-          <button class="btn" style="padding: 4px 10px; font-size: 12px;" id="btnNewConv">+ New</button>
+    <!-- =========================================================================
+         TAB 1: CONVERSATIONS & CHAT
+         ========================================================================= -->
+    <section class="tab-content active" id="tabContentChat">
+      <div class="chat-layout">
+        <!-- Sidebar -->
+        <aside class="chat-sidebar">
+          <div class="sidebar-top">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 13px; font-weight: 700;">Conversations</span>
+              <button class="btn" id="btnOpenNewConvModal" style="padding: 4px 10px; font-size: 12px;">+ New</button>
+            </div>
+            <input type="text" id="convSearchInput" placeholder="Filter conversations...">
+          </div>
+          <div class="sidebar-conv-list" id="convItemsList"></div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <div class="chat-main">
+          <div class="chat-header">
+            <div>
+              <h3 id="chatHeaderTitle" style="font-size: 15px; font-weight: 700;">Select or start a chat</h3>
+              <div id="chatHeaderMeta" style="font-size: 12px; color: var(--text-muted);">Choose a conversation or create a new session across any model</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" id="btnResumeChat" style="display: none; padding: 6px 12px; font-size: 12px; color: #38bdf8;">🔄 Resume in CLI</button>
+              <button class="btn-secondary" id="btnDeleteChat" style="display: none; padding: 6px 12px; font-size: 12px; color: #f87171;">Delete</button>
+            </div>
+          </div>
+
+          <div class="messages-thread" id="chatMessagesThread">
+            <div style="text-align: center; color: var(--text-muted); margin: auto; padding: 40px 20px;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 12px; opacity: 0.5;">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <p>No conversation active. Click "+ New" to begin an interaction.</p>
+            </div>
+          </div>
+
+          <!-- Quick Prompt Chips -->
+          <div class="quick-prompts" id="quickPromptsBar" style="display: none;">
+            <span class="prompt-chip" onclick="applyQuickPrompt('Analyze the design patterns used in this microservice.')">💡 Analyze Patterns</span>
+            <span class="prompt-chip" onclick="applyQuickPrompt('Write a Docker compose file for Ollama GPU.')">🐳 Dockerize Service</span>
+            <span class="prompt-chip" onclick="applyQuickPrompt('Explain Dependency Inversion Principle with code example.')">📐 Explain DIP</span>
+          </div>
+
+          <!-- Composer -->
+          <div class="chat-composer">
+            <select id="chatModelOverride" style="max-width: 170px;" title="Override model for this turn">
+              <option value="">(Default Model)</option>
+            </select>
+            <input type="text" id="chatMessageInput" placeholder="Type prompt for model (Enter to send)..." style="flex: 1;" disabled>
+            <button class="btn" id="btnSendChatMessage" disabled>Send</button>
+          </div>
         </div>
-        <div class="sidebar-list" id="convList"></div>
       </div>
+    </section>
 
-      <div class="chat-container">
-        <div class="chat-header">
-          <div>
-            <h3 id="currentConvTitle">Select or start a conversation</h3>
-            <span id="currentConvMeta" style="font-size: 12px; color: var(--text-muted);">Model: gemini-3.5-flash | Storage: SQLite</span>
+    <!-- =========================================================================
+         TAB 2: AUTONOMOUS AGENT STUDIO
+         ========================================================================= -->
+    <section class="tab-content" id="tabContentAgent">
+      <div class="agent-layout">
+        <!-- Agent Launcher Form -->
+        <div class="glass-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 16px; font-weight: 700;">Launch Autonomous Agent</h3>
+            <span class="badge badge-info" id="agentSkillsCountBadge">8 Skills Available</span>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-secondary" id="btnResumeConv" style="display: none; padding: 6px 12px; font-size: 12px; color: #60a5fa; border-color: rgba(96, 165, 250, 0.3);">Resume in CLI</button>
-            <button class="btn-secondary" id="btnDeleteConv" style="display: none; padding: 6px 12px; font-size: 12px;">Delete</button>
-          </div>
-        </div>
-
-        <div class="messages-area" id="messagesArea">
-          <div style="color: var(--text-muted); text-align: center; margin-top: 40px;">
-            No conversation selected. Create a new conversation to start interacting with Google Gemini CLI.
-          </div>
-        </div>
-
-        <div class="chat-input-bar">
-          <input type="text" id="chatInput" placeholder="Type prompt for Gemini CLI..." style="flex: 1;" disabled>
-          <button class="btn" id="btnSendMsg" disabled>Send</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 2: Job Search Agent -->
-    <div class="tab-content" id="tabJob">
-      <div class="job-panel">
-        <div class="job-form-col">
-          <h3>Job Search & Resume Alignment Agent</h3>
-          <p style="font-size: 13px; color: var(--text-muted);">
-            Provide job specification (HTML, URL, or Text) along with candidate resume. The agent communicates with Gemini CLI to perform gap analysis and generate tailored Markdown files.
+          <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.5;">
+            Executes autonomous workflows across <strong>Gemini, Claude, Codex, Cursor, Copilot, Ollama, or Grok</strong> inside project-isolated workspaces under <code>AGENTS/&lt;project&gt;</code>.
           </p>
 
-          <label style="font-size: 12px; font-weight: 600;">Target Role Title</label>
-          <input type="text" id="jobTargetRole" placeholder="e.g. Senior AI Systems Engineer">
-
-          <label style="font-size: 12px; font-weight: 600;">Candidate Resume (Inline Text / Markdown)</label>
-          <textarea id="jobResumeContent" rows="6" placeholder="Paste full resume text or skills profile..."></textarea>
-
-          <label style="font-size: 12px; font-weight: 600;">Job Specification Source (HTML, URL, or Text)</label>
-          <textarea id="jobRequirementContent" rows="6" placeholder="Paste job description HTML, text, or enter URL..."></textarea>
-
-          <div style="display: flex; gap: 10px; margin-top: 6px;">
-            <button class="btn" id="btnRunJobSearch" style="flex: 1;">Run Gemini Job Agent</button>
-            <button class="btn-secondary" id="btnPrefillJobDemo">Auto-fill Demo</button>
+          <div class="form-group">
+            <label class="form-label">Agent Name</label>
+            <input type="text" id="agentInputName" placeholder="e.g. ArchitectAgent" value="ModelBoxEngineer">
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Project Workspace Directory (<code>AGENTS/&lt;project&gt;</code>)</label>
+            <input type="text" id="agentInputProject" placeholder="e.g. ecommerce-service" value="modelbox-core">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label class="form-label">Target Model</label>
+              <select id="agentSelectModel"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Approval Policy</label>
+              <select id="agentSelectApproval">
+                <option value="default">Default Approval</option>
+                <option value="auto_edit" selected>auto_edit (Automatic)</option>
+                <option value="yolo">yolo (Unrestricted)</option>
+                <option value="plan">plan (Plan Only)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Active Skills</label>
+            <div class="skills-chips" id="agentSkillsChips"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Task Directive</label>
+            <textarea id="agentInputTask" rows="5" placeholder="Define clear goals for the agent..."></textarea>
+          </div>
+
+          <button class="btn" id="btnLaunchAgent" style="width: 100%; padding: 12px;">
+            🚀 Execute Autonomous Task
+          </button>
         </div>
 
-        <div class="job-result-col" id="jobResultsCol">
-          <h3>Agent Analysis & Artifacts</h3>
-          <div id="jobPlaceholder" style="color: var(--text-muted); text-align: center; margin-top: 60px;">
-            Submit requirements to view the resume alignment score, gap analysis, and tailored Markdown artifacts.
+        <!-- Agent Execution Live Visualizer & History -->
+        <div class="glass-panel" style="overflow-y: auto;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 16px; font-weight: 700;">Live Execution & Action Artifacts</h3>
+            <button class="btn-secondary" id="btnRefreshAgentList" style="padding: 4px 10px; font-size: 12px;">Refresh</button>
           </div>
-          <div id="jobResultContainer" style="display: none; flex-direction: column; gap: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color);">
+
+          <div id="agentActiveStatusCard" style="display: none; background: rgba(56, 189, 248, 0.05); border: 1px solid var(--border-accent); border-radius: var(--radius-md); padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span id="agentActiveTitle" style="font-weight: 700; font-size: 14px;">Running Task...</span>
+              <span id="agentActiveStatusBadge" class="badge badge-warning">RUNNING</span>
+            </div>
+            <div id="agentActiveMeta" style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;"></div>
+            <pre id="agentActiveOutputPreview" style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font-mono); max-height: 250px; overflow-y: auto; white-space: pre-wrap;"></pre>
+          </div>
+
+          <h4 style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-top: 8px;">Past Executions History</h4>
+          <div id="agentExecutionsHistoryList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 3: JOB SEARCH RESUME ALIGNMENT
+         ========================================================================= -->
+    <section class="tab-content" id="tabContentJob">
+      <div class="job-layout">
+        <div class="glass-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 16px; font-weight: 700;">Job Alignment & Gap Analysis</h3>
+            <button class="btn-secondary" id="btnPrefillJob" style="padding: 4px 10px; font-size: 12px;">Demo Fill</button>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-muted);">
+            Evaluates resume profiles against target job requirements, computes gap analyses, and generates tailored Markdown artifacts.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">Target Role Title</label>
+            <input type="text" id="inputJobRole" placeholder="e.g. Senior AI Systems Engineer">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Candidate Resume (Markdown / Text)</label>
+            <textarea id="inputJobResume" rows="7" placeholder="Paste candidate resume profile..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Job Specification (URL, HTML, or Text)</label>
+            <textarea id="inputJobSpec" rows="7" placeholder="Paste job spec or URL..."></textarea>
+          </div>
+
+          <button class="btn" id="btnExecuteJobMatch" style="width: 100%; padding: 12px;">
+            ✨ Run Alignment Analysis
+          </button>
+        </div>
+
+        <div class="glass-panel" id="jobResultsPanel">
+          <h3 style="font-size: 16px; font-weight: 700;">Analysis Results</h3>
+          <div id="jobResultsPlaceholder" style="text-align: center; color: var(--text-muted); margin: auto; padding: 60px 20px;">
+            Submit requirements to view score evaluation, skills alignment, and generated markdown.
+          </div>
+
+          <div id="jobResultsContent" style="display: none; flex-direction: column; gap: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.25); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
               <div>
-                <div style="font-size: 12px; color: var(--text-muted);">Alignment Match Score</div>
-                <div class="score-badge" id="resMatchScore">--%</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Alignment Match Score</div>
+                <div id="jobScoreValue" style="font-size: 26px; font-weight: 800; color: var(--success);">--%</div>
               </div>
-              <button class="btn" id="btnDownloadMd">Download Tailored .MD</button>
+              <button class="btn" id="btnDownloadArtifact">⬇️ Download Tailored .MD</button>
             </div>
 
             <div>
-              <label style="font-size: 12px; font-weight: 600;">Matched Skills</label>
-              <div class="tag-cloud" id="resMatchedSkills"></div>
+              <div class="form-label" style="margin-bottom: 6px;">Matched Skills</div>
+              <div class="skills-chips" id="jobMatchedSkillsChips"></div>
             </div>
 
             <div>
-              <label style="font-size: 12px; font-weight: 600;">Skill Gaps & Recommendations</label>
-              <div class="tag-cloud" id="resMissingSkills"></div>
+              <div class="form-label" style="margin-bottom: 6px;">Identified Skill Gaps</div>
+              <div class="skills-chips" id="jobMissingSkillsChips"></div>
             </div>
 
             <div>
-              <label style="font-size: 12px; font-weight: 600;">Evaluation Summary</label>
-              <p id="resEvaluation" style="font-size: 13px; line-height: 1.5; color: #cbd5e1; margin-top: 4px;"></p>
+              <div class="form-label" style="margin-bottom: 6px;">Summary Evaluation</div>
+              <p id="jobSummaryEvaluation" style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);"></p>
             </div>
 
             <div>
-              <label style="font-size: 12px; font-weight: 600;">Generated Markdown Preview</label>
-              <pre class="code-preview" id="resMarkdownPreview"></pre>
+              <div class="form-label" style="margin-bottom: 6px;">Tailored Markdown Preview</div>
+              <pre id="jobMarkdownPreview" style="background: rgba(0,0,0,0.5); padding: 14px; border-radius: var(--radius-md); font-size: 12px; font-family: var(--font-mono); max-height: 220px; overflow-y: auto; white-space: pre-wrap;"></pre>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Tab 3: SQLite Audit Trail -->
-    <div class="tab-content" id="tabAudit">
-      <div class="audit-container">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+    <!-- =========================================================================
+         TAB 4: SQLITE AUDIT TRAIL
+         ========================================================================= -->
+    <section class="tab-content" id="tabContentAudit">
+      <div class="table-container">
+        <div style="padding: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
           <div>
-            <h3>SQLite Audit Logs & Inspection</h3>
-            <span style="font-size: 12px; color: var(--text-muted);">Immutable audit records saved on every Gemini CLI communication.</span>
+            <h3 style="font-size: 16px; font-weight: 700;">SQLite Audit & Telemetry Trail</h3>
+            <span style="font-size: 12px; color: var(--text-muted);">Immutable audit records saved on every AI model communication turn.</span>
           </div>
-          <button class="btn-secondary" id="btnRefreshAudit">Refresh Logs</button>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="auditSearchInput" placeholder="Filter by action or model..." style="width: 220px;">
+            <button class="btn-secondary" id="btnRefreshAudit">Refresh Logs</button>
+          </div>
         </div>
 
-        <div class="table-wrapper">
+        <div class="table-responsive">
           <table>
             <thead>
               <tr>
-                <th>Timestamp (UTC)</th>
+                <th>Timestamp (Local)</th>
                 <th>Action</th>
-                <th>Conversation ID</th>
-                <th>Model</th>
+                <th>Model Used</th>
+                <th>Session / Context</th>
                 <th>Tokens</th>
                 <th>Latency</th>
                 <th>Status</th>
@@ -147,407 +1055,680 @@
           </table>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Tab 4: Gemini Auth & Models -->
-    <div class="tab-content" id="tabAuth">
-      <div class="audit-container">
+    <!-- =========================================================================
+         TAB 5: AUTH & SUBSCRIPTION HUB
+         ========================================================================= -->
+    <section class="tab-content" id="tabContentAuth">
+      <div class="glass-panel" style="gap: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
           <div>
-            <h3>Gemini Authentication & Model Access</h3>
+            <h3 style="font-size: 16px; font-weight: 700;">Authentication & Model Subscription Hub</h3>
             <span style="font-size: 12px; color: var(--text-muted);">
-              Authenticate Gemini via Google Browser OAuth or API Key. Manage active sessions and log out models individually or globally.
+              Manage OAuth sessions and API keys across Gemini, Claude, Copilot, OpenAI, and Ollama.
             </span>
           </div>
           <div style="display: flex; gap: 10px;">
             <button class="btn-secondary" id="btnRefreshAuth">Refresh Status</button>
-            <button class="btn-secondary" id="btnLogoutAll" style="border-color: rgba(239, 68, 68, 0.4); color: #f87171;">Logout All Models</button>
+            <button class="btn-secondary" id="btnLogoutAll" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4);">Logout All</button>
           </div>
         </div>
 
-        <div id="authNotice" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 13px;"></div>
+        <!-- Model Cards Grid -->
+        <div class="model-auth-grid" id="authCardsGrid"></div>
 
-        <!-- Per-model authentication cards -->
-        <h4 style="margin-top: 8px;">Configured Gemini Models</h4>
-        <div class="model-grid" id="authGrid"></div>
-
-        <!-- Direct Key / Token Authentication fallback -->
-        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-          <h4>Direct API Key / Bearer Authentication</h4>
+        <!-- Direct Login Section -->
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+          <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">Direct Token / API Key Assignment</h4>
           <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-            Alternatively, assign an API Key or Google Cloud OAuth Bearer Token directly to any model.
+            Assign an API Key or Google Cloud OAuth Bearer Token dynamically to any model family.
           </p>
-          <div style="display: flex; gap: 10px; max-width: 650px;">
-            <select id="directAuthModel" style="width: 220px;">
-              <option value="default">Default (All Models)</option>
-              <optgroup label="Google Gemini (Active - Recommended)">
-                <option value="gemini-3.5-flash" selected>gemini-3.5-flash (Default)</option>
-                <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite</option>
-                <option value="gemini-3.8-flash">gemini-3.8-flash</option>
-              </optgroup>
-              <optgroup label="Google Gemini (Deprecated / Legacy)">
-                <option value="gemini-2.5-flash">gemini-2.5-flash (Deprecated)</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro (Deprecated)</option>
-                <option value="gemini-2.0-flash">gemini-2.0-flash (Deprecated)</option>
-                <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (Deprecated)</option>
-                <option value="gemini-1.5-pro">gemini-1.5-pro (Deprecated)</option>
-                <option value="gemini-1.5-flash">gemini-1.5-flash (Deprecated)</option>
-              </optgroup>
-              <optgroup label="Anthropic Claude">
-                <option value="claude-3-7-sonnet">claude-3-7-sonnet</option>
-                <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
-                <option value="claude-3-5-haiku">claude-3-5-haiku</option>
-              </optgroup>
-              <optgroup label="OpenAI / Codex">
-                <option value="gpt-4o">gpt-4o</option>
-                <option value="gpt-4o-mini">gpt-4o-mini</option>
-                <option value="o3-mini">o3-mini</option>
-                <option value="codex">codex</option>
-              </optgroup>
-            </select>
-            <input type="password" id="directAuthKey" placeholder="Enter GEMINI_API_KEY or Token..." style="flex: 1;">
-            <button class="btn" id="btnDirectLogin">Save & Authenticate</button>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <select id="directAuthModelSelect" style="min-width: 200px;"></select>
+            <input type="password" id="directAuthKeyInput" placeholder="Enter API Key or Bearer Token..." style="flex: 1; min-width: 260px;">
+            <button class="btn" id="btnSaveDirectAuth">Authenticate</button>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   </main>
 
+  <!-- Modal for Creating New Conversation -->
+  <div class="modal-backdrop" id="modalNewConv" style="display: none;">
+    <div class="modal-box">
+      <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 14px;">Create New Conversation</h3>
+      
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label">Conversation Title</label>
+        <input type="text" id="modalInputConvTitle" placeholder="e.g. Distributed System Architecture" value="AI System Discussion">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label">Model Engine</label>
+        <select id="modalSelectConvModel"></select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label class="form-label">Subscription Routing Policy</label>
+        <select id="modalSelectConvPolicy">
+          <option value="paid_first" selected>Paid First (Fallback to Freeware)</option>
+          <option value="free_first">Free First (Preserve Paid Quota)</option>
+          <option value="paid_only">Paid Only</option>
+          <option value="free_only">Free Only</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-secondary" id="modalBtnCancelConv">Cancel</button>
+        <button class="btn" id="modalBtnSubmitConv">Create Chat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Interactive JavaScript Logic -->
   <script>
-    // State management
-    let activeConversationId = null;
+    // Global State
+    let activeConvId = null;
     let conversations = [];
-    let currentArtifactFilename = null;
+    let availableModels = [];
+    let downloadedArtifactName = null;
+    let selectedSkills = new Set(['code_review', 'refactoring', 'testing']);
 
-    // Tab navigation
-    const tabChatBtn = document.getElementById('tabChatBtn');
-    const tabJobBtn = document.getElementById('tabJobBtn');
-    const tabAuditBtn = document.getElementById('tabAuditBtn');
-    const tabAuthBtn = document.getElementById('tabAuthBtn');
-    const tabChat = document.getElementById('tabChat');
-    const tabJob = document.getElementById('tabJob');
-    const tabAudit = document.getElementById('tabAudit');
-    const tabAuth = document.getElementById('tabAuth');
+    // Elements
+    const tabBtns = {
+      chat: document.getElementById('tabBtnChat'),
+      agent: document.getElementById('tabBtnAgent'),
+      job: document.getElementById('tabBtnJob'),
+      audit: document.getElementById('tabBtnAudit'),
+      auth: document.getElementById('tabBtnAuth'),
+    };
 
-    function switchTab(activeBtn, activeTab) {
-      [tabChatBtn, tabJobBtn, tabAuditBtn, tabAuthBtn].forEach(b => b.classList.remove('active'));
-      [tabChat, tabJob, tabAudit, tabAuth].forEach(t => t.classList.remove('active'));
-      activeBtn.classList.add('active');
-      activeTab.classList.add('active');
+    const tabContents = {
+      chat: document.getElementById('tabContentChat'),
+      agent: document.getElementById('tabContentAgent'),
+      job: document.getElementById('tabContentJob'),
+      audit: document.getElementById('tabContentAudit'),
+      auth: document.getElementById('tabContentAuth'),
+    };
+
+    // Tab Switching Logic
+    function switchTab(target) {
+      Object.keys(tabBtns).forEach(key => {
+        tabBtns[key].classList.toggle('active', key === target);
+        tabContents[key].classList.toggle('active', key === target);
+      });
+      if (target === 'audit') loadAuditLogs();
+      if (target === 'auth') loadAuthStatus();
+      if (target === 'agent') loadAgentHistory();
     }
 
-    tabChatBtn.addEventListener('click', () => switchTab(tabChatBtn, tabChat));
-    tabJobBtn.addEventListener('click', () => switchTab(tabJobBtn, tabJob));
-    tabAuditBtn.addEventListener('click', () => {
-      switchTab(tabAuditBtn, tabAudit);
-      loadAuditLogs();
-    });
-    tabAuthBtn.addEventListener('click', () => {
-      switchTab(tabAuthBtn, tabAuth);
-      loadAuthStatus();
-    });
+    tabBtns.chat.addEventListener('click', () => switchTab('chat'));
+    tabBtns.agent.addEventListener('click', () => switchTab('agent'));
+    tabBtns.job.addEventListener('click', () => switchTab('job'));
+    tabBtns.audit.addEventListener('click', () => switchTab('audit'));
+    tabBtns.auth.addEventListener('click', () => switchTab('auth'));
 
-    // Chat elements
-    const convList = document.getElementById('convList');
-    const btnNewConv = document.getElementById('btnNewConv');
-    const currentConvTitle = document.getElementById('currentConvTitle');
-    const currentConvMeta = document.getElementById('currentConvMeta');
-    const btnResumeConv = document.getElementById('btnResumeConv');
-    const btnDeleteConv = document.getElementById('btnDeleteConv');
-    const messagesArea = document.getElementById('messagesArea');
-    const chatInput = document.getElementById('chatInput');
-    const btnSendMsg = document.getElementById('btnSendMsg');
+    // Toast Notification helper
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+      toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
 
-    function createEl(tag, options = {}) {
-      const el = document.createElement(tag);
-      if (options.className) el.className = options.className;
-      if (options.textContent) el.textContent = options.textContent;
-      if (options.style) el.style.cssText = options.style;
-      if (options.attributes) {
-        for (const [k, v] of Object.entries(options.attributes)) {
-          el.setAttribute(k, v);
+    // Health Telemetry Heartbeat
+    async function updateTelemetry() {
+      const start = performance.now();
+      try {
+        const res = await fetch('/api/v1/health');
+        const data = await res.json();
+        const latency = Math.round(performance.now() - start);
+        document.getElementById('serverStatusText').textContent = 'Online';
+        document.getElementById('serverLatencyText').textContent = `${latency}ms`;
+        if (data.cli_status?.default_model) {
+          document.getElementById('serverDefaultModel').textContent = data.cli_status.default_model;
         }
+      } catch (err) {
+        document.getElementById('serverStatusText').textContent = 'Offline';
+        document.getElementById('serverLatencyText').textContent = 'err';
       }
-      return el;
     }
+    setInterval(updateTelemetry, 15000);
+    updateTelemetry();
+
+    // Fetch and Populate Available Models
+    async function loadAvailableModels() {
+      try {
+        const res = await fetch('/api/v1/models');
+        const data = await res.json();
+        availableModels = data.models || [];
+        
+        const selectors = [
+          document.getElementById('modalSelectConvModel'),
+          document.getElementById('agentSelectModel'),
+          document.getElementById('chatModelOverride'),
+          document.getElementById('directAuthModelSelect'),
+        ];
+
+        selectors.forEach(sel => {
+          if (!sel) return;
+          const currentVal = sel.value;
+          sel.innerHTML = sel.id === 'chatModelOverride' ? '<option value="">(Default Model)</option>' : '';
+          
+          // Group by model family
+          const families = {};
+          availableModels.forEach(m => {
+            const fam = m.family || 'general';
+            if (!families[fam]) families[fam] = [];
+            families[fam].push(m);
+          });
+
+          Object.keys(families).forEach(fam => {
+            const grp = document.createElement('optgroup');
+            grp.label = fam.toUpperCase();
+            families[fam].forEach(m => {
+              const opt = document.createElement('option');
+              opt.value = m.name;
+              opt.textContent = `${m.name} (${m.tier || 'standard'})`;
+              grp.appendChild(opt);
+            });
+            sel.appendChild(grp);
+          });
+
+          if (currentVal) sel.value = currentVal;
+        });
+      } catch (err) {
+        console.warn('Failed to load available models:', err);
+      }
+    }
+
+    // =========================================================================
+    // CHAT & CONVERSATIONS LOGIC
+    // =========================================================================
+    const convItemsList = document.getElementById('convItemsList');
+    const chatMessagesThread = document.getElementById('chatMessagesThread');
+    const chatMessageInput = document.getElementById('chatMessageInput');
+    const btnSendChatMessage = document.getElementById('btnSendChatMessage');
+    const chatHeaderTitle = document.getElementById('chatHeaderTitle');
+    const chatHeaderMeta = document.getElementById('chatHeaderMeta');
+    const btnResumeChat = document.getElementById('btnResumeChat');
+    const btnDeleteChat = document.getElementById('btnDeleteChat');
+    const quickPromptsBar = document.getElementById('quickPromptsBar');
 
     async function loadConversations() {
       try {
         const res = await fetch('/api/v1/conversations');
         const data = await res.json();
         conversations = data.items || [];
-        renderConversationList();
+        renderConversations();
       } catch (err) {
         console.error('Failed to load conversations:', err);
       }
     }
 
-    function renderConversationList() {
-      convList.replaceChildren();
+    function renderConversations() {
+      convItemsList.innerHTML = '';
       if (conversations.length === 0) {
-        const empty = createEl('div', { textContent: 'No conversations yet.', className: 'conv-meta' });
-        empty.style.padding = '10px';
-        convList.appendChild(empty);
+        convItemsList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:12px; text-align:center;">No conversations yet</div>';
         return;
       }
 
       conversations.forEach(c => {
-        const item = createEl('div', { className: `conv-item ${c.id === activeConversationId ? 'active' : ''}` });
-        const title = createEl('div', { className: 'conv-title', textContent: c.title });
-        const meta = createEl('div', { className: 'conv-meta' });
-        const dateSpan = createEl('span', { textContent: new Date(c.updated_at).toLocaleTimeString() });
-        const tagSpan = createEl('span', { textContent: c.model });
-        const sessionShort = (c.session_id || c.id).slice(0, 8);
-        const sessionSpan = createEl('span', { textContent: `CLI: ${sessionShort}` });
-        meta.appendChild(dateSpan);
-        meta.appendChild(tagSpan);
-        meta.appendChild(sessionSpan);
-        item.appendChild(title);
-        item.appendChild(meta);
-
-        item.addEventListener('click', () => selectConversation(c.id));
-        convList.appendChild(item);
+        const item = document.createElement('div');
+        item.className = `conv-item ${c.id === activeConvId ? 'active' : ''}`;
+        item.innerHTML = `
+          <div class="conv-title">${c.title}</div>
+          <div class="conv-meta">
+            <span class="badge badge-model">${c.model || 'gemini'}</span>
+            <span>${new Date(c.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+        `;
+        item.onclick = () => selectConversation(c.id);
+        convItemsList.appendChild(item);
       });
     }
 
     async function selectConversation(id) {
-      activeConversationId = id;
-      renderConversationList();
-      chatInput.disabled = false;
-      btnSendMsg.disabled = false;
-      btnResumeConv.style.display = 'block';
-      btnDeleteConv.style.display = 'block';
+      activeConvId = id;
+      renderConversations();
+      chatMessageInput.disabled = false;
+      btnSendChatMessage.disabled = false;
+      btnResumeChat.style.display = 'inline-flex';
+      btnDeleteChat.style.display = 'inline-flex';
+      quickPromptsBar.style.display = 'flex';
 
       try {
         const res = await fetch(`/api/v1/conversations/${id}`);
         const conv = await res.json();
-        currentConvTitle.textContent = conv.title;
-        const sessionShort = (conv.session_id || conv.id).slice(0, 8);
-        const isResumed = conv.metadata?.is_resumed ? ` | Resumed (${conv.metadata.resumed_count || 1}x)` : '';
-        currentConvMeta.textContent = `Model: ${conv.model} | Session: ${sessionShort}${isResumed} | Updated: ${new Date(conv.updated_at).toLocaleTimeString()}`;
+        chatHeaderTitle.textContent = conv.title;
+        const totalTurns = conv.metadata?.total_turns || (conv.messages?.length || 0);
+        const tokens = conv.metadata?.total_tokens || 0;
+        chatHeaderMeta.textContent = `Model: ${conv.model} | Session: ${(conv.session_id || id).slice(0, 8)} | Turns: ${totalTurns} | Tokens: ${tokens}`;
         renderMessages(conv.messages || []);
       } catch (err) {
-        console.error('Failed to load conversation details:', err);
+        showToast('Failed to load conversation: ' + err.message, 'error');
       }
     }
 
     function renderMessages(messages) {
-      messagesArea.replaceChildren();
+      chatMessagesThread.innerHTML = '';
       if (messages.length === 0) {
-        const empty = createEl('div', { textContent: 'Thread is empty. Send a prompt to execute Gemini CLI.', className: 'msg-meta' });
-        empty.style.textAlign = 'center';
-        empty.style.marginTop = '40px';
-        messagesArea.appendChild(empty);
+        chatMessagesThread.innerHTML = '<div style="text-align:center; color:var(--text-muted); margin:auto;">Thread is empty. Send a message to start interacting.</div>';
         return;
       }
 
       messages.forEach(m => {
-        const bubble = createEl('div', { className: `msg-bubble msg-${m.role}`, textContent: m.content });
-        const meta = createEl('div', { className: 'msg-meta' });
-        const time = createEl('span', { textContent: new Date(m.created_at).toLocaleTimeString() });
-        meta.appendChild(time);
-
-        if (m.role === 'assistant' && m.latency_ms) {
-          const stats = createEl('span', { textContent: `Latency: ${m.latency_ms}ms | Tokens: ${m.total_tokens || 'N/A'}` });
-          meta.appendChild(stats);
-        }
-        bubble.appendChild(meta);
-        messagesArea.appendChild(bubble);
+        const row = document.createElement('div');
+        row.className = `msg-row ${m.role === 'user' ? 'msg-user' : 'msg-assistant'}`;
+        const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const latency = m.latency_ms ? ` • ${m.latency_ms}ms` : '';
+        const tokens = m.total_tokens ? ` • ${m.total_tokens} tokens` : '';
+        
+        row.innerHTML = `
+          <div class="msg-content">${escapeHtml(m.content)}</div>
+          <div class="msg-footer">
+            <span>${time}</span>
+            <span>${latency}${tokens}</span>
+          </div>
+        `;
+        chatMessagesThread.appendChild(row);
       });
-      messagesArea.scrollTop = messagesArea.scrollHeight;
+      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
     }
 
-    btnNewConv.addEventListener('click', async () => {
-      const title = prompt('Enter Conversation Title:', 'New Gemini Chat Session');
-      if (!title) return;
+    async function sendChatMessage() {
+      const text = chatMessageInput.value.trim();
+      if (!text || !activeConvId) return;
+
+      chatMessageInput.value = '';
+      chatMessageInput.disabled = true;
+      btnSendChatMessage.disabled = true;
+
+      // Optimistically append user message
+      const userRow = document.createElement('div');
+      userRow.className = 'msg-row msg-user';
+      userRow.innerHTML = `<div class="msg-content">${escapeHtml(text)}</div><div class="msg-footer"><span>Just now</span></div>`;
+      chatMessagesThread.appendChild(userRow);
+      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+
+      // Loading bubble for assistant
+      const loadingRow = document.createElement('div');
+      loadingRow.className = 'msg-row msg-assistant';
+      loadingRow.id = 'loadingAssistantMsg';
+      loadingRow.innerHTML = `<div class="msg-content" style="color:var(--text-muted);">Thinking & executing model runner...</div>`;
+      chatMessagesThread.appendChild(loadingRow);
+      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+
+      try {
+        const overrideModel = document.getElementById('chatModelOverride').value || undefined;
+        const res = await fetch(`/api/v1/conversations/${activeConvId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: text, model: overrideModel, resume: true }),
+        });
+        const data = await res.json();
+        loadingRow.remove();
+
+        if (data.assistantMessage) {
+          const asstRow = document.createElement('div');
+          asstRow.className = 'msg-row msg-assistant';
+          const lat = data.assistantMessage.latency_ms ? ` • ${data.assistantMessage.latency_ms}ms` : '';
+          const tok = data.assistantMessage.total_tokens ? ` • ${data.assistantMessage.total_tokens} tokens` : '';
+          asstRow.innerHTML = `
+            <div class="msg-content">${escapeHtml(data.assistantMessage.content)}</div>
+            <div class="msg-footer">
+              <span>Just now</span>
+              <span>${lat}${tok}</span>
+            </div>
+          `;
+          chatMessagesThread.appendChild(asstRow);
+          chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+        }
+        await loadConversations();
+      } catch (err) {
+        loadingRow.innerHTML = `<div class="msg-content" style="color:var(--danger);">Error executing turn: ${escapeHtml(err.message)}</div>`;
+      } finally {
+        chatMessageInput.disabled = false;
+        btnSendChatMessage.disabled = false;
+        chatMessageInput.focus();
+      }
+    }
+
+    btnSendChatMessage.addEventListener('click', sendChatMessage);
+    chatMessageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendChatMessage();
+    });
+
+    window.applyQuickPrompt = function(promptText) {
+      chatMessageInput.value = promptText;
+      chatMessageInput.focus();
+    };
+
+    // Modal: New Conversation
+    const modalNewConv = document.getElementById('modalNewConv');
+    document.getElementById('btnOpenNewConvModal').onclick = () => {
+      modalNewConv.style.display = 'flex';
+      document.getElementById('modalInputConvTitle').focus();
+    };
+    document.getElementById('modalBtnCancelConv').onclick = () => {
+      modalNewConv.style.display = 'none';
+    };
+    document.getElementById('modalBtnSubmitConv').onclick = async () => {
+      const title = document.getElementById('modalInputConvTitle').value.trim() || 'AI Chat Session';
+      const model = document.getElementById('modalSelectConvModel').value;
+      const policy = document.getElementById('modalSelectConvPolicy').value;
 
       try {
         const res = await fetch('/api/v1/conversations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, model: 'gemini-3.5-flash' })
+          body: JSON.stringify({ title, model, subscription_policy: policy }),
         });
         const created = await res.json();
+        modalNewConv.style.display = 'none';
+        showToast(`Created conversation "${title}" with ${model}`, 'success');
         await loadConversations();
         selectConversation(created.id);
       } catch (err) {
-        alert('Failed to create conversation: ' + err.message);
+        showToast('Failed to create conversation: ' + err.message, 'error');
       }
-    });
+    };
 
-    btnResumeConv.addEventListener('click', async () => {
-      if (!activeConversationId) return;
-      btnResumeConv.disabled = true;
-      btnResumeConv.textContent = 'Resuming...';
+    btnResumeChat.addEventListener('click', async () => {
+      if (!activeConvId) return;
+      btnResumeChat.disabled = true;
+      btnResumeChat.textContent = 'Resuming...';
       try {
-        const res = await fetch(`/api/v1/conversations/${activeConversationId}/resume`, {
+        const res = await fetch(`/api/v1/conversations/${activeConvId}/resume`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
+          body: JSON.stringify({}),
         });
         const data = await res.json();
-        await selectConversation(activeConversationId);
-        alert(`Successfully verified & resumed chat session "${data.conversation.title}" (Session ID: ${data.conversation.session_id || activeConversationId}) with Gemini CLI.`);
+        showToast(`Resumed chat session "${data.conversation.title}" with CLI`, 'success');
+        await selectConversation(activeConvId);
       } catch (err) {
-        alert('Failed to resume conversation: ' + err.message);
+        showToast('Resume failed: ' + err.message, 'error');
       } finally {
-        btnResumeConv.disabled = false;
-        btnResumeConv.textContent = 'Resume in CLI';
+        btnResumeChat.disabled = false;
+        btnResumeChat.textContent = '🔄 Resume in CLI';
       }
     });
 
-    btnDeleteConv.addEventListener('click', async () => {
-      if (!activeConversationId) return;
-      if (!confirm('Are you sure you want to delete this conversation?')) return;
-
+    btnDeleteChat.addEventListener('click', async () => {
+      if (!activeConvId || !confirm('Delete this conversation?')) return;
       try {
-        await fetch(`/api/v1/conversations/${activeConversationId}`, { method: 'DELETE' });
-        activeConversationId = null;
-        chatInput.disabled = true;
-        btnSendMsg.disabled = true;
-        btnResumeConv.style.display = 'none';
-        btnDeleteConv.style.display = 'none';
-        currentConvTitle.textContent = 'Select or start a conversation';
-        messagesArea.replaceChildren();
+        await fetch(`/api/v1/conversations/${activeConvId}`, { method: 'DELETE' });
+        showToast('Conversation deleted', 'info');
+        activeConvId = null;
+        chatMessageInput.disabled = true;
+        btnSendChatMessage.disabled = true;
+        btnResumeChat.style.display = 'none';
+        btnDeleteChat.style.display = 'none';
+        chatHeaderTitle.textContent = 'Select or start a chat';
+        chatHeaderMeta.textContent = '';
+        chatMessagesThread.innerHTML = '';
         await loadConversations();
       } catch (err) {
-        alert('Failed to delete conversation');
+        showToast('Delete failed: ' + err.message, 'error');
       }
     });
 
-    async function sendChatMessage() {
-      const text = chatInput.value.trim();
-      if (!text || !activeConversationId) return;
+    // =========================================================================
+    // TAB 2: AUTONOMOUS AGENT STUDIO LOGIC
+    // =========================================================================
+    const agentSkillsChips = document.getElementById('agentSkillsChips');
+    const btnLaunchAgent = document.getElementById('btnLaunchAgent');
+    const agentActiveStatusCard = document.getElementById('agentActiveStatusCard');
+    const agentActiveTitle = document.getElementById('agentActiveTitle');
+    const agentActiveStatusBadge = document.getElementById('agentActiveStatusBadge');
+    const agentActiveMeta = document.getElementById('agentActiveMeta');
+    const agentActiveOutputPreview = document.getElementById('agentActiveOutputPreview');
+    const agentExecutionsHistoryList = document.getElementById('agentExecutionsHistoryList');
 
-      chatInput.value = '';
-      btnSendMsg.disabled = true;
-
-      const userBubble = createEl('div', { className: 'msg-bubble msg-user', textContent: text });
-      messagesArea.appendChild(userBubble);
-      messagesArea.scrollTop = messagesArea.scrollHeight;
-
-      try {
-        const res = await fetch(`/api/v1/conversations/${activeConversationId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: text, resume: true })
-        });
-        const data = await res.json();
-        if (data.assistantMessage) {
-          const asstBubble = createEl('div', { className: 'msg-bubble msg-assistant', textContent: data.assistantMessage.content });
-          const meta = createEl('div', { className: 'msg-meta' });
-          meta.textContent = `Latency: ${data.assistantMessage.latency_ms || 0}ms | Tokens: ${data.assistantMessage.total_tokens || 'N/A'}`;
-          asstBubble.appendChild(meta);
-          messagesArea.appendChild(asstBubble);
-          messagesArea.scrollTop = messagesArea.scrollHeight;
-        }
-      } catch (err) {
-        const errBubble = createEl('div', { className: 'msg-bubble msg-assistant', textContent: 'Error executing Gemini CLI: ' + err.message });
-        messagesArea.appendChild(errBubble);
-      } finally {
-        btnSendMsg.disabled = false;
-      }
+    // Populate skills chips
+    const defaultSkills = ['code_review', 'refactoring', 'testing', 'documentation', 'gap_analysis', 'deployment'];
+    function renderSkillChips() {
+      agentSkillsChips.innerHTML = '';
+      defaultSkills.forEach(s => {
+        const chip = document.createElement('span');
+        chip.className = `skill-toggle ${selectedSkills.has(s) ? 'selected' : ''}`;
+        chip.textContent = `#${s}`;
+        chip.onclick = () => {
+          if (selectedSkills.has(s)) selectedSkills.delete(s);
+          else selectedSkills.add(s);
+          renderSkillChips();
+        };
+        agentSkillsChips.appendChild(chip);
+      });
     }
+    renderSkillChips();
 
-    btnSendMsg.addEventListener('click', sendChatMessage);
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendChatMessage();
-    });
-
-    // Job Search Agent Handling
-    const jobTargetRole = document.getElementById('jobTargetRole');
-    const jobResumeContent = document.getElementById('jobResumeContent');
-    const jobRequirementContent = document.getElementById('jobRequirementContent');
-    const btnRunJobSearch = document.getElementById('btnRunJobSearch');
-    const btnPrefillJobDemo = document.getElementById('btnPrefillJobDemo');
-    const jobPlaceholder = document.getElementById('jobPlaceholder');
-    const jobResultContainer = document.getElementById('jobResultContainer');
-    const resMatchScore = document.getElementById('resMatchScore');
-    const resMatchedSkills = document.getElementById('resMatchedSkills');
-    const resMissingSkills = document.getElementById('resMissingSkills');
-    const resEvaluation = document.getElementById('resEvaluation');
-    const resMarkdownPreview = document.getElementById('resMarkdownPreview');
-    const btnDownloadMd = document.getElementById('btnDownloadMd');
-
-    btnPrefillJobDemo.addEventListener('click', () => {
-      jobTargetRole.value = 'Staff AI Systems & Node.js Engineer';
-      jobResumeContent.value = `Alex Vance - Senior Software Engineer\nSummary: 7+ years designing distributed systems, Node.js microservices, Docker containers, and LLM connectors.\nTechnical Skills: Node.js, TypeScript, REST APIs, Docker, SQLite, PostgreSQL, Python, Git.`;
-      jobRequirementContent.value = `Job Title: Staff AI Systems & Node.js Engineer\nCompany: DeepMind / Google Cloud AI\nRequirements:\n- 5+ years of experience with Node.js, TypeScript, and microservice architectures.\n- Hands-on expertise building Google Gemini CLI integrations and containerized Docker applications.\n- Strong proficiency in SQL database persistence, audit logging, and automated agent workflows.`;
-    });
-
-    btnRunJobSearch.addEventListener('click', async () => {
-      const resume = jobResumeContent.value.trim();
-      const jobDesc = jobRequirementContent.value.trim();
-      if (!resume || !jobDesc) {
-        alert('Please provide both the candidate resume and job description.');
+    btnLaunchAgent.addEventListener('click', async () => {
+      const task = document.getElementById('agentInputTask').value.trim();
+      if (!task) {
+        showToast('Please specify a task directive for the agent.', 'error');
         return;
       }
 
-      btnRunJobSearch.disabled = true;
-      btnRunJobSearch.textContent = 'Executing Gemini CLI Agent...';
+      const agentName = document.getElementById('agentInputName').value.trim() || 'ArchitectAgent';
+      const project = document.getElementById('agentInputProject').value.trim() || 'default';
+      const model = document.getElementById('agentSelectModel').value || undefined;
+      const approval = document.getElementById('agentSelectApproval').value;
+
+      btnLaunchAgent.disabled = true;
+      btnLaunchAgent.textContent = '⏳ Executing Autonomous Agent...';
+      
+      agentActiveStatusCard.style.display = 'block';
+      agentActiveTitle.textContent = `${agentName} -> ${task.slice(0, 50)}...`;
+      agentActiveStatusBadge.className = 'badge badge-warning';
+      agentActiveStatusBadge.textContent = 'RUNNING';
+      agentActiveMeta.textContent = `Project: AGENTS/${project} | Model: ${model || 'default'} | Approval: ${approval}`;
+      agentActiveOutputPreview.textContent = 'Agent initiated. Dispatched prompt via Strategy Registry...';
+
+      const start = performance.now();
+      try {
+        const res = await fetch('/api/v1/agents/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_name: agentName,
+            project,
+            task,
+            model,
+            approval_mode: approval,
+            skills: Array.from(selectedSkills),
+            sandbox: true,
+          }),
+        });
+        const execution = await res.json();
+        const duration = Math.round(performance.now() - start);
+
+        if (execution.status === 'COMPLETED') {
+          agentActiveStatusBadge.className = 'badge badge-success';
+          agentActiveStatusBadge.textContent = 'COMPLETED';
+          agentActiveMeta.textContent += ` | Latency: ${duration}ms | Tokens: ${execution.total_tokens || 0}`;
+          agentActiveOutputPreview.textContent = execution.result || 'Task completed without text output.';
+          showToast(`Agent task completed in ${duration}ms!`, 'success');
+        } else {
+          agentActiveStatusBadge.className = 'badge badge-danger';
+          agentActiveStatusBadge.textContent = execution.status || 'FAILED';
+          agentActiveOutputPreview.textContent = execution.error_message || 'Task terminated with failure.';
+          showToast('Agent execution terminated with error.', 'error');
+        }
+        await loadAgentHistory();
+      } catch (err) {
+        agentActiveStatusBadge.className = 'badge badge-danger';
+        agentActiveStatusBadge.textContent = 'ERROR';
+        agentActiveOutputPreview.textContent = 'Error calling agent endpoint: ' + err.message;
+        showToast('Agent call failed: ' + err.message, 'error');
+      } finally {
+        btnLaunchAgent.disabled = false;
+        btnLaunchAgent.textContent = '🚀 Execute Autonomous Task';
+      }
+    });
+
+    async function loadAgentHistory() {
+      try {
+        const res = await fetch('/api/v1/agents?limit=10');
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data.executions || [];
+        agentExecutionsHistoryList.innerHTML = '';
+
+        if (list.length === 0) {
+          agentExecutionsHistoryList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:10px;">No executions recorded yet.</div>';
+          return;
+        }
+
+        list.forEach(ex => {
+          const item = document.createElement('div');
+          item.className = 'exec-step-card';
+          const isOk = ex.status === 'COMPLETED';
+          item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; font-size:13px;">${escapeHtml(ex.agent_name || 'Agent')} (${escapeHtml(ex.project || 'default')})</span>
+              <span class="badge ${isOk ? 'badge-success' : 'badge-danger'}">${ex.status}</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-secondary); line-height:1.4;">${escapeHtml(ex.task?.slice(0, 100))}...</div>
+            <div style="font-size:11px; color:var(--text-muted); display:flex; gap:10px;">
+              <span>Model: ${ex.model}</span>
+              <span>Latency: ${ex.latency_ms || 0}ms</span>
+              <span>Tokens: ${ex.total_tokens || 0}</span>
+            </div>
+          `;
+          item.onclick = () => {
+            agentActiveStatusCard.style.display = 'block';
+            agentActiveTitle.textContent = `${ex.agent_name} -> ${ex.task}`;
+            agentActiveStatusBadge.className = `badge ${isOk ? 'badge-success' : 'badge-danger'}`;
+            agentActiveStatusBadge.textContent = ex.status;
+            agentActiveMeta.textContent = `Project: AGENTS/${ex.project} | Model: ${ex.model} | Created: ${new Date(ex.created_timestamp).toLocaleString()}`;
+            agentActiveOutputPreview.textContent = ex.result || ex.error_message || '(No result logged)';
+          };
+          agentExecutionsHistoryList.appendChild(item);
+        });
+      } catch (err) {
+        console.warn('Failed to load agent history:', err);
+      }
+    }
+    document.getElementById('btnRefreshAgentList').onclick = loadAgentHistory;
+
+    // =========================================================================
+    // TAB 3: JOB SEARCH RESUME MATCH LOGIC
+    // =========================================================================
+    const btnPrefillJob = document.getElementById('btnPrefillJob');
+    const btnExecuteJobMatch = document.getElementById('btnExecuteJobMatch');
+    const inputJobRole = document.getElementById('inputJobRole');
+    const inputJobResume = document.getElementById('inputJobResume');
+    const inputJobSpec = document.getElementById('inputJobSpec');
+    const jobResultsPlaceholder = document.getElementById('jobResultsPlaceholder');
+    const jobResultsContent = document.getElementById('jobResultsContent');
+    const jobScoreValue = document.getElementById('jobScoreValue');
+    const jobMatchedSkillsChips = document.getElementById('jobMatchedSkillsChips');
+    const jobMissingSkillsChips = document.getElementById('jobMissingSkillsChips');
+    const jobSummaryEvaluation = document.getElementById('jobSummaryEvaluation');
+    const jobMarkdownPreview = document.getElementById('jobMarkdownPreview');
+    const btnDownloadArtifact = document.getElementById('btnDownloadArtifact');
+
+    btnPrefillJob.addEventListener('click', () => {
+      inputJobRole.value = 'Staff Distributed Systems & AI Engineer';
+      inputJobResume.value = `Senior Engineer with 8+ years architecting microservices, Node.js, TypeScript, and Docker container pipelines. Deep expertise in distributed transactions, SQL/NoSQL databases, and Gemini/Ollama LLM integrations.`;
+      inputJobSpec.value = `Requirements:
+- 5+ years building high-throughput microservices with Node.js and TypeScript.
+- Hands-on expertise with Google Gemini CLI, REST APIs, and containerized Docker environments.
+- Knowledge of SQLite persistence, audit logging, and automated agent workflows.`;
+      showToast('Demo resume and job spec pre-filled.', 'info');
+    });
+
+    btnExecuteJobMatch.addEventListener('click', async () => {
+      const resume = inputJobResume.value.trim();
+      const jobSpec = inputJobSpec.value.trim();
+      if (!resume || !jobSpec) {
+        showToast('Please provide both the candidate resume and job spec.', 'error');
+        return;
+      }
+
+      btnExecuteJobMatch.disabled = true;
+      btnExecuteJobMatch.textContent = '⏳ Analyzing Match & Alignment...';
 
       try {
-        const isUrl = jobDesc.startsWith('http://') || jobDesc.startsWith('https://');
         const payload = {
-          target_role: jobTargetRole.value.trim() || undefined,
+          target_role: inputJobRole.value.trim() || undefined,
           resume_content: resume,
           generate_markdown_files: true,
         };
-
-        if (isUrl) {
-          payload.job_url = jobDesc;
-        } else if (jobDesc.includes('<') && jobDesc.includes('>')) {
-          payload.job_html = jobDesc;
+        if (jobSpec.startsWith('http://') || jobSpec.startsWith('https://')) {
+          payload.job_url = jobSpec;
+        } else if (jobSpec.includes('<') && jobSpec.includes('>')) {
+          payload.job_html = jobSpec;
         } else {
-          payload.job_text = jobDesc;
+          payload.job_text = jobSpec;
         }
 
         const res = await fetch('/api/v1/job-search/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
-
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        jobPlaceholder.style.display = 'none';
-        jobResultContainer.style.display = 'flex';
+        jobResultsPlaceholder.style.display = 'none';
+        jobResultsContent.style.display = 'flex';
 
-        resMatchScore.textContent = `${data.resume_match.match_score_percentage}%`;
-        resEvaluation.textContent = data.resume_match.summary_evaluation;
+        const score = data.resume_match?.match_score_percentage || 0;
+        jobScoreValue.textContent = `${score}%`;
+        jobScoreValue.style.color = score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--danger)';
 
-        resMatchedSkills.replaceChildren();
-        (data.resume_match.matched_skills || []).forEach(s => {
-          resMatchedSkills.appendChild(createEl('span', { className: 'tag', textContent: s }));
+        jobSummaryEvaluation.textContent = data.resume_match?.summary_evaluation || 'Analysis complete.';
+        
+        jobMatchedSkillsChips.innerHTML = '';
+        (data.resume_match?.matched_skills || []).forEach(s => {
+          const chip = document.createElement('span');
+          chip.className = 'badge badge-success';
+          chip.textContent = `✓ ${s}`;
+          jobMatchedSkillsChips.appendChild(chip);
         });
 
-        resMissingSkills.replaceChildren();
-        (data.resume_match.missing_skills || []).forEach(s => {
-          resMissingSkills.appendChild(createEl('span', { className: 'tag tag-missing', textContent: s }));
+        jobMissingSkillsChips.innerHTML = '';
+        (data.resume_match?.missing_skills || []).forEach(s => {
+          const chip = document.createElement('span');
+          chip.className = 'badge badge-warning';
+          chip.textContent = `+ ${s}`;
+          jobMissingSkillsChips.appendChild(chip);
         });
 
-        resMarkdownPreview.textContent = data.markdown_content;
-
+        jobMarkdownPreview.textContent = data.markdown_content || '';
         if (data.markdown_filepath) {
           const parts = data.markdown_filepath.split(/[/\\]/);
-          currentArtifactFilename = parts[parts.length - 1];
+          downloadedArtifactName = parts[parts.length - 1];
         }
 
-        await loadConversations();
+        showToast(`Job alignment match evaluated: ${score}%!`, 'success');
       } catch (err) {
-        alert('Job Search Agent execution failed: ' + err.message);
+        showToast('Job match failed: ' + err.message, 'error');
       } finally {
-        btnRunJobSearch.disabled = false;
-        btnRunJobSearch.textContent = 'Run Gemini Job Agent';
+        btnExecuteJobMatch.disabled = false;
+        btnExecuteJobMatch.textContent = '✨ Run Alignment Analysis';
       }
     });
 
-    btnDownloadMd.addEventListener('click', () => {
-      if (currentArtifactFilename) {
-        window.location.href = `/api/v1/job-search/artifacts/${currentArtifactFilename}`;
+    btnDownloadArtifact.addEventListener('click', () => {
+      if (downloadedArtifactName) {
+        window.location.href = `/api/v1/job-search/artifacts/${downloadedArtifactName}`;
       } else {
-        const blob = new Blob([resMarkdownPreview.textContent], { type: 'text/markdown' });
+        const text = jobMarkdownPreview.textContent;
+        const blob = new Blob([text], { type: 'text/markdown' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'tailored_resume.md';
@@ -555,198 +1736,175 @@
       }
     });
 
-    // Audit logs
+    // =========================================================================
+    // TAB 4: SQLITE AUDIT TRAIL LOGIC
+    // =========================================================================
     const auditTableBody = document.getElementById('auditTableBody');
     const btnRefreshAudit = document.getElementById('btnRefreshAudit');
+    const auditSearchInput = document.getElementById('auditSearchInput');
 
     async function loadAuditLogs() {
       try {
         const res = await fetch('/api/v1/audit/logs?limit=50');
         const data = await res.json();
-        auditTableBody.replaceChildren();
-
-        if (!data.logs || data.logs.length === 0) {
-          const row = createEl('tr');
-          const cell = createEl('td', { textContent: 'No audit records found.' });
-          cell.setAttribute('colspan', '7');
-          cell.style.textAlign = 'center';
-          row.appendChild(cell);
-          auditTableBody.appendChild(row);
-          return;
-        }
-
-        data.logs.forEach(l => {
-          const tr = createEl('tr');
-          const tdTime = createEl('td', { textContent: new Date(l.timestamp).toLocaleString() });
-          const tdAction = createEl('td', { textContent: l.action });
-          const tdConv = createEl('td', { textContent: l.conversation_id ? l.conversation_id.slice(0, 8) + '...' : '-' });
-          const tdModel = createEl('td', { textContent: l.model_used || '-' });
-          const tdTokens = createEl('td', { textContent: l.prompt_tokens ? `${l.prompt_tokens} in / ${l.completion_tokens || 0} out` : '-' });
-          const tdLat = createEl('td', { textContent: l.latency_ms ? `${l.latency_ms}ms` : '-' });
-          const tdStatus = createEl('td');
-          const statusBadge = createEl('span', { className: 'tag', textContent: l.status });
-          if (l.status === 'FAILED') statusBadge.className = 'tag tag-missing';
-          tdStatus.appendChild(statusBadge);
-
-          tr.appendChild(tdTime);
-          tr.appendChild(tdAction);
-          tr.appendChild(tdConv);
-          tr.appendChild(tdModel);
-          tr.appendChild(tdTokens);
-          tr.appendChild(tdLat);
-          tr.appendChild(tdStatus);
-          auditTableBody.appendChild(tr);
-        });
+        const logs = data.logs || [];
+        renderAuditTable(logs);
       } catch (err) {
         console.error('Failed to load audit logs:', err);
       }
     }
 
-    btnRefreshAudit.addEventListener('click', loadAuditLogs);
+    function renderAuditTable(logs) {
+      const query = (auditSearchInput.value || '').toLowerCase();
+      const filtered = logs.filter(l => 
+        (l.action || '').toLowerCase().includes(query) ||
+        (l.model_used || '').toLowerCase().includes(query) ||
+        (l.status || '').toLowerCase().includes(query)
+      );
 
-    // Auth & Model Management
-    const authGrid = document.getElementById('authGrid');
+      auditTableBody.innerHTML = '';
+      if (filtered.length === 0) {
+        auditTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">No matching audit records found.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(l => {
+        const tr = document.createElement('tr');
+        const isSuccess = l.status === 'SUCCESS';
+        const dateStr = new Date(l.timestamp).toLocaleString();
+        const tokens = l.prompt_tokens ? `${l.prompt_tokens} / ${l.completion_tokens || 0}` : '-';
+        tr.innerHTML = `
+          <td>${dateStr}</td>
+          <td><span style="font-family:var(--font-mono); font-weight:600;">${l.action}</span></td>
+          <td><span class="badge badge-model">${l.model_used || '-'}</span></td>
+          <td>${(l.conversation_id || '-').slice(0, 10)}</td>
+          <td>${tokens}</td>
+          <td>${l.latency_ms ? `${l.latency_ms}ms` : '-'}</td>
+          <td><span class="badge ${isSuccess ? 'badge-success' : 'badge-danger'}">${l.status}</span></td>
+        `;
+        auditTableBody.appendChild(tr);
+      });
+    }
+
+    btnRefreshAudit.onclick = loadAuditLogs;
+    auditSearchInput.oninput = () => loadAuditLogs();
+
+    // =========================================================================
+    // TAB 5: AUTH & SUBSCRIPTION HUB LOGIC
+    // =========================================================================
+    const authCardsGrid = document.getElementById('authCardsGrid');
     const btnRefreshAuth = document.getElementById('btnRefreshAuth');
     const btnLogoutAll = document.getElementById('btnLogoutAll');
-    const btnDirectLogin = document.getElementById('btnDirectLogin');
-    const directAuthModel = document.getElementById('directAuthModel');
-    const directAuthKey = document.getElementById('directAuthKey');
-    const authNotice = document.getElementById('authNotice');
-
-    function showAuthNotice(msg, isError = false) {
-      authNotice.style.display = 'block';
-      authNotice.textContent = msg;
-      authNotice.style.background = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)';
-      authNotice.style.border = `1px solid ${isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`;
-      authNotice.style.color = isError ? '#fca5a5' : '#6ee7b7';
-      setTimeout(() => { authNotice.style.display = 'none'; }, 6000);
-    }
+    const btnSaveDirectAuth = document.getElementById('btnSaveDirectAuth');
+    const directAuthModelSelect = document.getElementById('directAuthModelSelect');
+    const directAuthKeyInput = document.getElementById('directAuthKeyInput');
 
     async function loadAuthStatus() {
       try {
         const res = await fetch('/api/v1/auth/status');
         const data = await res.json();
-        authGrid.replaceChildren();
-
         const models = data.models || {};
-        for (const [modelName, info] of Object.entries(models)) {
-          const card = createEl('div', {
-            className: `model-card ${info.authenticated ? 'authenticated' : ''}`
-          });
+        authCardsGrid.innerHTML = '';
 
-          const titleRow = createEl('div', { style: 'display: flex; justify-content: space-between; align-items: center;' });
-          const title = createEl('h4', { textContent: modelName });
-          const badge = createEl('span', {
-            className: `tag ${info.authenticated ? '' : 'tag-missing'}`,
-            textContent: info.authenticated ? 'AUTHENTICATED' : 'NOT AUTHENTICATED'
-          });
-          titleRow.appendChild(title);
-          titleRow.appendChild(badge);
-
-          const desc = createEl('p', {
-            style: 'font-size: 12px; color: var(--text-muted);',
-            textContent: info.authenticated
-              ? `Account: ${info.account_email || 'Authenticated'} | Type: ${info.auth_type || 'oauth-google'}`
-              : 'No active session. Click login to authenticate with Google Gemini.'
-          });
-
-          const btnRow = createEl('div', { style: 'display: flex; gap: 8px; margin-top: auto;' });
-          const btnLogin = createEl('button', {
-            className: 'btn',
-            textContent: 'Login in Browser',
-            style: 'padding: 6px 12px; font-size: 12px;'
-          });
-          btnLogin.addEventListener('click', () => {
-            window.open(`/api/v1/auth/login?model=${encodeURIComponent(modelName)}&redirect=true`, '_blank');
-          });
-
-          const btnLogout = createEl('button', {
-            className: 'btn btn-secondary',
-            textContent: 'Logout',
-            style: 'padding: 6px 12px; font-size: 12px;'
-          });
-          btnLogout.disabled = !info.authenticated;
-          btnLogout.addEventListener('click', async () => {
-            await logoutModel(modelName);
-          });
-
-          btnRow.appendChild(btnLogin);
-          btnRow.appendChild(btnLogout);
-
-          card.appendChild(titleRow);
-          card.appendChild(desc);
-          card.appendChild(btnRow);
-          authGrid.appendChild(card);
-        }
+        Object.entries(models).forEach(([modelName, info]) => {
+          const card = document.createElement('div');
+          card.className = `auth-card ${info.authenticated ? 'authenticated' : ''}`;
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h4 style="font-size:14px; font-weight:700;">${escapeHtml(modelName)}</h4>
+              <span class="badge ${info.authenticated ? 'badge-success' : 'badge-warning'}">
+                ${info.authenticated ? 'AUTHENTICATED' : 'NOT LOGGED IN'}
+              </span>
+            </div>
+            <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">
+              ${info.authenticated 
+                ? `Account: ${escapeHtml(info.account_email || 'Authenticated')} • Auth: ${info.auth_type}` 
+                : 'Session unauthenticated. Click Login or use API Key below.'}
+            </p>
+            <div style="display:flex; gap:8px; margin-top:auto;">
+              <button class="btn" style="flex:1; padding:6px 12px; font-size:12px;" onclick="window.open('/api/v1/auth/login?model=${encodeURIComponent(modelName)}&redirect=true', '_blank')">
+                Browser OAuth
+              </button>
+              <button class="btn-secondary" style="padding:6px 12px; font-size:12px; color:#f87171;" ${!info.authenticated ? 'disabled' : ''} onclick="logoutSingleModel('${modelName}')">
+                Logout
+              </button>
+            </div>
+          `;
+          authCardsGrid.appendChild(card);
+        });
       } catch (err) {
         console.error('Failed to load auth status:', err);
       }
     }
 
-    async function logoutModel(modelName) {
+    window.logoutSingleModel = async function(modelName) {
       try {
         const res = await fetch('/api/v1/auth/logout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: modelName })
+          body: JSON.stringify({ model: modelName }),
         });
         const data = await res.json();
-        showAuthNotice(data.message || `Model '${modelName}' logged out.`);
+        showToast(data.message || `Logged out ${modelName}`, 'info');
         await loadAuthStatus();
       } catch (err) {
-        showAuthNotice('Logout failed: ' + err.message, true);
+        showToast('Logout failed: ' + err.message, 'error');
       }
-    }
+    };
 
-    btnLogoutAll.addEventListener('click', async () => {
-      if (!confirm('Are you sure you want to log out all authenticated Gemini models?')) return;
+    btnLogoutAll.onclick = async () => {
+      if (!confirm('Log out all authenticated models globally?')) return;
       try {
         const res = await fetch('/api/v1/auth/logout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ all: true })
+          body: JSON.stringify({ all: true }),
         });
         const data = await res.json();
-        showAuthNotice(data.message || 'All models logged out.');
+        showToast(data.message || 'All sessions logged out', 'info');
         await loadAuthStatus();
       } catch (err) {
-        showAuthNotice('Global logout failed: ' + err.message, true);
+        showToast('Global logout failed: ' + err.message, 'error');
       }
-    });
+    };
 
-    btnRefreshAuth.addEventListener('click', loadAuthStatus);
-
-    btnDirectLogin.addEventListener('click', async () => {
-      const key = directAuthKey.value.trim();
-      const model = directAuthModel.value;
+    btnSaveDirectAuth.onclick = async () => {
+      const key = directAuthKeyInput.value.trim();
+      const model = directAuthModelSelect.value;
       if (!key) {
-        alert('Please enter an API key or token.');
+        showToast('Please enter an API Key or Bearer Token.', 'error');
         return;
       }
       try {
         const res = await fetch('/api/v1/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model, api_key: key })
+          body: JSON.stringify({ model, api_key: key }),
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        showAuthNotice(data.message || `Model '${model}' authenticated.`);
-        directAuthKey.value = '';
+        showToast(`Authenticated ${model} successfully!`, 'success');
+        directAuthKeyInput.value = '';
         await loadAuthStatus();
       } catch (err) {
-        showAuthNotice('Authentication failed: ' + err.message, true);
+        showToast('Authentication failed: ' + err.message, 'error');
       }
-    });
+    };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('auth') === 'success') {
-      const authModel = urlParams.get('model') || 'default';
-      const authEmail = urlParams.get('email') || '';
-      showAuthNotice(`Google Gemini successfully authenticated for model '${authModel}' (${authEmail})!`);
-      window.history.replaceState({}, document.title, window.location.pathname);
+    btnRefreshAuth.onclick = loadAuthStatus;
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     }
 
+    // Initialize on page load
+    loadAvailableModels();
     loadConversations();
     loadAuthStatus();
   </script>
