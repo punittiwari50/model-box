@@ -30,12 +30,18 @@ jobs:
       - name: Start CPU Ollama runtime
         run: |
           cd infra/ollama/docker
-          docker compose --env-file ollama-cpu.env -f compose.cpu.yaml up -d --build --wait --wait-timeout 180
+          docker compose --env-file ollama-cpu.env -f compose.cpu.yaml up -d --build
 
       - name: Smoke test Ollama API
         run: |
-          curl -fsS http://127.0.0.1:11435/api/tags > /tmp/ollama-tags.json
-          test -s /tmp/ollama-tags.json
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11435/api/tags > /tmp/ollama-tags.json 2>/dev/null; then
+              test -s /tmp/ollama-tags.json && echo "Ollama API ready!" && exit 0
+            fi
+            echo "Waiting for Ollama API to be ready... ($i/30)"
+            sleep 2
+          done
+          echo "Ollama API failed to become ready within timeout" && exit 1
 
       - name: Stop and cleanup runtime
         if: always()
