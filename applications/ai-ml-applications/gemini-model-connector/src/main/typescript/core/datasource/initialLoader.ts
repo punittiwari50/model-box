@@ -106,6 +106,33 @@ export class DataSourceInitialLoader {
       } catch (agentColErr: any) {
         logger.warn('DATASOURCE_MIGRATION', `Failed to migrate AGENT_EXECUTIONS: ${agentColErr.message}`);
       }
+
+      // Ensure MODEL_AUTH has non-unique index on MODEL to allow multiple concurrent sessions
+      try {
+        const indexList = await driver.all<any>("SELECT name, sql FROM sqlite_master WHERE type='index' AND name='IDX_MODEL_AUTH_MODEL';");
+        if (indexList && indexList.length > 0 && indexList[0].sql && indexList[0].sql.toUpperCase().includes('UNIQUE')) {
+          await driver.run('DROP INDEX IF EXISTS IDX_MODEL_AUTH_MODEL;');
+          await driver.run('CREATE INDEX IF NOT EXISTS IDX_MODEL_AUTH_MODEL ON MODEL_AUTH(MODEL);');
+          logger.datasource('Migrated MODEL_AUTH index IDX_MODEL_AUTH_MODEL to non-unique to allow multiple sessions per model.');
+        }
+      } catch (idxErr: any) {
+        logger.warn('DATASOURCE_MIGRATION', `Failed to check/migrate IDX_MODEL_AUTH_MODEL: ${idxErr.message}`);
+      }
+
+      // Ensure IS_ACTIVE column exists on MODEL_AUTH
+      try {
+        const authCols = await driver.all<any>('PRAGMA table_info(MODEL_AUTH);');
+        if (authCols && authCols.length > 0) {
+          const colNames = authCols.map((c: any) => (c.name || '').toUpperCase());
+          if (!colNames.includes('IS_ACTIVE')) {
+            await driver.run('ALTER TABLE MODEL_AUTH ADD COLUMN IS_ACTIVE INTEGER NOT NULL DEFAULT 1;');
+            await driver.run('CREATE INDEX IF NOT EXISTS IDX_MODEL_AUTH_ACTIVE ON MODEL_AUTH(IS_ACTIVE);');
+            logger.datasource("Migrated table 'MODEL_AUTH' to include IS_ACTIVE column and index.");
+          }
+        }
+      } catch (authColErr: any) {
+        logger.warn('DATASOURCE_MIGRATION', `Failed to migrate MODEL_AUTH IS_ACTIVE: ${authColErr.message}`);
+      }
     } catch {
       // Safely ignore
     }

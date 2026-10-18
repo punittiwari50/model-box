@@ -58,6 +58,7 @@ apiRouter.get('/auth/login', (req: Request, res: Response) => authController.ini
 apiRouter.post('/auth/login', (req: Request, res: Response) => authController.directLogin(req, res));
 apiRouter.get('/auth/callback', (req: Request, res: Response) => authController.handleOAuthCallback(req, res));
 apiRouter.post('/auth/logout', (req: Request, res: Response) => authController.logout(req, res));
+apiRouter.post('/auth/session/switch', (req: Request, res: Response) => authController.switchActiveSession(req, res));
 apiRouter.delete('/auth/models/:model', (req: Request, res: Response) => authController.logoutModelParam(req, res));
 
 // Dynamic Model & Provider Redirect: Replaces static /auth/google

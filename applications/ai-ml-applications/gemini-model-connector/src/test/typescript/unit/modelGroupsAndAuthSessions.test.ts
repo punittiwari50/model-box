@@ -175,6 +175,60 @@ describe('Model Groups, Categories & Multi-Session Authentication Tests', () => 
       assert.ok(sessGrok, 'Session grok must still be active');
     });
 
+    it('should switch active session between multiple accounts for the same model and update database timestamps', async () => {
+      await authRepo.deleteAllModelAuth();
+
+      // Add account A (personal)
+      const sessA = await authService.loginWithCredentials(
+        'gemini-3.8-flash',
+        'token-a',
+        'alice@gmail.com',
+        undefined,
+        '127.0.0.1',
+        'sess-alice'
+      );
+
+      // Add account B (work)
+      const sessB = await authService.loginWithCredentials(
+        'gemini-3.8-flash',
+        'token-b',
+        'alice.work@corp.com',
+        undefined,
+        '127.0.0.1',
+        'sess-alice-work'
+      );
+
+      // Verify BOTH sessions exist concurrently in the database
+      const allSessions = await authRepo.listAllModelAuth();
+      const aliceSessions = allSessions.filter((s) => s.model === 'gemini-3.8-flash');
+      assert.equal(aliceSessions.length, 2, 'Must have 2 active sessions in database for the same model without collision');
+
+      // Check current status
+      const status1 = await authService.getStatus();
+      const sessBStatus = status1.active_sessions.find((s) => s.id === 'sess-alice-work');
+      assert.ok(sessBStatus);
+      assert.equal(sessBStatus.is_current_active, true, 'Most recently logged in session should be current active');
+
+      // Now switch active session back to Alice Personal
+      const switchResult = await authService.switchSession('sess-alice', 'gemini-3.8-flash', '127.0.0.1');
+      assert.equal(switchResult.success, true);
+      assert.equal(switchResult.active_session?.id, 'sess-alice');
+
+      // Verify active session updated in database
+      const currentActive = await authRepo.getModelAuth('gemini-3.8-flash');
+      assert.ok(currentActive);
+      assert.equal(currentActive.id, 'sess-alice', 'Database getModelAuth must return newly switched active session');
+      assert.equal(currentActive.account_email, 'alice@gmail.com');
+
+      // Verify status reflections
+      const status2 = await authService.getStatus();
+      const sessAStatus = status2.active_sessions.find((s) => s.id === 'sess-alice');
+      const sessBStatusAfter = status2.active_sessions.find((s) => s.id === 'sess-alice-work');
+      assert.equal(sessAStatus?.is_current_active, true);
+      assert.equal(sessBStatusAfter?.is_current_active, false);
+      assert.equal(sessBStatusAfter?.login_state, 'Active (Logged In)');
+    });
+
     it('should return empty active_sessions and overall_authenticated=false after global logout', async () => {
       await authService.logout({ all: true });
       const status = await authService.getStatus();
@@ -190,3 +244,4 @@ describe('Model Groups, Categories & Multi-Session Authentication Tests', () => 
     });
   });
 });
+

@@ -17,6 +17,8 @@ export interface ModelAuthEntity {
   readonly expires_at?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly status: AuthStatus;
+  readonly is_active?: number | boolean;
+  readonly login_date_time?: string;
   readonly created_timestamp?: string;
   readonly update_timestamp?: string;
   readonly created_at: string;

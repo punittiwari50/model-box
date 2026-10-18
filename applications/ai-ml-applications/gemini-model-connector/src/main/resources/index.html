@@ -1193,16 +1193,23 @@
                   <span>${famConf.icon}</span>
                   <span>${escapeHtml(modelDisplay)}</span>
                 </div>
-                <span class="badge badge-success">● Active (Logged In)</span>
+                ${sess.is_current_active 
+                  ? '<span class="badge badge-success" style="box-shadow: 0 0 10px rgba(16,185,129,0.3);">⚡ Current Active</span>' 
+                  : '<span class="badge" style="background:rgba(255,255,255,0.08); color:var(--text-muted);">Standby Session</span>'}
               </div>
 
               <div class="session-meta-grid">
                 <div><span style="color:var(--text-muted);">Login Method:</span> <strong style="color:var(--text-main);">${escapeHtml(authMethodDisplay)}</strong></div>
                 <div><span style="color:var(--text-muted);">Session ID:</span> <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">${escapeHtml(sess.id)}</span></div>
-                <div><span style="color:var(--text-muted);">Logged In Since:</span> <span style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(createdStr)}</span></div>
+                <div><span style="color:var(--text-muted);">Login Date Time:</span> <span style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(createdStr)}</span></div>
               </div>
 
-              <div style="display:flex; justify-content:flex-end; margin-top:auto; padding-top:6px;">
+              <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:auto; padding-top:6px;">
+                ${!sess.is_current_active ? `
+                  <button class="btn" style="padding:6px 14px; font-size:12px;" onclick="switchSession('${escapeHtml(sess.id)}', '${escapeHtml(sess.model)}')">
+                    ⚡ Switch Active
+                  </button>
+                ` : ''}
                 <button class="btn-secondary" style="padding:6px 14px; font-size:12px; color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="logoutSession('${escapeHtml(sess.id)}', '${escapeHtml(sess.model)}')">
                   Logout Session
                 </button>
@@ -1259,16 +1266,12 @@
             const card = document.createElement('div');
             card.className = `auth-card ${m.authenticated ? 'authenticated' : ''}`;
             
-            // Build action buttons strictly adhering to Requirement #2:
-            // "As logout option must be available only if its actually login if not login than no need to show logout."
+            // Requirement #1: In model category section it must NOT have logout button
             let actionHtml = '';
             if (m.authenticated) {
               actionHtml = `
-                <button class="btn" style="flex:1; padding:6px 12px; font-size:12px;" onclick="window.open('/api/v1/auth/login?model=${encodeURIComponent(m.name)}&redirect=true', '_blank')">
+                <button class="btn" style="width:100%; padding:6px 12px; font-size:12px;" onclick="window.open('/api/v1/auth/login?model=${encodeURIComponent(m.name)}&redirect=true', '_blank')">
                   + Add Login
-                </button>
-                <button class="btn-secondary" style="padding:6px 12px; font-size:12px; color:#f87171;" onclick="logoutSingleModel('${escapeHtml(m.name)}')">
-                  Logout
                 </button>
               `;
             } else {
@@ -1312,6 +1315,22 @@
         console.error('Failed to load auth status:', err);
       }
     }
+
+    window.switchSession = async function(sessionId, modelName) {
+      try {
+        const res = await fetch('/api/v1/auth/session/switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, model: modelName }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Switch failed');
+        showToast(data.message || 'Active session switched successfully!', 'success');
+        await loadAuthStatus();
+      } catch (err) {
+        showToast('Switch session failed: ' + err.message, 'error');
+      }
+    };
 
     window.logoutSession = async function(sessionId, modelName) {
       try {

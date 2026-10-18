@@ -242,6 +242,50 @@ export class AuthService implements IAuthService {
   }
 
   /**
+   * Switches the active session for a model or CLI in the database.
+   * Conforms to Requirement #2: Maintain multiple sessions and dynamic switching.
+   */
+  async switchSession(
+    sessionId: string,
+    model?: string,
+    clientIp?: string
+  ): Promise<{ success: boolean; active_session?: ModelAuth; message: string }> {
+    const active = await this.authRepository.setActiveSession(sessionId, model);
+    if (!active) {
+      return {
+        success: false,
+        message: `Session '${sessionId}' not found.`,
+      };
+    }
+
+    await this.syncCliOAuth(active);
+
+    await this.auditRepository.logEvent({
+      action: AuditAction.AUTH_SESSION_SWITCH,
+      client_ip: clientIp,
+      model_used: active.model,
+      status: CommonStatus.SUCCESS,
+      details: {
+        session_id: active.id,
+        model: active.model,
+        account_email: active.account_email,
+        account_name: active.account_name,
+      },
+    });
+
+    logger.info(
+      'AUTH',
+      `Switched active session for model '${active.model}' to session '${active.id}' (${active.account_email || active.account_name})`
+    );
+
+    return {
+      success: true,
+      active_session: active,
+      message: `Active session successfully switched to ${active.account_name || active.account_email || active.id} for model '${active.model}'.`,
+    };
+  }
+
+  /**
    * Synchronizes credentials via model's provider strategy.
    * Conforms to Requirement #4: generic decoupled naming conventions.
    */
@@ -310,12 +354,13 @@ export class AuthService implements IAuthService {
         account_email: primaryAuth?.account_email,
         expires_at: primaryAuth?.expires_at,
         status: primaryAuth ? primaryAuth.status : AuthStatusConstant.UNAUTHENTICATED,
-        active_sessions: modelSessions.map((s) => {
+        active_sessions: modelSessions.map((s, idx) => {
           const isDef = s.model === 'default' || s.model === '*';
           const resolvedM = isDef ? defaultGeminiModel : s.model;
           const properName = s.account_name && s.account_name.trim()
             ? s.account_name.trim()
             : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
+          const isCurrentActive = Boolean(s.is_active ?? (idx === 0));
           return {
             id: s.id,
             model: resolvedM,
@@ -327,7 +372,10 @@ export class AuthService implements IAuthService {
             account_email: s.account_email,
             account_name: s.account_name || properName,
             status: s.status,
+            is_active: Boolean(s.is_active ?? true),
+            is_current_active: isCurrentActive,
             login_state: 'Active (Logged In)',
+            login_date_time: s.created_timestamp,
             created_timestamp: s.created_timestamp,
           };
         }),
@@ -347,10 +395,11 @@ export class AuthService implements IAuthService {
           account_email: primaryAuth?.account_email,
           expires_at: primaryAuth?.expires_at,
           status: primaryAuth ? primaryAuth.status : AuthStatusConstant.UNAUTHENTICATED,
-          active_sessions: modelSessions.map((s) => {
+          active_sessions: modelSessions.map((s, idx) => {
             const properName = s.account_name && s.account_name.trim()
               ? s.account_name.trim()
               : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
+            const isCurrentActive = Boolean(s.is_active ?? (idx === 0));
             return {
               id: s.id,
               model: s.model,
@@ -361,7 +410,10 @@ export class AuthService implements IAuthService {
               account_email: s.account_email,
               account_name: s.account_name || properName,
               status: s.status,
+              is_active: Boolean(s.is_active ?? true),
+              is_current_active: isCurrentActive,
               login_state: 'Active (Logged In)',
+              login_date_time: s.created_timestamp,
               created_timestamp: s.created_timestamp,
             };
           }),
@@ -373,6 +425,7 @@ export class AuthService implements IAuthService {
       (a: ModelAuth) => a.status === AuthStatusConstant.AUTHENTICATED
     );
 
+    const seenActiveModels = new Set<string>();
     const rootActiveSessions = activeAuthList
       .filter((a) => a.status === AuthStatusConstant.AUTHENTICATED)
       .map((s) => {
@@ -386,6 +439,11 @@ export class AuthService implements IAuthService {
           ? s.account_name.trim()
           : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
 
+        const isCurrentActive = Boolean(s.is_active ?? false) || !seenActiveModels.has(resolvedModel);
+        if (isCurrentActive) {
+          seenActiveModels.add(resolvedModel);
+        }
+
         return {
           id: s.id,
           model: resolvedModel,
@@ -397,7 +455,10 @@ export class AuthService implements IAuthService {
           account_email: s.account_email || 'Authenticated User',
           account_name: s.account_name || properName,
           status: s.status,
+          is_active: Boolean(s.is_active ?? true),
+          is_current_active: isCurrentActive,
           login_state: 'Active (Logged In)',
+          login_date_time: s.created_timestamp,
           created_timestamp: s.created_timestamp,
         };
       });

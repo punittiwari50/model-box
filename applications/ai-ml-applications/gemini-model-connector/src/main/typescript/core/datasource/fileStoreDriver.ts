@@ -104,16 +104,67 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
     }
 
     if (cleanSql.startsWith('INSERT OR REPLACE INTO MODEL_AUTH')) {
-      const [model, auth_type, encrypted_key, token_expires_at, updated_at] = params;
-      this.state.model_auth[model] = { model, auth_type, encrypted_key, token_expires_at, updated_at };
+      const id = params[0] || 'default';
+      const model = params[1];
+      const auth_type = params[2];
+      const account_email = params[3];
+      const account_name = params[4];
+      const access_token = params[5];
+      const refresh_token = params[6];
+      const expires_at = params[7];
+      const metadata = params[8];
+      const status = params[9];
+      const is_active = params[10] ?? 1;
+      const created_timestamp = params[11] || new Date().toISOString();
+      const update_timestamp = params[12] || new Date().toISOString();
+
+      this.state.model_auth[id] = {
+        id,
+        model,
+        auth_type,
+        account_email,
+        account_name,
+        access_token,
+        refresh_token,
+        expires_at,
+        metadata,
+        status,
+        is_active,
+        created_timestamp,
+        update_timestamp,
+      };
+      this.persist();
+      return { changes: 1 };
+    }
+
+    if (cleanSql.startsWith('UPDATE MODEL_AUTH')) {
+      const id = params[params.length - 1];
+      if (this.state.model_auth[id]) {
+        this.state.model_auth[id].is_active = 1;
+        this.state.model_auth[id].update_timestamp = new Date().toISOString();
+      }
       this.persist();
       return { changes: 1 };
     }
 
     if (cleanSql.startsWith('DELETE FROM MODEL_AUTH')) {
-      if (cleanSql.includes('WHERE MODEL = ?')) {
+      if (cleanSql.includes('ID = ?')) {
+        const id = params[0];
+        delete this.state.model_auth[id];
+      } else if (cleanSql.includes('MODEL = ?') && cleanSql.includes('ACCOUNT_EMAIL = ?')) {
+        const [model, email] = params;
+        for (const [k, v] of Object.entries(this.state.model_auth)) {
+          if (v.model === model && v.account_email === email) {
+            delete this.state.model_auth[k];
+          }
+        }
+      } else if (cleanSql.includes('MODEL = ?')) {
         const [model] = params;
-        delete this.state.model_auth[model];
+        for (const [k, v] of Object.entries(this.state.model_auth)) {
+          if (v.model === model) {
+            delete this.state.model_auth[k];
+          }
+        }
       } else {
         this.state.model_auth = {};
       }
@@ -172,11 +223,20 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
     }
 
     if (cleanSql.includes('FROM MODEL_AUTH')) {
-      let list = Object.values(this.state.model_auth || {});
-      if (cleanSql.includes('WHERE MODEL = ?')) {
+      let list = Object.values(this.state.model_auth || {}) as any[];
+      if (cleanSql.includes('WHERE ID = ?')) {
+        const id = params[0];
+        list = list.filter((m) => m.id === id);
+      } else if (cleanSql.includes('WHERE MODEL = ?')) {
         const model = params[0];
-        list = list.filter(m => m.model === model);
+        list = list.filter((m) => m.model === model);
       }
+      list.sort((a, b) => {
+        if ((b.is_active || 0) !== (a.is_active || 0)) {
+          return (b.is_active || 0) - (a.is_active || 0);
+        }
+        return (b.update_timestamp || '').localeCompare(a.update_timestamp || '');
+      });
       return list as T[];
     }
 

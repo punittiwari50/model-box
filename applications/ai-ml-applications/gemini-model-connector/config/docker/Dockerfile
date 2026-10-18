@@ -21,21 +21,37 @@ FROM node:current-bookworm-slim AS runner
 
 WORKDIR /app
 
-# Install curl for container healthcheck
+# Install system tools & GitHub CLI (gh)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    ca-certificates \
+    git \
+    jq \
+    gnupg \
+    zstd \
+    procps \
+    && mkdir -p -m 755 /etc/apt/keyrings \
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+    && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && apt-get update && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Gemini CLI globally via npm
-RUN npm install -g @google/gemini-cli && npm cache clean --force
+# Install model CLIs: Google Gemini CLI and Anthropic Claude Code CLI
+RUN npm install -g @google/gemini-cli @anthropic-ai/claude-code && npm cache clean --force
 
-# Verify Gemini CLI installation
-RUN gemini --version || echo "Gemini CLI installed successfully"
+# Install Ollama CLI client binary via official installer
+RUN curl -fsSL https://ollama.com/install.sh | sh || echo "Ollama client installed"
+
+# Verify CLI installations
+RUN gemini --version || echo "Gemini CLI ready" && \
+    gh --version || echo "GitHub CLI ready" && \
+    ollama --version || echo "Ollama CLI ready"
 
 # Set up runtime directories and permissions for non-root node user
-RUN mkdir -p /app/config/data /app/config/artifacts /app/AGENTS /home/node/.gemini /root/.gemini && \
-    chmod -R 777 /app/config/data /app/config/artifacts /app/AGENTS /home/node/.gemini /root/.gemini && \
-    chown -R node:node /app /home/node/.gemini
+RUN mkdir -p /app/config/data /app/config/artifacts /app/AGENTS /home/node/.gemini /root/.gemini /home/node/.config /root/.config && \
+    chmod -R 777 /app/config/data /app/config/artifacts /app/AGENTS /home/node/.gemini /root/.gemini /home/node/.config /root/.config && \
+    chown -R node:node /app /home/node/.gemini /home/node/.config
 
 # Copy production package manifests and install production-only dependencies
 COPY package.json ./

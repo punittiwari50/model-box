@@ -6,10 +6,11 @@ import { config } from '@/core/config/index.js';
 import { DatabaseTable, DatabaseColumn } from '@/domain/constants/index.js';
 
 export interface IAuthRepository {
-  saveModelAuth(auth: Omit<ModelAuth, 'id' | 'created_at' | 'updated_at'> & { id?: string }): Promise<ModelAuth>;
+  saveModelAuth(auth: Omit<ModelAuth, 'id' | 'created_at' | 'updated_at'> & { id?: string; is_active?: number | boolean }): Promise<ModelAuth>;
   getModelAuth(model: string): Promise<ModelAuth | null>;
   getModelAuthById?(id: string): Promise<ModelAuth | null>;
   listAllModelAuth(): Promise<ModelAuth[]>;
+  setActiveSession(id: string, model?: string): Promise<ModelAuth | null>;
   deleteModelAuth(target: string | { model?: string; id?: string; account_email?: string }): Promise<boolean>;
   deleteAllModelAuth(): Promise<number>;
 }
@@ -21,10 +22,38 @@ export class AuthRepository implements IAuthRepository {
     this.dataSource = dataSource;
   }
 
-  async saveModelAuth(auth: Omit<ModelAuth, 'id' | 'created_at' | 'updated_at'> & { id?: string }): Promise<ModelAuth> {
+  async saveModelAuth(auth: Omit<ModelAuth, 'id' | 'created_at' | 'updated_at'> & { id?: string; is_active?: number | boolean }): Promise<ModelAuth> {
     const driver = await this.dataSource.getDriver();
-    const id = auth.id || randomUUID();
+    let id = auth.id;
+
+    if (!id && auth.account_email) {
+      const existing = await driver.get<any>(
+        `SELECT ${DatabaseColumn.ID} FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ? AND ${DatabaseColumn.ACCOUNT_EMAIL} = ?`,
+        [auth.model, auth.account_email]
+      );
+      if (existing && (existing.ID || existing.id)) {
+        id = existing.ID || existing.id;
+      }
+    }
+
+    if (!id) {
+      id = randomUUID();
+    }
+
     const now = new Date().toISOString();
+    const isActive = auth.is_active !== undefined ? (auth.is_active ? 1 : 0) : 1;
+
+    // Set other sessions for this model to inactive if this session is active
+    if (isActive === 1) {
+      try {
+        await driver.run(
+          `UPDATE ${DatabaseTable.MODEL_AUTH} SET ${DatabaseColumn.IS_ACTIVE} = 0 WHERE ${DatabaseColumn.MODEL} = ? AND ${DatabaseColumn.ID} != ?`,
+          [auth.model, id]
+        );
+      } catch {
+        // Safe ignore if IS_ACTIVE column is in migration
+      }
+    }
 
     const sql = `
       INSERT OR REPLACE INTO ${DatabaseTable.MODEL_AUTH} (
@@ -38,9 +67,10 @@ export class AuthRepository implements IAuthRepository {
         ${DatabaseColumn.EXPIRES_AT},
         ${DatabaseColumn.METADATA},
         ${DatabaseColumn.STATUS},
+        ${DatabaseColumn.IS_ACTIVE},
         ${DatabaseColumn.CREATED_TIMESTAMP},
         ${DatabaseColumn.UPDATE_TIMESTAMP}
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
@@ -54,15 +84,40 @@ export class AuthRepository implements IAuthRepository {
       auth.expires_at || null,
       JSON.stringify(auth.metadata || {}),
       auth.status,
+      isActive,
       now,
       now,
     ];
 
     await driver.run(sql, params);
-    logger.datasource(`Persisted model_auth for model '${auth.model}' [id: ${id}] (status: ${auth.status})`);
+    logger.datasource(`Persisted model_auth for model '${auth.model}' [id: ${id}] (status: ${auth.status}, active: ${isActive})`);
 
     const saved = await this.getModelAuthById(id);
     return saved || (await this.getModelAuth(auth.model))!;
+  }
+
+  async setActiveSession(id: string, model?: string): Promise<ModelAuth | null> {
+    const driver = await this.dataSource.getDriver();
+    const target = await this.getModelAuthById(id);
+    if (!target) return null;
+
+    const targetModel = model || target.model;
+    const now = new Date().toISOString();
+
+    // Mark other sessions for this model as inactive
+    await driver.run(
+      `UPDATE ${DatabaseTable.MODEL_AUTH} SET ${DatabaseColumn.IS_ACTIVE} = 0 WHERE ${DatabaseColumn.MODEL} = ?`,
+      [targetModel]
+    );
+
+    // Mark this session as active and bump update_timestamp
+    await driver.run(
+      `UPDATE ${DatabaseTable.MODEL_AUTH} SET ${DatabaseColumn.IS_ACTIVE} = 1, ${DatabaseColumn.UPDATE_TIMESTAMP} = ? WHERE ${DatabaseColumn.ID} = ?`,
+      [now, id]
+    );
+
+    logger.datasource(`Switched active session for model '${targetModel}' to [id: ${id}] (${target.account_email || target.account_name})`);
+    return this.getModelAuthById(id);
   }
 
   async getModelAuthById(id: string): Promise<ModelAuth | null> {
@@ -77,14 +132,14 @@ export class AuthRepository implements IAuthRepository {
   async getModelAuth(model: string): Promise<ModelAuth | null> {
     const driver = await this.dataSource.getDriver();
     const row = await driver.get<any>(
-      `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ? ORDER BY ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`,
+      `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ? ORDER BY ${DatabaseColumn.IS_ACTIVE} DESC, ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`,
       [model]
     );
 
     if (!row) {
       if (model !== 'default' && model !== '*') {
         const fallback = await driver.get<any>(
-          `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ? OR ${DatabaseColumn.MODEL} = ? ORDER BY ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`,
+          `SELECT * FROM ${DatabaseTable.MODEL_AUTH} WHERE ${DatabaseColumn.MODEL} = ? OR ${DatabaseColumn.MODEL} = ? ORDER BY ${DatabaseColumn.IS_ACTIVE} DESC, ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`,
           ['default', '*']
         );
         if (fallback) return this.mapRow(fallback);
@@ -98,7 +153,7 @@ export class AuthRepository implements IAuthRepository {
   async listAllModelAuth(): Promise<ModelAuth[]> {
     const driver = await this.dataSource.getDriver();
     const rows = await driver.all<any>(
-      `SELECT * FROM ${DatabaseTable.MODEL_AUTH} ORDER BY ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`
+      `SELECT * FROM ${DatabaseTable.MODEL_AUTH} ORDER BY ${DatabaseColumn.IS_ACTIVE} DESC, ${DatabaseColumn.UPDATE_TIMESTAMP} DESC`
     );
     return rows.map((r) => this.mapRow(r));
   }
@@ -165,6 +220,8 @@ export class AuthRepository implements IAuthRepository {
       expires_at: (row.EXPIRES_AT ?? row.expires_at) || undefined,
       metadata,
       status: row.STATUS ?? row.status,
+      is_active: (row.IS_ACTIVE ?? row.is_active ?? 1) === 1,
+      login_date_time: createdTimestamp,
       created_timestamp: createdTimestamp,
       update_timestamp: updateTimestamp,
       created_at: createdTimestamp,

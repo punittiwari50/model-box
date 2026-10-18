@@ -118,6 +118,25 @@ export class AuthController {
     }
   }
 
+  public async switchActiveSession(req: Request, res: Response): Promise<void> {
+    try {
+      const { sessionId, id, session_id, model } = req.body || {};
+      const targetId = sessionId || id || session_id;
+      if (!targetId) {
+        sendJsonError(res, HttpStatus.BAD_REQUEST, 'Missing required sessionId parameter.');
+        return;
+      }
+      const result = await this.authService.switchSession(targetId, model, getClientIp(req));
+      if (!result.success) {
+        sendJsonError(res, HttpStatus.NOT_FOUND, result.message);
+        return;
+      }
+      sendJsonResponse(res, HttpStatus.OK, result);
+    } catch (error: any) {
+      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to switch active session.');
+    }
+  }
+
   public async logoutModelParam(req: Request, res: Response): Promise<void> {
     try {
       const model = getRouteParam(req.params.model);

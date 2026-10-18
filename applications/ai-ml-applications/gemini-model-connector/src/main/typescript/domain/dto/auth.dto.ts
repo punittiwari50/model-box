@@ -11,7 +11,10 @@ export interface ActiveAuthSession {
   readonly account_email?: string;
   readonly account_name?: string;
   readonly status: AuthStatus;
+  readonly is_active?: boolean;
+  readonly is_current_active?: boolean;
   readonly login_state?: string;
+  readonly login_date_time?: string;
   readonly created_timestamp?: string;
 }
 
@@ -48,3 +51,10 @@ export interface LogoutRequest {
   readonly account_email?: string;
   readonly all?: boolean;
 }
+
+export interface SwitchSessionRequest {
+  readonly sessionId?: string;
+  readonly id?: string;
+  readonly model?: string;
+}
+
