@@ -1,4 +1,4 @@
-import type { Environment } from '@/core/config/environment.js';
+import type { Environment } from "@/core/config/environment.js";
 
 /**
  * Strongly-typed configuration properties for datasources.
@@ -18,39 +18,54 @@ export class DataSourceProperties {
   constructor(env: Environment, defaultDataDir: string) {
     // Sourced via datasource.* with relaxed backward compatibility to db.*
     this.poolMin = env.getPropertyAsNumber(
-      'datasource.pool.min',
-      env.getPropertyAsNumber('db.pool.min', env.getPropertyAsNumber('DB_POOL_MIN', 1))
+      "datasource.pool.min",
+      env.getPropertyAsNumber(
+        "db.pool.min",
+        env.getPropertyAsNumber("DB_POOL_MIN", 1),
+      ),
     );
     this.poolMax = env.getPropertyAsNumber(
-      'datasource.pool.max',
-      env.getPropertyAsNumber('db.pool.max', env.getPropertyAsNumber('DB_POOL_MAX', 5))
+      "datasource.pool.max",
+      env.getPropertyAsNumber(
+        "db.pool.max",
+        env.getPropertyAsNumber("DB_POOL_MAX", 5),
+      ),
     );
     this.poolAcquireTimeoutMs = env.getPropertyAsNumber(
-      'datasource.pool.acquireTimeoutMs',
+      "datasource.pool.acquireTimeoutMs",
       env.getPropertyAsNumber(
-        'db.pool.acquireTimeoutMs',
-        env.getPropertyAsNumber('DB_POOL_ACQUIRE_TIMEOUT_MS', 5000)
-      )
+        "db.pool.acquireTimeoutMs",
+        env.getPropertyAsNumber("DB_POOL_ACQUIRE_TIMEOUT_MS", 5000),
+      ),
     );
     this.initEnabled = env.getPropertyAsBoolean(
-      'datasource.init.enabled',
-      env.getPropertyAsBoolean('db.init.enabled', env.getPropertyAsBoolean('DB_INIT_ENABLED', false))
+      "datasource.init.enabled",
+      env.getPropertyAsBoolean(
+        "db.init.enabled",
+        env.getPropertyAsBoolean("DB_INIT_ENABLED", false),
+      ),
     );
     this.databaseName = env.getProperty(
-      'datasource.name',
-      env.getProperty('db.name', env.getProperty('DATABASE_NAME', 'model_connector.db'))
+      "datasource.name",
+      env.getProperty(
+        "db.name",
+        env.getProperty("DATABASE_NAME", "model_connector.db"),
+      ),
     );
     this.dataDir = env.getProperty(
-      'datasource.dataDir',
-      env.getProperty('data.dir', env.getProperty('DATA_DIR', defaultDataDir))
+      "datasource.dataDir",
+      env.getProperty("data.dir", env.getProperty("DATA_DIR", defaultDataDir)),
     );
     this.url = env.getProperty(
-      'datasource.url',
-      env.getProperty('db.url', `sqlite:${defaultDataDir}/${this.databaseName}`)
+      "datasource.url",
+      env.getProperty(
+        "db.url",
+        `sqlite:${defaultDataDir}/${this.databaseName}`,
+      ),
     );
     this.driverClassName = env.getProperty(
-      'datasource.driver-class-name',
-      env.getProperty('datasource.driverClassName', 'org.sqlite.JDBC')
+      "datasource.driver-class-name",
+      env.getProperty("datasource.driverClassName", "org.sqlite.JDBC"),
     );
   }
 
@@ -58,7 +73,7 @@ export class DataSourceProperties {
    * Identifies whether the configured datasource is an in-memory RDBMS instance.
    */
   public isInMemory(): boolean {
-    return this.url.includes(':memory:') || this.databaseName === ':memory:';
+    return this.url.includes(":memory:") || this.databaseName === ":memory:";
   }
 
   /**
@@ -67,9 +82,9 @@ export class DataSourceProperties {
   public isEmbedded(): boolean {
     return (
       this.isInMemory() ||
-      this.driverClassName.toLowerCase().includes('sqlite') ||
-      this.url.toLowerCase().startsWith('sqlite:') ||
-      this.url.toLowerCase().startsWith('jdbc:sqlite:')
+      this.driverClassName.toLowerCase().includes("sqlite") ||
+      this.url.toLowerCase().startsWith("sqlite:") ||
+      this.url.toLowerCase().startsWith("jdbc:sqlite:")
     );
   }
 

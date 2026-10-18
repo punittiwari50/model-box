@@ -2,8 +2,8 @@
  * Domain Database Entity: AUDIT_LOGS table.
  */
 export interface AuditLogEntity {
+  readonly audit_id?: string;
   readonly id: string;
-  readonly timestamp: string;
   readonly conversation_id?: string;
   readonly action: string;
   readonly client_ip?: string;
@@ -11,9 +11,10 @@ export interface AuditLogEntity {
   readonly prompt_tokens?: number;
   readonly completion_tokens?: number;
   readonly latency_ms?: number;
-  readonly status: 'SUCCESS' | 'FAILED';
+  readonly status: "SUCCESS" | "FAILED";
   readonly error_message?: string;
   readonly details?: Readonly<Record<string, unknown>>;
   readonly created_timestamp?: string;
   readonly update_timestamp?: string;
+  readonly timestamp?: string;
 }

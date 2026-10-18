@@ -1,4 +1,4 @@
-import type { CliExecutionResult } from '@/domain/index.js';
+import type { CliExecutionResult } from "@/domain/index.js";
 
 /**
  * Options provided to execute a prompt across model runners.
@@ -13,13 +13,15 @@ export interface ExecutePromptOptions {
   contextFiles?: string[];
   inputStream?: string;
   apiKey?: string;
-  mode?: 'auto' | 'api' | 'cli' | 'websocket' | 'mock';
+  mode?: "auto" | "api" | "cli" | "websocket" | "mock";
   userId?: string;
   sessionId?: string;
   resume?: boolean;
   isFallback?: boolean;
   subscriptionPolicy?: string;
-  hyperparameters?: Partial<import('@/core/config/properties/modelProperties.js').ModelHyperparameters>;
+  hyperparameters?: Partial<
+    import("@/core/config/properties/modelProperties.js").ModelHyperparameters
+  >;
   cwd?: string;
 }
 
@@ -34,9 +36,22 @@ export interface IModelRunner {
   getDefaultModel(): string;
   isMockAllowed(): boolean;
   executePrompt(options: ExecutePromptOptions): Promise<CliExecutionResult>;
-  executeApi(options: ExecutePromptOptions, startTime?: number): Promise<CliExecutionResult>;
-  executeCli(options: ExecutePromptOptions, startTime?: number): Promise<CliExecutionResult>;
-  executeMock(options: ExecutePromptOptions, startTime?: number): Promise<CliExecutionResult>;
-  executeFallback(options: ExecutePromptOptions, startTime?: number, reason?: string): Promise<CliExecutionResult>;
+  executeApi(
+    options: ExecutePromptOptions,
+    startTime?: number,
+  ): Promise<CliExecutionResult>;
+  executeCli(
+    options: ExecutePromptOptions,
+    startTime?: number,
+  ): Promise<CliExecutionResult>;
+  executeMock(
+    options: ExecutePromptOptions,
+    startTime?: number,
+  ): Promise<CliExecutionResult>;
+  executeFallback(
+    options: ExecutePromptOptions,
+    startTime?: number,
+    reason?: string,
+  ): Promise<CliExecutionResult>;
   isCliAvailable(modelName?: string): boolean;
 }

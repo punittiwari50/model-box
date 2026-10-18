@@ -1,32 +1,27 @@
-import type { IModelRunner } from '@/core/cli/modelRunnerInterface.js';
-import { modelRunnerFactory, defaultModelRunner, type IModelRunnerFactory } from '@/core/cli/modelRunnerFactory.js';
+import type { IModelRunner } from "@/core/cli/modelRunnerInterface.js";
+import {
+  modelRunnerFactory,
+  defaultModelRunner,
+  type IModelRunnerFactory,
+} from "@/core/cli/modelRunnerFactory.js";
 import {
   ExecutionStrategyRegistry,
   executionStrategyRegistry,
-} from '@/core/cli/executionStrategies.js';
-import { ConversationService } from '@/services/conversation/conversationService.js';
-import { AuthService } from '@/services/auth/authService.js';
-import { JobSearchService } from '@/services/jobSearch/jobSearchService.js';
+} from "@/core/cli/executionStrategies.js";
+import { ConversationService } from "@/services/conversation/conversationService.js";
+import { AuthService } from "@/services/auth/authService.js";
+import { JobSearchService } from "@/services/jobSearch/jobSearchService.js";
 import {
   ConversationRepository,
   conversationRepo,
-} from '@/repositories/conversationRepository.js';
-import {
-  AuditRepository,
-  auditRepo,
-} from '@/repositories/auditRepository.js';
-import {
-  AuthRepository,
-  authRepo,
-} from '@/repositories/authRepository.js';
+} from "@/repositories/conversationRepository.js";
+import { AuditRepository, auditRepo } from "@/repositories/auditRepository.js";
+import { AuthRepository, authRepo } from "@/repositories/authRepository.js";
 import {
   AgentRepository,
   agentRepository,
-} from '@/repositories/agentRepository.js';
-import {
-  AgentService,
-  agentService,
-} from '@/services/agent/agentService.js';
+} from "@/repositories/agentRepository.js";
+import { AgentService, agentService } from "@/services/agent/agentService.js";
 
 /**
  * Service Identifier Types for Application Context Service Wiring.
@@ -34,17 +29,20 @@ import {
 export type ServiceToken<T> = string & { readonly __type?: T };
 
 export const ServiceTokens = {
-  ModelRunner: 'ModelRunner' as ServiceToken<IModelRunner>,
-  ModelRunnerFactory: 'ModelRunnerFactory' as ServiceToken<IModelRunnerFactory>,
-  ConversationService: 'ConversationService' as ServiceToken<ConversationService>,
-  AuthService: 'AuthService' as ServiceToken<AuthService>,
-  JobSearchService: 'JobSearchService' as ServiceToken<JobSearchService>,
-  ExecutionStrategyRegistry: 'ExecutionStrategyRegistry' as ServiceToken<ExecutionStrategyRegistry>,
-  ConversationRepository: 'ConversationRepository' as ServiceToken<ConversationRepository>,
-  AuditRepository: 'AuditRepository' as ServiceToken<AuditRepository>,
-  AuthRepository: 'AuthRepository' as ServiceToken<AuthRepository>,
-  AgentRepository: 'AgentRepository' as ServiceToken<AgentRepository>,
-  AgentService: 'AgentService' as ServiceToken<AgentService>,
+  ModelRunner: "ModelRunner" as ServiceToken<IModelRunner>,
+  ModelRunnerFactory: "ModelRunnerFactory" as ServiceToken<IModelRunnerFactory>,
+  ConversationService:
+    "ConversationService" as ServiceToken<ConversationService>,
+  AuthService: "AuthService" as ServiceToken<AuthService>,
+  JobSearchService: "JobSearchService" as ServiceToken<JobSearchService>,
+  ExecutionStrategyRegistry:
+    "ExecutionStrategyRegistry" as ServiceToken<ExecutionStrategyRegistry>,
+  ConversationRepository:
+    "ConversationRepository" as ServiceToken<ConversationRepository>,
+  AuditRepository: "AuditRepository" as ServiceToken<AuditRepository>,
+  AuthRepository: "AuthRepository" as ServiceToken<AuthRepository>,
+  AgentRepository: "AgentRepository" as ServiceToken<AgentRepository>,
+  AgentService: "AgentService" as ServiceToken<AgentService>,
 } as const;
 
 /**
@@ -83,11 +81,17 @@ export class ApplicationContext implements IApplicationContext {
   private registerDefaults(): void {
     this.register(ServiceTokens.ModelRunner, () => defaultModelRunner);
     this.register(ServiceTokens.ModelRunnerFactory, () => modelRunnerFactory);
-    this.register(ServiceTokens.ExecutionStrategyRegistry, () => executionStrategyRegistry);
+    this.register(
+      ServiceTokens.ExecutionStrategyRegistry,
+      () => executionStrategyRegistry,
+    );
     this.register(ServiceTokens.ConversationRepository, () => conversationRepo);
     this.register(ServiceTokens.AuditRepository, () => auditRepo);
     this.register(ServiceTokens.AuthRepository, () => authRepo);
-    this.register(ServiceTokens.ConversationService, () => new ConversationService());
+    this.register(
+      ServiceTokens.ConversationService,
+      () => new ConversationService(),
+    );
     this.register(ServiceTokens.AuthService, () => new AuthService());
     this.register(ServiceTokens.JobSearchService, () => new JobSearchService());
     this.register(ServiceTokens.AgentRepository, () => agentRepository);
@@ -105,7 +109,9 @@ export class ApplicationContext implements IApplicationContext {
     }
     const factory = this.registry.get(token);
     if (!factory) {
-      throw new Error(`[ApplicationContext] Service not registered for token: ${token}`);
+      throw new Error(
+        `[ApplicationContext] Service not registered for token: ${token}`,
+      );
     }
     const instance = factory();
     this.instances.set(token, instance);

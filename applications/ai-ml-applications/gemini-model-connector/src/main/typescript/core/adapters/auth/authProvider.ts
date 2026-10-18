@@ -7,7 +7,7 @@
  * - Requirement #4 & #7: Loosely coupled from application.yml and database
  */
 
-export * from '@/core/adapters/auth/oauth/index.js';
+export * from "@/core/adapters/auth/oauth/index.js";
 
 import {
   type IOAuthProvider,
@@ -16,7 +16,7 @@ import {
   OpenAiOAuthProvider,
   OAuthProviderRegistry,
   oauthProviderRegistry,
-} from '@/core/adapters/auth/oauth/index.js';
+} from "@/core/adapters/auth/oauth/index.js";
 
 // Backward compatibility type and value exports
 export type AuthProvider = IOAuthProvider;

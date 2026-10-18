@@ -30,5 +30,10 @@
     "useUnknownInCatchVariables": true
   },
   "include": ["../../src/main/typescript/**/*"],
-  "exclude": ["../../node_modules", "../../dist", "../../src/test/**/*", "**/*.test.ts"]
+  "exclude": [
+    "../../node_modules",
+    "../../dist",
+    "../../src/test/**/*",
+    "**/*.test.ts"
+  ]
 }

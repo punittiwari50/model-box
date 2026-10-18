@@ -1,1 +1,1 @@
-export * from '@/core/config/websocket/websocketConfig.js';
+export * from "@/core/config/websocket/websocketConfig.js";

@@ -1,6 +1,6 @@
-import { AuthScheme, HttpHeader } from '@/domain/constants/index.js';
-import { config } from '@/core/config/index.js';
-import { traceContext } from '@/core/observability/tracing/traceContext.js';
+import { AuthScheme, HttpHeader } from "@/domain/constants/index.js";
+import { config } from "@/core/config/index.js";
+import { traceContext } from "@/core/observability/tracing/traceContext.js";
 
 export interface AuthorizationContext {
   readonly scheme?: string;
@@ -21,7 +21,11 @@ export interface AuthorizedRequestPlan {
 export interface IRequestAuthorizer {
   readonly scheme: string;
   supports(scheme: string): boolean;
-  authorize(url: string, headers: Record<string, string>, context: AuthorizationContext): AuthorizedRequestPlan;
+  authorize(
+    url: string,
+    headers: Record<string, string>,
+    context: AuthorizationContext,
+  ): AuthorizedRequestPlan;
 }
 
 /**
@@ -34,10 +38,15 @@ export class BearerRequestAuthorizer implements IRequestAuthorizer {
     return scheme.toLowerCase() === AuthScheme.BEARER.toLowerCase();
   }
 
-  public authorize(url: string, headers: Record<string, string>, context: AuthorizationContext): AuthorizedRequestPlan {
+  public authorize(
+    url: string,
+    headers: Record<string, string>,
+    context: AuthorizationContext,
+  ): AuthorizedRequestPlan {
     const updatedHeaders = { ...headers };
     if (context.tokenOrKey) {
-      updatedHeaders[HttpHeader.AUTHORIZATION] = `${AuthScheme.BEARER} ${context.tokenOrKey}`;
+      updatedHeaders[HttpHeader.AUTHORIZATION] =
+        `${AuthScheme.BEARER} ${context.tokenOrKey}`;
     }
     return { url, headers: updatedHeaders };
   }
@@ -53,16 +62,20 @@ export class GoogleApiKeyAuthorizer implements IRequestAuthorizer {
     return scheme.toLowerCase() === AuthScheme.GOOGLE_API_KEY.toLowerCase();
   }
 
-  public authorize(url: string, headers: Record<string, string>, context: AuthorizationContext): AuthorizedRequestPlan {
+  public authorize(
+    url: string,
+    headers: Record<string, string>,
+    context: AuthorizationContext,
+  ): AuthorizedRequestPlan {
     const updatedHeaders = { ...headers };
     let targetUrl = url;
 
     if (context.tokenOrKey) {
-      updatedHeaders['x-goog-api-key'] = context.tokenOrKey;
+      updatedHeaders["x-goog-api-key"] = context.tokenOrKey;
       try {
         const parsedUrl = new URL(url);
-        if (!parsedUrl.searchParams.has('key')) {
-          parsedUrl.searchParams.set('key', context.tokenOrKey);
+        if (!parsedUrl.searchParams.has("key")) {
+          parsedUrl.searchParams.set("key", context.tokenOrKey);
           targetUrl = parsedUrl.toString();
         }
       } catch {
@@ -83,13 +96,17 @@ export class AnthropicApiKeyAuthorizer implements IRequestAuthorizer {
     return scheme.toLowerCase() === AuthScheme.ANTHROPIC_API_KEY.toLowerCase();
   }
 
-  public authorize(url: string, headers: Record<string, string>, context: AuthorizationContext): AuthorizedRequestPlan {
+  public authorize(
+    url: string,
+    headers: Record<string, string>,
+    context: AuthorizationContext,
+  ): AuthorizedRequestPlan {
     const updatedHeaders: Record<string, string> = {
       ...headers,
-      'anthropic-version': config.authEndpoints.anthropicVersion,
+      "anthropic-version": config.authEndpoints.anthropicVersion,
     };
     if (context.tokenOrKey) {
-      updatedHeaders['x-api-key'] = context.tokenOrKey;
+      updatedHeaders["x-api-key"] = context.tokenOrKey;
     }
     return { url, headers: updatedHeaders };
   }
@@ -105,10 +122,15 @@ export class OpenAiBearerAuthorizer implements IRequestAuthorizer {
     return scheme.toLowerCase() === AuthScheme.OPENAI_BEARER.toLowerCase();
   }
 
-  public authorize(url: string, headers: Record<string, string>, context: AuthorizationContext): AuthorizedRequestPlan {
+  public authorize(
+    url: string,
+    headers: Record<string, string>,
+    context: AuthorizationContext,
+  ): AuthorizedRequestPlan {
     const updatedHeaders = { ...headers };
     if (context.tokenOrKey) {
-      updatedHeaders[HttpHeader.AUTHORIZATION] = `${AuthScheme.BEARER} ${context.tokenOrKey}`;
+      updatedHeaders[HttpHeader.AUTHORIZATION] =
+        `${AuthScheme.BEARER} ${context.tokenOrKey}`;
     }
     return { url, headers: updatedHeaders };
   }
@@ -124,7 +146,10 @@ export class NoOpRequestAuthorizer implements IRequestAuthorizer {
     return scheme.toLowerCase() === AuthScheme.NOOP.toLowerCase();
   }
 
-  public authorize(url: string, headers: Record<string, string>): AuthorizedRequestPlan {
+  public authorize(
+    url: string,
+    headers: Record<string, string>,
+  ): AuthorizedRequestPlan {
     return { url, headers: { ...headers } };
   }
 }
@@ -175,10 +200,10 @@ export class AuthorizedHttpClient {
   public async fetch(
     input: string | URL,
     init: RequestInit = {},
-    context: AuthorizationContext = {}
+    context: AuthorizationContext = {},
   ): Promise<Response> {
     const authorizer = this.registry.resolve(context.scheme);
-    const inputUrl = typeof input === 'string' ? input : input.toString();
+    const inputUrl = typeof input === "string" ? input : input.toString();
 
     const existingHeaders: Record<string, string> = {};
     if (init.headers) {
@@ -220,5 +245,5 @@ export const authorizedHttpClient = new AuthorizedHttpClient();
 export const authorizedFetch = (
   input: string | URL,
   init: RequestInit = {},
-  context: AuthorizationContext = {}
+  context: AuthorizationContext = {},
 ): Promise<Response> => authorizedHttpClient.fetch(input, init, context);

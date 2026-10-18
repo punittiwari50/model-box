@@ -1,10 +1,13 @@
-import type { Request, Response } from 'express';
+import type { Request, Response } from "express";
 import {
   interactionStrategyRegistry,
   type InteractionStrategyRegistry,
-} from '@/core/interaction/interactionStrategy.js';
-import { HttpStatus } from '@/domain/constants/index.js';
-import { sendJsonResponse, sendJsonError } from '@/core/web/helper/responseHelper.js';
+} from "@/core/interaction/interactionStrategy.js";
+import { HttpStatus } from "@/domain/constants/index.js";
+import {
+  sendJsonResponse,
+  sendJsonError,
+} from "@/core/web/helper/responseHelper.js";
 
 /**
  * Unified Interaction Controller.
@@ -14,7 +17,9 @@ import { sendJsonResponse, sendJsonError } from '@/core/web/helper/responseHelpe
 export class InteractionController {
   private readonly registry: InteractionStrategyRegistry;
 
-  constructor(registry: InteractionStrategyRegistry = interactionStrategyRegistry) {
+  constructor(
+    registry: InteractionStrategyRegistry = interactionStrategyRegistry,
+  ) {
     this.registry = registry;
   }
 
@@ -22,7 +27,11 @@ export class InteractionController {
     try {
       const { mode, prompt, ...rest } = req.body || {};
       if (!prompt) {
-        sendJsonError(res, HttpStatus.BAD_REQUEST, 'Field "prompt" is required');
+        sendJsonError(
+          res,
+          HttpStatus.BAD_REQUEST,
+          'Field "prompt" is required',
+        );
         return;
       }
       const strategy = this.registry.resolve(mode);

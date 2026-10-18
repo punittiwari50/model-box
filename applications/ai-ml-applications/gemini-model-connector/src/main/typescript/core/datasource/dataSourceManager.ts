@@ -1,12 +1,12 @@
-import path from 'node:path';
-import { config, dataSourceProperties } from '@/core/config/index.js';
-import { logger } from '@/core/observability/logging/logger.js';
-import type { IDataSourceDriver } from '@/core/datasource/driver.js';
-import { NodeSqliteDataSourceDriver } from '@/core/datasource/nodeSqliteDriver.js';
-import { FileStoreDataSourceDriver } from '@/core/datasource/fileStoreDriver.js';
-import { DataSourceConnectionPool } from '@/core/datasource/connectionPool.js';
-import { ResilientDataSourceDriver } from '@/core/datasource/resilientDriver.js';
-import { dataSourceInitialLoader } from '@/core/datasource/initialLoader.js';
+import path from "node:path";
+import { config, dataSourceProperties } from "@/core/config/index.js";
+import { logger } from "@/core/observability/logging/logger.js";
+import type { IDataSourceDriver } from "@/core/datasource/driver.js";
+import { NodeSqliteDataSourceDriver } from "@/core/datasource/nodeSqliteDriver.js";
+import { FileStoreDataSourceDriver } from "@/core/datasource/fileStoreDriver.js";
+import { DataSourceConnectionPool } from "@/core/datasource/connectionPool.js";
+import { ResilientDataSourceDriver } from "@/core/datasource/resilientDriver.js";
+import { dataSourceInitialLoader } from "@/core/datasource/initialLoader.js";
 
 /**
  * Enterprise DataSource Manager.
@@ -39,7 +39,7 @@ export class DataSourceManager {
     }
     // In-memory or local embedded database
     if (dataSourceProperties.isInMemory()) {
-      return ':memory:';
+      return ":memory:";
     }
     return path.join(config.dataDir, config.databaseName);
   }
@@ -58,7 +58,7 @@ export class DataSourceManager {
         minConnections: config.dbPoolMin,
         maxConnections: config.dbPoolMax,
         acquireTimeoutMs: config.dbPoolAcquireTimeoutMs,
-      }
+      },
     );
     await pool.init();
 
@@ -81,7 +81,9 @@ export class DataSourceManager {
       logger.datasource(`Connected with node:sqlite at ${target}`);
       return nodeSqlite;
     } catch (e: any) {
-      logger.datasource(`node:sqlite not enabled (${e.message}). Falling back to durable JSON file-backed driver.`);
+      logger.datasource(
+        `node:sqlite not enabled (${e.message}). Falling back to durable JSON file-backed driver.`,
+      );
       const fileDriver = new FileStoreDataSourceDriver(target);
       await fileDriver.init();
       return fileDriver;

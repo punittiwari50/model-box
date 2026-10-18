@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import fs from "node:fs";
 
 export interface IFileSystem {
   existsSync(filePath: string): boolean;
@@ -6,7 +6,10 @@ export interface IFileSystem {
   writeFileSync(filePath: string, data: string | Buffer): void;
   mkdirSync(dirPath: string, options?: { recursive?: boolean }): void;
   unlinkSync(filePath: string): void;
-  rmSync(filePath: string, options?: { force?: boolean; recursive?: boolean }): void;
+  rmSync(
+    filePath: string,
+    options?: { force?: boolean; recursive?: boolean },
+  ): void;
   statSync(filePath: string): fs.Stats;
   createReadStream(filePath: string): fs.ReadStream;
   createWriteStream(filePath: string): fs.WriteStream;
@@ -21,7 +24,10 @@ export class FileSystemUtils implements IFileSystem {
     return fs.existsSync(filePath);
   }
 
-  public readFileSync(filePath: string, encoding: BufferEncoding = 'utf-8'): string {
+  public readFileSync(
+    filePath: string,
+    encoding: BufferEncoding = "utf-8",
+  ): string {
     return fs.readFileSync(filePath, encoding);
   }
 
@@ -29,7 +35,10 @@ export class FileSystemUtils implements IFileSystem {
     fs.writeFileSync(filePath, data);
   }
 
-  public mkdirSync(dirPath: string, options: { recursive?: boolean } = { recursive: true }): void {
+  public mkdirSync(
+    dirPath: string,
+    options: { recursive?: boolean } = { recursive: true },
+  ): void {
     fs.mkdirSync(dirPath, options);
   }
 
@@ -39,7 +48,10 @@ export class FileSystemUtils implements IFileSystem {
     }
   }
 
-  public rmSync(filePath: string, options: { force?: boolean; recursive?: boolean } = { force: true }): void {
+  public rmSync(
+    filePath: string,
+    options: { force?: boolean; recursive?: boolean } = { force: true },
+  ): void {
     if (fs.existsSync(filePath)) {
       fs.rmSync(filePath, options);
     }

@@ -1,6 +1,9 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import type { IDataSourceDriver, DataSourceDriverResult } from '@/core/datasource/driver.js';
+import fs from "node:fs";
+import path from "node:path";
+import type {
+  IDataSourceDriver,
+  DataSourceDriverResult,
+} from "@/core/datasource/driver.js";
 
 /**
  * Resilient File-backed Persistence Driver for environments without node:sqlite.
@@ -23,14 +26,16 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
   };
 
   constructor(dataSourcePath: string) {
-    this.dataSourcePath = dataSourcePath.endsWith('.json') ? dataSourcePath : `${dataSourcePath}.json`;
+    this.dataSourcePath = dataSourcePath.endsWith(".json")
+      ? dataSourcePath
+      : `${dataSourcePath}.json`;
   }
 
   public async init(): Promise<void> {
     fs.mkdirSync(path.dirname(this.dataSourcePath), { recursive: true });
     if (fs.existsSync(this.dataSourcePath)) {
       try {
-        const raw = fs.readFileSync(this.dataSourcePath, 'utf-8');
+        const raw = fs.readFileSync(this.dataSourcePath, "utf-8");
         this.state = JSON.parse(raw);
       } catch {
         this.persist();
@@ -42,31 +47,66 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
 
   private persist(): void {
     const tmp = `${this.dataSourcePath}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(this.state, null, 2), 'utf-8');
+    fs.writeFileSync(tmp, JSON.stringify(this.state, null, 2), "utf-8");
     fs.renameSync(tmp, this.dataSourcePath);
   }
 
-  public async run(sql: string, params: any[] = []): Promise<DataSourceDriverResult> {
+  public async run(
+    sql: string,
+    params: any[] = [],
+  ): Promise<DataSourceDriverResult> {
     const cleanSql = sql.trim().toUpperCase();
 
-    if (cleanSql.startsWith('INSERT INTO CONVERSATIONS')) {
-      const [id, title, model, system_instruction, tags, metadata, created_at, updated_at] = params;
-      this.state.conversations[id] = { id, title, model, system_instruction, tags, metadata, created_at, updated_at };
+    if (cleanSql.startsWith("INSERT INTO CONVERSATIONS")) {
+      const [
+        id,
+        title,
+        model,
+        system_instruction,
+        tags,
+        metadata,
+        created_at,
+        updated_at,
+      ] = params;
+      this.state.conversations[id] = {
+        id,
+        conversation_id: id,
+        session_id: id,
+        title,
+        model,
+        system_instruction,
+        tags,
+        metadata,
+        created_at,
+        updated_at,
+        created_timestamp: created_at,
+        update_timestamp: updated_at,
+      };
       this.persist();
       return { changes: 1 };
     }
 
-    if (cleanSql.startsWith('UPDATE CONVERSATIONS')) {
-      const [title, model, system_instruction, tags, metadata, updated_at, id] = params;
+    if (cleanSql.startsWith("UPDATE CONVERSATIONS")) {
+      const [title, model, system_instruction, tags, metadata, updated_at, id] =
+        params;
       if (this.state.conversations[id]) {
-        this.state.conversations[id] = { ...this.state.conversations[id], title, model, system_instruction, tags, metadata, updated_at };
+        this.state.conversations[id] = {
+          ...this.state.conversations[id],
+          title,
+          model,
+          system_instruction,
+          tags,
+          metadata,
+          updated_at,
+          update_timestamp: updated_at,
+        };
         this.persist();
         return { changes: 1 };
       }
       return { changes: 0 };
     }
 
-    if (cleanSql.startsWith('DELETE FROM CONVERSATIONS')) {
+    if (cleanSql.startsWith("DELETE FROM CONVERSATIONS")) {
       const [id] = params;
       if (this.state.conversations[id]) {
         delete this.state.conversations[id];
@@ -82,29 +122,87 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
       return { changes: 0 };
     }
 
-    if (cleanSql.startsWith('INSERT INTO MESSAGES')) {
-      const [id, conversation_id, role, content, raw_response, latency_ms, token_count, created_at] = params;
-      this.state.messages[id] = { id, conversation_id, role, content, raw_response, latency_ms, token_count, created_at };
+    if (cleanSql.startsWith("INSERT INTO MESSAGES")) {
+      const [
+        id,
+        conversation_id,
+        role,
+        content,
+        raw_response,
+        latency_ms,
+        token_count,
+        created_at,
+      ] = params;
+      this.state.messages[id] = {
+        id,
+        message_id: id,
+        conversation_id,
+        role,
+        content,
+        raw_response,
+        latency_ms,
+        token_count,
+        created_at,
+        created_timestamp: created_at,
+        update_timestamp: created_at,
+      };
       this.persist();
       return { changes: 1 };
     }
 
-    if (cleanSql.startsWith('INSERT INTO CONTEXT_ITEMS')) {
-      const [id, conversation_id, type, name, content, mime_type, created_at] = params;
-      this.state.context_items[id] = { id, conversation_id, type, name, content, mime_type, created_at };
+    if (cleanSql.startsWith("INSERT INTO CONTEXT_ITEMS")) {
+      const [id, conversation_id, type, name, content, mime_type, created_at] =
+        params;
+      this.state.context_items[id] = {
+        id,
+        context_id: id,
+        conversation_id,
+        type,
+        name,
+        content,
+        mime_type,
+        created_at,
+        created_timestamp: created_at,
+        update_timestamp: created_at,
+      };
       this.persist();
       return { changes: 1 };
     }
 
-    if (cleanSql.startsWith('INSERT INTO AUDIT_LOGS')) {
-      const [id, action, status, conversation_id, model, latency_ms, client_ip, error_message, metadata, timestamp] = params;
-      this.state.audit_logs[id] = { id, action, status, conversation_id, model, latency_ms, client_ip, error_message, metadata, timestamp };
+    if (cleanSql.startsWith("INSERT INTO AUDIT_LOGS")) {
+      const [
+        id,
+        action,
+        status,
+        conversation_id,
+        model,
+        latency_ms,
+        client_ip,
+        error_message,
+        metadata,
+        timestamp,
+      ] = params;
+      this.state.audit_logs[id] = {
+        id,
+        audit_id: id,
+        action,
+        status,
+        conversation_id,
+        model,
+        latency_ms,
+        client_ip,
+        error_message,
+        metadata,
+        timestamp,
+        created_timestamp: timestamp,
+        update_timestamp: timestamp,
+      };
       this.persist();
       return { changes: 1 };
     }
 
-    if (cleanSql.startsWith('INSERT OR REPLACE INTO MODEL_AUTH')) {
-      const id = params[0] || 'default';
+    if (cleanSql.startsWith("INSERT OR REPLACE INTO MODEL_AUTH")) {
+      const id = params[0] || "default";
       const model = params[1];
       const auth_type = params[2];
       const account_email = params[3];
@@ -120,6 +218,7 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
 
       this.state.model_auth[id] = {
         id,
+        session_id: id,
         model,
         auth_type,
         account_email,
@@ -132,12 +231,14 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
         is_active,
         created_timestamp,
         update_timestamp,
+        created_at: created_timestamp,
+        updated_at: update_timestamp,
       };
       this.persist();
       return { changes: 1 };
     }
 
-    if (cleanSql.startsWith('UPDATE MODEL_AUTH')) {
+    if (cleanSql.startsWith("UPDATE MODEL_AUTH")) {
       const id = params[params.length - 1];
       if (this.state.model_auth[id]) {
         this.state.model_auth[id].is_active = 1;
@@ -147,18 +248,21 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
       return { changes: 1 };
     }
 
-    if (cleanSql.startsWith('DELETE FROM MODEL_AUTH')) {
-      if (cleanSql.includes('ID = ?')) {
+    if (cleanSql.startsWith("DELETE FROM MODEL_AUTH")) {
+      if (cleanSql.includes("ID = ?") || cleanSql.includes("SESSION_ID = ?")) {
         const id = params[0];
         delete this.state.model_auth[id];
-      } else if (cleanSql.includes('MODEL = ?') && cleanSql.includes('ACCOUNT_EMAIL = ?')) {
+      } else if (
+        cleanSql.includes("MODEL = ?") &&
+        cleanSql.includes("ACCOUNT_EMAIL = ?")
+      ) {
         const [model, email] = params;
         for (const [k, v] of Object.entries(this.state.model_auth)) {
           if (v.model === model && v.account_email === email) {
             delete this.state.model_auth[k];
           }
         }
-      } else if (cleanSql.includes('MODEL = ?')) {
+      } else if (cleanSql.includes("MODEL = ?")) {
         const [model] = params;
         for (const [k, v] of Object.entries(this.state.model_auth)) {
           if (v.model === model) {
@@ -175,7 +279,10 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
     return { changes: 0 };
   }
 
-  public async get<T = any>(sql: string, params: any[] = []): Promise<T | undefined> {
+  public async get<T = any>(
+    sql: string,
+    params: any[] = [],
+  ): Promise<T | undefined> {
     const list = await this.all<T>(sql, params);
     return list[0];
   }
@@ -183,51 +290,78 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
   public async all<T = any>(sql: string, params: any[] = []): Promise<T[]> {
     const cleanSql = sql.trim().toUpperCase();
 
-    if (cleanSql.includes('FROM CONVERSATIONS')) {
+    if (cleanSql.includes("FROM CONVERSATIONS")) {
       let list = Object.values(this.state.conversations);
-      if (cleanSql.includes('WHERE ID = ?')) {
+      if (
+        cleanSql.includes("WHERE ID = ?") ||
+        cleanSql.includes("WHERE CONVERSATION_ID = ?")
+      ) {
         const id = params[0];
-        list = list.filter(c => c.id === id);
+        list = list.filter((c) => c.id === id || c.conversation_id === id);
       }
-      if (cleanSql.includes('ORDER BY UPDATE_TIMESTAMP DESC') || cleanSql.includes('ORDER BY UPDATED_AT DESC')) {
-        list.sort((a, b) => (b.update_timestamp || b.updated_at || '').localeCompare(a.update_timestamp || a.updated_at || ''));
+      if (
+        cleanSql.includes("ORDER BY UPDATE_TIMESTAMP DESC") ||
+        cleanSql.includes("ORDER BY UPDATED_AT DESC")
+      ) {
+        list.sort((a, b) =>
+          (b.update_timestamp || b.updated_at || "").localeCompare(
+            a.update_timestamp || a.updated_at || "",
+          ),
+        );
       }
       return list as T[];
     }
 
-    if (cleanSql.includes('FROM MESSAGES')) {
+    if (cleanSql.includes("FROM MESSAGES")) {
       let list = Object.values(this.state.messages);
-      if (cleanSql.includes('WHERE CONVERSATION_ID = ?')) {
+      if (cleanSql.includes("WHERE CONVERSATION_ID = ?")) {
         const convId = params[0];
-        list = list.filter(m => m.conversation_id === convId);
+        list = list.filter((m) => m.conversation_id === convId);
       }
-      list.sort((a, b) => (a.created_timestamp || a.created_at || '').localeCompare(b.created_timestamp || b.created_at || ''));
+      list.sort((a, b) =>
+        (a.created_timestamp || a.created_at || "").localeCompare(
+          b.created_timestamp || b.created_at || "",
+        ),
+      );
       return list as T[];
     }
 
-    if (cleanSql.includes('FROM CONTEXT_ITEMS')) {
+    if (cleanSql.includes("FROM CONTEXT_ITEMS")) {
       let list = Object.values(this.state.context_items);
-      if (cleanSql.includes('WHERE CONVERSATION_ID = ?')) {
+      if (cleanSql.includes("WHERE CONVERSATION_ID = ?")) {
         const convId = params[0];
-        list = list.filter(c => c.conversation_id === convId);
+        list = list.filter((c) => c.conversation_id === convId);
       }
       return list as T[];
     }
 
-    if (cleanSql.includes('FROM AUDIT_LOGS')) {
+    if (cleanSql.includes("FROM AUDIT_LOGS")) {
       let list = Object.values(this.state.audit_logs);
-      list.sort((a, b) => (b.created_timestamp || b.timestamp || '').localeCompare(a.created_timestamp || a.timestamp || ''));
-      const limit = typeof params[params.length - 2] === 'number' ? params[params.length - 2] : 100;
-      const offset = typeof params[params.length - 1] === 'number' ? params[params.length - 1] : 0;
+      list.sort((a, b) =>
+        (b.created_timestamp || b.timestamp || "").localeCompare(
+          a.created_timestamp || a.timestamp || "",
+        ),
+      );
+      const limit =
+        typeof params[params.length - 2] === "number"
+          ? params[params.length - 2]
+          : 100;
+      const offset =
+        typeof params[params.length - 1] === "number"
+          ? params[params.length - 1]
+          : 0;
       return list.slice(offset, offset + limit) as T[];
     }
 
-    if (cleanSql.includes('FROM MODEL_AUTH')) {
+    if (cleanSql.includes("FROM MODEL_AUTH")) {
       let list = Object.values(this.state.model_auth || {}) as any[];
-      if (cleanSql.includes('WHERE ID = ?')) {
+      if (
+        cleanSql.includes("WHERE ID = ?") ||
+        cleanSql.includes("WHERE SESSION_ID = ?")
+      ) {
         const id = params[0];
-        list = list.filter((m) => m.id === id);
-      } else if (cleanSql.includes('WHERE MODEL = ?')) {
+        list = list.filter((m) => m.id === id || m.session_id === id);
+      } else if (cleanSql.includes("WHERE MODEL = ?")) {
         const model = params[0];
         list = list.filter((m) => m.model === model);
       }
@@ -235,7 +369,9 @@ export class FileStoreDataSourceDriver implements IDataSourceDriver {
         if ((b.is_active || 0) !== (a.is_active || 0)) {
           return (b.is_active || 0) - (a.is_active || 0);
         }
-        return (b.update_timestamp || '').localeCompare(a.update_timestamp || '');
+        return (b.update_timestamp || "").localeCompare(
+          a.update_timestamp || "",
+        );
       });
       return list as T[];
     }

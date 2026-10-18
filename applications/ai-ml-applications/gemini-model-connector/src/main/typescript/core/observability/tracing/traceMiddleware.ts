@@ -1,9 +1,9 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from "express";
 import {
   TraceContext,
   traceContextManager,
-} from '@/core/observability/tracing/traceContext.js';
-import { HttpHeader } from '@/domain/constants/index.js';
+} from "@/core/observability/tracing/traceContext.js";
+import { HttpHeader } from "@/domain/constants/index.js";
 
 /**
  * Express Middleware for Distributed Tracing & Correlation (Micrometer & W3C aligned).
@@ -17,8 +17,10 @@ import { HttpHeader } from '@/domain/constants/index.js';
 export class TraceMiddleware {
   public intercept(req: Request, res: Response, next: NextFunction): void {
     // 1. Resolve Trace ID & Parent Span ID from W3C 'traceparent' or 'x-trace-id'
-    const traceparentHeader = req.headers[HttpHeader.TRACEPARENT] as string | undefined;
-    const parsedTraceparent = traceContextManager.parseTraceparent(traceparentHeader);
+    const traceparentHeader = req.headers[HttpHeader.TRACEPARENT] as
+      string | undefined;
+    const parsedTraceparent =
+      traceContextManager.parseTraceparent(traceparentHeader);
 
     const traceId =
       parsedTraceparent?.traceId ||
@@ -50,7 +52,10 @@ export class TraceMiddleware {
     res.setHeader(HttpHeader.TRACE_ID, traceId);
     res.setHeader(HttpHeader.SPAN_ID, spanId);
     res.setHeader(HttpHeader.CORRELATION_ID, correlationId);
-    res.setHeader(HttpHeader.TRACEPARENT, traceContextManager.formatTraceparent(context));
+    res.setHeader(
+      HttpHeader.TRACEPARENT,
+      traceContextManager.formatTraceparent(context),
+    );
 
     // 5. Run downstream pipeline within the AsyncLocalStorage context
     traceContextManager.run(context, () => {

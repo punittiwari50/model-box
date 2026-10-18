@@ -11,8 +11,10 @@ export interface RateLimiterConfig {
 
 export class RequestNotPermittedException extends Error {
   constructor(name: string) {
-    super(`RateLimiter '${name}' does not permit further execution: period limit exceeded.`);
-    this.name = 'RequestNotPermittedException';
+    super(
+      `RateLimiter '${name}' does not permit further execution: period limit exceeded.`,
+    );
+    this.name = "RequestNotPermittedException";
   }
 }
 
@@ -23,7 +25,7 @@ export class RateLimiter {
 
   constructor(
     public readonly name: string,
-    config: Partial<RateLimiterConfig> = {}
+    config: Partial<RateLimiterConfig> = {},
   ) {
     this.config = {
       limitForPeriod: config.limitForPeriod ?? 50,

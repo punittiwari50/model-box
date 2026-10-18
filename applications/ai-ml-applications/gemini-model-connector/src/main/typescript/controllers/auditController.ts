@@ -1,7 +1,10 @@
-import type { Request, Response } from 'express';
-import { auditRepo } from '@/repositories/auditRepository.js';
-import { HttpStatus } from '@/domain/constants/index.js';
-import { sendJsonResponse, sendJsonError } from '@/core/web/helper/responseHelper.js';
+import type { Request, Response } from "express";
+import { auditRepo } from "@/repositories/auditRepository.js";
+import { HttpStatus } from "@/domain/constants/index.js";
+import {
+  sendJsonResponse,
+  sendJsonError,
+} from "@/core/web/helper/responseHelper.js";
 
 /**
  * Controller for compliance audit log queries.
@@ -16,10 +19,20 @@ export class AuditController {
       const limit = parseInt(req.query.limit as string) || 100;
       const offset = parseInt(req.query.offset as string) || 0;
 
-      const logs = await auditRepo.queryLogs({ conversation_id, action, status, limit, offset });
+      const logs = await auditRepo.queryLogs({
+        conversation_id,
+        action,
+        status,
+        limit,
+        offset,
+      });
       sendJsonResponse(res, HttpStatus.OK, { logs, count: logs.length });
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to query audit logs.');
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || "Failed to query audit logs.",
+      );
     }
   }
 }

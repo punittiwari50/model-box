@@ -1,4 +1,4 @@
-import { AuthType, isCopilotModel } from '@/domain/constants/index.js';
+import { AuthType, isCopilotModel } from "@/domain/constants/index.js";
 
 export type ModelAuthTypeValue = (typeof AuthType)[keyof typeof AuthType];
 
@@ -28,7 +28,9 @@ export class ExplicitAuthTypeStrategy implements IAuthTypeResolutionStrategy {
   public readonly priority = 10;
 
   public supports(context: AuthTypeResolutionContext): boolean {
-    return Boolean(context.explicitAuthType && context.explicitAuthType.trim().length > 0);
+    return Boolean(
+      context.explicitAuthType && context.explicitAuthType.trim().length > 0,
+    );
   }
 
   public resolve(context: AuthTypeResolutionContext): ModelAuthTypeValue {
@@ -41,10 +43,12 @@ export class ExplicitAuthTypeStrategy implements IAuthTypeResolutionStrategy {
  */
 export class GoogleOAuthTokenStrategy implements IAuthTypeResolutionStrategy {
   public readonly priority = 20;
-  private static readonly GOOGLE_OAUTH_PREFIX = 'ya29.';
+  private static readonly GOOGLE_OAUTH_PREFIX = "ya29.";
 
   public supports(context: AuthTypeResolutionContext): boolean {
-    return context.token.startsWith(GoogleOAuthTokenStrategy.GOOGLE_OAUTH_PREFIX);
+    return context.token.startsWith(
+      GoogleOAuthTokenStrategy.GOOGLE_OAUTH_PREFIX,
+    );
   }
 
   public resolve(): ModelAuthTypeValue {
@@ -57,13 +61,19 @@ export class GoogleOAuthTokenStrategy implements IAuthTypeResolutionStrategy {
  */
 export class CopilotAuthStrategy implements IAuthTypeResolutionStrategy {
   public readonly priority = 30;
-  private static readonly COPILOT_PREFIXES = ['gh', 'github_', 'copilot_'] as const;
+  private static readonly COPILOT_PREFIXES = [
+    "gh",
+    "github_",
+    "copilot_",
+  ] as const;
 
   public supports(context: AuthTypeResolutionContext): boolean {
     if (isCopilotModel(context.model)) {
       return true;
     }
-    return CopilotAuthStrategy.COPILOT_PREFIXES.some((prefix) => context.token.startsWith(prefix));
+    return CopilotAuthStrategy.COPILOT_PREFIXES.some((prefix) =>
+      context.token.startsWith(prefix),
+    );
   }
 
   public resolve(): ModelAuthTypeValue {
@@ -103,10 +113,14 @@ export class AuthTypeResolver {
       new CopilotAuthStrategy(),
       new DefaultApiKeyAuthStrategy(),
     ];
-    this.strategies = Object.freeze([...list].sort((a, b) => a.priority - b.priority));
+    this.strategies = Object.freeze(
+      [...list].sort((a, b) => a.priority - b.priority),
+    );
   }
 
-  public resolveAuthType(context: AuthTypeResolutionContext): ModelAuthTypeValue {
+  public resolveAuthType(
+    context: AuthTypeResolutionContext,
+  ): ModelAuthTypeValue {
     const strategy = this.strategies.find((s) => s.supports(context));
     return strategy ? strategy.resolve(context) : AuthType.API_KEY;
   }

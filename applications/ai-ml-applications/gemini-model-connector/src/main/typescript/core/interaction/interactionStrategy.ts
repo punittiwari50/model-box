@@ -1,26 +1,32 @@
-import { conversationService, type ConversationService } from '@/services/conversation/conversationService.js';
-import { agentService, type AgentService } from '@/services/agent/agentService.js';
-import type { CliExecutionResult } from '@/domain/index.js';
-import type { AgentExecution } from '@/domain/dto/agent.dto.js';
+import {
+  conversationService,
+  type ConversationService,
+} from "@/services/conversation/conversationService.js";
+import {
+  agentService,
+  type AgentService,
+} from "@/services/agent/agentService.js";
+import type { CliExecutionResult } from "@/domain/index.js";
+import type { AgentExecution } from "@/domain/dto/agent.dto.js";
 
 /**
  * Supported Interaction Modes.
  */
 export const InteractionMode = Object.freeze({
-  CONVERSATION: 'conversation',
-  AGENT: 'agent',
+  CONVERSATION: "conversation",
+  AGENT: "agent",
 });
 
 export interface InteractionRequest {
-  readonly mode?: 'conversation' | 'agent' | string;
+  readonly mode?: "conversation" | "agent" | string;
   readonly prompt: string;
   readonly model?: string;
   readonly sessionId?: string;
   readonly systemInstruction?: string;
   readonly contextFiles?: string[];
   readonly apiKey?: string;
-  readonly executionMode?: 'auto' | 'api' | 'cli' | 'websocket' | 'mock';
-  readonly approvalMode?: 'default' | 'yolo' | 'plan-only';
+  readonly executionMode?: "auto" | "api" | "cli" | "websocket" | "mock";
+  readonly approvalMode?: "default" | "yolo" | "plan-only";
   readonly sandbox?: boolean;
   readonly skills?: string[];
   readonly agentName?: string;
@@ -30,7 +36,7 @@ export interface InteractionRequest {
 }
 
 export interface InteractionResponse {
-  readonly mode: 'conversation' | 'agent';
+  readonly mode: "conversation" | "agent";
   readonly success: boolean;
   readonly conversationResult?: CliExecutionResult;
   readonly agentResult?: AgentExecution;
@@ -62,11 +68,17 @@ export class ConversationInteractionStrategy implements IInteractionStrategy {
   }
 
   public supports(mode: string): boolean {
-    const lower = (mode || '').toLowerCase();
-    return lower === InteractionMode.CONVERSATION || lower === 'chat' || lower === 'dialog';
+    const lower = (mode || "").toLowerCase();
+    return (
+      lower === InteractionMode.CONVERSATION ||
+      lower === "chat" ||
+      lower === "dialog"
+    );
   }
 
-  public async execute(request: InteractionRequest): Promise<InteractionResponse> {
+  public async execute(
+    request: InteractionRequest,
+  ): Promise<InteractionResponse> {
     const chatResult = await this.convService.chat({
       content: request.prompt,
       model: request.model,
@@ -74,7 +86,9 @@ export class ConversationInteractionStrategy implements IInteractionStrategy {
       api_key: request.apiKey,
       mode: request.executionMode as any,
       system_instruction: request.systemInstruction,
-      additional_context: request.contextFiles ? request.contextFiles.join('\n') : undefined,
+      additional_context: request.contextFiles
+        ? request.contextFiles.join("\n")
+        : undefined,
     });
     return {
       mode: InteractionMode.CONVERSATION,
@@ -98,16 +112,24 @@ export class AgentInteractionStrategy implements IInteractionStrategy {
   }
 
   public supports(mode: string): boolean {
-    const lower = (mode || '').toLowerCase();
-    return lower === InteractionMode.AGENT || lower === 'autonomous' || lower === 'task';
+    const lower = (mode || "").toLowerCase();
+    return (
+      lower === InteractionMode.AGENT ||
+      lower === "autonomous" ||
+      lower === "task"
+    );
   }
 
-  public async execute(request: InteractionRequest): Promise<InteractionResponse> {
-    const approvalMode = (request.approvalMode === 'plan-only' ? 'plan' : request.approvalMode) as any;
+  public async execute(
+    request: InteractionRequest,
+  ): Promise<InteractionResponse> {
+    const approvalMode = (
+      request.approvalMode === "plan-only" ? "plan" : request.approvalMode
+    ) as any;
     const record = await this.agtService.executeTask({
-      task: request.prompt || request.agentGoal || '',
-      agent_name: request.agentName || 'GeminiAutonomousAgent',
-      project: request.project || request.projectName || 'default',
+      task: request.prompt || request.agentGoal || "",
+      agent_name: request.agentName || "GeminiAutonomousAgent",
+      project: request.project || request.projectName || "default",
       model: request.model,
       approval_mode: approvalMode,
       sandbox: request.sandbox,
@@ -115,9 +137,9 @@ export class AgentInteractionStrategy implements IInteractionStrategy {
     });
     return {
       mode: InteractionMode.AGENT,
-      success: record.status === 'COMPLETED',
+      success: record.status === "COMPLETED",
       agentResult: record,
-      content: record.result || '',
+      content: record.result || "",
       agentId: record.id,
     };
   }
@@ -137,11 +159,11 @@ export class InteractionStrategyRegistry {
     this.defaultStrategy = convStrategy;
 
     this.register(InteractionMode.CONVERSATION, convStrategy);
-    this.register('chat', convStrategy);
-    this.register('dialog', convStrategy);
+    this.register("chat", convStrategy);
+    this.register("dialog", convStrategy);
     this.register(InteractionMode.AGENT, agentStrategy);
-    this.register('autonomous', agentStrategy);
-    this.register('task', agentStrategy);
+    this.register("autonomous", agentStrategy);
+    this.register("task", agentStrategy);
   }
 
   public register(modeKey: string, strategy: IInteractionStrategy): void {
@@ -149,7 +171,7 @@ export class InteractionStrategyRegistry {
   }
 
   public resolve(mode?: string): IInteractionStrategy {
-    const key = (mode || '').toLowerCase();
+    const key = (mode || "").toLowerCase();
     return this.strategies.get(key) || this.defaultStrategy;
   }
 }

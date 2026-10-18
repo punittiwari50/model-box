@@ -1,12 +1,14 @@
-import { AuthStatusConstant, AuthType } from '@/domain/constants/index.js';
+import { AuthStatusConstant, AuthType } from "@/domain/constants/index.js";
 
-export type AuthStatus = (typeof AuthStatusConstant)[keyof typeof AuthStatusConstant];
+export type AuthStatus =
+  (typeof AuthStatusConstant)[keyof typeof AuthStatusConstant];
 export type AuthTypeValue = (typeof AuthType)[keyof typeof AuthType];
 
 /**
  * Domain Database Entity: MODEL_AUTH table.
  */
 export interface ModelAuthEntity {
+  readonly session_id?: string;
   readonly id: string;
   readonly model: string;
   readonly auth_type: AuthTypeValue;
@@ -21,6 +23,6 @@ export interface ModelAuthEntity {
   readonly login_date_time?: string;
   readonly created_timestamp?: string;
   readonly update_timestamp?: string;
-  readonly created_at: string;
-  readonly updated_at: string;
+  readonly created_at?: string;
+  readonly updated_at?: string;
 }

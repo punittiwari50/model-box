@@ -1,7 +1,7 @@
-import { config } from '@/core/config/index.js';
-import { ModelFamily, ModelCatalog } from '@/domain/constants/index.js';
-import type { IModelRunner } from '@/core/cli/modelRunnerInterface.js';
-import { GeminiCliRunner } from '@/core/cli/geminiCliRunner.js';
+import { config } from "@/core/config/index.js";
+import { ModelFamily, ModelCatalog } from "@/domain/constants/index.js";
+import type { IModelRunner } from "@/core/cli/modelRunnerInterface.js";
+import { GeminiCliRunner } from "@/core/cli/geminiCliRunner.js";
 
 /**
  * Concrete Model Runners per Model Family conforming to:
@@ -11,8 +11,10 @@ import { GeminiCliRunner } from '@/core/cli/geminiCliRunner.js';
 export class GeminiModelRunner extends GeminiCliRunner {
   constructor() {
     super(
-      config.getCliCommand(ModelFamily.GEMINI) || config.geminiCliCommand || 'gemini',
-      config.geminiDefaultModel || ModelCatalog.GEMINI_3_5_FLASH
+      config.getCliCommand(ModelFamily.GEMINI) ||
+        config.geminiCliCommand ||
+        "gemini",
+      config.geminiDefaultModel || ModelCatalog.GEMINI_3_5_FLASH,
     );
   }
 }
@@ -20,8 +22,8 @@ export class GeminiModelRunner extends GeminiCliRunner {
 export class ClaudeModelRunner extends GeminiCliRunner {
   constructor() {
     super(
-      config.getCliCommand(ModelFamily.CLAUDE) || 'claude',
-      ModelCatalog.CLAUDE_3_7_SONNET
+      config.getCliCommand(ModelFamily.CLAUDE) || "claude",
+      ModelCatalog.CLAUDE_3_7_SONNET,
     );
   }
 }
@@ -29,8 +31,8 @@ export class ClaudeModelRunner extends GeminiCliRunner {
 export class CopilotModelRunner extends GeminiCliRunner {
   constructor() {
     super(
-      config.getCliCommand(ModelFamily.COPILOT) || 'copilot',
-      ModelCatalog.COPILOT_GPT_4O
+      config.getCliCommand(ModelFamily.COPILOT) || "copilot",
+      ModelCatalog.COPILOT_GPT_4O,
     );
   }
 }
@@ -38,26 +40,23 @@ export class CopilotModelRunner extends GeminiCliRunner {
 export class CodexModelRunner extends GeminiCliRunner {
   constructor() {
     super(
-      config.getCliCommand(ModelFamily.CODEX) || 'codex',
-      ModelCatalog.GPT_4O
+      config.getCliCommand(ModelFamily.CODEX) || "codex",
+      ModelCatalog.GPT_4O,
     );
   }
 }
 
 export class CursorModelRunner extends GeminiCliRunner {
   constructor() {
-    super(
-      config.getCliCommand(ModelFamily.CURSOR) || 'cursor',
-      'cursor-small'
-    );
+    super(config.getCliCommand(ModelFamily.CURSOR) || "cursor", "cursor-small");
   }
 }
 
 export class OllamaModelRunner extends GeminiCliRunner {
   constructor() {
     super(
-      config.getCliCommand(ModelFamily.OLLAMA) || 'ollama',
-      ModelCatalog.LLAMA_3_2
+      config.getCliCommand(ModelFamily.OLLAMA) || "ollama",
+      ModelCatalog.LLAMA_3_2,
     );
   }
 }
@@ -65,8 +64,8 @@ export class OllamaModelRunner extends GeminiCliRunner {
 export class GrokModelRunner extends GeminiCliRunner {
   constructor() {
     super(
-      config.getCliCommand(ModelFamily.GROK) || 'grok',
-      ModelCatalog.GROK_2
+      config.getCliCommand(ModelFamily.GROK) || "grok",
+      ModelCatalog.GROK_2,
     );
   }
 }
@@ -161,4 +160,5 @@ export class ModelRunnerFactory implements IModelRunnerFactory {
 }
 
 export const modelRunnerFactory: IModelRunnerFactory = new ModelRunnerFactory();
-export const defaultModelRunner: IModelRunner = modelRunnerFactory.getDefaultRunner();
+export const defaultModelRunner: IModelRunner =
+  modelRunnerFactory.getDefaultRunner();

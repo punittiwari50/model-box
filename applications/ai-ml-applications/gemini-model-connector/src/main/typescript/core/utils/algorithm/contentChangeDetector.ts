@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import crypto from "node:crypto";
 
 export interface ChangeDetectionResult {
   readonly changed: boolean;
@@ -21,10 +21,10 @@ export class ContentChangeDetector {
    */
   public computeFingerprint(content: string): string {
     if (!content) {
-      return '';
+      return "";
     }
-    const normalized = content.trim().replace(/\s+/g, ' ').toLowerCase();
-    return crypto.createHash('sha256').update(normalized, 'utf8').digest('hex');
+    const normalized = content.trim().replace(/\s+/g, " ").toLowerCase();
+    return crypto.createHash("sha256").update(normalized, "utf8").digest("hex");
   }
 
   /**
@@ -34,14 +34,20 @@ export class ContentChangeDetector {
     if (previousContent === currentContent) {
       return false;
     }
-    return this.computeFingerprint(previousContent) !== this.computeFingerprint(currentContent);
+    return (
+      this.computeFingerprint(previousContent) !==
+      this.computeFingerprint(currentContent)
+    );
   }
 
   /**
    * Computes the semantic similarity score (0.0 to 1.0) between two content strings
    * using token-set Jaccard similarity in O(T) instead of character/line comparison.
    */
-  public computeSimilarity(previousContent: string, currentContent: string): number {
+  public computeSimilarity(
+    previousContent: string,
+    currentContent: string,
+  ): number {
     const prevTokens = this.tokenize(previousContent);
     const currTokens = this.tokenize(currentContent);
 
@@ -60,7 +66,9 @@ export class ContentChangeDetector {
     }
 
     const unionCount = prevTokens.size + currTokens.size - intersectionCount;
-    return unionCount === 0 ? 1.0 : Math.round((intersectionCount / unionCount) * 1000) / 1000;
+    return unionCount === 0
+      ? 1.0
+      : Math.round((intersectionCount / unionCount) * 1000) / 1000;
   }
 
   /**
@@ -68,12 +76,12 @@ export class ContentChangeDetector {
    */
   public detectChanges(
     previous: { title?: string; content: string },
-    current: { title?: string; content: string }
+    current: { title?: string; content: string },
   ): ChangeDetectionResult {
-    const prevTitle = (previous.title || '').trim().replace(/\s+/g, ' ');
-    const prevContent = (previous.content || '').trim().replace(/\s+/g, ' ');
-    const currTitle = (current.title || '').trim().replace(/\s+/g, ' ');
-    const currContent = (current.content || '').trim().replace(/\s+/g, ' ');
+    const prevTitle = (previous.title || "").trim().replace(/\s+/g, " ");
+    const prevContent = (previous.content || "").trim().replace(/\s+/g, " ");
+    const currTitle = (current.title || "").trim().replace(/\s+/g, " ");
+    const currContent = (current.content || "").trim().replace(/\s+/g, " ");
 
     const prevCompound = `${prevTitle}::${prevContent}`;
     const currCompound = `${currTitle}::${currContent}`;
@@ -82,7 +90,9 @@ export class ContentChangeDetector {
     const currFp = this.computeFingerprint(currCompound);
 
     const changed = prevFp !== currFp;
-    const similarity = changed ? this.computeSimilarity(prevCompound, currCompound) : 1.0;
+    const similarity = changed
+      ? this.computeSimilarity(prevCompound, currCompound)
+      : 1.0;
 
     return {
       changed,
@@ -95,7 +105,7 @@ export class ContentChangeDetector {
   private tokenize(text: string): Set<string> {
     const tokens = text
       .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
+      .replace(/[^\w\s]/g, " ")
       .split(/\s+/)
       .filter((t) => t.length > 2);
     return new Set(tokens);

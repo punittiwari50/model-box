@@ -1,10 +1,10 @@
-import { ModelCatalog } from '@/domain/constants/index.js';
-import type { IOAuthProvider } from '@/core/adapters/auth/oauth/iOAuthProvider.js';
-import { GoogleOAuthProvider } from '@/core/adapters/auth/oauth/googleOAuthProvider.js';
-import { AnthropicOAuthProvider } from '@/core/adapters/auth/oauth/anthropicOAuthProvider.js';
-import { OpenAiOAuthProvider } from '@/core/adapters/auth/oauth/openAiOAuthProvider.js';
-import { CopilotOAuthProvider } from '@/core/adapters/auth/oauth/copilotOAuthProvider.js';
-import { OllamaOAuthProvider } from '@/core/adapters/auth/oauth/ollamaOAuthProvider.js';
+import { ModelCatalog } from "@/domain/constants/index.js";
+import type { IOAuthProvider } from "@/core/adapters/auth/oauth/iOAuthProvider.js";
+import { GoogleOAuthProvider } from "@/core/adapters/auth/oauth/googleOAuthProvider.js";
+import { AnthropicOAuthProvider } from "@/core/adapters/auth/oauth/anthropicOAuthProvider.js";
+import { OpenAiOAuthProvider } from "@/core/adapters/auth/oauth/openAiOAuthProvider.js";
+import { CopilotOAuthProvider } from "@/core/adapters/auth/oauth/copilotOAuthProvider.js";
+import { OllamaOAuthProvider } from "@/core/adapters/auth/oauth/ollamaOAuthProvider.js";
 
 /**
  * Type-Safe Factory Registry for OAuth & Authentication Providers.
@@ -28,7 +28,9 @@ export class OAuthProviderRegistry {
   /**
    * Dispatches to matching provider strategy in O(1) without if/else or switch ladders.
    */
-  public getProvider(modelOrProvider: string = ModelCatalog.DEFAULT): IOAuthProvider {
+  public getProvider(
+    modelOrProvider: string = ModelCatalog.DEFAULT,
+  ): IOAuthProvider {
     const found = this.providers.find((p) => p.supports(modelOrProvider));
     if (found) {
       return found;

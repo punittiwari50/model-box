@@ -1,5 +1,8 @@
-import type { Environment } from '@/core/config/environment.js';
-import { ModelFamily, SubscriptionPolicyConstant } from '@/domain/constants/index.js';
+import type { Environment } from "@/core/config/environment.js";
+import {
+  ModelFamily,
+  SubscriptionPolicyConstant,
+} from "@/domain/constants/index.js";
 
 export interface ModelHyperparameters {
   readonly temperature: number;
@@ -22,20 +25,44 @@ export const DEFAULT_HYPERPARAMETERS: ModelHyperparameters = Object.freeze({
 export function resolveHyperparameters(
   subscriptionParams?: Partial<ModelHyperparameters>,
   dbOverrides?: Partial<ModelHyperparameters>,
-  requestOverrides?: Partial<ModelHyperparameters>
+  requestOverrides?: Partial<ModelHyperparameters>,
 ): ModelHyperparameters {
   return Object.freeze({
-    temperature: requestOverrides?.temperature ?? dbOverrides?.temperature ?? subscriptionParams?.temperature ?? DEFAULT_HYPERPARAMETERS.temperature,
-    topP: requestOverrides?.topP ?? dbOverrides?.topP ?? subscriptionParams?.topP ?? DEFAULT_HYPERPARAMETERS.topP,
-    maxOutputTokens: requestOverrides?.maxOutputTokens ?? dbOverrides?.maxOutputTokens ?? subscriptionParams?.maxOutputTokens ?? DEFAULT_HYPERPARAMETERS.maxOutputTokens,
-    timeoutMs: requestOverrides?.timeoutMs ?? dbOverrides?.timeoutMs ?? subscriptionParams?.timeoutMs ?? DEFAULT_HYPERPARAMETERS.timeoutMs,
-    allowMockFallback: requestOverrides?.allowMockFallback ?? dbOverrides?.allowMockFallback ?? subscriptionParams?.allowMockFallback ?? DEFAULT_HYPERPARAMETERS.allowMockFallback,
-    fallbackThresholdPercentage: requestOverrides?.fallbackThresholdPercentage ?? dbOverrides?.fallbackThresholdPercentage ?? subscriptionParams?.fallbackThresholdPercentage ?? DEFAULT_HYPERPARAMETERS.fallbackThresholdPercentage,
+    temperature:
+      requestOverrides?.temperature ??
+      dbOverrides?.temperature ??
+      subscriptionParams?.temperature ??
+      DEFAULT_HYPERPARAMETERS.temperature,
+    topP:
+      requestOverrides?.topP ??
+      dbOverrides?.topP ??
+      subscriptionParams?.topP ??
+      DEFAULT_HYPERPARAMETERS.topP,
+    maxOutputTokens:
+      requestOverrides?.maxOutputTokens ??
+      dbOverrides?.maxOutputTokens ??
+      subscriptionParams?.maxOutputTokens ??
+      DEFAULT_HYPERPARAMETERS.maxOutputTokens,
+    timeoutMs:
+      requestOverrides?.timeoutMs ??
+      dbOverrides?.timeoutMs ??
+      subscriptionParams?.timeoutMs ??
+      DEFAULT_HYPERPARAMETERS.timeoutMs,
+    allowMockFallback:
+      requestOverrides?.allowMockFallback ??
+      dbOverrides?.allowMockFallback ??
+      subscriptionParams?.allowMockFallback ??
+      DEFAULT_HYPERPARAMETERS.allowMockFallback,
+    fallbackThresholdPercentage:
+      requestOverrides?.fallbackThresholdPercentage ??
+      dbOverrides?.fallbackThresholdPercentage ??
+      subscriptionParams?.fallbackThresholdPercentage ??
+      DEFAULT_HYPERPARAMETERS.fallbackThresholdPercentage,
   });
 }
 
 export interface ModelSubscriptionConfig {
-  readonly tier: 'paid' | 'freeware';
+  readonly tier: "paid" | "freeware";
   readonly accountEmail: string;
   readonly accountName: string;
   readonly hyperparameters?: Partial<ModelHyperparameters>;
@@ -55,7 +82,7 @@ export interface ModelProviderConfig {
   readonly timeoutMs?: number;
   readonly accountEmail?: string;
   readonly accountName?: string;
-  readonly tier?: 'paid' | 'freeware';
+  readonly tier?: "paid" | "freeware";
   readonly subscriptions?: ModelSubscriptionsGroup;
   readonly [key: string]: any;
 }
@@ -71,21 +98,53 @@ export class ModelProperties {
   public readonly fallbackThresholdPercentage: number;
   public readonly cliCommand: string;
   public readonly cliTimeoutMs: number;
-  public readonly executionMode: 'auto' | 'api' | 'cli' | 'mock';
+  public readonly executionMode: "auto" | "api" | "cli" | "mock";
   public readonly allowMockFallback: boolean;
   public readonly subscriptionPolicy: string;
   private readonly providers: Map<string, ModelProviderConfig> = new Map();
 
   constructor(env: Environment) {
-    this.defaultModel = env.getProperty('model.default', env.getProperty('model.default_model', env.getProperty('GEMINI_DEFAULT_MODEL', 'gemini-3.8-flash')));
-    this.fallbackModel = env.getProperty('model.fallback', env.getProperty('FALLBACK_MODEL', 'tinyllama'));
-    this.fallbackThresholdPercentage = env.getPropertyAsNumber('model.fallbackThresholdPercentage', env.getPropertyAsNumber('FALLBACK_THRESHOLD_PERCENTAGE', 90));
-    this.cliCommand = env.getProperty('model.cliCommand', env.getProperty('GEMINI_CLI_COMMAND', 'gemini'));
-    this.cliTimeoutMs = env.getPropertyAsNumber('model.cliTimeoutMs', env.getPropertyAsNumber('model.timeoutMs', 120000));
-    const mode = env.getProperty('model.executionMode', env.getProperty('GEMINI_EXECUTION_MODE', 'auto'));
-    this.executionMode = ['auto', 'api', 'cli', 'mock'].includes(mode) ? (mode as any) : 'auto';
-    this.allowMockFallback = env.getPropertyAsBoolean('model.allowMockFallback', env.getPropertyAsBoolean('ALLOW_MOCK_FALLBACK', false));
-    this.subscriptionPolicy = env.getProperty('models.subscription.policy', env.getProperty('SUBSCRIPTION_POLICY', SubscriptionPolicyConstant.PAID_FIRST));
+    this.defaultModel = env.getProperty(
+      "model.default",
+      env.getProperty(
+        "model.default_model",
+        env.getProperty("GEMINI_DEFAULT_MODEL", "gemini-3.8-flash"),
+      ),
+    );
+    this.fallbackModel = env.getProperty(
+      "model.fallback",
+      env.getProperty("FALLBACK_MODEL", "tinyllama"),
+    );
+    this.fallbackThresholdPercentage = env.getPropertyAsNumber(
+      "model.fallbackThresholdPercentage",
+      env.getPropertyAsNumber("FALLBACK_THRESHOLD_PERCENTAGE", 90),
+    );
+    this.cliCommand = env.getProperty(
+      "model.cliCommand",
+      env.getProperty("GEMINI_CLI_COMMAND", "gemini"),
+    );
+    this.cliTimeoutMs = env.getPropertyAsNumber(
+      "model.cliTimeoutMs",
+      env.getPropertyAsNumber("model.timeoutMs", 120000),
+    );
+    const mode = env.getProperty(
+      "model.executionMode",
+      env.getProperty("GEMINI_EXECUTION_MODE", "auto"),
+    );
+    this.executionMode = ["auto", "api", "cli", "mock"].includes(mode)
+      ? (mode as any)
+      : "auto";
+    this.allowMockFallback = env.getPropertyAsBoolean(
+      "model.allowMockFallback",
+      env.getPropertyAsBoolean("ALLOW_MOCK_FALLBACK", false),
+    );
+    this.subscriptionPolicy = env.getProperty(
+      "models.subscription.policy",
+      env.getProperty(
+        "SUBSCRIPTION_POLICY",
+        SubscriptionPolicyConstant.PAID_FIRST,
+      ),
+    );
 
     this.initializeProviders(env);
   }
@@ -105,25 +164,95 @@ export class ModelProperties {
     }
   }
 
-  private buildProviderConfig(env: Environment, family: string): ModelProviderConfig {
+  private buildProviderConfig(
+    env: Environment,
+    family: string,
+  ): ModelProviderConfig {
     const upper = family.toUpperCase();
-    const cli = env.getProperty(`${upper}_CLI_COMMAND`, env.getProperty(`models.${family}.cli`, env.getProperty(`model.${family}.cli`, family)));
-    const model = env.getProperty(`${upper}_DEFAULT_MODEL`, env.getProperty(`models.${family}.model`, env.getProperty(`model.${family}.model`, '')));
+    const cli = env.getProperty(
+      `${upper}_CLI_COMMAND`,
+      env.getProperty(
+        `models.${family}.cli`,
+        env.getProperty(`model.${family}.cli`, family),
+      ),
+    );
+    const model = env.getProperty(
+      `${upper}_DEFAULT_MODEL`,
+      env.getProperty(
+        `models.${family}.model`,
+        env.getProperty(`model.${family}.model`, ""),
+      ),
+    );
     const apiKey =
       env.getProperty(`models.${family}.apiKey`) ||
       env.getProperty(`model.${family}.apiKey`) ||
-      env.getProperty('model.apiKey') ||
+      env.getProperty("model.apiKey") ||
       env.getProperty(`${upper}_API_KEY`);
-    const apiBaseUrl = env.getProperty(`${upper}_BASE_URL`, env.getProperty(`models.${family}.apiBaseUrl`, env.getProperty(`model.${family}.apiBaseUrl`, '')));
-    const maxTokens = env.getPropertyAsNumber(`models.${family}.maxTokens`, env.getPropertyAsNumber(`model.${family}.maxTokens`, 1000000));
-    const timeoutMs = env.getPropertyAsNumber(`models.${family}.timeoutMs`, env.getPropertyAsNumber(`model.${family}.timeoutMs`, this.cliTimeoutMs));
-    const accountEmail = env.getProperty(`${upper}_ACCOUNT_EMAIL`, env.getProperty(`models.${family}.accountEmail`, env.getProperty(`model.${family}.accountEmail`, env.getProperty('auth.defaultAccount.email', 'default@modelbox.local'))));
-    const accountName = env.getProperty(`${upper}_ACCOUNT_NAME`, env.getProperty(`models.${family}.accountName`, env.getProperty(`model.${family}.accountName`, env.getProperty('auth.defaultAccount.name', 'Default Account'))));
-    const rawTier = env.getProperty(`${upper}_TIER`, env.getProperty(`models.${family}.tier`, env.getProperty(`model.${family}.tier`, family === ModelFamily.OLLAMA ? 'freeware' : 'paid')));
-    const tier: 'paid' | 'freeware' = rawTier.toLowerCase() === 'freeware' ? 'freeware' : 'paid';
+    const apiBaseUrl = env.getProperty(
+      `${upper}_BASE_URL`,
+      env.getProperty(
+        `models.${family}.apiBaseUrl`,
+        env.getProperty(`model.${family}.apiBaseUrl`, ""),
+      ),
+    );
+    const maxTokens = env.getPropertyAsNumber(
+      `models.${family}.maxTokens`,
+      env.getPropertyAsNumber(`model.${family}.maxTokens`, 1000000),
+    );
+    const timeoutMs = env.getPropertyAsNumber(
+      `models.${family}.timeoutMs`,
+      env.getPropertyAsNumber(`model.${family}.timeoutMs`, this.cliTimeoutMs),
+    );
+    const accountEmail = env.getProperty(
+      `${upper}_ACCOUNT_EMAIL`,
+      env.getProperty(
+        `models.${family}.accountEmail`,
+        env.getProperty(
+          `model.${family}.accountEmail`,
+          env.getProperty(
+            "auth.defaultAccount.email",
+            "default@modelbox.local",
+          ),
+        ),
+      ),
+    );
+    const accountName = env.getProperty(
+      `${upper}_ACCOUNT_NAME`,
+      env.getProperty(
+        `models.${family}.accountName`,
+        env.getProperty(
+          `model.${family}.accountName`,
+          env.getProperty("auth.defaultAccount.name", "Default Account"),
+        ),
+      ),
+    );
+    const rawTier = env.getProperty(
+      `${upper}_TIER`,
+      env.getProperty(
+        `models.${family}.tier`,
+        env.getProperty(
+          `model.${family}.tier`,
+          family === ModelFamily.OLLAMA ? "freeware" : "paid",
+        ),
+      ),
+    );
+    const tier: "paid" | "freeware" =
+      rawTier.toLowerCase() === "freeware" ? "freeware" : "paid";
 
-    const paidList = this.loadSubscriptionList(env, family, 'paid', accountEmail, `${accountName} (Paid)`);
-    const freeList = this.loadSubscriptionList(env, family, 'freeware', env.getProperty('auth.defaultAccount.email', 'free@modelbox.local'), `${accountName} (Freeware)`);
+    const paidList = this.loadSubscriptionList(
+      env,
+      family,
+      "paid",
+      accountEmail,
+      `${accountName} (Paid)`,
+    );
+    const freeList = this.loadSubscriptionList(
+      env,
+      family,
+      "freeware",
+      env.getProperty("auth.defaultAccount.email", "free@modelbox.local"),
+      `${accountName} (Freeware)`,
+    );
 
     return Object.freeze({
       cli,
@@ -142,59 +271,113 @@ export class ModelProperties {
   private loadSubscriptionList(
     env: Environment,
     family: string,
-    tier: 'paid' | 'freeware',
+    tier: "paid" | "freeware",
     defaultEmail: string,
-    defaultName: string
+    defaultName: string,
   ): readonly ModelSubscriptionConfig[] {
     const list: ModelSubscriptionConfig[] = [];
     let idx = 0;
     while (true) {
-      const email = env.getProperty(`models.${family}.subscriptions.${tier}.${idx}.accountEmail`);
+      const email = env.getProperty(
+        `models.${family}.subscriptions.${tier}.${idx}.accountEmail`,
+      );
       if (!email) break;
-      const name = env.getProperty(`models.${family}.subscriptions.${tier}.${idx}.accountName`, defaultName);
-      const hyperparams = this.extractHyperparameters(env, `models.${family}.subscriptions.${tier}.${idx}`);
-      list.push(Object.freeze({ tier, accountEmail: email, accountName: name, hyperparameters: hyperparams }));
+      const name = env.getProperty(
+        `models.${family}.subscriptions.${tier}.${idx}.accountName`,
+        defaultName,
+      );
+      const hyperparams = this.extractHyperparameters(
+        env,
+        `models.${family}.subscriptions.${tier}.${idx}`,
+      );
+      list.push(
+        Object.freeze({
+          tier,
+          accountEmail: email,
+          accountName: name,
+          hyperparameters: hyperparams,
+        }),
+      );
       idx++;
     }
 
     if (list.length === 0) {
-      const singleEmail = env.getProperty(`models.${family}.subscriptions.${tier}.accountEmail`, defaultEmail);
-      const singleName = env.getProperty(`models.${family}.subscriptions.${tier}.accountName`, defaultName);
-      const hyperparams = this.extractHyperparameters(env, `models.${family}.subscriptions.${tier}`);
-      list.push(Object.freeze({ tier, accountEmail: singleEmail, accountName: singleName, hyperparameters: hyperparams }));
+      const singleEmail = env.getProperty(
+        `models.${family}.subscriptions.${tier}.accountEmail`,
+        defaultEmail,
+      );
+      const singleName = env.getProperty(
+        `models.${family}.subscriptions.${tier}.accountName`,
+        defaultName,
+      );
+      const hyperparams = this.extractHyperparameters(
+        env,
+        `models.${family}.subscriptions.${tier}`,
+      );
+      list.push(
+        Object.freeze({
+          tier,
+          accountEmail: singleEmail,
+          accountName: singleName,
+          hyperparameters: hyperparams,
+        }),
+      );
     }
     return Object.freeze(list);
   }
 
-  private extractHyperparameters(env: Environment, prefix: string): Partial<ModelHyperparameters> | undefined {
+  private extractHyperparameters(
+    env: Environment,
+    prefix: string,
+  ): Partial<ModelHyperparameters> | undefined {
     const params: Partial<ModelHyperparameters> = {};
     if (env.containsProperty(`${prefix}.temperature`)) {
-      (params as any).temperature = env.getPropertyAsNumber(`${prefix}.temperature`);
+      (params as any).temperature = env.getPropertyAsNumber(
+        `${prefix}.temperature`,
+      );
     }
     if (env.containsProperty(`${prefix}.topP`)) {
       (params as any).topP = env.getPropertyAsNumber(`${prefix}.topP`);
     }
     if (env.containsProperty(`${prefix}.maxOutputTokens`)) {
-      (params as any).maxOutputTokens = env.getPropertyAsNumber(`${prefix}.maxOutputTokens`);
+      (params as any).maxOutputTokens = env.getPropertyAsNumber(
+        `${prefix}.maxOutputTokens`,
+      );
     }
     if (env.containsProperty(`${prefix}.timeoutMs`)) {
-      (params as any).timeoutMs = env.getPropertyAsNumber(`${prefix}.timeoutMs`);
+      (params as any).timeoutMs = env.getPropertyAsNumber(
+        `${prefix}.timeoutMs`,
+      );
     }
     if (env.containsProperty(`${prefix}.allowMockFallback`)) {
-      (params as any).allowMockFallback = env.getPropertyAsBoolean(`${prefix}.allowMockFallback`);
+      (params as any).allowMockFallback = env.getPropertyAsBoolean(
+        `${prefix}.allowMockFallback`,
+      );
     }
     if (env.containsProperty(`${prefix}.fallbackThresholdPercentage`)) {
-      (params as any).fallbackThresholdPercentage = env.getPropertyAsNumber(`${prefix}.fallbackThresholdPercentage`);
+      (params as any).fallbackThresholdPercentage = env.getPropertyAsNumber(
+        `${prefix}.fallbackThresholdPercentage`,
+      );
     }
     return Object.keys(params).length > 0 ? Object.freeze(params) : undefined;
   }
 
-  public getSubscriptions(familyOrModel: string, tier: 'paid' | 'freeware'): readonly ModelSubscriptionConfig[] {
+  public getSubscriptions(
+    familyOrModel: string,
+    tier: "paid" | "freeware",
+  ): readonly ModelSubscriptionConfig[] {
     const conf = this.getModelConfig(familyOrModel);
-    return conf.subscriptions?.[tier] || Object.freeze([this.getSubscription(familyOrModel, tier)]);
+    return (
+      conf.subscriptions?.[tier] ||
+      Object.freeze([this.getSubscription(familyOrModel, tier)])
+    );
   }
 
-  public getSubscription(familyOrModel: string, tier: 'paid' | 'freeware', index = 0): ModelSubscriptionConfig {
+  public getSubscription(
+    familyOrModel: string,
+    tier: "paid" | "freeware",
+    index = 0,
+  ): ModelSubscriptionConfig {
     const conf = this.getModelConfig(familyOrModel);
     const list = conf.subscriptions?.[tier];
     if (list && list[index]) {
@@ -205,17 +388,24 @@ export class ModelProperties {
     }
     return Object.freeze({
       tier,
-      accountEmail: conf.accountEmail || 'default@modelbox.local',
-      accountName: conf.accountName || 'Default Account',
+      accountEmail: conf.accountEmail || "default@modelbox.local",
+      accountName: conf.accountName || "Default Account",
     });
   }
 
-  public getModelSubscriptions(familyOrModel: string): readonly ModelSubscriptionConfig[] {
+  public getModelSubscriptions(
+    familyOrModel: string,
+  ): readonly ModelSubscriptionConfig[] {
     const conf = this.getModelConfig(familyOrModel);
     if (conf.subscriptions) {
-      return Object.freeze([...conf.subscriptions.paid, ...conf.subscriptions.freeware]);
+      return Object.freeze([
+        ...conf.subscriptions.paid,
+        ...conf.subscriptions.freeware,
+      ]);
     }
-    return Object.freeze([this.getSubscription(familyOrModel, this.getModelTier(familyOrModel))]);
+    return Object.freeze([
+      this.getSubscription(familyOrModel, this.getModelTier(familyOrModel)),
+    ]);
   }
 
   public getModelConfig(familyOrModel: string): ModelProviderConfig {
@@ -240,37 +430,61 @@ export class ModelProperties {
   }
 
   public getAccountEmail(familyOrModel: string): string {
-    return this.getModelConfig(familyOrModel).accountEmail || 'default@modelbox.local';
+    return (
+      this.getModelConfig(familyOrModel).accountEmail ||
+      "default@modelbox.local"
+    );
   }
 
   public getAccountName(familyOrModel: string): string {
-    return this.getModelConfig(familyOrModel).accountName || 'Default Account';
+    return this.getModelConfig(familyOrModel).accountName || "Default Account";
   }
 
-  public getModelTier(familyOrModel: string): 'paid' | 'freeware' {
+  public getModelTier(familyOrModel: string): "paid" | "freeware" {
     const conf = this.getModelConfig(familyOrModel);
-    if (conf.tier === 'paid' || conf.tier === 'freeware') {
+    if (conf.tier === "paid" || conf.tier === "freeware") {
       return conf.tier;
     }
-    return this.isFallbackModel(familyOrModel) ? 'freeware' : 'paid';
+    return this.isFallbackModel(familyOrModel) ? "freeware" : "paid";
   }
 
   public isFallbackModel(familyOrModel: string): boolean {
     const key = this.resolveFamilyKey(familyOrModel);
-    return key === ModelFamily.OLLAMA || (familyOrModel || '').toLowerCase().includes(this.fallbackModel.toLowerCase());
+    return (
+      key === ModelFamily.OLLAMA ||
+      (familyOrModel || "")
+        .toLowerCase()
+        .includes(this.fallbackModel.toLowerCase())
+    );
   }
 
   public resolveFamilyKey(familyOrModel: string): string {
-    const lower = (familyOrModel || '').toLowerCase();
-    if (lower.includes('ollama') || lower.includes('llama') || lower.includes('qwen') || lower.includes('phi') || lower.includes('gemma') || lower.includes('deepseek') || lower.includes('nemotron') || lower.includes('minicpm')) {
+    const lower = (familyOrModel || "").toLowerCase();
+    if (
+      lower.includes("ollama") ||
+      lower.includes("llama") ||
+      lower.includes("qwen") ||
+      lower.includes("phi") ||
+      lower.includes("gemma") ||
+      lower.includes("deepseek") ||
+      lower.includes("nemotron") ||
+      lower.includes("minicpm")
+    ) {
       return ModelFamily.OLLAMA;
     }
     if (lower.includes(ModelFamily.GEMINI)) return ModelFamily.GEMINI;
-    if (lower.includes(ModelFamily.CLAUDE) || lower.includes('anthropic')) return ModelFamily.CLAUDE;
-    if (lower.includes('gpt') || lower.includes(ModelFamily.CODEX) || lower.includes('openai')) return ModelFamily.CODEX;
+    if (lower.includes(ModelFamily.CLAUDE) || lower.includes("anthropic"))
+      return ModelFamily.CLAUDE;
+    if (
+      lower.includes("gpt") ||
+      lower.includes(ModelFamily.CODEX) ||
+      lower.includes("openai")
+    )
+      return ModelFamily.CODEX;
     if (lower.includes(ModelFamily.CURSOR)) return ModelFamily.CURSOR;
     if (lower.includes(ModelFamily.COPILOT)) return ModelFamily.COPILOT;
-    if (lower.includes(ModelFamily.GROK) || lower.includes('xai')) return ModelFamily.GROK;
+    if (lower.includes(ModelFamily.GROK) || lower.includes("xai"))
+      return ModelFamily.GROK;
     return lower;
   }
 }

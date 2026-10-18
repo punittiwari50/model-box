@@ -1,1 +1,1 @@
-export * from '@/core/web/helper/responseHelper.js';
+export * from "@/core/web/helper/responseHelper.js";

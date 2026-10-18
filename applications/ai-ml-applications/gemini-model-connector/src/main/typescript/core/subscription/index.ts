@@ -1,1 +1,1 @@
-export * from '@/core/subscription/subscriptionManager.js';
+export * from "@/core/subscription/subscriptionManager.js";

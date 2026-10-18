@@ -14,7 +14,7 @@ export class RetryPolicy {
 
   constructor(
     public readonly name: string,
-    config: Partial<RetryConfig> = {}
+    config: Partial<RetryConfig> = {},
   ) {
     this.config = {
       maxAttempts: config.maxAttempts ?? 3,

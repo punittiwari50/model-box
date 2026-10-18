@@ -7,7 +7,7 @@ import {
   COPILOT_MODELS,
   OLLAMA_MODELS,
   GROK_MODELS,
-} from '@/domain/constants/index.js';
+} from "@/domain/constants/index.js";
 
 export interface AgentExecutionContext {
   readonly agentName: string;
@@ -33,7 +33,7 @@ abstract class BaseAgentModelStrategy implements IAgentModelStrategy {
   protected abstract readonly supportedKeys: ReadonlySet<string>;
 
   public supports(model: string): boolean {
-    const key = (model || '').toLowerCase();
+    const key = (model || "").toLowerCase();
     return this.supportedKeys.has(key) || key.includes(this.family);
   }
 
@@ -42,11 +42,14 @@ abstract class BaseAgentModelStrategy implements IAgentModelStrategy {
   public abstract getSupportedSkills(): readonly string[];
 
   public formatSystemInstruction(ctx: AgentExecutionContext): string {
-    const skillsList = ctx.skills.length > 0 ? ctx.skills.join(', ') : 'standard-agent-capabilities';
+    const skillsList =
+      ctx.skills.length > 0
+        ? ctx.skills.join(", ")
+        : "standard-agent-capabilities";
     return (
       `You are ${ctx.agentName}, an autonomous ${this.family.toUpperCase()} engineering agent.\n` +
       `Workspace Scope: ${ctx.project} (Directory: ${ctx.projectDir})\n` +
-      `Approval Mode: ${ctx.approvalMode} | Sandbox: ${ctx.sandbox ? 'ENABLED' : 'DISABLED'}\n` +
+      `Approval Mode: ${ctx.approvalMode} | Sandbox: ${ctx.sandbox ? "ENABLED" : "DISABLED"}\n` +
       `Active Skills: ${skillsList}\n` +
       `Operate autonomously within the workspace. Formulate structured solutions, inspect files, and generate implementation artifacts.`
     );
@@ -71,12 +74,12 @@ export class GeminiAgentStrategy extends BaseAgentModelStrategy {
   protected readonly supportedKeys = new Set<string>([
     ModelFamily.GEMINI,
     ModelFamily.GOOGLE,
-    'default',
+    "default",
     ...GEMINI_MODELS,
   ]);
 
   public getDefaultAgentName(): string {
-    return 'GeminiAutonomousAgent';
+    return "GeminiAutonomousAgent";
   }
 
   public getToolName(): string {
@@ -85,10 +88,10 @@ export class GeminiAgentStrategy extends BaseAgentModelStrategy {
 
   public getSupportedSkills(): readonly string[] {
     return Object.freeze([
-      'gemini-code-generation',
-      'gemini-workspace-inspector',
-      'gemini-artifact-builder',
-      'gemini-review-engine',
+      "gemini-code-generation",
+      "gemini-workspace-inspector",
+      "gemini-artifact-builder",
+      "gemini-review-engine",
     ]);
   }
 }
@@ -105,7 +108,7 @@ export class ClaudeAgentStrategy extends BaseAgentModelStrategy {
   ]);
 
   public getDefaultAgentName(): string {
-    return 'ClaudeAutonomousAgent';
+    return "ClaudeAutonomousAgent";
   }
 
   public getToolName(): string {
@@ -114,10 +117,10 @@ export class ClaudeAgentStrategy extends BaseAgentModelStrategy {
 
   public getSupportedSkills(): readonly string[] {
     return Object.freeze([
-      'claude-system-architecture',
-      'claude-long-context-analysis',
-      'claude-safe-tool-use',
-      'claude-step-planner',
+      "claude-system-architecture",
+      "claude-long-context-analysis",
+      "claude-safe-tool-use",
+      "claude-step-planner",
     ]);
   }
 }
@@ -134,7 +137,7 @@ export class CodexAgentStrategy extends BaseAgentModelStrategy {
   ]);
 
   public getDefaultAgentName(): string {
-    return 'CodexAutonomousAgent';
+    return "CodexAutonomousAgent";
   }
 
   public getToolName(): string {
@@ -143,10 +146,10 @@ export class CodexAgentStrategy extends BaseAgentModelStrategy {
 
   public getSupportedSkills(): readonly string[] {
     return Object.freeze([
-      'codex-python-executor',
-      'codex-algorithm-design',
-      'codex-security-audit',
-      'codex-api-spec',
+      "codex-python-executor",
+      "codex-algorithm-design",
+      "codex-security-audit",
+      "codex-api-spec",
     ]);
   }
 }
@@ -158,11 +161,11 @@ export class CursorAgentStrategy extends BaseAgentModelStrategy {
   public readonly family = ModelFamily.CURSOR;
   protected readonly supportedKeys = new Set<string>([
     ModelFamily.CURSOR,
-    'cursor-default',
+    "cursor-default",
   ]);
 
   public getDefaultAgentName(): string {
-    return 'CursorAutonomousAgent';
+    return "CursorAutonomousAgent";
   }
 
   public getToolName(): string {
@@ -171,10 +174,10 @@ export class CursorAgentStrategy extends BaseAgentModelStrategy {
 
   public getSupportedSkills(): readonly string[] {
     return Object.freeze([
-      'cursor-multi-file-edit',
-      'cursor-symbol-indexer',
-      'cursor-terminal-runner',
-      'cursor-diff-patcher',
+      "cursor-multi-file-edit",
+      "cursor-symbol-indexer",
+      "cursor-terminal-runner",
+      "cursor-diff-patcher",
     ]);
   }
 }
@@ -190,7 +193,7 @@ export class CopilotAgentStrategy extends BaseAgentModelStrategy {
   ]);
 
   public getDefaultAgentName(): string {
-    return 'CopilotAutonomousAgent';
+    return "CopilotAutonomousAgent";
   }
 
   public getToolName(): string {
@@ -199,10 +202,10 @@ export class CopilotAgentStrategy extends BaseAgentModelStrategy {
 
   public getSupportedSkills(): readonly string[] {
     return Object.freeze([
-      'copilot-code-completion',
-      'copilot-test-generation',
-      'copilot-refactoring',
-      'copilot-pr-review',
+      "copilot-code-completion",
+      "copilot-test-generation",
+      "copilot-refactoring",
+      "copilot-pr-review",
     ]);
   }
 }
@@ -218,14 +221,18 @@ export class OllamaAgentStrategy extends BaseAgentModelStrategy {
   ]);
 
   public override supports(model: string): boolean {
-    const key = (model || '').toLowerCase();
-    const isLlama = key.includes('llama') || key.includes('qwen') || key.includes('phi');
-    const isDeep = key.includes('deepseek') || key.includes('gemma') || key.includes('nemotron');
+    const key = (model || "").toLowerCase();
+    const isLlama =
+      key.includes("llama") || key.includes("qwen") || key.includes("phi");
+    const isDeep =
+      key.includes("deepseek") ||
+      key.includes("gemma") ||
+      key.includes("nemotron");
     return super.supports(model) || isLlama || isDeep;
   }
 
   public getDefaultAgentName(): string {
-    return 'OllamaAutonomousAgent';
+    return "OllamaAutonomousAgent";
   }
 
   public getToolName(): string {
@@ -234,10 +241,10 @@ export class OllamaAgentStrategy extends BaseAgentModelStrategy {
 
   public getSupportedSkills(): readonly string[] {
     return Object.freeze([
-      'ollama-local-code-exec',
-      'ollama-file-analysis',
-      'ollama-offline-reasoning',
-      'ollama-rag-search',
+      "ollama-local-code-exec",
+      "ollama-file-analysis",
+      "ollama-offline-reasoning",
+      "ollama-rag-search",
     ]);
   }
 }
@@ -254,7 +261,7 @@ export class GrokAgentStrategy extends BaseAgentModelStrategy {
   ]);
 
   public getDefaultAgentName(): string {
-    return 'GrokAutonomousAgent';
+    return "GrokAutonomousAgent";
   }
 
   public getToolName(): string {
@@ -263,10 +270,10 @@ export class GrokAgentStrategy extends BaseAgentModelStrategy {
 
   public getSupportedSkills(): readonly string[] {
     return Object.freeze([
-      'grok-realtime-reasoning',
-      'grok-deep-research',
-      'grok-architecture-design',
-      'grok-code-synthesis',
+      "grok-realtime-reasoning",
+      "grok-deep-research",
+      "grok-architecture-design",
+      "grok-code-synthesis",
     ]);
   }
 }
@@ -283,7 +290,7 @@ export class GenericAgentStrategy extends BaseAgentModelStrategy {
   }
 
   public getDefaultAgentName(): string {
-    return 'AutonomousEngineeringAgent';
+    return "AutonomousEngineeringAgent";
   }
 
   public getToolName(): string {
@@ -292,9 +299,9 @@ export class GenericAgentStrategy extends BaseAgentModelStrategy {
 
   public getSupportedSkills(): readonly string[] {
     return Object.freeze([
-      'general-code-synthesis',
-      'general-file-io',
-      'general-reasoning',
+      "general-code-synthesis",
+      "general-file-io",
+      "general-reasoning",
     ]);
   }
 }

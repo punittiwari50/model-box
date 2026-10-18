@@ -1,12 +1,17 @@
-import { randomUUID } from 'node:crypto';
-import type { AuditLog } from '@/domain/index.js';
-import { dataSourceManager } from '@/core/datasource/dataSourceManager.js';
-import { logger } from '@/core/observability/logging/logger.js';
-import { getCurrentTraceContext } from '@/core/observability/tracing/traceContext.js';
-import { DatabaseTable, DatabaseColumn } from '@/domain/constants/index.js';
+import { randomUUID } from "node:crypto";
+import type { AuditLog } from "@/domain/index.js";
+import { dataSourceManager } from "@/core/datasource/dataSourceManager.js";
+import { logger } from "@/core/observability/logging/logger.js";
+import { getCurrentTraceContext } from "@/core/observability/tracing/traceContext.js";
+import { DatabaseTable, DatabaseColumn } from "@/domain/constants/index.js";
 
 export interface IAuditRepository {
-  logEvent(event: Omit<AuditLog, 'id' | 'timestamp'> & { id?: string; timestamp?: string }): Promise<AuditLog>;
+  logEvent(
+    event: Omit<AuditLog, "id" | "timestamp"> & {
+      id?: string;
+      timestamp?: string;
+    },
+  ): Promise<AuditLog>;
   queryLogs(options: {
     conversation_id?: string;
     action?: string;
@@ -17,7 +22,12 @@ export interface IAuditRepository {
 }
 
 export class AuditRepository implements IAuditRepository {
-  async logEvent(event: Omit<AuditLog, 'id' | 'timestamp'> & { id?: string; timestamp?: string }): Promise<AuditLog> {
+  async logEvent(
+    event: Omit<AuditLog, "id" | "timestamp"> & {
+      id?: string;
+      timestamp?: string;
+    },
+  ): Promise<AuditLog> {
     const dataSource = await dataSourceManager.getDriver();
     const now = event.timestamp || new Date().toISOString();
     const id = event.id || randomUUID();
@@ -25,7 +35,13 @@ export class AuditRepository implements IAuditRepository {
 
     const details = {
       ...(event.details || {}),
-      ...(traceCtx ? { trace_id: traceCtx.traceId, span_id: traceCtx.spanId, correlation_id: traceCtx.correlationId } : {}),
+      ...(traceCtx
+        ? {
+            trace_id: traceCtx.traceId,
+            span_id: traceCtx.spanId,
+            correlation_id: traceCtx.correlationId,
+          }
+        : {}),
     };
 
     const audit: AuditLog = {
@@ -45,42 +61,77 @@ export class AuditRepository implements IAuditRepository {
       details,
     };
 
-    await dataSource.run(
-      `INSERT INTO ${DatabaseTable.AUDIT_LOGS} (
-        ${DatabaseColumn.ID},
-        ${DatabaseColumn.TIMESTAMP},
-        ${DatabaseColumn.CONVERSATION_ID},
-        ${DatabaseColumn.ACTION},
-        ${DatabaseColumn.CLIENT_IP},
-        ${DatabaseColumn.MODEL_USED},
-        ${DatabaseColumn.PROMPT_TOKENS},
-        ${DatabaseColumn.COMPLETION_TOKENS},
-        ${DatabaseColumn.LATENCY_MS},
-        ${DatabaseColumn.STATUS},
-        ${DatabaseColumn.ERROR_MESSAGE},
-        ${DatabaseColumn.DETAILS},
-        ${DatabaseColumn.CREATED_TIMESTAMP},
-        ${DatabaseColumn.UPDATE_TIMESTAMP}
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [
-        audit.id,
-        audit.timestamp,
-        audit.conversation_id || null,
-        audit.action,
-        audit.client_ip || null,
-        audit.model_used || null,
-        audit.prompt_tokens ?? null,
-        audit.completion_tokens ?? null,
-        audit.latency_ms ?? null,
-        audit.status,
-        audit.error_message || null,
-        JSON.stringify(audit.details),
-        audit.created_timestamp,
-        audit.update_timestamp,
-      ]
-    );
+    try {
+      await dataSource.run(
+        `INSERT INTO ${DatabaseTable.AUDIT_LOGS} (
+          ${DatabaseColumn.AUDIT_ID},
+          ${DatabaseColumn.CONVERSATION_ID},
+          ${DatabaseColumn.ACTION},
+          ${DatabaseColumn.CLIENT_IP},
+          ${DatabaseColumn.MODEL_USED},
+          ${DatabaseColumn.PROMPT_TOKENS},
+          ${DatabaseColumn.COMPLETION_TOKENS},
+          ${DatabaseColumn.LATENCY_MS},
+          ${DatabaseColumn.STATUS},
+          ${DatabaseColumn.ERROR_MESSAGE},
+          ${DatabaseColumn.DETAILS},
+          ${DatabaseColumn.CREATED_TIMESTAMP},
+          ${DatabaseColumn.UPDATE_TIMESTAMP}
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          audit.id,
+          audit.conversation_id || null,
+          audit.action,
+          audit.client_ip || null,
+          audit.model_used || null,
+          audit.prompt_tokens ?? null,
+          audit.completion_tokens ?? null,
+          audit.latency_ms ?? null,
+          audit.status,
+          audit.error_message || null,
+          JSON.stringify(audit.details),
+          audit.created_timestamp,
+          audit.update_timestamp,
+        ],
+      );
+    } catch {
+      await dataSource.run(
+        `INSERT INTO ${DatabaseTable.AUDIT_LOGS} (
+          ${DatabaseColumn.ID},
+          ${DatabaseColumn.CONVERSATION_ID},
+          ${DatabaseColumn.ACTION},
+          ${DatabaseColumn.CLIENT_IP},
+          ${DatabaseColumn.MODEL_USED},
+          ${DatabaseColumn.PROMPT_TOKENS},
+          ${DatabaseColumn.COMPLETION_TOKENS},
+          ${DatabaseColumn.LATENCY_MS},
+          ${DatabaseColumn.STATUS},
+          ${DatabaseColumn.ERROR_MESSAGE},
+          ${DatabaseColumn.DETAILS},
+          ${DatabaseColumn.CREATED_TIMESTAMP},
+          ${DatabaseColumn.UPDATE_TIMESTAMP}
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          audit.id,
+          audit.conversation_id || null,
+          audit.action,
+          audit.client_ip || null,
+          audit.model_used || null,
+          audit.prompt_tokens ?? null,
+          audit.completion_tokens ?? null,
+          audit.latency_ms ?? null,
+          audit.status,
+          audit.error_message || null,
+          JSON.stringify(audit.details),
+          audit.created_timestamp,
+          audit.update_timestamp,
+        ],
+      );
+    }
 
-    logger.audit(`Logged event '${audit.action}' (status: ${audit.status}, conv: ${audit.conversation_id || 'N/A'}, latency: ${audit.latency_ms || 'N/A'}ms)`);
+    logger.audit(
+      `Logged event '${audit.action}' (status: ${audit.status}, conv: ${audit.conversation_id || "N/A"}, latency: ${audit.latency_ms || "N/A"}ms)`,
+    );
     return audit;
   }
 
@@ -113,7 +164,7 @@ export class AuditRepository implements IAuditRepository {
     }
 
     if (clauses.length > 0) {
-      sql += ` WHERE ${clauses.join(' AND ')}`;
+      sql += ` WHERE ${clauses.join(" AND ")}`;
     }
 
     sql += ` ORDER BY ${DatabaseColumn.CREATED_TIMESTAMP} DESC LIMIT ? OFFSET ?;`;
@@ -121,10 +172,17 @@ export class AuditRepository implements IAuditRepository {
 
     const rows = await dataSource.all<any>(sql, params);
     return rows.map((r) => {
-      const createdTimestamp = r.CREATED_TIMESTAMP ?? r.created_timestamp ?? r.TIMESTAMP ?? r.timestamp;
-      const updateTimestamp = r.UPDATE_TIMESTAMP ?? r.update_timestamp ?? createdTimestamp;
+      const createdTimestamp =
+        r.CREATED_TIMESTAMP ??
+        r.created_timestamp ??
+        r.TIMESTAMP ??
+        r.timestamp;
+      const updateTimestamp =
+        r.UPDATE_TIMESTAMP ?? r.update_timestamp ?? createdTimestamp;
+      const auditId = r.AUDIT_ID ?? r.ID ?? r.audit_id ?? r.id;
       return {
-        id: r.ID ?? r.id,
+        audit_id: auditId,
+        id: auditId,
         timestamp: createdTimestamp,
         created_timestamp: createdTimestamp,
         update_timestamp: updateTimestamp,
@@ -137,7 +195,10 @@ export class AuditRepository implements IAuditRepository {
         latency_ms: r.LATENCY_MS ?? r.latency_ms,
         status: r.STATUS ?? r.status,
         error_message: r.ERROR_MESSAGE ?? r.error_message,
-        details: typeof (r.DETAILS ?? r.details) === 'string' ? JSON.parse(r.DETAILS ?? r.details) : r.DETAILS ?? r.details,
+        details:
+          typeof (r.DETAILS ?? r.details) === "string"
+            ? JSON.parse(r.DETAILS ?? r.details)
+            : (r.DETAILS ?? r.details),
       };
     });
   }

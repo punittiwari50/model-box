@@ -2,7 +2,7 @@
 // ModelBox Enterprise SCSS Mixins & Utilities
 // Conforms to SCSS modular best practices
 // ==============================================================================
-@use './variables' as *;
+@use "./variables" as *;
 
 @mixin flex-center {
   display: flex;
@@ -21,7 +21,12 @@
   flex-direction: column;
 }
 
-@mixin glassmorphism($bg: $bg-card, $blur: 16px, $border: $border-subtle, $radius: $radius-lg) {
+@mixin glassmorphism(
+  $bg: $bg-card,
+  $blur: 16px,
+  $border: $border-subtle,
+  $radius: $radius-lg
+) {
   background: $bg;
   backdrop-filter: blur($blur);
   -webkit-backdrop-filter: blur($blur);
@@ -33,7 +38,11 @@
   transition: $prop $duration $timing;
 }
 
-@mixin scrollbar-style($width: 6px, $thumb-color: rgba(148, 163, 184, 0.25), $track-color: rgba(15, 23, 42, 0.6)) {
+@mixin scrollbar-style(
+  $width: 6px,
+  $thumb-color: rgba(148, 163, 184, 0.25),
+  $track-color: rgba(15, 23, 42, 0.6)
+) {
   &::-webkit-scrollbar {
     width: $width;
     height: $width;

@@ -7,7 +7,7 @@
  * - STD-COD-007: Resilient Error Handling & Zero Swallowed Exceptions
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export interface TaskContext {
   readonly taskId: string;
@@ -22,7 +22,8 @@ export function getCurrentTaskContext(): TaskContext | undefined {
   return taskContextStorage.getStore();
 }
 
-export type TaskState = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+export type TaskState =
+  "PENDING" | "RUNNING" | "SUCCESS" | "FAILED" | "CANCELLED";
 
 export interface Subtask<T> {
   readonly id: string;
@@ -32,36 +33,41 @@ export interface Subtask<T> {
 }
 
 class SubtaskImpl<T> implements Subtask<T> {
-  public state: TaskState = 'PENDING';
+  public state: TaskState = "PENDING";
   private result?: T;
   private error?: Error;
 
   constructor(public readonly id: string) {}
 
   public complete(value: T): void {
-    this.state = 'SUCCESS';
+    this.state = "SUCCESS";
     this.result = value;
   }
 
   public fail(err: Error): void {
-    this.state = 'FAILED';
+    this.state = "FAILED";
     this.error = err;
   }
 
   public cancel(): void {
-    if (this.state === 'PENDING' || this.state === 'RUNNING') {
-      this.state = 'CANCELLED';
+    if (this.state === "PENDING" || this.state === "RUNNING") {
+      this.state = "CANCELLED";
     }
   }
 
   public get(): T {
-    if (this.state === 'SUCCESS') {
+    if (this.state === "SUCCESS") {
       return this.result as T;
     }
-    if (this.state === 'FAILED') {
-      throw this.error ?? new Error(`Subtask '${this.id}' failed without an explicit error.`);
+    if (this.state === "FAILED") {
+      throw (
+        this.error ??
+        new Error(`Subtask '${this.id}' failed without an explicit error.`)
+      );
     }
-    throw new IllegalStateException(`Subtask '${this.id}' has not completed successfully (state: ${this.state}).`);
+    throw new IllegalStateException(
+      `Subtask '${this.id}' has not completed successfully (state: ${this.state}).`,
+    );
   }
 
   public exception(): Error | undefined {
@@ -72,14 +78,14 @@ class SubtaskImpl<T> implements Subtask<T> {
 export class IllegalStateException extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'IllegalStateException';
+    this.name = "IllegalStateException";
   }
 }
 
 export class TimeoutException extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'TimeoutException';
+    this.name = "TimeoutException";
   }
 }
 
@@ -100,7 +106,9 @@ export abstract class StructuredTaskScope<T> {
 
   public fork(task: (signal: AbortSignal) => Promise<T>): Subtask<T> {
     if (this.isClosed) {
-      throw new IllegalStateException('Cannot fork tasks in a closed StructuredTaskScope.');
+      throw new IllegalStateException(
+        "Cannot fork tasks in a closed StructuredTaskScope.",
+      );
     }
 
     const taskId = `vtask-${Math.random().toString(36).substring(2, 9)}`;
@@ -116,7 +124,7 @@ export abstract class StructuredTaskScope<T> {
     };
 
     taskContextStorage.run(subtaskContext, async () => {
-      subtask.state = 'RUNNING';
+      subtask.state = "RUNNING";
       try {
         if (this.signal.aborted) {
           subtask.cancel();
@@ -138,10 +146,17 @@ export abstract class StructuredTaskScope<T> {
     return subtask;
   }
 
-  public static open<T>(policy?: 'shutdown-on-failure'): ShutdownOnFailureScope<T>;
-  public static open<T>(policy: 'shutdown-on-success'): ShutdownOnSuccessScope<T>;
-  public static open<T>(policy: 'shutdown-on-failure' | 'shutdown-on-success' = 'shutdown-on-failure'): StructuredTaskScope<T> {
-    if (policy === 'shutdown-on-success') {
+  public static open<T>(
+    policy?: "shutdown-on-failure",
+  ): ShutdownOnFailureScope<T>;
+  public static open<T>(
+    policy: "shutdown-on-success",
+  ): ShutdownOnSuccessScope<T>;
+  public static open<T>(
+    policy:
+      "shutdown-on-failure" | "shutdown-on-success" = "shutdown-on-failure",
+  ): StructuredTaskScope<T> {
+    if (policy === "shutdown-on-success") {
       return new ShutdownOnSuccessScope<T>();
     }
     return new ShutdownOnFailureScope<T>();
@@ -150,10 +165,12 @@ export abstract class StructuredTaskScope<T> {
   public async join(): Promise<this> {
     const start = Date.now();
     // Wait until all subtasks reach terminal state or scope is cancelled
-    while (this.subtasks.some((t) => t.state === 'PENDING' || t.state === 'RUNNING')) {
+    while (
+      this.subtasks.some((t) => t.state === "PENDING" || t.state === "RUNNING")
+    ) {
       if (this.signal.aborted) {
         for (const t of this.subtasks) {
-          if (t.state === 'PENDING' || t.state === 'RUNNING') {
+          if (t.state === "PENDING" || t.state === "RUNNING") {
             t.cancel();
           }
         }
@@ -162,7 +179,7 @@ export abstract class StructuredTaskScope<T> {
       await new Promise((r) => setTimeout(r, 5));
       if (Date.now() - start > 5000) {
         for (const t of this.subtasks) {
-          if (t.state === 'RUNNING' || t.state === 'PENDING') {
+          if (t.state === "RUNNING" || t.state === "PENDING") {
             t.cancel();
           }
         }
@@ -175,7 +192,13 @@ export abstract class StructuredTaskScope<T> {
   public async joinUntil(timeoutMs: number): Promise<this> {
     let timer: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new TimeoutException(`Task scope timed out after ${timeoutMs}ms`)), timeoutMs);
+      timer = setTimeout(
+        () =>
+          reject(
+            new TimeoutException(`Task scope timed out after ${timeoutMs}ms`),
+          ),
+        timeoutMs,
+      );
       timer.unref?.();
     });
     try {
@@ -194,7 +217,9 @@ export abstract class StructuredTaskScope<T> {
   }
 
   public results(): T[] {
-    return this.subtasks.filter((t) => t.state === 'SUCCESS').map((t) => t.get());
+    return this.subtasks
+      .filter((t) => t.state === "SUCCESS")
+      .map((t) => t.get());
   }
 }
 
@@ -206,7 +231,7 @@ export class ShutdownOnFailureScope<T> extends StructuredTaskScope<T> {
   private firstFailure?: Error;
 
   public handleComplete(subtask: SubtaskImpl<T>): void {
-    if (subtask.state === 'FAILED' && !this.firstFailure) {
+    if (subtask.state === "FAILED" && !this.firstFailure) {
       this.firstFailure = subtask.exception();
       this.abortController.abort();
     }
@@ -228,7 +253,7 @@ export class ShutdownOnSuccessScope<T> extends StructuredTaskScope<T> {
   private firstSuccess?: Subtask<T>;
 
   public handleComplete(subtask: SubtaskImpl<T>): void {
-    if (subtask.state === 'SUCCESS' && !this.firstSuccess) {
+    if (subtask.state === "SUCCESS" && !this.firstSuccess) {
       this.firstSuccess = subtask;
       this.abortController.abort();
     }
@@ -238,8 +263,12 @@ export class ShutdownOnSuccessScope<T> extends StructuredTaskScope<T> {
     if (this.firstSuccess) {
       return this.firstSuccess.get();
     }
-    const failures = this.subtasks.map((t) => t.exception()?.message).filter(Boolean);
-    throw new IllegalStateException(`No subtask completed successfully. Errors: ${failures.join(', ')}`);
+    const failures = this.subtasks
+      .map((t) => t.exception()?.message)
+      .filter(Boolean);
+    throw new IllegalStateException(
+      `No subtask completed successfully. Errors: ${failures.join(", ")}`,
+    );
   }
 }
 
@@ -252,17 +281,25 @@ export class VirtualThreadExecutor {
   private activeTasks = 0;
   private readonly waitQueue: (() => void)[] = [];
 
-  constructor(optionsOrMaxConcurrency: number | { maxConcurrency?: number } = 500) {
-    if (typeof optionsOrMaxConcurrency === 'number') {
+  constructor(
+    optionsOrMaxConcurrency: number | { maxConcurrency?: number } = 500,
+  ) {
+    if (typeof optionsOrMaxConcurrency === "number") {
       this.maxConcurrency = optionsOrMaxConcurrency;
-    } else if (typeof optionsOrMaxConcurrency === 'object' && optionsOrMaxConcurrency !== null) {
+    } else if (
+      typeof optionsOrMaxConcurrency === "object" &&
+      optionsOrMaxConcurrency !== null
+    ) {
       this.maxConcurrency = optionsOrMaxConcurrency.maxConcurrency ?? 500;
     } else {
       this.maxConcurrency = 500;
     }
   }
 
-  public async execute<R>(task: (signal: AbortSignal) => Promise<R>, timeoutMs = 30000): Promise<R> {
+  public async execute<R>(
+    task: (signal: AbortSignal) => Promise<R>,
+    timeoutMs = 30000,
+  ): Promise<R> {
     await this.acquireSlot();
     const abortController = new AbortController();
     const timer = setTimeout(() => {

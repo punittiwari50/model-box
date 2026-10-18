@@ -1,1 +1,1 @@
-export * from '@/core/context/appContext.js';
+export * from "@/core/context/appContext.js";

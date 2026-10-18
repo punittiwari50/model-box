@@ -1,7 +1,7 @@
-import type { ModelAuth } from '@/domain/index.js';
-import type { IAuthRepository } from '@/repositories/authRepository.js';
-import { authRepo as defaultAuthRepo } from '@/repositories/authRepository.js';
-import { ModelCatalog, AuthStatusConstant } from '@/domain/constants/index.js';
+import type { ModelAuth } from "@/domain/index.js";
+import type { IAuthRepository } from "@/repositories/authRepository.js";
+import { authRepo as defaultAuthRepo } from "@/repositories/authRepository.js";
+import { ModelCatalog, AuthStatusConstant } from "@/domain/constants/index.js";
 
 export interface IModelAuthStrategy {
   resolve(modelName: string): Promise<ModelAuth | null>;
@@ -12,7 +12,9 @@ export class ExactModelAuthStrategy implements IModelAuthStrategy {
 
   public async resolve(modelName: string): Promise<ModelAuth | null> {
     const auth = await this.repo.getModelAuth(modelName);
-    return auth && auth.status === AuthStatusConstant.AUTHENTICATED ? auth : null;
+    return auth && auth.status === AuthStatusConstant.AUTHENTICATED
+      ? auth
+      : null;
   }
 }
 
@@ -21,7 +23,9 @@ export class DefaultModelAuthStrategy implements IModelAuthStrategy {
 
   public async resolve(): Promise<ModelAuth | null> {
     const auth = await this.repo.getModelAuth(ModelCatalog.DEFAULT);
-    return auth && auth.status === AuthStatusConstant.AUTHENTICATED ? auth : null;
+    return auth && auth.status === AuthStatusConstant.AUTHENTICATED
+      ? auth
+      : null;
   }
 }
 
@@ -52,7 +56,9 @@ export class ModelAuthResolver {
     ];
   }
 
-  public async getEffectiveModelAuth(modelName: string): Promise<ModelAuth | null> {
+  public async getEffectiveModelAuth(
+    modelName: string,
+  ): Promise<ModelAuth | null> {
     for (const strategy of this.strategies) {
       const result = await strategy.resolve(modelName);
       if (result) {

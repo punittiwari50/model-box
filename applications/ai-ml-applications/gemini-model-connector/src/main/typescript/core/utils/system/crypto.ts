@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import crypto from "node:crypto";
 
 export interface ICryptoUtils {
   randomUUID(): string;
@@ -25,19 +25,19 @@ export class CryptoUtils implements ICryptoUtils {
   }
 
   public randomHex(size: number): string {
-    return crypto.randomBytes(size).toString('hex');
+    return crypto.randomBytes(size).toString("hex");
   }
 
   public randomBase64Url(size: number): string {
-    return crypto.randomBytes(size).toString('base64url');
+    return crypto.randomBytes(size).toString("base64url");
   }
 
   public sha256Hex(data: string | Buffer): string {
-    return crypto.createHash('sha256').update(data).digest('hex');
+    return crypto.createHash("sha256").update(data).digest("hex");
   }
 
   public sha256Base64Url(data: string | Buffer): string {
-    return crypto.createHash('sha256').update(data).digest('base64url');
+    return crypto.createHash("sha256").update(data).digest("base64url");
   }
 
   public createHash(algorithm: string): crypto.Hash {

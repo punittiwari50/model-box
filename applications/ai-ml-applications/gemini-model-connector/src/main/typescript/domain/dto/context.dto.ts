@@ -1,4 +1,7 @@
-import type { ContextItemType, ContextItemEntity } from '@/domain/entities/contextItem.entity.js';
+import type {
+  ContextItemType,
+  ContextItemEntity,
+} from "@/domain/entities/contextItem.entity.js";
 
 export interface AttachContextRequest {
   readonly context_type: ContextItemType;

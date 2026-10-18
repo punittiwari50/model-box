@@ -1,1 +1,1 @@
-export * from '@/core/web/routes/apiRoutes.js';
+export * from "@/core/web/routes/apiRoutes.js";

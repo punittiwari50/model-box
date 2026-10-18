@@ -1,897 +1,1458 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>ModelBox AI Connector Dashboard</title>
-  <link rel="icon" type="image/svg+xml" href="/assets/svg/modelbox.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  
-  <!-- ModelBox SCSS-compiled Stylesheet -->
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/scss/main.scss">
-  <style id="modelbox-theme-css">
-    /* SCSS from src/main/resources/assets/scss/ is compiled & injected here during build */
-  </style>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0"
+    />
+    <title>ModelBox AI Connector Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/svg/modelbox.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
 
-  <!-- Top Navigation Header -->
-  <header>
-    <div class="brand-section">
-      <svg class="brand-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-      </svg>
-      <div>
-        <div class="brand-title">ModelBox Connectors</div>
-        <div style="font-size: 11px; color: var(--text-muted);">Multi-Model Unified Intelligence</div>
+    <!-- ModelBox SCSS-compiled Stylesheet -->
+    <link rel="stylesheet" href="/assets/css/main.css" />
+    <link rel="stylesheet" href="/assets/scss/main.scss" />
+    <style id="modelbox-theme-css">
+      /* SCSS from src/main/resources/assets/scss/ is compiled & injected here during build */
+    </style>
+  </head>
+  <body>
+    <!-- Top Navigation Header -->
+    <header>
+      <div class="brand-section">
+        <svg
+          class="brand-logo"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#38bdf8"
+          stroke-width="2"
+        >
+          <path
+            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+          ></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        <div>
+          <div class="brand-title">ModelBox Connectors</div>
+          <div style="font-size: 11px; color: var(--text-muted)">
+            Multi-Model Unified Intelligence
+          </div>
+        </div>
+        <span class="brand-badge">v2.0</span>
       </div>
-      <span class="brand-badge">v2.0</span>
-    </div>
 
-    <!-- Live Health Telemetry -->
-    <div class="telemetry-bar" id="telemetryPill">
-      <span class="pulse-dot"></span>
-      <span style="font-weight: 600;" id="serverStatusText">Connecting...</span>
-      <span style="color: var(--text-muted);" id="serverLatencyText">--ms</span>
-      <span class="badge badge-model" id="serverDefaultModel">gemini-3.8-flash</span>
-    </div>
+      <!-- Live Health Telemetry -->
+      <div class="telemetry-bar" id="telemetryPill">
+        <span class="pulse-dot"></span>
+        <span style="font-weight: 600" id="serverStatusText"
+          >Connecting...</span
+        >
+        <span style="color: var(--text-muted)" id="serverLatencyText"
+          >--ms</span
+        >
+        <span class="badge badge-model" id="serverDefaultModel"
+          >gemini-3.8-flash</span
+        >
+      </div>
 
-    <!-- Tab Buttons -->
-    <div class="nav-tabs" role="tablist">
-      <button class="tab-btn active" id="tabBtnChat" role="tab">💬 Chat</button>
-      <button class="tab-btn" id="tabBtnAgent" role="tab">🤖 Autonomous Agent</button>
-      <button class="tab-btn" id="tabBtnJob" role="tab">🎯 Job Match</button>
-      <button class="tab-btn" id="tabBtnAudit" role="tab">📊 Audit Trail</button>
-      <button class="tab-btn" id="tabBtnAuth" role="tab">🔐 Auth & Models</button>
-    </div>
-  </header>
+      <!-- Tab Buttons -->
+      <div class="nav-tabs" role="tablist">
+        <button class="tab-btn active" id="tabBtnChat" role="tab">
+          💬 Chat
+        </button>
+        <button class="tab-btn" id="tabBtnAgent" role="tab">
+          🤖 Autonomous Agent
+        </button>
+        <button class="tab-btn" id="tabBtnJob" role="tab">🎯 Job Match</button>
+        <button class="tab-btn" id="tabBtnAudit" role="tab">
+          📊 Audit Trail
+        </button>
+        <button class="tab-btn" id="tabBtnAuth" role="tab">
+          🔐 Auth & Models
+        </button>
+      </div>
+    </header>
 
-  <main>
-    <!-- =========================================================================
+    <main>
+      <!-- =========================================================================
          TAB 1: CONVERSATIONS & CHAT
          ========================================================================= -->
-    <section class="tab-content active" id="tabContentChat">
-      <div class="chat-layout">
-        <!-- Sidebar -->
-        <aside class="chat-sidebar">
-          <div class="sidebar-top">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 13px; font-weight: 700;">Conversations</span>
-              <button class="btn" id="btnOpenNewConvModal" style="padding: 4px 10px; font-size: 12px;">+ New</button>
+      <section class="tab-content active" id="tabContentChat">
+        <div class="chat-layout">
+          <!-- Sidebar -->
+          <aside class="chat-sidebar">
+            <div class="sidebar-top">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
+                <span style="font-size: 13px; font-weight: 700"
+                  >Conversations</span
+                >
+                <button
+                  class="btn"
+                  id="btnOpenNewConvModal"
+                  style="padding: 4px 10px; font-size: 12px"
+                >
+                  + New
+                </button>
+              </div>
+              <input
+                type="text"
+                id="convSearchInput"
+                placeholder="Filter conversations..."
+              />
             </div>
-            <input type="text" id="convSearchInput" placeholder="Filter conversations...">
-          </div>
-          <div class="sidebar-conv-list" id="convItemsList"></div>
-        </aside>
+            <div class="sidebar-conv-list" id="convItemsList"></div>
+          </aside>
 
-        <!-- Main Chat Area -->
-        <div class="chat-main">
-          <div class="chat-header">
-            <div>
-              <h3 id="chatHeaderTitle" style="font-size: 15px; font-weight: 700;">Select or start a chat</h3>
-              <div id="chatHeaderMeta" style="font-size: 12px; color: var(--text-muted);">Choose a conversation or create a new session across any model</div>
+          <!-- Main Chat Area -->
+          <div class="chat-main">
+            <div class="chat-header">
+              <div>
+                <h3
+                  id="chatHeaderTitle"
+                  style="font-size: 15px; font-weight: 700"
+                >
+                  Select or start a chat
+                </h3>
+                <div
+                  id="chatHeaderMeta"
+                  style="font-size: 12px; color: var(--text-muted)"
+                >
+                  Choose a conversation or create a new session across any model
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px">
+                <button
+                  class="btn-secondary"
+                  id="btnResumeChat"
+                  style="
+                    display: none;
+                    padding: 6px 12px;
+                    font-size: 12px;
+                    color: #38bdf8;
+                  "
+                >
+                  🔄 Resume in CLI
+                </button>
+                <button
+                  class="btn-secondary"
+                  id="btnDeleteChat"
+                  style="
+                    display: none;
+                    padding: 6px 12px;
+                    font-size: 12px;
+                    color: #f87171;
+                  "
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn-secondary" id="btnResumeChat" style="display: none; padding: 6px 12px; font-size: 12px; color: #38bdf8;">🔄 Resume in CLI</button>
-              <button class="btn-secondary" id="btnDeleteChat" style="display: none; padding: 6px 12px; font-size: 12px; color: #f87171;">Delete</button>
+
+            <div class="messages-thread" id="chatMessagesThread">
+              <div
+                style="
+                  text-align: center;
+                  color: var(--text-muted);
+                  margin: auto;
+                  padding: 40px 20px;
+                "
+              >
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  style="margin-bottom: 12px; opacity: 0.5"
+                >
+                  <path
+                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+                <p>
+                  No conversation active. Click "+ New" to begin an interaction.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div class="messages-thread" id="chatMessagesThread">
-            <div style="text-align: center; color: var(--text-muted); margin: auto; padding: 40px 20px;">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 12px; opacity: 0.5;">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              </svg>
-              <p>No conversation active. Click "+ New" to begin an interaction.</p>
+            <!-- Quick Prompt Chips -->
+            <div
+              class="quick-prompts"
+              id="quickPromptsBar"
+              style="display: none"
+            >
+              <span
+                class="prompt-chip"
+                onclick="
+                  applyQuickPrompt(
+                    'Analyze the design patterns used in this microservice.',
+                  )
+                "
+                >💡 Analyze Patterns</span
+              >
+              <span
+                class="prompt-chip"
+                onclick="
+                  applyQuickPrompt(
+                    'Write a Docker compose file for Ollama GPU.',
+                  )
+                "
+                >🐳 Dockerize Service</span
+              >
+              <span
+                class="prompt-chip"
+                onclick="
+                  applyQuickPrompt(
+                    'Explain Dependency Inversion Principle with code example.',
+                  )
+                "
+                >📐 Explain DIP</span
+              >
             </div>
-          </div>
 
-          <!-- Quick Prompt Chips -->
-          <div class="quick-prompts" id="quickPromptsBar" style="display: none;">
-            <span class="prompt-chip" onclick="applyQuickPrompt('Analyze the design patterns used in this microservice.')">💡 Analyze Patterns</span>
-            <span class="prompt-chip" onclick="applyQuickPrompt('Write a Docker compose file for Ollama GPU.')">🐳 Dockerize Service</span>
-            <span class="prompt-chip" onclick="applyQuickPrompt('Explain Dependency Inversion Principle with code example.')">📐 Explain DIP</span>
-          </div>
-
-          <!-- Composer -->
-          <div class="chat-composer">
-            <select id="chatModelOverride" style="max-width: 170px;" title="Override model for this turn">
-              <option value="">(Default Model)</option>
-            </select>
-            <input type="text" id="chatMessageInput" placeholder="Type prompt for model (Enter to send)..." style="flex: 1;" disabled>
-            <button class="btn" id="btnSendChatMessage" disabled>Send</button>
+            <!-- Composer -->
+            <div class="chat-composer">
+              <select
+                id="chatModelOverride"
+                style="max-width: 170px"
+                title="Override model for this turn"
+              >
+                <option value="">(Default Model)</option>
+              </select>
+              <input
+                type="text"
+                id="chatMessageInput"
+                placeholder="Type prompt for model (Enter to send)..."
+                style="flex: 1"
+                disabled
+              />
+              <button class="btn" id="btnSendChatMessage" disabled>Send</button>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- =========================================================================
+      <!-- =========================================================================
          TAB 2: AUTONOMOUS AGENT STUDIO
          ========================================================================= -->
-    <section class="tab-content" id="tabContentAgent">
-      <div class="agent-layout">
-        <!-- Agent Launcher Form -->
-        <div class="glass-panel">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="font-size: 16px; font-weight: 700;">Launch Autonomous Agent</h3>
-            <span class="badge badge-info" id="agentSkillsCountBadge">8 Skills Available</span>
-          </div>
-          <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.5;">
-            Executes autonomous workflows across <strong>Gemini, Claude, Codex, Cursor, Copilot, Ollama, or Grok</strong> inside project-isolated workspaces under <code>AGENTS/&lt;project&gt;</code>.
-          </p>
+      <section class="tab-content" id="tabContentAgent">
+        <div class="agent-layout">
+          <!-- Agent Launcher Form -->
+          <div class="glass-panel">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <h3 style="font-size: 16px; font-weight: 700">
+                Launch Autonomous Agent
+              </h3>
+              <span class="badge badge-info" id="agentSkillsCountBadge"
+                >8 Skills Available</span
+              >
+            </div>
+            <p
+              style="
+                font-size: 12.5px;
+                color: var(--text-muted);
+                line-height: 1.5;
+              "
+            >
+              Executes autonomous workflows across
+              <strong
+                >Gemini, Claude, Codex, Cursor, Copilot, Ollama, or Grok</strong
+              >
+              inside project-isolated workspaces under
+              <code>AGENTS/&lt;project&gt;</code>.
+            </p>
 
-          <div class="form-group">
-            <label class="form-label">Agent Name</label>
-            <input type="text" id="agentInputName" placeholder="e.g. ArchitectAgent" value="ModelBoxEngineer">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Project Workspace Directory (<code>AGENTS/&lt;project&gt;</code>)</label>
-            <input type="text" id="agentInputProject" placeholder="e.g. ecommerce-service" value="modelbox-core">
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group">
-              <label class="form-label">Target Model</label>
-              <select id="agentSelectModel"></select>
+              <label class="form-label">Agent Name</label>
+              <input
+                type="text"
+                id="agentInputName"
+                placeholder="e.g. ArchitectAgent"
+                value="ModelBoxEngineer"
+              />
             </div>
+
             <div class="form-group">
-              <label class="form-label">Approval Policy</label>
-              <select id="agentSelectApproval">
-                <option value="default">Default Approval</option>
-                <option value="auto_edit" selected>auto_edit (Automatic)</option>
-                <option value="yolo">yolo (Unrestricted)</option>
-                <option value="plan">plan (Plan Only)</option>
-              </select>
+              <label class="form-label"
+                >Project Workspace Directory
+                (<code>AGENTS/&lt;project&gt;</code>)</label
+              >
+              <input
+                type="text"
+                id="agentInputProject"
+                placeholder="e.g. ecommerce-service"
+                value="modelbox-core"
+              />
             </div>
-          </div>
 
-          <div class="form-group">
-            <label class="form-label">Active Skills</label>
-            <div class="skills-chips" id="agentSkillsChips"></div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Task Directive</label>
-            <textarea id="agentInputTask" rows="5" placeholder="Define clear goals for the agent..."></textarea>
-          </div>
-
-          <button class="btn" id="btnLaunchAgent" style="width: 100%; padding: 12px;">
-            🚀 Execute Autonomous Task
-          </button>
-        </div>
-
-        <!-- Agent Execution Live Visualizer & History -->
-        <div class="glass-panel" style="overflow-y: auto;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="font-size: 16px; font-weight: 700;">Live Execution & Action Artifacts</h3>
-            <button class="btn-secondary" id="btnRefreshAgentList" style="padding: 4px 10px; font-size: 12px;">Refresh</button>
-          </div>
-
-          <div id="agentActiveStatusCard" style="display: none; background: rgba(56, 189, 248, 0.05); border: 1px solid var(--border-accent); border-radius: var(--radius-md); padding: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span id="agentActiveTitle" style="font-weight: 700; font-size: 14px;">Running Task...</span>
-              <span id="agentActiveStatusBadge" class="badge badge-warning">RUNNING</span>
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px"
+            >
+              <div class="form-group">
+                <label class="form-label">Target Model</label>
+                <select id="agentSelectModel"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Approval Policy</label>
+                <select id="agentSelectApproval">
+                  <option value="default">Default Approval</option>
+                  <option value="auto_edit" selected>
+                    auto_edit (Automatic)
+                  </option>
+                  <option value="yolo">yolo (Unrestricted)</option>
+                  <option value="plan">plan (Plan Only)</option>
+                </select>
+              </div>
             </div>
-            <div id="agentActiveMeta" style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;"></div>
-            <pre id="agentActiveOutputPreview" style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font-mono); max-height: 250px; overflow-y: auto; white-space: pre-wrap;"></pre>
+
+            <div class="form-group">
+              <label class="form-label">Active Skills</label>
+              <div class="skills-chips" id="agentSkillsChips"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Task Directive</label>
+              <textarea
+                id="agentInputTask"
+                rows="5"
+                placeholder="Define clear goals for the agent..."
+              ></textarea>
+            </div>
+
+            <button
+              class="btn"
+              id="btnLaunchAgent"
+              style="width: 100%; padding: 12px"
+            >
+              🚀 Execute Autonomous Task
+            </button>
           </div>
 
-          <h4 style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-top: 8px;">Past Executions History</h4>
-          <div id="agentExecutionsHistoryList" style="display: flex; flex-direction: column; gap: 8px;"></div>
-        </div>
-      </div>
-    </section>
+          <!-- Agent Execution Live Visualizer & History -->
+          <div class="glass-panel" style="overflow-y: auto">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <h3 style="font-size: 16px; font-weight: 700">
+                Live Execution & Action Artifacts
+              </h3>
+              <button
+                class="btn-secondary"
+                id="btnRefreshAgentList"
+                style="padding: 4px 10px; font-size: 12px"
+              >
+                Refresh
+              </button>
+            </div>
 
-    <!-- =========================================================================
+            <div
+              id="agentActiveStatusCard"
+              style="
+                display: none;
+                background: rgba(56, 189, 248, 0.05);
+                border: 1px solid var(--border-accent);
+                border-radius: var(--radius-md);
+                padding: 16px;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <span
+                  id="agentActiveTitle"
+                  style="font-weight: 700; font-size: 14px"
+                  >Running Task...</span
+                >
+                <span id="agentActiveStatusBadge" class="badge badge-warning"
+                  >RUNNING</span
+                >
+              </div>
+              <div
+                id="agentActiveMeta"
+                style="
+                  font-size: 12px;
+                  color: var(--text-muted);
+                  margin-bottom: 12px;
+                "
+              ></div>
+              <pre
+                id="agentActiveOutputPreview"
+                style="
+                  background: rgba(0, 0, 0, 0.4);
+                  padding: 12px;
+                  border-radius: var(--radius-sm);
+                  font-size: 12px;
+                  font-family: var(--font-mono);
+                  max-height: 250px;
+                  overflow-y: auto;
+                  white-space: pre-wrap;
+                "
+              ></pre>
+            </div>
+
+            <h4
+              style="
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--text-secondary);
+                margin-top: 8px;
+              "
+            >
+              Past Executions History
+            </h4>
+            <div
+              id="agentExecutionsHistoryList"
+              style="display: flex; flex-direction: column; gap: 8px"
+            ></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
          TAB 3: JOB SEARCH RESUME ALIGNMENT
          ========================================================================= -->
-    <section class="tab-content" id="tabContentJob">
-      <div class="job-layout">
-        <div class="glass-panel">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="font-size: 16px; font-weight: 700;">Job Alignment & Gap Analysis</h3>
-            <button class="btn-secondary" id="btnPrefillJob" style="padding: 4px 10px; font-size: 12px;">Demo Fill</button>
+      <section class="tab-content" id="tabContentJob">
+        <div class="job-layout">
+          <div class="glass-panel">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <h3 style="font-size: 16px; font-weight: 700">
+                Job Alignment & Gap Analysis
+              </h3>
+              <button
+                class="btn-secondary"
+                id="btnPrefillJob"
+                style="padding: 4px 10px; font-size: 12px"
+              >
+                Demo Fill
+              </button>
+            </div>
+            <p style="font-size: 12.5px; color: var(--text-muted)">
+              Evaluates resume profiles against target job requirements,
+              computes gap analyses, and generates tailored Markdown artifacts.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Target Role Title</label>
+              <input
+                type="text"
+                id="inputJobRole"
+                placeholder="e.g. Senior AI Systems Engineer"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label"
+                >Candidate Resume (Markdown / Text)</label
+              >
+              <textarea
+                id="inputJobResume"
+                rows="7"
+                placeholder="Paste candidate resume profile..."
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label"
+                >Job Specification (URL, HTML, or Text)</label
+              >
+              <textarea
+                id="inputJobSpec"
+                rows="7"
+                placeholder="Paste job spec or URL..."
+              ></textarea>
+            </div>
+
+            <button
+              class="btn"
+              id="btnExecuteJobMatch"
+              style="width: 100%; padding: 12px"
+            >
+              ✨ Run Alignment Analysis
+            </button>
           </div>
-          <p style="font-size: 12.5px; color: var(--text-muted);">
-            Evaluates resume profiles against target job requirements, computes gap analyses, and generates tailored Markdown artifacts.
-          </p>
 
-          <div class="form-group">
-            <label class="form-label">Target Role Title</label>
-            <input type="text" id="inputJobRole" placeholder="e.g. Senior AI Systems Engineer">
-          </div>
+          <div class="glass-panel" id="jobResultsPanel">
+            <h3 style="font-size: 16px; font-weight: 700">Analysis Results</h3>
+            <div
+              id="jobResultsPlaceholder"
+              style="
+                text-align: center;
+                color: var(--text-muted);
+                margin: auto;
+                padding: 60px 20px;
+              "
+            >
+              Submit requirements to view score evaluation, skills alignment,
+              and generated markdown.
+            </div>
 
-          <div class="form-group">
-            <label class="form-label">Candidate Resume (Markdown / Text)</label>
-            <textarea id="inputJobResume" rows="7" placeholder="Paste candidate resume profile..."></textarea>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Job Specification (URL, HTML, or Text)</label>
-            <textarea id="inputJobSpec" rows="7" placeholder="Paste job spec or URL..."></textarea>
-          </div>
-
-          <button class="btn" id="btnExecuteJobMatch" style="width: 100%; padding: 12px;">
-            ✨ Run Alignment Analysis
-          </button>
-        </div>
-
-        <div class="glass-panel" id="jobResultsPanel">
-          <h3 style="font-size: 16px; font-weight: 700;">Analysis Results</h3>
-          <div id="jobResultsPlaceholder" style="text-align: center; color: var(--text-muted); margin: auto; padding: 60px 20px;">
-            Submit requirements to view score evaluation, skills alignment, and generated markdown.
-          </div>
-
-          <div id="jobResultsContent" style="display: none; flex-direction: column; gap: 16px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.25); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-              <div>
-                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Alignment Match Score</div>
-                <div id="jobScoreValue" style="font-size: 26px; font-weight: 800; color: var(--success);">--%</div>
+            <div
+              id="jobResultsContent"
+              style="display: none; flex-direction: column; gap: 16px"
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  background: rgba(0, 0, 0, 0.25);
+                  padding: 16px;
+                  border-radius: var(--radius-md);
+                  border: 1px solid var(--border-subtle);
+                "
+              >
+                <div>
+                  <div
+                    style="
+                      font-size: 12px;
+                      color: var(--text-muted);
+                      margin-bottom: 4px;
+                    "
+                  >
+                    Alignment Match Score
+                  </div>
+                  <div
+                    id="jobScoreValue"
+                    style="
+                      font-size: 26px;
+                      font-weight: 800;
+                      color: var(--success);
+                    "
+                  >
+                    --%
+                  </div>
+                </div>
+                <button class="btn" id="btnDownloadArtifact">
+                  ⬇️ Download Tailored .MD
+                </button>
               </div>
-              <button class="btn" id="btnDownloadArtifact">⬇️ Download Tailored .MD</button>
-            </div>
 
-            <div>
-              <div class="form-label" style="margin-bottom: 6px;">Matched Skills</div>
-              <div class="skills-chips" id="jobMatchedSkillsChips"></div>
-            </div>
+              <div>
+                <div class="form-label" style="margin-bottom: 6px">
+                  Matched Skills
+                </div>
+                <div class="skills-chips" id="jobMatchedSkillsChips"></div>
+              </div>
 
-            <div>
-              <div class="form-label" style="margin-bottom: 6px;">Identified Skill Gaps</div>
-              <div class="skills-chips" id="jobMissingSkillsChips"></div>
-            </div>
+              <div>
+                <div class="form-label" style="margin-bottom: 6px">
+                  Identified Skill Gaps
+                </div>
+                <div class="skills-chips" id="jobMissingSkillsChips"></div>
+              </div>
 
-            <div>
-              <div class="form-label" style="margin-bottom: 6px;">Summary Evaluation</div>
-              <p id="jobSummaryEvaluation" style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);"></p>
-            </div>
+              <div>
+                <div class="form-label" style="margin-bottom: 6px">
+                  Summary Evaluation
+                </div>
+                <p
+                  id="jobSummaryEvaluation"
+                  style="
+                    font-size: 13px;
+                    line-height: 1.6;
+                    color: var(--text-secondary);
+                  "
+                ></p>
+              </div>
 
-            <div>
-              <div class="form-label" style="margin-bottom: 6px;">Tailored Markdown Preview</div>
-              <pre id="jobMarkdownPreview" style="background: rgba(0,0,0,0.5); padding: 14px; border-radius: var(--radius-md); font-size: 12px; font-family: var(--font-mono); max-height: 220px; overflow-y: auto; white-space: pre-wrap;"></pre>
+              <div>
+                <div class="form-label" style="margin-bottom: 6px">
+                  Tailored Markdown Preview
+                </div>
+                <pre
+                  id="jobMarkdownPreview"
+                  style="
+                    background: rgba(0, 0, 0, 0.5);
+                    padding: 14px;
+                    border-radius: var(--radius-md);
+                    font-size: 12px;
+                    font-family: var(--font-mono);
+                    max-height: 220px;
+                    overflow-y: auto;
+                    white-space: pre-wrap;
+                  "
+                ></pre>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- =========================================================================
+      <!-- =========================================================================
          TAB 4: SQLITE AUDIT TRAIL
          ========================================================================= -->
-    <section class="tab-content" id="tabContentAudit">
-      <div class="table-container">
-        <div style="padding: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-          <div>
-            <h3 style="font-size: 16px; font-weight: 700;">SQLite Audit & Telemetry Trail</h3>
-            <span style="font-size: 12px; color: var(--text-muted);">Immutable audit records saved on every AI model communication turn.</span>
+      <section class="tab-content" id="tabContentAudit">
+        <div class="table-container">
+          <div
+            style="
+              padding: 16px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 12px;
+              flex-wrap: wrap;
+            "
+          >
+            <div>
+              <h3 style="font-size: 16px; font-weight: 700">
+                SQLite Audit & Telemetry Trail
+              </h3>
+              <span style="font-size: 12px; color: var(--text-muted)"
+                >Immutable audit records saved on every AI model communication
+                turn.</span
+              >
+            </div>
+            <div style="display: flex; gap: 10px">
+              <input
+                type="text"
+                id="auditSearchInput"
+                placeholder="Filter by action or model..."
+                style="width: 220px"
+              />
+              <button class="btn-secondary" id="btnRefreshAudit">
+                Refresh Logs
+              </button>
+            </div>
           </div>
-          <div style="display: flex; gap: 10px;">
-            <input type="text" id="auditSearchInput" placeholder="Filter by action or model..." style="width: 220px;">
-            <button class="btn-secondary" id="btnRefreshAudit">Refresh Logs</button>
+
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Timestamp (Local)</th>
+                  <th>Action</th>
+                  <th>Model Used</th>
+                  <th>Session / Context</th>
+                  <th>Tokens</th>
+                  <th>Latency</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody"></tbody>
+            </table>
           </div>
         </div>
+      </section>
 
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Timestamp (Local)</th>
-                <th>Action</th>
-                <th>Model Used</th>
-                <th>Session / Context</th>
-                <th>Tokens</th>
-                <th>Latency</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="auditTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- =========================================================================
+      <!-- =========================================================================
          TAB 5: AUTH & SUBSCRIPTION HUB
          ========================================================================= -->
-    <section class="tab-content" id="tabContentAuth">
-      <div class="glass-panel" style="gap: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-          <div>
-            <h3 style="font-size: 16px; font-weight: 700;">Authentication & Model Subscription Hub</h3>
-            <span style="font-size: 12px; color: var(--text-muted);">
-              Manage active sessions and credentials grouped by provider: Gemini, Grok, Ollama, Claude, Copilot, Codex, and Cursor.
-            </span>
+      <section class="tab-content" id="tabContentAuth">
+        <div class="glass-panel" style="gap: 20px">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              flex-wrap: wrap;
+              gap: 10px;
+            "
+          >
+            <div>
+              <h3 style="font-size: 16px; font-weight: 700">
+                Authentication & Model Subscription Hub
+              </h3>
+              <span style="font-size: 12px; color: var(--text-muted)">
+                Manage active sessions and credentials grouped by provider:
+                Gemini, Grok, Ollama, Claude, Copilot, Codex, and Cursor.
+              </span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center">
+              <button class="btn-secondary" id="btnRefreshAuth">
+                Refresh Status
+              </button>
+              <button
+                class="btn-secondary"
+                id="btnLogoutAll"
+                style="
+                  display: none;
+                  color: #f87171;
+                  border-color: rgba(239, 68, 68, 0.4);
+                "
+              >
+                Logout All
+              </button>
+            </div>
           </div>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn-secondary" id="btnRefreshAuth">Refresh Status</button>
-            <button class="btn-secondary" id="btnLogoutAll" style="display: none; color: #f87171; border-color: rgba(239, 68, 68, 0.4);">Logout All</button>
+
+          <!-- Section 1: Active Sessions Grouped -->
+          <div id="activeSessionsSection">
+            <div class="auth-section-title">
+              <span>🟢 Active Sessions & Accounts</span>
+              <span class="badge badge-success" id="activeSessionsCountBadge"
+                >0 Active</span
+              >
+            </div>
+            <div
+              id="activeSessionsEmpty"
+              style="
+                padding: 24px;
+                text-align: center;
+                color: var(--text-muted);
+                background: rgba(255, 255, 255, 0.01);
+                border: 1px dashed var(--border-subtle);
+                border-radius: var(--radius-md);
+              "
+            >
+              No active model sessions currently authenticated. Connect any
+              model below using OAuth or direct credentials.
+            </div>
+            <div
+              class="active-sessions-grid"
+              id="activeSessionsGrid"
+              style="display: none"
+            ></div>
+          </div>
+
+          <!-- Section 2: Model Catalog by Category / Group -->
+          <div id="availableModelsAuthSection">
+            <div class="auth-section-title">
+              <span>📚 Model Catalog by Category</span>
+            </div>
+
+            <!-- Category Filter Bar -->
+            <div class="auth-category-filter" id="authCategoryFilter">
+              <button class="category-filter-btn active" data-filter="all">
+                All Groups
+              </button>
+              <button class="category-filter-btn" data-filter="gemini">
+                Gemini
+              </button>
+              <button class="category-filter-btn" data-filter="grok">
+                Grok
+              </button>
+              <button class="category-filter-btn" data-filter="ollama">
+                Ollama
+              </button>
+              <button class="category-filter-btn" data-filter="claude">
+                Claude
+              </button>
+              <button class="category-filter-btn" data-filter="copilot">
+                Copilot
+              </button>
+              <button class="category-filter-btn" data-filter="codex">
+                Codex
+              </button>
+              <button class="category-filter-btn" data-filter="cursor">
+                Cursor
+              </button>
+            </div>
+
+            <!-- Grouped Models Container -->
+            <div id="authGroupedModelsContainer"></div>
+          </div>
+
+          <!-- Section 3: Direct Multi-ID / Key Assignment -->
+          <div
+            style="
+              border-top: 1px solid var(--border-subtle);
+              padding-top: 20px;
+            "
+          >
+            <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px">
+              Direct Token / Multi-Account API Key Assignment
+            </h4>
+            <p
+              style="
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-bottom: 12px;
+              "
+            >
+              Authenticate a specific model under a distinct Account ID or
+              Email. Multiple accounts can be registered simultaneously.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap">
+              <select
+                id="directAuthModelSelect"
+                style="min-width: 220px"
+              ></select>
+              <input
+                type="text"
+                id="directAuthEmailInput"
+                placeholder="Account ID / Email (e.g. work@corp.com, user2)..."
+                style="min-width: 200px"
+              />
+              <input
+                type="password"
+                id="directAuthKeyInput"
+                placeholder="Enter API Key or Bearer Token..."
+                style="flex: 1; min-width: 240px"
+              />
+              <button class="btn" id="btnSaveDirectAuth">Authenticate</button>
+            </div>
           </div>
         </div>
+      </section>
+    </main>
 
-        <!-- Section 1: Active Sessions Grouped -->
-        <div id="activeSessionsSection">
-          <div class="auth-section-title">
-            <span>🟢 Active Sessions & Accounts</span>
-            <span class="badge badge-success" id="activeSessionsCountBadge">0 Active</span>
-          </div>
-          <div id="activeSessionsEmpty" style="padding: 24px; text-align: center; color: var(--text-muted); background: rgba(255,255,255,0.01); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);">
-            No active model sessions currently authenticated. Connect any model below using OAuth or direct credentials.
-          </div>
-          <div class="active-sessions-grid" id="activeSessionsGrid" style="display: none;"></div>
+    <!-- Modal for Creating New Conversation -->
+    <div class="modal-backdrop" id="modalNewConv" style="display: none">
+      <div class="modal-box">
+        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 14px">
+          Create New Conversation
+        </h3>
+
+        <div class="form-group" style="margin-bottom: 14px">
+          <label class="form-label">Conversation Title</label>
+          <input
+            type="text"
+            id="modalInputConvTitle"
+            placeholder="e.g. Distributed System Architecture"
+            value="AI System Discussion"
+          />
         </div>
 
-        <!-- Section 2: Model Catalog by Category / Group -->
-        <div id="availableModelsAuthSection">
-          <div class="auth-section-title">
-            <span>📚 Model Catalog by Category</span>
-          </div>
-          
-          <!-- Category Filter Bar -->
-          <div class="auth-category-filter" id="authCategoryFilter">
-            <button class="category-filter-btn active" data-filter="all">All Groups</button>
-            <button class="category-filter-btn" data-filter="gemini">Gemini</button>
-            <button class="category-filter-btn" data-filter="grok">Grok</button>
-            <button class="category-filter-btn" data-filter="ollama">Ollama</button>
-            <button class="category-filter-btn" data-filter="claude">Claude</button>
-            <button class="category-filter-btn" data-filter="copilot">Copilot</button>
-            <button class="category-filter-btn" data-filter="codex">Codex</button>
-            <button class="category-filter-btn" data-filter="cursor">Cursor</button>
-          </div>
-
-          <!-- Grouped Models Container -->
-          <div id="authGroupedModelsContainer"></div>
+        <div class="form-group" style="margin-bottom: 14px">
+          <label class="form-label">Model Engine</label>
+          <select id="modalSelectConvModel"></select>
         </div>
 
-        <!-- Section 3: Direct Multi-ID / Key Assignment -->
-        <div style="border-top: 1px solid var(--border-subtle); padding-top: 20px;">
-          <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">Direct Token / Multi-Account API Key Assignment</h4>
-          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-            Authenticate a specific model under a distinct Account ID or Email. Multiple accounts can be registered simultaneously.
-          </p>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <select id="directAuthModelSelect" style="min-width: 220px;"></select>
-            <input type="text" id="directAuthEmailInput" placeholder="Account ID / Email (e.g. work@corp.com, user2)..." style="min-width: 200px;">
-            <input type="password" id="directAuthKeyInput" placeholder="Enter API Key or Bearer Token..." style="flex: 1; min-width: 240px;">
-            <button class="btn" id="btnSaveDirectAuth">Authenticate</button>
-          </div>
+        <div class="form-group" style="margin-bottom: 20px">
+          <label class="form-label">Subscription Routing Policy</label>
+          <select id="modalSelectConvPolicy">
+            <option value="paid_first" selected>
+              Paid First (Fallback to Freeware)
+            </option>
+            <option value="free_first">Free First (Preserve Paid Quota)</option>
+            <option value="paid_only">Paid Only</option>
+            <option value="free_only">Free Only</option>
+          </select>
         </div>
-      </div>
-    </section>
-  </main>
 
-  <!-- Modal for Creating New Conversation -->
-  <div class="modal-backdrop" id="modalNewConv" style="display: none;">
-    <div class="modal-box">
-      <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 14px;">Create New Conversation</h3>
-      
-      <div class="form-group" style="margin-bottom: 14px;">
-        <label class="form-label">Conversation Title</label>
-        <input type="text" id="modalInputConvTitle" placeholder="e.g. Distributed System Architecture" value="AI System Discussion">
-      </div>
-
-      <div class="form-group" style="margin-bottom: 14px;">
-        <label class="form-label">Model Engine</label>
-        <select id="modalSelectConvModel"></select>
-      </div>
-
-      <div class="form-group" style="margin-bottom: 20px;">
-        <label class="form-label">Subscription Routing Policy</label>
-        <select id="modalSelectConvPolicy">
-          <option value="paid_first" selected>Paid First (Fallback to Freeware)</option>
-          <option value="free_first">Free First (Preserve Paid Quota)</option>
-          <option value="paid_only">Paid Only</option>
-          <option value="free_only">Free Only</option>
-        </select>
-      </div>
-
-      <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button class="btn-secondary" id="modalBtnCancelConv">Cancel</button>
-        <button class="btn" id="modalBtnSubmitConv">Create Chat</button>
+        <div style="display: flex; justify-content: flex-end; gap: 10px">
+          <button class="btn-secondary" id="modalBtnCancelConv">Cancel</button>
+          <button class="btn" id="modalBtnSubmitConv">Create Chat</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Toast Container -->
-  <div class="toast-container" id="toastContainer"></div>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
-  <!-- Interactive JavaScript Logic -->
-  <script>
-    // Global State
-    let activeConvId = null;
-    let conversations = [];
-    let availableModels = [];
-    let downloadedArtifactName = null;
-    let selectedSkills = new Set(['code_review', 'refactoring', 'testing']);
+    <!-- Interactive JavaScript Logic -->
+    <script>
+      // Global State
+      let activeConvId = null;
+      let conversations = [];
+      let availableModels = [];
+      let downloadedArtifactName = null;
+      let selectedSkills = new Set(["code_review", "refactoring", "testing"]);
 
-    // Elements
-    const tabBtns = {
-      chat: document.getElementById('tabBtnChat'),
-      agent: document.getElementById('tabBtnAgent'),
-      job: document.getElementById('tabBtnJob'),
-      audit: document.getElementById('tabBtnAudit'),
-      auth: document.getElementById('tabBtnAuth'),
-    };
+      // Elements
+      const tabBtns = {
+        chat: document.getElementById("tabBtnChat"),
+        agent: document.getElementById("tabBtnAgent"),
+        job: document.getElementById("tabBtnJob"),
+        audit: document.getElementById("tabBtnAudit"),
+        auth: document.getElementById("tabBtnAuth"),
+      };
 
-    const tabContents = {
-      chat: document.getElementById('tabContentChat'),
-      agent: document.getElementById('tabContentAgent'),
-      job: document.getElementById('tabContentJob'),
-      audit: document.getElementById('tabContentAudit'),
-      auth: document.getElementById('tabContentAuth'),
-    };
+      const tabContents = {
+        chat: document.getElementById("tabContentChat"),
+        agent: document.getElementById("tabContentAgent"),
+        job: document.getElementById("tabContentJob"),
+        audit: document.getElementById("tabContentAudit"),
+        auth: document.getElementById("tabContentAuth"),
+      };
 
-    // Tab Switching Logic
-    function switchTab(target) {
-      Object.keys(tabBtns).forEach(key => {
-        tabBtns[key].classList.toggle('active', key === target);
-        tabContents[key].classList.toggle('active', key === target);
-      });
-      if (target === 'audit') loadAuditLogs();
-      if (target === 'auth') loadAuthStatus();
-      if (target === 'agent') loadAgentHistory();
-    }
-
-    tabBtns.chat.addEventListener('click', () => switchTab('chat'));
-    tabBtns.agent.addEventListener('click', () => switchTab('agent'));
-    tabBtns.job.addEventListener('click', () => switchTab('job'));
-    tabBtns.audit.addEventListener('click', () => switchTab('audit'));
-    tabBtns.auth.addEventListener('click', () => switchTab('auth'));
-
-    // Toast Notification helper
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-      toast.className = 'toast';
-      const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-      toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(10px)';
-        setTimeout(() => toast.remove(), 300);
-      }, 4000);
-    }
-
-    // Health Telemetry Heartbeat
-    async function updateTelemetry() {
-      const start = performance.now();
-      try {
-        const res = await fetch('/api/v1/health');
-        const data = await res.json();
-        const latency = Math.round(performance.now() - start);
-        document.getElementById('serverStatusText').textContent = 'Online';
-        document.getElementById('serverLatencyText').textContent = `${latency}ms`;
-        if (data.cli_status?.default_model) {
-          document.getElementById('serverDefaultModel').textContent = data.cli_status.default_model;
-        }
-      } catch (err) {
-        document.getElementById('serverStatusText').textContent = 'Offline';
-        document.getElementById('serverLatencyText').textContent = 'err';
-      }
-    }
-    setInterval(updateTelemetry, 15000);
-    updateTelemetry();
-
-    const FAMILY_CONFIG = {
-      gemini: { label: 'Google Gemini', icon: '✨', badgeClass: 'badge-gemini' },
-      grok: { label: 'xAI Grok', icon: '⚡', badgeClass: 'badge-grok' },
-      ollama: { label: 'Ollama Local', icon: '🦙', badgeClass: 'badge-ollama' },
-      claude: { label: 'Anthropic Claude', icon: '🧠', badgeClass: 'badge-claude' },
-      copilot: { label: 'GitHub Copilot', icon: '🐙', badgeClass: 'badge-copilot' },
-      codex: { label: 'OpenAI Codex', icon: '💡', badgeClass: 'badge-codex' },
-      cursor: { label: 'Cursor AI', icon: '🎯', badgeClass: 'badge-cursor' },
-      general: { label: 'General / Other', icon: '⚙️', badgeClass: 'badge-model' },
-    };
-
-    function getFamilyConfig(fam) {
-      const key = (fam || 'general').toLowerCase();
-      return FAMILY_CONFIG[key] || { label: (fam || 'General').toUpperCase(), icon: '⚙️', badgeClass: 'badge-model' };
-    }
-
-    // Fetch and Populate Available Models
-    async function loadAvailableModels() {
-      try {
-        const res = await fetch('/api/v1/models');
-        const data = await res.json();
-        availableModels = data.models || [];
-        
-        const selectors = [
-          document.getElementById('modalSelectConvModel'),
-          document.getElementById('agentSelectModel'),
-          document.getElementById('chatModelOverride'),
-          document.getElementById('directAuthModelSelect'),
-        ];
-
-        selectors.forEach(sel => {
-          if (!sel) return;
-          const currentVal = sel.value;
-          sel.innerHTML = sel.id === 'chatModelOverride' ? '<option value="">(Default Model)</option>' : '';
-          
-          // Group by model family
-          const families = {};
-          availableModels.forEach(m => {
-            const fam = (m.family || 'general').toLowerCase();
-            if (!families[fam]) families[fam] = [];
-            families[fam].push(m);
-          });
-
-          // Ordered families display
-          const orderedFamilies = ['gemini', 'grok', 'ollama', 'claude', 'copilot', 'codex', 'cursor', 'general'];
-          const allFamilyKeys = Array.from(new Set([...orderedFamilies, ...Object.keys(families)]));
-
-          allFamilyKeys.forEach(fam => {
-            if (!families[fam] || families[fam].length === 0) return;
-            const conf = getFamilyConfig(fam);
-            const grp = document.createElement('optgroup');
-            grp.label = `${conf.icon} ${conf.label.toUpperCase()}`;
-            families[fam].forEach(m => {
-              const opt = document.createElement('option');
-              opt.value = m.name;
-              opt.textContent = `${m.name} [${fam.toUpperCase()}] (${m.tier || 'standard'})`;
-              grp.appendChild(opt);
-            });
-            sel.appendChild(grp);
-          });
-
-          if (currentVal) sel.value = currentVal;
+      // Tab Switching Logic
+      function switchTab(target) {
+        Object.keys(tabBtns).forEach((key) => {
+          tabBtns[key].classList.toggle("active", key === target);
+          tabContents[key].classList.toggle("active", key === target);
         });
-      } catch (err) {
-        console.warn('Failed to load available models:', err);
-      }
-    }
-
-    // =========================================================================
-    // CHAT & CONVERSATIONS LOGIC
-    // =========================================================================
-    const convItemsList = document.getElementById('convItemsList');
-    const chatMessagesThread = document.getElementById('chatMessagesThread');
-    const chatMessageInput = document.getElementById('chatMessageInput');
-    const btnSendChatMessage = document.getElementById('btnSendChatMessage');
-    const chatHeaderTitle = document.getElementById('chatHeaderTitle');
-    const chatHeaderMeta = document.getElementById('chatHeaderMeta');
-    const btnResumeChat = document.getElementById('btnResumeChat');
-    const btnDeleteChat = document.getElementById('btnDeleteChat');
-    const quickPromptsBar = document.getElementById('quickPromptsBar');
-
-    async function loadConversations() {
-      try {
-        const res = await fetch('/api/v1/conversations');
-        const data = await res.json();
-        conversations = data.items || [];
-        renderConversations();
-      } catch (err) {
-        console.error('Failed to load conversations:', err);
-      }
-    }
-
-    function renderConversations() {
-      convItemsList.innerHTML = '';
-      if (conversations.length === 0) {
-        convItemsList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:12px; text-align:center;">No conversations yet</div>';
-        return;
+        if (target === "audit") loadAuditLogs();
+        if (target === "auth") loadAuthStatus();
+        if (target === "agent") loadAgentHistory();
       }
 
-      conversations.forEach(c => {
-        const item = document.createElement('div');
-        item.className = `conv-item ${c.id === activeConvId ? 'active' : ''}`;
-        item.innerHTML = `
+      tabBtns.chat.addEventListener("click", () => switchTab("chat"));
+      tabBtns.agent.addEventListener("click", () => switchTab("agent"));
+      tabBtns.job.addEventListener("click", () => switchTab("job"));
+      tabBtns.audit.addEventListener("click", () => switchTab("audit"));
+      tabBtns.auth.addEventListener("click", () => switchTab("auth"));
+
+      // Toast Notification helper
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        const icon = type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️";
+        toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transform = "translateY(10px)";
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      // Health Telemetry Heartbeat
+      async function updateTelemetry() {
+        const start = performance.now();
+        try {
+          const res = await fetch("/api/v1/health");
+          const data = await res.json();
+          const latency = Math.round(performance.now() - start);
+          document.getElementById("serverStatusText").textContent = "Online";
+          document.getElementById("serverLatencyText").textContent =
+            `${latency}ms`;
+          if (data.cli_status?.default_model) {
+            document.getElementById("serverDefaultModel").textContent =
+              data.cli_status.default_model;
+          }
+        } catch (err) {
+          document.getElementById("serverStatusText").textContent = "Offline";
+          document.getElementById("serverLatencyText").textContent = "err";
+        }
+      }
+      setInterval(updateTelemetry, 15000);
+      updateTelemetry();
+
+      const FAMILY_CONFIG = {
+        gemini: {
+          label: "Google Gemini",
+          icon: "✨",
+          badgeClass: "badge-gemini",
+        },
+        grok: { label: "xAI Grok", icon: "⚡", badgeClass: "badge-grok" },
+        ollama: {
+          label: "Ollama Local",
+          icon: "🦙",
+          badgeClass: "badge-ollama",
+        },
+        claude: {
+          label: "Anthropic Claude",
+          icon: "🧠",
+          badgeClass: "badge-claude",
+        },
+        copilot: {
+          label: "GitHub Copilot",
+          icon: "🐙",
+          badgeClass: "badge-copilot",
+        },
+        codex: { label: "OpenAI Codex", icon: "💡", badgeClass: "badge-codex" },
+        cursor: { label: "Cursor AI", icon: "🎯", badgeClass: "badge-cursor" },
+        general: {
+          label: "General / Other",
+          icon: "⚙️",
+          badgeClass: "badge-model",
+        },
+      };
+
+      function getFamilyConfig(fam) {
+        const key = (fam || "general").toLowerCase();
+        return (
+          FAMILY_CONFIG[key] || {
+            label: (fam || "General").toUpperCase(),
+            icon: "⚙️",
+            badgeClass: "badge-model",
+          }
+        );
+      }
+
+      // Fetch and Populate Available Models
+      async function loadAvailableModels() {
+        try {
+          const res = await fetch("/api/v1/models");
+          const data = await res.json();
+          availableModels = data.models || [];
+
+          const selectors = [
+            document.getElementById("modalSelectConvModel"),
+            document.getElementById("agentSelectModel"),
+            document.getElementById("chatModelOverride"),
+            document.getElementById("directAuthModelSelect"),
+          ];
+
+          selectors.forEach((sel) => {
+            if (!sel) return;
+            const currentVal = sel.value;
+            sel.innerHTML =
+              sel.id === "chatModelOverride"
+                ? '<option value="">(Default Model)</option>'
+                : "";
+
+            // Group by model family
+            const families = {};
+            availableModels.forEach((m) => {
+              const fam = (m.family || "general").toLowerCase();
+              if (!families[fam]) families[fam] = [];
+              families[fam].push(m);
+            });
+
+            // Ordered families display
+            const orderedFamilies = [
+              "gemini",
+              "grok",
+              "ollama",
+              "claude",
+              "copilot",
+              "codex",
+              "cursor",
+              "general",
+            ];
+            const allFamilyKeys = Array.from(
+              new Set([...orderedFamilies, ...Object.keys(families)]),
+            );
+
+            allFamilyKeys.forEach((fam) => {
+              if (!families[fam] || families[fam].length === 0) return;
+              const conf = getFamilyConfig(fam);
+              const grp = document.createElement("optgroup");
+              grp.label = `${conf.icon} ${conf.label.toUpperCase()}`;
+              families[fam].forEach((m) => {
+                const opt = document.createElement("option");
+                opt.value = m.name;
+                opt.textContent = `${m.name} [${fam.toUpperCase()}] (${m.tier || "standard"})`;
+                grp.appendChild(opt);
+              });
+              sel.appendChild(grp);
+            });
+
+            if (currentVal) sel.value = currentVal;
+          });
+        } catch (err) {
+          console.warn("Failed to load available models:", err);
+        }
+      }
+
+      // =========================================================================
+      // CHAT & CONVERSATIONS LOGIC
+      // =========================================================================
+      const convItemsList = document.getElementById("convItemsList");
+      const chatMessagesThread = document.getElementById("chatMessagesThread");
+      const chatMessageInput = document.getElementById("chatMessageInput");
+      const btnSendChatMessage = document.getElementById("btnSendChatMessage");
+      const chatHeaderTitle = document.getElementById("chatHeaderTitle");
+      const chatHeaderMeta = document.getElementById("chatHeaderMeta");
+      const btnResumeChat = document.getElementById("btnResumeChat");
+      const btnDeleteChat = document.getElementById("btnDeleteChat");
+      const quickPromptsBar = document.getElementById("quickPromptsBar");
+
+      async function loadConversations() {
+        try {
+          const res = await fetch("/api/v1/conversations");
+          const data = await res.json();
+          conversations = data.items || [];
+          renderConversations();
+        } catch (err) {
+          console.error("Failed to load conversations:", err);
+        }
+      }
+
+      function renderConversations() {
+        convItemsList.innerHTML = "";
+        if (conversations.length === 0) {
+          convItemsList.innerHTML =
+            '<div style="font-size:12px; color:var(--text-muted); padding:12px; text-align:center;">No conversations yet</div>';
+          return;
+        }
+
+        conversations.forEach((c) => {
+          const item = document.createElement("div");
+          item.className = `conv-item ${c.id === activeConvId ? "active" : ""}`;
+          item.innerHTML = `
           <div class="conv-title">${c.title}</div>
           <div class="conv-meta">
-            <span class="badge badge-model">${c.model || 'gemini'}</span>
-            <span>${new Date(c.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span class="badge badge-model">${c.model || "gemini"}</span>
+            <span>${new Date(c.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
         `;
-        item.onclick = () => selectConversation(c.id);
-        convItemsList.appendChild(item);
-      });
-    }
-
-    async function selectConversation(id) {
-      activeConvId = id;
-      renderConversations();
-      chatMessageInput.disabled = false;
-      btnSendChatMessage.disabled = false;
-      btnResumeChat.style.display = 'inline-flex';
-      btnDeleteChat.style.display = 'inline-flex';
-      quickPromptsBar.style.display = 'flex';
-
-      try {
-        const res = await fetch(`/api/v1/conversations/${id}`);
-        const conv = await res.json();
-        chatHeaderTitle.textContent = conv.title;
-        const totalTurns = conv.metadata?.total_turns || (conv.messages?.length || 0);
-        const tokens = conv.metadata?.total_tokens || 0;
-        chatHeaderMeta.textContent = `Model: ${conv.model} | Session: ${(conv.session_id || id).slice(0, 8)} | Turns: ${totalTurns} | Tokens: ${tokens}`;
-        renderMessages(conv.messages || []);
-      } catch (err) {
-        showToast('Failed to load conversation: ' + err.message, 'error');
-      }
-    }
-
-    function renderMessages(messages) {
-      chatMessagesThread.innerHTML = '';
-      if (messages.length === 0) {
-        chatMessagesThread.innerHTML = '<div style="text-align:center; color:var(--text-muted); margin:auto;">Thread is empty. Send a message to start interacting.</div>';
-        return;
+          item.onclick = () => selectConversation(c.id);
+          convItemsList.appendChild(item);
+        });
       }
 
-      messages.forEach(m => {
-        const row = document.createElement('div');
-        row.className = `msg-row ${m.role === 'user' ? 'msg-user' : 'msg-assistant'}`;
-        const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const latency = m.latency_ms ? ` • ${m.latency_ms}ms` : '';
-        const tokens = m.total_tokens ? ` • ${m.total_tokens} tokens` : '';
-        
-        row.innerHTML = `
+      async function selectConversation(id) {
+        activeConvId = id;
+        renderConversations();
+        chatMessageInput.disabled = false;
+        btnSendChatMessage.disabled = false;
+        btnResumeChat.style.display = "inline-flex";
+        btnDeleteChat.style.display = "inline-flex";
+        quickPromptsBar.style.display = "flex";
+
+        try {
+          const res = await fetch(`/api/v1/conversations/${id}`);
+          const conv = await res.json();
+          chatHeaderTitle.textContent = conv.title;
+          const totalTurns =
+            conv.metadata?.total_turns || conv.messages?.length || 0;
+          const tokens = conv.metadata?.total_tokens || 0;
+          chatHeaderMeta.textContent = `Model: ${conv.model} | Session: ${(conv.session_id || id).slice(0, 8)} | Turns: ${totalTurns} | Tokens: ${tokens}`;
+          renderMessages(conv.messages || []);
+        } catch (err) {
+          showToast("Failed to load conversation: " + err.message, "error");
+        }
+      }
+
+      function renderMessages(messages) {
+        chatMessagesThread.innerHTML = "";
+        if (messages.length === 0) {
+          chatMessagesThread.innerHTML =
+            '<div style="text-align:center; color:var(--text-muted); margin:auto;">Thread is empty. Send a message to start interacting.</div>';
+          return;
+        }
+
+        messages.forEach((m) => {
+          const row = document.createElement("div");
+          row.className = `msg-row ${m.role === "user" ? "msg-user" : "msg-assistant"}`;
+          const time = new Date(m.created_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const latency = m.latency_ms ? ` • ${m.latency_ms}ms` : "";
+          const tokens = m.total_tokens ? ` • ${m.total_tokens} tokens` : "";
+
+          row.innerHTML = `
           <div class="msg-content">${escapeHtml(m.content)}</div>
           <div class="msg-footer">
             <span>${time}</span>
             <span>${latency}${tokens}</span>
           </div>
         `;
-        chatMessagesThread.appendChild(row);
-      });
-      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
-    }
-
-    async function sendChatMessage() {
-      const text = chatMessageInput.value.trim();
-      if (!text || !activeConvId) return;
-
-      chatMessageInput.value = '';
-      chatMessageInput.disabled = true;
-      btnSendChatMessage.disabled = true;
-
-      // Optimistically append user message
-      const userRow = document.createElement('div');
-      userRow.className = 'msg-row msg-user';
-      userRow.innerHTML = `<div class="msg-content">${escapeHtml(text)}</div><div class="msg-footer"><span>Just now</span></div>`;
-      chatMessagesThread.appendChild(userRow);
-      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
-
-      // Loading bubble for assistant
-      const loadingRow = document.createElement('div');
-      loadingRow.className = 'msg-row msg-assistant';
-      loadingRow.id = 'loadingAssistantMsg';
-      loadingRow.innerHTML = `<div class="msg-content" style="color:var(--text-muted);">Thinking & executing model runner...</div>`;
-      chatMessagesThread.appendChild(loadingRow);
-      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
-
-      try {
-        const overrideModel = document.getElementById('chatModelOverride').value || undefined;
-        const res = await fetch(`/api/v1/conversations/${activeConvId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: text, model: overrideModel, resume: true }),
+          chatMessagesThread.appendChild(row);
         });
-        const data = await res.json();
-        loadingRow.remove();
+        chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+      }
 
-        if (data.assistantMessage) {
-          const asstRow = document.createElement('div');
-          asstRow.className = 'msg-row msg-assistant';
-          const lat = data.assistantMessage.latency_ms ? ` • ${data.assistantMessage.latency_ms}ms` : '';
-          const tok = data.assistantMessage.total_tokens ? ` • ${data.assistantMessage.total_tokens} tokens` : '';
-          asstRow.innerHTML = `
+      async function sendChatMessage() {
+        const text = chatMessageInput.value.trim();
+        if (!text || !activeConvId) return;
+
+        chatMessageInput.value = "";
+        chatMessageInput.disabled = true;
+        btnSendChatMessage.disabled = true;
+
+        // Optimistically append user message
+        const userRow = document.createElement("div");
+        userRow.className = "msg-row msg-user";
+        userRow.innerHTML = `<div class="msg-content">${escapeHtml(text)}</div><div class="msg-footer"><span>Just now</span></div>`;
+        chatMessagesThread.appendChild(userRow);
+        chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+
+        // Loading bubble for assistant
+        const loadingRow = document.createElement("div");
+        loadingRow.className = "msg-row msg-assistant";
+        loadingRow.id = "loadingAssistantMsg";
+        loadingRow.innerHTML = `<div class="msg-content" style="color:var(--text-muted);">Thinking & executing model runner...</div>`;
+        chatMessagesThread.appendChild(loadingRow);
+        chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+
+        try {
+          const overrideModel =
+            document.getElementById("chatModelOverride").value || undefined;
+          const res = await fetch(
+            `/api/v1/conversations/${activeConvId}/messages`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                content: text,
+                model: overrideModel,
+                resume: true,
+              }),
+            },
+          );
+          const data = await res.json();
+          loadingRow.remove();
+
+          if (data.assistantMessage) {
+            const asstRow = document.createElement("div");
+            asstRow.className = "msg-row msg-assistant";
+            const lat = data.assistantMessage.latency_ms
+              ? ` • ${data.assistantMessage.latency_ms}ms`
+              : "";
+            const tok = data.assistantMessage.total_tokens
+              ? ` • ${data.assistantMessage.total_tokens} tokens`
+              : "";
+            asstRow.innerHTML = `
             <div class="msg-content">${escapeHtml(data.assistantMessage.content)}</div>
             <div class="msg-footer">
               <span>Just now</span>
               <span>${lat}${tok}</span>
             </div>
           `;
-          chatMessagesThread.appendChild(asstRow);
-          chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+            chatMessagesThread.appendChild(asstRow);
+            chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+          }
+          await loadConversations();
+        } catch (err) {
+          loadingRow.innerHTML = `<div class="msg-content" style="color:var(--danger);">Error executing turn: ${escapeHtml(err.message)}</div>`;
+        } finally {
+          chatMessageInput.disabled = false;
+          btnSendChatMessage.disabled = false;
+          chatMessageInput.focus();
         }
-        await loadConversations();
-      } catch (err) {
-        loadingRow.innerHTML = `<div class="msg-content" style="color:var(--danger);">Error executing turn: ${escapeHtml(err.message)}</div>`;
-      } finally {
-        chatMessageInput.disabled = false;
-        btnSendChatMessage.disabled = false;
-        chatMessageInput.focus();
       }
-    }
 
-    btnSendChatMessage.addEventListener('click', sendChatMessage);
-    chatMessageInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendChatMessage();
-    });
-
-    window.applyQuickPrompt = function(promptText) {
-      chatMessageInput.value = promptText;
-      chatMessageInput.focus();
-    };
-
-    // Modal: New Conversation
-    const modalNewConv = document.getElementById('modalNewConv');
-    document.getElementById('btnOpenNewConvModal').onclick = () => {
-      modalNewConv.style.display = 'flex';
-      document.getElementById('modalInputConvTitle').focus();
-    };
-    document.getElementById('modalBtnCancelConv').onclick = () => {
-      modalNewConv.style.display = 'none';
-    };
-    document.getElementById('modalBtnSubmitConv').onclick = async () => {
-      const title = document.getElementById('modalInputConvTitle').value.trim() || 'AI Chat Session';
-      const model = document.getElementById('modalSelectConvModel').value;
-      const policy = document.getElementById('modalSelectConvPolicy').value;
-
-      try {
-        const res = await fetch('/api/v1/conversations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, model, subscription_policy: policy }),
-        });
-        const created = await res.json();
-        modalNewConv.style.display = 'none';
-        showToast(`Created conversation "${title}" with ${model}`, 'success');
-        await loadConversations();
-        selectConversation(created.id);
-      } catch (err) {
-        showToast('Failed to create conversation: ' + err.message, 'error');
-      }
-    };
-
-    btnResumeChat.addEventListener('click', async () => {
-      if (!activeConvId) return;
-      btnResumeChat.disabled = true;
-      btnResumeChat.textContent = 'Resuming...';
-      try {
-        const res = await fetch(`/api/v1/conversations/${activeConvId}/resume`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-        const data = await res.json();
-        showToast(`Resumed chat session "${data.conversation.title}" with CLI`, 'success');
-        await selectConversation(activeConvId);
-      } catch (err) {
-        showToast('Resume failed: ' + err.message, 'error');
-      } finally {
-        btnResumeChat.disabled = false;
-        btnResumeChat.textContent = '🔄 Resume in CLI';
-      }
-    });
-
-    btnDeleteChat.addEventListener('click', async () => {
-      if (!activeConvId || !confirm('Delete this conversation?')) return;
-      try {
-        await fetch(`/api/v1/conversations/${activeConvId}`, { method: 'DELETE' });
-        showToast('Conversation deleted', 'info');
-        activeConvId = null;
-        chatMessageInput.disabled = true;
-        btnSendChatMessage.disabled = true;
-        btnResumeChat.style.display = 'none';
-        btnDeleteChat.style.display = 'none';
-        chatHeaderTitle.textContent = 'Select or start a chat';
-        chatHeaderMeta.textContent = '';
-        chatMessagesThread.innerHTML = '';
-        await loadConversations();
-      } catch (err) {
-        showToast('Delete failed: ' + err.message, 'error');
-      }
-    });
-
-    // =========================================================================
-    // TAB 2: AUTONOMOUS AGENT STUDIO LOGIC
-    // =========================================================================
-    const agentSkillsChips = document.getElementById('agentSkillsChips');
-    const btnLaunchAgent = document.getElementById('btnLaunchAgent');
-    const agentActiveStatusCard = document.getElementById('agentActiveStatusCard');
-    const agentActiveTitle = document.getElementById('agentActiveTitle');
-    const agentActiveStatusBadge = document.getElementById('agentActiveStatusBadge');
-    const agentActiveMeta = document.getElementById('agentActiveMeta');
-    const agentActiveOutputPreview = document.getElementById('agentActiveOutputPreview');
-    const agentExecutionsHistoryList = document.getElementById('agentExecutionsHistoryList');
-
-    // Populate skills chips
-    const defaultSkills = ['code_review', 'refactoring', 'testing', 'documentation', 'gap_analysis', 'deployment'];
-    function renderSkillChips() {
-      agentSkillsChips.innerHTML = '';
-      defaultSkills.forEach(s => {
-        const chip = document.createElement('span');
-        chip.className = `skill-toggle ${selectedSkills.has(s) ? 'selected' : ''}`;
-        chip.textContent = `#${s}`;
-        chip.onclick = () => {
-          if (selectedSkills.has(s)) selectedSkills.delete(s);
-          else selectedSkills.add(s);
-          renderSkillChips();
-        };
-        agentSkillsChips.appendChild(chip);
+      btnSendChatMessage.addEventListener("click", sendChatMessage);
+      chatMessageInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendChatMessage();
       });
-    }
-    renderSkillChips();
 
-    btnLaunchAgent.addEventListener('click', async () => {
-      const task = document.getElementById('agentInputTask').value.trim();
-      if (!task) {
-        showToast('Please specify a task directive for the agent.', 'error');
-        return;
-      }
+      window.applyQuickPrompt = function (promptText) {
+        chatMessageInput.value = promptText;
+        chatMessageInput.focus();
+      };
 
-      const agentName = document.getElementById('agentInputName').value.trim() || 'ArchitectAgent';
-      const project = document.getElementById('agentInputProject').value.trim() || 'default';
-      const model = document.getElementById('agentSelectModel').value || undefined;
-      const approval = document.getElementById('agentSelectApproval').value;
+      // Modal: New Conversation
+      const modalNewConv = document.getElementById("modalNewConv");
+      document.getElementById("btnOpenNewConvModal").onclick = () => {
+        modalNewConv.style.display = "flex";
+        document.getElementById("modalInputConvTitle").focus();
+      };
+      document.getElementById("modalBtnCancelConv").onclick = () => {
+        modalNewConv.style.display = "none";
+      };
+      document.getElementById("modalBtnSubmitConv").onclick = async () => {
+        const title =
+          document.getElementById("modalInputConvTitle").value.trim() ||
+          "AI Chat Session";
+        const model = document.getElementById("modalSelectConvModel").value;
+        const policy = document.getElementById("modalSelectConvPolicy").value;
 
-      btnLaunchAgent.disabled = true;
-      btnLaunchAgent.textContent = '⏳ Executing Autonomous Agent...';
-      
-      agentActiveStatusCard.style.display = 'block';
-      agentActiveTitle.textContent = `${agentName} -> ${task.slice(0, 50)}...`;
-      agentActiveStatusBadge.className = 'badge badge-warning';
-      agentActiveStatusBadge.textContent = 'RUNNING';
-      agentActiveMeta.textContent = `Project: AGENTS/${project} | Model: ${model || 'default'} | Approval: ${approval}`;
-      agentActiveOutputPreview.textContent = 'Agent initiated. Dispatched prompt via Strategy Registry...';
-
-      const start = performance.now();
-      try {
-        const res = await fetch('/api/v1/agents/execute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            agent_name: agentName,
-            project,
-            task,
-            model,
-            approval_mode: approval,
-            skills: Array.from(selectedSkills),
-            sandbox: true,
-          }),
-        });
-        const execution = await res.json();
-        const duration = Math.round(performance.now() - start);
-
-        if (execution.status === 'COMPLETED') {
-          agentActiveStatusBadge.className = 'badge badge-success';
-          agentActiveStatusBadge.textContent = 'COMPLETED';
-          agentActiveMeta.textContent += ` | Latency: ${duration}ms | Tokens: ${execution.total_tokens || 0}`;
-          agentActiveOutputPreview.textContent = execution.result || 'Task completed without text output.';
-          showToast(`Agent task completed in ${duration}ms!`, 'success');
-        } else {
-          agentActiveStatusBadge.className = 'badge badge-danger';
-          agentActiveStatusBadge.textContent = execution.status || 'FAILED';
-          agentActiveOutputPreview.textContent = execution.error_message || 'Task terminated with failure.';
-          showToast('Agent execution terminated with error.', 'error');
+        try {
+          const res = await fetch("/api/v1/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, model, subscription_policy: policy }),
+          });
+          const created = await res.json();
+          modalNewConv.style.display = "none";
+          showToast(`Created conversation "${title}" with ${model}`, "success");
+          await loadConversations();
+          selectConversation(created.id);
+        } catch (err) {
+          showToast("Failed to create conversation: " + err.message, "error");
         }
-        await loadAgentHistory();
-      } catch (err) {
-        agentActiveStatusBadge.className = 'badge badge-danger';
-        agentActiveStatusBadge.textContent = 'ERROR';
-        agentActiveOutputPreview.textContent = 'Error calling agent endpoint: ' + err.message;
-        showToast('Agent call failed: ' + err.message, 'error');
-      } finally {
-        btnLaunchAgent.disabled = false;
-        btnLaunchAgent.textContent = '🚀 Execute Autonomous Task';
+      };
+
+      btnResumeChat.addEventListener("click", async () => {
+        if (!activeConvId) return;
+        btnResumeChat.disabled = true;
+        btnResumeChat.textContent = "Resuming...";
+        try {
+          const res = await fetch(
+            `/api/v1/conversations/${activeConvId}/resume`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            },
+          );
+          const data = await res.json();
+          showToast(
+            `Resumed chat session "${data.conversation.title}" with CLI`,
+            "success",
+          );
+          await selectConversation(activeConvId);
+        } catch (err) {
+          showToast("Resume failed: " + err.message, "error");
+        } finally {
+          btnResumeChat.disabled = false;
+          btnResumeChat.textContent = "🔄 Resume in CLI";
+        }
+      });
+
+      btnDeleteChat.addEventListener("click", async () => {
+        if (!activeConvId || !confirm("Delete this conversation?")) return;
+        try {
+          await fetch(`/api/v1/conversations/${activeConvId}`, {
+            method: "DELETE",
+          });
+          showToast("Conversation deleted", "info");
+          activeConvId = null;
+          chatMessageInput.disabled = true;
+          btnSendChatMessage.disabled = true;
+          btnResumeChat.style.display = "none";
+          btnDeleteChat.style.display = "none";
+          chatHeaderTitle.textContent = "Select or start a chat";
+          chatHeaderMeta.textContent = "";
+          chatMessagesThread.innerHTML = "";
+          await loadConversations();
+        } catch (err) {
+          showToast("Delete failed: " + err.message, "error");
+        }
+      });
+
+      // =========================================================================
+      // TAB 2: AUTONOMOUS AGENT STUDIO LOGIC
+      // =========================================================================
+      const agentSkillsChips = document.getElementById("agentSkillsChips");
+      const btnLaunchAgent = document.getElementById("btnLaunchAgent");
+      const agentActiveStatusCard = document.getElementById(
+        "agentActiveStatusCard",
+      );
+      const agentActiveTitle = document.getElementById("agentActiveTitle");
+      const agentActiveStatusBadge = document.getElementById(
+        "agentActiveStatusBadge",
+      );
+      const agentActiveMeta = document.getElementById("agentActiveMeta");
+      const agentActiveOutputPreview = document.getElementById(
+        "agentActiveOutputPreview",
+      );
+      const agentExecutionsHistoryList = document.getElementById(
+        "agentExecutionsHistoryList",
+      );
+
+      // Populate skills chips
+      const defaultSkills = [
+        "code_review",
+        "refactoring",
+        "testing",
+        "documentation",
+        "gap_analysis",
+        "deployment",
+      ];
+      function renderSkillChips() {
+        agentSkillsChips.innerHTML = "";
+        defaultSkills.forEach((s) => {
+          const chip = document.createElement("span");
+          chip.className = `skill-toggle ${selectedSkills.has(s) ? "selected" : ""}`;
+          chip.textContent = `#${s}`;
+          chip.onclick = () => {
+            if (selectedSkills.has(s)) selectedSkills.delete(s);
+            else selectedSkills.add(s);
+            renderSkillChips();
+          };
+          agentSkillsChips.appendChild(chip);
+        });
       }
-    });
+      renderSkillChips();
 
-    async function loadAgentHistory() {
-      try {
-        const res = await fetch('/api/v1/agents?limit=10');
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : data.executions || [];
-        agentExecutionsHistoryList.innerHTML = '';
-
-        if (list.length === 0) {
-          agentExecutionsHistoryList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:10px;">No executions recorded yet.</div>';
+      btnLaunchAgent.addEventListener("click", async () => {
+        const task = document.getElementById("agentInputTask").value.trim();
+        if (!task) {
+          showToast("Please specify a task directive for the agent.", "error");
           return;
         }
 
-        list.forEach(ex => {
-          const item = document.createElement('div');
-          item.className = 'exec-step-card';
-          const isOk = ex.status === 'COMPLETED';
-          item.innerHTML = `
+        const agentName =
+          document.getElementById("agentInputName").value.trim() ||
+          "ArchitectAgent";
+        const project =
+          document.getElementById("agentInputProject").value.trim() ||
+          "default";
+        const model =
+          document.getElementById("agentSelectModel").value || undefined;
+        const approval = document.getElementById("agentSelectApproval").value;
+
+        btnLaunchAgent.disabled = true;
+        btnLaunchAgent.textContent = "⏳ Executing Autonomous Agent...";
+
+        agentActiveStatusCard.style.display = "block";
+        agentActiveTitle.textContent = `${agentName} -> ${task.slice(0, 50)}...`;
+        agentActiveStatusBadge.className = "badge badge-warning";
+        agentActiveStatusBadge.textContent = "RUNNING";
+        agentActiveMeta.textContent = `Project: AGENTS/${project} | Model: ${model || "default"} | Approval: ${approval}`;
+        agentActiveOutputPreview.textContent =
+          "Agent initiated. Dispatched prompt via Strategy Registry...";
+
+        const start = performance.now();
+        try {
+          const res = await fetch("/api/v1/agents/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              agent_name: agentName,
+              project,
+              task,
+              model,
+              approval_mode: approval,
+              skills: Array.from(selectedSkills),
+              sandbox: true,
+            }),
+          });
+          const execution = await res.json();
+          const duration = Math.round(performance.now() - start);
+
+          if (execution.status === "COMPLETED") {
+            agentActiveStatusBadge.className = "badge badge-success";
+            agentActiveStatusBadge.textContent = "COMPLETED";
+            agentActiveMeta.textContent += ` | Latency: ${duration}ms | Tokens: ${execution.total_tokens || 0}`;
+            agentActiveOutputPreview.textContent =
+              execution.result || "Task completed without text output.";
+            showToast(`Agent task completed in ${duration}ms!`, "success");
+          } else {
+            agentActiveStatusBadge.className = "badge badge-danger";
+            agentActiveStatusBadge.textContent = execution.status || "FAILED";
+            agentActiveOutputPreview.textContent =
+              execution.error_message || "Task terminated with failure.";
+            showToast("Agent execution terminated with error.", "error");
+          }
+          await loadAgentHistory();
+        } catch (err) {
+          agentActiveStatusBadge.className = "badge badge-danger";
+          agentActiveStatusBadge.textContent = "ERROR";
+          agentActiveOutputPreview.textContent =
+            "Error calling agent endpoint: " + err.message;
+          showToast("Agent call failed: " + err.message, "error");
+        } finally {
+          btnLaunchAgent.disabled = false;
+          btnLaunchAgent.textContent = "🚀 Execute Autonomous Task";
+        }
+      });
+
+      async function loadAgentHistory() {
+        try {
+          const res = await fetch("/api/v1/agents?limit=10");
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : data.executions || [];
+          agentExecutionsHistoryList.innerHTML = "";
+
+          if (list.length === 0) {
+            agentExecutionsHistoryList.innerHTML =
+              '<div style="font-size:12px; color:var(--text-muted); padding:10px;">No executions recorded yet.</div>';
+            return;
+          }
+
+          list.forEach((ex) => {
+            const item = document.createElement("div");
+            item.className = "exec-step-card";
+            const isOk = ex.status === "COMPLETED";
+            item.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-weight:700; font-size:13px;">${escapeHtml(ex.agent_name || 'Agent')} (${escapeHtml(ex.project || 'default')})</span>
-              <span class="badge ${isOk ? 'badge-success' : 'badge-danger'}">${ex.status}</span>
+              <span style="font-weight:700; font-size:13px;">${escapeHtml(ex.agent_name || "Agent")} (${escapeHtml(ex.project || "default")})</span>
+              <span class="badge ${isOk ? "badge-success" : "badge-danger"}">${ex.status}</span>
             </div>
             <div style="font-size:12px; color:var(--text-secondary); line-height:1.4;">${escapeHtml(ex.task?.slice(0, 100))}...</div>
             <div style="font-size:11px; color:var(--text-muted); display:flex; gap:10px;">
@@ -900,281 +1461,336 @@
               <span>Tokens: ${ex.total_tokens || 0}</span>
             </div>
           `;
-          item.onclick = () => {
-            agentActiveStatusCard.style.display = 'block';
-            agentActiveTitle.textContent = `${ex.agent_name} -> ${ex.task}`;
-            agentActiveStatusBadge.className = `badge ${isOk ? 'badge-success' : 'badge-danger'}`;
-            agentActiveStatusBadge.textContent = ex.status;
-            agentActiveMeta.textContent = `Project: AGENTS/${ex.project} | Model: ${ex.model} | Created: ${new Date(ex.created_timestamp).toLocaleString()}`;
-            agentActiveOutputPreview.textContent = ex.result || ex.error_message || '(No result logged)';
-          };
-          agentExecutionsHistoryList.appendChild(item);
-        });
-      } catch (err) {
-        console.warn('Failed to load agent history:', err);
+            item.onclick = () => {
+              agentActiveStatusCard.style.display = "block";
+              agentActiveTitle.textContent = `${ex.agent_name} -> ${ex.task}`;
+              agentActiveStatusBadge.className = `badge ${isOk ? "badge-success" : "badge-danger"}`;
+              agentActiveStatusBadge.textContent = ex.status;
+              agentActiveMeta.textContent = `Project: AGENTS/${ex.project} | Model: ${ex.model} | Created: ${new Date(ex.created_timestamp).toLocaleString()}`;
+              agentActiveOutputPreview.textContent =
+                ex.result || ex.error_message || "(No result logged)";
+            };
+            agentExecutionsHistoryList.appendChild(item);
+          });
+        } catch (err) {
+          console.warn("Failed to load agent history:", err);
+        }
       }
-    }
-    document.getElementById('btnRefreshAgentList').onclick = loadAgentHistory;
+      document.getElementById("btnRefreshAgentList").onclick = loadAgentHistory;
 
-    // =========================================================================
-    // TAB 3: JOB SEARCH RESUME MATCH LOGIC
-    // =========================================================================
-    const btnPrefillJob = document.getElementById('btnPrefillJob');
-    const btnExecuteJobMatch = document.getElementById('btnExecuteJobMatch');
-    const inputJobRole = document.getElementById('inputJobRole');
-    const inputJobResume = document.getElementById('inputJobResume');
-    const inputJobSpec = document.getElementById('inputJobSpec');
-    const jobResultsPlaceholder = document.getElementById('jobResultsPlaceholder');
-    const jobResultsContent = document.getElementById('jobResultsContent');
-    const jobScoreValue = document.getElementById('jobScoreValue');
-    const jobMatchedSkillsChips = document.getElementById('jobMatchedSkillsChips');
-    const jobMissingSkillsChips = document.getElementById('jobMissingSkillsChips');
-    const jobSummaryEvaluation = document.getElementById('jobSummaryEvaluation');
-    const jobMarkdownPreview = document.getElementById('jobMarkdownPreview');
-    const btnDownloadArtifact = document.getElementById('btnDownloadArtifact');
+      // =========================================================================
+      // TAB 3: JOB SEARCH RESUME MATCH LOGIC
+      // =========================================================================
+      const btnPrefillJob = document.getElementById("btnPrefillJob");
+      const btnExecuteJobMatch = document.getElementById("btnExecuteJobMatch");
+      const inputJobRole = document.getElementById("inputJobRole");
+      const inputJobResume = document.getElementById("inputJobResume");
+      const inputJobSpec = document.getElementById("inputJobSpec");
+      const jobResultsPlaceholder = document.getElementById(
+        "jobResultsPlaceholder",
+      );
+      const jobResultsContent = document.getElementById("jobResultsContent");
+      const jobScoreValue = document.getElementById("jobScoreValue");
+      const jobMatchedSkillsChips = document.getElementById(
+        "jobMatchedSkillsChips",
+      );
+      const jobMissingSkillsChips = document.getElementById(
+        "jobMissingSkillsChips",
+      );
+      const jobSummaryEvaluation = document.getElementById(
+        "jobSummaryEvaluation",
+      );
+      const jobMarkdownPreview = document.getElementById("jobMarkdownPreview");
+      const btnDownloadArtifact = document.getElementById(
+        "btnDownloadArtifact",
+      );
 
-    btnPrefillJob.addEventListener('click', () => {
-      inputJobRole.value = 'Staff Distributed Systems & AI Engineer';
-      inputJobResume.value = `Senior Engineer with 8+ years architecting microservices, Node.js, TypeScript, and Docker container pipelines. Deep expertise in distributed transactions, SQL/NoSQL databases, and Gemini/Ollama LLM integrations.`;
-      inputJobSpec.value = `Requirements:
+      btnPrefillJob.addEventListener("click", () => {
+        inputJobRole.value = "Staff Distributed Systems & AI Engineer";
+        inputJobResume.value = `Senior Engineer with 8+ years architecting microservices, Node.js, TypeScript, and Docker container pipelines. Deep expertise in distributed transactions, SQL/NoSQL databases, and Gemini/Ollama LLM integrations.`;
+        inputJobSpec.value = `Requirements:
 - 5+ years building high-throughput microservices with Node.js and TypeScript.
 - Hands-on expertise with Google Gemini CLI, REST APIs, and containerized Docker environments.
 - Knowledge of SQLite persistence, audit logging, and automated agent workflows.`;
-      showToast('Demo resume and job spec pre-filled.', 'info');
-    });
+        showToast("Demo resume and job spec pre-filled.", "info");
+      });
 
-    btnExecuteJobMatch.addEventListener('click', async () => {
-      const resume = inputJobResume.value.trim();
-      const jobSpec = inputJobSpec.value.trim();
-      if (!resume || !jobSpec) {
-        showToast('Please provide both the candidate resume and job spec.', 'error');
-        return;
-      }
+      btnExecuteJobMatch.addEventListener("click", async () => {
+        const resume = inputJobResume.value.trim();
+        const jobSpec = inputJobSpec.value.trim();
+        if (!resume || !jobSpec) {
+          showToast(
+            "Please provide both the candidate resume and job spec.",
+            "error",
+          );
+          return;
+        }
 
-      btnExecuteJobMatch.disabled = true;
-      btnExecuteJobMatch.textContent = '⏳ Analyzing Match & Alignment...';
+        btnExecuteJobMatch.disabled = true;
+        btnExecuteJobMatch.textContent = "⏳ Analyzing Match & Alignment...";
 
-      try {
-        const payload = {
-          target_role: inputJobRole.value.trim() || undefined,
-          resume_content: resume,
-          generate_markdown_files: true,
-        };
-        if (jobSpec.startsWith('http://') || jobSpec.startsWith('https://')) {
-          payload.job_url = jobSpec;
-        } else if (jobSpec.includes('<') && jobSpec.includes('>')) {
-          payload.job_html = jobSpec;
+        try {
+          const payload = {
+            target_role: inputJobRole.value.trim() || undefined,
+            resume_content: resume,
+            generate_markdown_files: true,
+          };
+          if (jobSpec.startsWith("http://") || jobSpec.startsWith("https://")) {
+            payload.job_url = jobSpec;
+          } else if (jobSpec.includes("<") && jobSpec.includes(">")) {
+            payload.job_html = jobSpec;
+          } else {
+            payload.job_text = jobSpec;
+          }
+
+          const res = await fetch("/api/v1/job-search/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+
+          jobResultsPlaceholder.style.display = "none";
+          jobResultsContent.style.display = "flex";
+
+          const score = data.resume_match?.match_score_percentage || 0;
+          jobScoreValue.textContent = `${score}%`;
+          jobScoreValue.style.color =
+            score >= 75
+              ? "var(--success)"
+              : score >= 50
+                ? "var(--warning)"
+                : "var(--danger)";
+
+          jobSummaryEvaluation.textContent =
+            data.resume_match?.summary_evaluation || "Analysis complete.";
+
+          jobMatchedSkillsChips.innerHTML = "";
+          (data.resume_match?.matched_skills || []).forEach((s) => {
+            const chip = document.createElement("span");
+            chip.className = "badge badge-success";
+            chip.textContent = `✓ ${s}`;
+            jobMatchedSkillsChips.appendChild(chip);
+          });
+
+          jobMissingSkillsChips.innerHTML = "";
+          (data.resume_match?.missing_skills || []).forEach((s) => {
+            const chip = document.createElement("span");
+            chip.className = "badge badge-warning";
+            chip.textContent = `+ ${s}`;
+            jobMissingSkillsChips.appendChild(chip);
+          });
+
+          jobMarkdownPreview.textContent = data.markdown_content || "";
+          if (data.markdown_filepath) {
+            const parts = data.markdown_filepath.split(/[/\\]/);
+            downloadedArtifactName = parts[parts.length - 1];
+          }
+
+          showToast(`Job alignment match evaluated: ${score}%!`, "success");
+        } catch (err) {
+          showToast("Job match failed: " + err.message, "error");
+        } finally {
+          btnExecuteJobMatch.disabled = false;
+          btnExecuteJobMatch.textContent = "✨ Run Alignment Analysis";
+        }
+      });
+
+      btnDownloadArtifact.addEventListener("click", () => {
+        if (downloadedArtifactName) {
+          window.location.href = `/api/v1/job-search/artifacts/${downloadedArtifactName}`;
         } else {
-          payload.job_text = jobSpec;
+          const text = jobMarkdownPreview.textContent;
+          const blob = new Blob([text], { type: "text/markdown" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "tailored_resume.md";
+          a.click();
+        }
+      });
+
+      // =========================================================================
+      // TAB 4: SQLITE AUDIT TRAIL LOGIC
+      // =========================================================================
+      const auditTableBody = document.getElementById("auditTableBody");
+      const btnRefreshAudit = document.getElementById("btnRefreshAudit");
+      const auditSearchInput = document.getElementById("auditSearchInput");
+
+      async function loadAuditLogs() {
+        try {
+          const res = await fetch("/api/v1/audit/logs?limit=50");
+          const data = await res.json();
+          const logs = data.logs || [];
+          renderAuditTable(logs);
+        } catch (err) {
+          console.error("Failed to load audit logs:", err);
+        }
+      }
+
+      function renderAuditTable(logs) {
+        const query = (auditSearchInput.value || "").toLowerCase();
+        const filtered = logs.filter(
+          (l) =>
+            (l.action || "").toLowerCase().includes(query) ||
+            (l.model_used || "").toLowerCase().includes(query) ||
+            (l.status || "").toLowerCase().includes(query),
+        );
+
+        auditTableBody.innerHTML = "";
+        if (filtered.length === 0) {
+          auditTableBody.innerHTML =
+            '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">No matching audit records found.</td></tr>';
+          return;
         }
 
-        const res = await fetch('/api/v1/job-search/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-
-        jobResultsPlaceholder.style.display = 'none';
-        jobResultsContent.style.display = 'flex';
-
-        const score = data.resume_match?.match_score_percentage || 0;
-        jobScoreValue.textContent = `${score}%`;
-        jobScoreValue.style.color = score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--danger)';
-
-        jobSummaryEvaluation.textContent = data.resume_match?.summary_evaluation || 'Analysis complete.';
-        
-        jobMatchedSkillsChips.innerHTML = '';
-        (data.resume_match?.matched_skills || []).forEach(s => {
-          const chip = document.createElement('span');
-          chip.className = 'badge badge-success';
-          chip.textContent = `✓ ${s}`;
-          jobMatchedSkillsChips.appendChild(chip);
-        });
-
-        jobMissingSkillsChips.innerHTML = '';
-        (data.resume_match?.missing_skills || []).forEach(s => {
-          const chip = document.createElement('span');
-          chip.className = 'badge badge-warning';
-          chip.textContent = `+ ${s}`;
-          jobMissingSkillsChips.appendChild(chip);
-        });
-
-        jobMarkdownPreview.textContent = data.markdown_content || '';
-        if (data.markdown_filepath) {
-          const parts = data.markdown_filepath.split(/[/\\]/);
-          downloadedArtifactName = parts[parts.length - 1];
-        }
-
-        showToast(`Job alignment match evaluated: ${score}%!`, 'success');
-      } catch (err) {
-        showToast('Job match failed: ' + err.message, 'error');
-      } finally {
-        btnExecuteJobMatch.disabled = false;
-        btnExecuteJobMatch.textContent = '✨ Run Alignment Analysis';
-      }
-    });
-
-    btnDownloadArtifact.addEventListener('click', () => {
-      if (downloadedArtifactName) {
-        window.location.href = `/api/v1/job-search/artifacts/${downloadedArtifactName}`;
-      } else {
-        const text = jobMarkdownPreview.textContent;
-        const blob = new Blob([text], { type: 'text/markdown' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'tailored_resume.md';
-        a.click();
-      }
-    });
-
-    // =========================================================================
-    // TAB 4: SQLITE AUDIT TRAIL LOGIC
-    // =========================================================================
-    const auditTableBody = document.getElementById('auditTableBody');
-    const btnRefreshAudit = document.getElementById('btnRefreshAudit');
-    const auditSearchInput = document.getElementById('auditSearchInput');
-
-    async function loadAuditLogs() {
-      try {
-        const res = await fetch('/api/v1/audit/logs?limit=50');
-        const data = await res.json();
-        const logs = data.logs || [];
-        renderAuditTable(logs);
-      } catch (err) {
-        console.error('Failed to load audit logs:', err);
-      }
-    }
-
-    function renderAuditTable(logs) {
-      const query = (auditSearchInput.value || '').toLowerCase();
-      const filtered = logs.filter(l => 
-        (l.action || '').toLowerCase().includes(query) ||
-        (l.model_used || '').toLowerCase().includes(query) ||
-        (l.status || '').toLowerCase().includes(query)
-      );
-
-      auditTableBody.innerHTML = '';
-      if (filtered.length === 0) {
-        auditTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">No matching audit records found.</td></tr>';
-        return;
-      }
-
-      filtered.forEach(l => {
-        const tr = document.createElement('tr');
-        const isSuccess = l.status === 'SUCCESS';
-        const dateStr = new Date(l.timestamp).toLocaleString();
-        const tokens = l.prompt_tokens ? `${l.prompt_tokens} / ${l.completion_tokens || 0}` : '-';
-        tr.innerHTML = `
+        filtered.forEach((l) => {
+          const tr = document.createElement("tr");
+          const isSuccess = l.status === "SUCCESS";
+          const dateStr = new Date(l.timestamp).toLocaleString();
+          const tokens = l.prompt_tokens
+            ? `${l.prompt_tokens} / ${l.completion_tokens || 0}`
+            : "-";
+          tr.innerHTML = `
           <td>${dateStr}</td>
           <td><span style="font-family:var(--font-mono); font-weight:600;">${l.action}</span></td>
-          <td><span class="badge badge-model">${l.model_used || '-'}</span></td>
-          <td>${(l.conversation_id || '-').slice(0, 10)}</td>
+          <td><span class="badge badge-model">${l.model_used || "-"}</span></td>
+          <td>${(l.conversation_id || "-").slice(0, 10)}</td>
           <td>${tokens}</td>
-          <td>${l.latency_ms ? `${l.latency_ms}ms` : '-'}</td>
-          <td><span class="badge ${isSuccess ? 'badge-success' : 'badge-danger'}">${l.status}</span></td>
+          <td>${l.latency_ms ? `${l.latency_ms}ms` : "-"}</td>
+          <td><span class="badge ${isSuccess ? "badge-success" : "badge-danger"}">${l.status}</span></td>
         `;
-        auditTableBody.appendChild(tr);
-      });
-    }
-
-    btnRefreshAudit.onclick = loadAuditLogs;
-    auditSearchInput.oninput = () => loadAuditLogs();
-
-    // =========================================================================
-    // TAB 5: AUTH & SUBSCRIPTION HUB LOGIC
-    // =========================================================================
-    const btnRefreshAuth = document.getElementById('btnRefreshAuth');
-    const btnLogoutAll = document.getElementById('btnLogoutAll');
-    const btnSaveDirectAuth = document.getElementById('btnSaveDirectAuth');
-    const directAuthModelSelect = document.getElementById('directAuthModelSelect');
-    const directAuthKeyInput = document.getElementById('directAuthKeyInput');
-    const directAuthEmailInput = document.getElementById('directAuthEmailInput');
-    const activeSessionsCountBadge = document.getElementById('activeSessionsCountBadge');
-    const activeSessionsEmpty = document.getElementById('activeSessionsEmpty');
-    const activeSessionsGrid = document.getElementById('activeSessionsGrid');
-    const authGroupedModelsContainer = document.getElementById('authGroupedModelsContainer');
-    const authCategoryFilter = document.getElementById('authCategoryFilter');
-
-    let currentCategoryFilter = 'all';
-
-    // Category filter button click handler
-    if (authCategoryFilter) {
-      authCategoryFilter.querySelectorAll('.category-filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          authCategoryFilter.querySelectorAll('.category-filter-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentCategoryFilter = btn.getAttribute('data-filter') || 'all';
-          applyCategoryFilter();
+          auditTableBody.appendChild(tr);
         });
-      });
-    }
+      }
 
-    function applyCategoryFilter() {
-      const blocks = document.querySelectorAll('.auth-group-block');
-      blocks.forEach(block => {
-        const group = block.getAttribute('data-group');
-        if (currentCategoryFilter === 'all' || currentCategoryFilter === group) {
-          block.style.display = 'block';
-        } else {
-          block.style.display = 'none';
-        }
-      });
-    }
+      btnRefreshAudit.onclick = loadAuditLogs;
+      auditSearchInput.oninput = () => loadAuditLogs();
 
-    async function loadAuthStatus() {
-      try {
-        const res = await fetch('/api/v1/auth/status');
-        const data = await res.json();
-        const models = data.models || {};
-        const activeSessions = data.active_sessions || [];
+      // =========================================================================
+      // TAB 5: AUTH & SUBSCRIPTION HUB LOGIC
+      // =========================================================================
+      const btnRefreshAuth = document.getElementById("btnRefreshAuth");
+      const btnLogoutAll = document.getElementById("btnLogoutAll");
+      const btnSaveDirectAuth = document.getElementById("btnSaveDirectAuth");
+      const directAuthModelSelect = document.getElementById(
+        "directAuthModelSelect",
+      );
+      const directAuthKeyInput = document.getElementById("directAuthKeyInput");
+      const directAuthEmailInput = document.getElementById(
+        "directAuthEmailInput",
+      );
+      const activeSessionsCountBadge = document.getElementById(
+        "activeSessionsCountBadge",
+      );
+      const activeSessionsEmpty = document.getElementById(
+        "activeSessionsEmpty",
+      );
+      const activeSessionsGrid = document.getElementById("activeSessionsGrid");
+      const authGroupedModelsContainer = document.getElementById(
+        "authGroupedModelsContainer",
+      );
+      const authCategoryFilter = document.getElementById("authCategoryFilter");
 
-        // 1. Render Active Sessions & Multi-ID Support
-        const activeCount = activeSessions.length;
-        if (activeCount > 0) {
-          btnLogoutAll.style.display = 'inline-flex';
-          activeSessionsCountBadge.textContent = `${activeCount} Active Session${activeCount > 1 ? 's' : ''}`;
-          activeSessionsEmpty.style.display = 'none';
-          activeSessionsGrid.style.display = 'grid';
-          activeSessionsGrid.innerHTML = '';
+      let currentCategoryFilter = "all";
 
-          activeSessions.forEach(sess => {
-            const fam = (sess.family || 'general').toLowerCase();
-            const famConf = getFamilyConfig(fam);
-            
-            // Resolve proper name
-            const properName = sess.account_name && sess.account_name.trim() 
-              ? sess.account_name.trim() 
-              : (sess.display_name || (sess.account_email ? sess.account_email.split('@')[0] : sess.id));
+      // Category filter button click handler
+      if (authCategoryFilter) {
+        authCategoryFilter
+          .querySelectorAll(".category-filter-btn")
+          .forEach((btn) => {
+            btn.addEventListener("click", () => {
+              authCategoryFilter
+                .querySelectorAll(".category-filter-btn")
+                .forEach((b) => b.classList.remove("active"));
+              btn.classList.add("active");
+              currentCategoryFilter = btn.getAttribute("data-filter") || "all";
+              applyCategoryFilter();
+            });
+          });
+      }
 
-            // Resolve proper model (never bare "default")
-            let modelDisplay = sess.display_model || sess.model;
-            if (!modelDisplay || modelDisplay === 'default' || modelDisplay === '*') {
-              modelDisplay = 'gemini-3.8-flash (Default Engine)';
-            }
+      function applyCategoryFilter() {
+        const blocks = document.querySelectorAll(".auth-group-block");
+        blocks.forEach((block) => {
+          const group = block.getAttribute("data-group");
+          if (
+            currentCategoryFilter === "all" ||
+            currentCategoryFilter === group
+          ) {
+            block.style.display = "block";
+          } else {
+            block.style.display = "none";
+          }
+        });
+      }
 
-            // Format human-readable auth method
-            let authMethodDisplay = 'Direct API Key';
-            if (sess.auth_type) {
-              const at = sess.auth_type.toLowerCase();
-              if (at.includes('google')) authMethodDisplay = 'Google OAuth 2.0';
-              else if (at.includes('anthropic') || at.includes('claude')) authMethodDisplay = 'Anthropic OAuth';
-              else if (at.includes('copilot') || at.includes('github')) authMethodDisplay = 'GitHub Copilot OAuth';
-              else if (at.includes('openai') || at.includes('codex')) authMethodDisplay = 'OpenAI OAuth / Token';
-              else if (at.includes('ollama')) authMethodDisplay = 'Ollama Local Daemon';
-              else if (at.includes('api_key') || at.includes('api-key')) authMethodDisplay = 'Direct API Key';
-              else authMethodDisplay = sess.auth_type.toUpperCase();
-            }
+      async function loadAuthStatus() {
+        try {
+          const res = await fetch("/api/v1/auth/status");
+          const data = await res.json();
+          const models = data.models || {};
+          const activeSessions = data.active_sessions || [];
 
-            // Creation time string
-            const createdStr = sess.created_timestamp 
-              ? new Date(sess.created_timestamp).toLocaleString() 
-              : 'Active Session';
+          // 1. Render Active Sessions & Multi-ID Support
+          const activeCount = activeSessions.length;
+          if (activeCount > 0) {
+            btnLogoutAll.style.display = "inline-flex";
+            activeSessionsCountBadge.textContent = `${activeCount} Active Session${activeCount > 1 ? "s" : ""}`;
+            activeSessionsEmpty.style.display = "none";
+            activeSessionsGrid.style.display = "grid";
+            activeSessionsGrid.innerHTML = "";
 
-            const card = document.createElement('div');
-            card.className = 'session-card';
-            card.innerHTML = `
+            activeSessions.forEach((sess) => {
+              const fam = (sess.family || "general").toLowerCase();
+              const famConf = getFamilyConfig(fam);
+
+              // Resolve proper name
+              const properName =
+                sess.account_name && sess.account_name.trim()
+                  ? sess.account_name.trim()
+                  : sess.display_name ||
+                    (sess.account_email
+                      ? sess.account_email.split("@")[0]
+                      : sess.id);
+
+              // Resolve proper model (never bare "default")
+              let modelDisplay = sess.display_model || sess.model;
+              if (
+                !modelDisplay ||
+                modelDisplay === "default" ||
+                modelDisplay === "*"
+              ) {
+                modelDisplay = "gemini-3.8-flash (Default Engine)";
+              }
+
+              // Format human-readable auth method
+              let authMethodDisplay = "Direct API Key";
+              if (sess.auth_type) {
+                const at = sess.auth_type.toLowerCase();
+                if (at.includes("google"))
+                  authMethodDisplay = "Google OAuth 2.0";
+                else if (at.includes("anthropic") || at.includes("claude"))
+                  authMethodDisplay = "Anthropic OAuth";
+                else if (at.includes("copilot") || at.includes("github"))
+                  authMethodDisplay = "GitHub Copilot OAuth";
+                else if (at.includes("openai") || at.includes("codex"))
+                  authMethodDisplay = "OpenAI OAuth / Token";
+                else if (at.includes("ollama"))
+                  authMethodDisplay = "Ollama Local Daemon";
+                else if (at.includes("api_key") || at.includes("api-key"))
+                  authMethodDisplay = "Direct API Key";
+                else authMethodDisplay = sess.auth_type.toUpperCase();
+              }
+
+              // Creation time string
+              const createdStr = sess.created_timestamp
+                ? new Date(sess.created_timestamp).toLocaleString()
+                : "Active Session";
+
+              const card = document.createElement("div");
+              card.className = "session-card";
+              card.innerHTML = `
               <div class="session-card-header">
                 <div>
                   <div class="session-user-name">
@@ -1182,7 +1798,7 @@
                     <span>${escapeHtml(properName)}</span>
                   </div>
                   <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
-                    ${escapeHtml(sess.account_email || 'Authenticated User')}
+                    ${escapeHtml(sess.account_email || "Authenticated User")}
                   </div>
                 </div>
                 <span class="badge ${famConf.badgeClass}">${escapeHtml(famConf.label.toUpperCase())}</span>
@@ -1193,9 +1809,11 @@
                   <span>${famConf.icon}</span>
                   <span>${escapeHtml(modelDisplay)}</span>
                 </div>
-                ${sess.is_current_active 
-                  ? '<span class="badge badge-success" style="box-shadow: 0 0 10px rgba(16,185,129,0.3);">⚡ Current Active</span>' 
-                  : '<span class="badge" style="background:rgba(255,255,255,0.08); color:var(--text-muted);">Standby Session</span>'}
+                ${
+                  sess.is_current_active
+                    ? '<span class="badge badge-success" style="box-shadow: 0 0 10px rgba(16,185,129,0.3);">⚡ Current Active</span>'
+                    : '<span class="badge" style="background:rgba(255,255,255,0.08); color:var(--text-muted);">Standby Session</span>'
+                }
               </div>
 
               <div class="session-meta-grid">
@@ -1205,226 +1823,252 @@
               </div>
 
               <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:auto; padding-top:6px;">
-                ${!sess.is_current_active ? `
+                ${
+                  !sess.is_current_active
+                    ? `
                   <button class="btn" style="padding:6px 14px; font-size:12px;" onclick="switchSession('${escapeHtml(sess.id)}', '${escapeHtml(sess.model)}')">
                     ⚡ Switch Active
                   </button>
-                ` : ''}
+                `
+                    : ""
+                }
                 <button class="btn-secondary" style="padding:6px 14px; font-size:12px; color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="logoutSession('${escapeHtml(sess.id)}', '${escapeHtml(sess.model)}')">
                   Logout Session
                 </button>
               </div>
             `;
-            activeSessionsGrid.appendChild(card);
+              activeSessionsGrid.appendChild(card);
+            });
+          } else {
+            // Requirement #2: If not logged in, NO logout option shown!
+            btnLogoutAll.style.display = "none";
+            activeSessionsCountBadge.textContent = "0 Active";
+            activeSessionsEmpty.style.display = "block";
+            activeSessionsGrid.style.display = "none";
+            activeSessionsGrid.innerHTML = "";
+          }
+
+          // 2. Render Inactive & Available Models Grouped by Category
+          authGroupedModelsContainer.innerHTML = "";
+          const groups = {};
+          Object.entries(models).forEach(([modelName, info]) => {
+            const fam = (info.family || "general").toLowerCase();
+            if (!groups[fam]) groups[fam] = [];
+            groups[fam].push({ name: modelName, ...info });
           });
-        } else {
-          // Requirement #2: If not logged in, NO logout option shown!
-          btnLogoutAll.style.display = 'none';
-          activeSessionsCountBadge.textContent = '0 Active';
-          activeSessionsEmpty.style.display = 'block';
-          activeSessionsGrid.style.display = 'none';
-          activeSessionsGrid.innerHTML = '';
-        }
 
-        // 2. Render Inactive & Available Models Grouped by Category
-        authGroupedModelsContainer.innerHTML = '';
-        const groups = {};
-        Object.entries(models).forEach(([modelName, info]) => {
-          const fam = (info.family || 'general').toLowerCase();
-          if (!groups[fam]) groups[fam] = [];
-          groups[fam].push({ name: modelName, ...info });
-        });
+          const orderedFamilies = [
+            "gemini",
+            "grok",
+            "ollama",
+            "claude",
+            "copilot",
+            "codex",
+            "cursor",
+            "general",
+          ];
+          const allGroupKeys = Array.from(
+            new Set([...orderedFamilies, ...Object.keys(groups)]),
+          );
 
-        const orderedFamilies = ['gemini', 'grok', 'ollama', 'claude', 'copilot', 'codex', 'cursor', 'general'];
-        const allGroupKeys = Array.from(new Set([...orderedFamilies, ...Object.keys(groups)]));
+          allGroupKeys.forEach((fam) => {
+            const list = groups[fam];
+            if (!list || list.length === 0) return;
+            const famConf = getFamilyConfig(fam);
+            const activeInGroup = list.filter((m) => m.authenticated).length;
 
-        allGroupKeys.forEach(fam => {
-          const list = groups[fam];
-          if (!list || list.length === 0) return;
-          const famConf = getFamilyConfig(fam);
-          const activeInGroup = list.filter(m => m.authenticated).length;
+            const block = document.createElement("div");
+            block.className = "auth-group-block";
+            block.setAttribute("data-group", fam);
 
-          const block = document.createElement('div');
-          block.className = 'auth-group-block';
-          block.setAttribute('data-group', fam);
-
-          const header = document.createElement('div');
-          header.className = 'auth-group-header';
-          header.innerHTML = `
+            const header = document.createElement("div");
+            header.className = "auth-group-header";
+            header.innerHTML = `
             <div style="display:flex; align-items:center; gap:8px;">
               <span>${famConf.icon}</span>
               <span>${famConf.label} Category</span>
             </div>
             <span class="badge ${famConf.badgeClass}">${list.length} Models (${activeInGroup} Active)</span>
           `;
-          block.appendChild(header);
+            block.appendChild(header);
 
-          const grid = document.createElement('div');
-          grid.className = 'model-auth-grid';
+            const grid = document.createElement("div");
+            grid.className = "model-auth-grid";
 
-          list.forEach(m => {
-            const card = document.createElement('div');
-            card.className = `auth-card ${m.authenticated ? 'authenticated' : ''}`;
-            
-            // Requirement #1: In model category section it must NOT have logout button
-            let actionHtml = '';
-            if (m.authenticated) {
-              actionHtml = `
+            list.forEach((m) => {
+              const card = document.createElement("div");
+              card.className = `auth-card ${m.authenticated ? "authenticated" : ""}`;
+
+              // Requirement #1: In model category section it must NOT have logout button
+              let actionHtml = "";
+              if (m.authenticated) {
+                actionHtml = `
                 <button class="btn" style="width:100%; padding:6px 12px; font-size:12px;" onclick="window.open('/api/v1/auth/login?model=${encodeURIComponent(m.name)}&redirect=true', '_blank')">
                   + Add Login
                 </button>
               `;
-            } else {
-              actionHtml = `
+              } else {
+                actionHtml = `
                 <button class="btn" style="width:100%; padding:6px 12px; font-size:12px;" onclick="window.open('/api/v1/auth/login?model=${encodeURIComponent(m.name)}&redirect=true', '_blank')">
                   Connect OAuth
                 </button>
               `;
-            }
+              }
 
-            card.innerHTML = `
+              card.innerHTML = `
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center; gap:6px;">
                   <h4 style="font-size:14px; font-weight:700;">${escapeHtml(m.name)}</h4>
                 </div>
                 <div style="display:flex; gap:4px; align-items:center;">
                   <span class="badge ${famConf.badgeClass}">${escapeHtml(fam.toUpperCase())}</span>
-                  <span class="badge ${m.authenticated ? 'badge-success' : 'badge-warning'}">
-                    ${m.authenticated ? 'AUTHENTICATED' : 'NOT LOGGED IN'}
+                  <span class="badge ${m.authenticated ? "badge-success" : "badge-warning"}">
+                    ${m.authenticated ? "AUTHENTICATED" : "NOT LOGGED IN"}
                   </span>
                 </div>
               </div>
               <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">
-                ${m.authenticated 
-                  ? `Active Account: ${escapeHtml(m.account_email || 'Authenticated')} • Auth: ${m.auth_type}${m.active_sessions?.length > 1 ? ` (${m.active_sessions.length} sessions)` : ''}` 
-                  : `Category: ${famConf.label}. Session unauthenticated. Connect via OAuth or assign API key below.`}
+                ${
+                  m.authenticated
+                    ? `Active Account: ${escapeHtml(m.account_email || "Authenticated")} • Auth: ${m.auth_type}${m.active_sessions?.length > 1 ? ` (${m.active_sessions.length} sessions)` : ""}`
+                    : `Category: ${famConf.label}. Session unauthenticated. Connect via OAuth or assign API key below.`
+                }
               </p>
               <div style="display:flex; gap:8px; margin-top:auto;">
                 ${actionHtml}
               </div>
             `;
-            grid.appendChild(card);
+              grid.appendChild(card);
+            });
+
+            block.appendChild(grid);
+            authGroupedModelsContainer.appendChild(block);
           });
 
-          block.appendChild(grid);
-          authGroupedModelsContainer.appendChild(block);
-        });
-
-        applyCategoryFilter();
-      } catch (err) {
-        console.error('Failed to load auth status:', err);
-      }
-    }
-
-    window.switchSession = async function(sessionId, modelName) {
-      try {
-        const res = await fetch('/api/v1/auth/session/switch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, model: modelName }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Switch failed');
-        showToast(data.message || 'Active session switched successfully!', 'success');
-        await loadAuthStatus();
-      } catch (err) {
-        showToast('Switch session failed: ' + err.message, 'error');
-      }
-    };
-
-    window.logoutSession = async function(sessionId, modelName) {
-      try {
-        const res = await fetch('/api/v1/auth/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: sessionId, model: modelName }),
-        });
-        const data = await res.json();
-        showToast(data.message || 'Session logged out', 'info');
-        await loadAuthStatus();
-      } catch (err) {
-        showToast('Logout failed: ' + err.message, 'error');
-      }
-    };
-
-    window.logoutSingleModel = async function(modelName) {
-      try {
-        const res = await fetch('/api/v1/auth/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: modelName }),
-        });
-        const data = await res.json();
-        showToast(data.message || `Logged out ${modelName}`, 'info');
-        await loadAuthStatus();
-      } catch (err) {
-        showToast('Logout failed: ' + err.message, 'error');
-      }
-    };
-
-    btnLogoutAll.onclick = async () => {
-      if (!confirm('Log out all authenticated models and sessions globally?')) return;
-      try {
-        const res = await fetch('/api/v1/auth/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ all: true }),
-        });
-        const data = await res.json();
-        showToast(data.message || 'All sessions logged out', 'info');
-        await loadAuthStatus();
-      } catch (err) {
-        showToast('Global logout failed: ' + err.message, 'error');
-      }
-    };
-
-    btnSaveDirectAuth.onclick = async () => {
-      const key = directAuthKeyInput.value.trim();
-      const model = directAuthModelSelect.value;
-      const accountId = directAuthEmailInput ? directAuthEmailInput.value.trim() : '';
-      if (!key) {
-        showToast('Please enter an API Key or Bearer Token.', 'error');
-        return;
-      }
-      try {
-        const payload = { model, api_key: key };
-        if (accountId) {
-          payload.account_id = accountId;
-          payload.email = accountId;
-          payload.id = accountId;
+          applyCategoryFilter();
+        } catch (err) {
+          console.error("Failed to load auth status:", err);
         }
-        const res = await fetch('/api/v1/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        showToast(`Authenticated ${model} ${accountId ? `(${accountId}) ` : ''}successfully!`, 'success');
-        directAuthKeyInput.value = '';
-        if (directAuthEmailInput) directAuthEmailInput.value = '';
-        await loadAuthStatus();
-      } catch (err) {
-        showToast('Authentication failed: ' + err.message, 'error');
       }
-    };
 
-    btnRefreshAuth.onclick = loadAuthStatus;
+      window.switchSession = async function (sessionId, modelName) {
+        try {
+          const res = await fetch("/api/v1/auth/session/switch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId, model: modelName }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || "Switch failed");
+          showToast(
+            data.message || "Active session switched successfully!",
+            "success",
+          );
+          await loadAuthStatus();
+        } catch (err) {
+          showToast("Switch session failed: " + err.message, "error");
+        }
+      };
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
+      window.logoutSession = async function (sessionId, modelName) {
+        try {
+          const res = await fetch("/api/v1/auth/logout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: sessionId, model: modelName }),
+          });
+          const data = await res.json();
+          showToast(data.message || "Session logged out", "info");
+          await loadAuthStatus();
+        } catch (err) {
+          showToast("Logout failed: " + err.message, "error");
+        }
+      };
 
-    // Initialize on page load
-    loadAvailableModels();
-    loadConversations();
-    loadAuthStatus();
-  </script>
-</body>
+      window.logoutSingleModel = async function (modelName) {
+        try {
+          const res = await fetch("/api/v1/auth/logout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: modelName }),
+          });
+          const data = await res.json();
+          showToast(data.message || `Logged out ${modelName}`, "info");
+          await loadAuthStatus();
+        } catch (err) {
+          showToast("Logout failed: " + err.message, "error");
+        }
+      };
+
+      btnLogoutAll.onclick = async () => {
+        if (!confirm("Log out all authenticated models and sessions globally?"))
+          return;
+        try {
+          const res = await fetch("/api/v1/auth/logout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ all: true }),
+          });
+          const data = await res.json();
+          showToast(data.message || "All sessions logged out", "info");
+          await loadAuthStatus();
+        } catch (err) {
+          showToast("Global logout failed: " + err.message, "error");
+        }
+      };
+
+      btnSaveDirectAuth.onclick = async () => {
+        const key = directAuthKeyInput.value.trim();
+        const model = directAuthModelSelect.value;
+        const accountId = directAuthEmailInput
+          ? directAuthEmailInput.value.trim()
+          : "";
+        if (!key) {
+          showToast("Please enter an API Key or Bearer Token.", "error");
+          return;
+        }
+        try {
+          const payload = { model, api_key: key };
+          if (accountId) {
+            payload.account_id = accountId;
+            payload.email = accountId;
+            payload.id = accountId;
+          }
+          const res = await fetch("/api/v1/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          showToast(
+            `Authenticated ${model} ${accountId ? `(${accountId}) ` : ""}successfully!`,
+            "success",
+          );
+          directAuthKeyInput.value = "";
+          if (directAuthEmailInput) directAuthEmailInput.value = "";
+          await loadAuthStatus();
+        } catch (err) {
+          showToast("Authentication failed: " + err.message, "error");
+        }
+      };
+
+      btnRefreshAuth.onclick = loadAuthStatus;
+
+      function escapeHtml(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      // Initialize on page load
+      loadAvailableModels();
+      loadConversations();
+      loadAuthStatus();
+    </script>
+  </body>
 </html>

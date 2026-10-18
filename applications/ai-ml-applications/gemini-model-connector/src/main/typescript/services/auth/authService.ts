@@ -1,7 +1,10 @@
-import { authRepo, type IAuthRepository } from '@/repositories/authRepository.js';
-import { auditRepo, AuditRepository } from '@/repositories/auditRepository.js';
-import { logger } from '@/core/observability/logging/logger.js';
-import type { ModelAuth, AuthStatusResponse } from '@/domain/index.js';
+import {
+  authRepo,
+  type IAuthRepository,
+} from "@/repositories/authRepository.js";
+import { auditRepo, AuditRepository } from "@/repositories/auditRepository.js";
+import { logger } from "@/core/observability/logging/logger.js";
+import type { ModelAuth, AuthStatusResponse } from "@/domain/index.js";
 import {
   KNOWN_MODELS,
   TimeDurationMs,
@@ -12,14 +15,14 @@ import {
   AuthType,
   ModelFamily,
   getModelFamily,
-} from '@/domain/constants/index.js';
+} from "@/domain/constants/index.js";
 import {
   authProviderRegistry,
   AuthProviderRegistry,
   type InitiateAuthResult,
-} from '@/core/adapters/auth/authProvider.js';
-import { config } from '@/core/config/index.js';
-import type { IAuthService } from '@/services/auth/iAuthService.js';
+} from "@/core/adapters/auth/authProvider.js";
+import { config } from "@/core/config/index.js";
+import type { IAuthService } from "@/services/auth/iAuthService.js";
 
 export { KNOWN_MODELS, type InitiateAuthResult };
 
@@ -40,7 +43,7 @@ export class AuthService implements IAuthService {
   constructor(
     auth: IAuthRepository = authRepo,
     audit = auditRepo,
-    providerRegistry = authProviderRegistry
+    providerRegistry = authProviderRegistry,
   ) {
     this.authRepository = auth;
     this.auditRepository = audit;
@@ -55,7 +58,7 @@ export class AuthService implements IAuthService {
     model: string = ModelCatalog.DEFAULT,
     launchBrowser = true,
     redirectUriOverride?: string,
-    clientIp?: string
+    clientIp?: string,
   ): Promise<InitiateAuthResult> {
     const provider = this.providerRegistry.getProvider(model);
     return provider.initiateAuth({
@@ -72,7 +75,7 @@ export class AuthService implements IAuthService {
   async initiateProviderAuth(
     model: string = ModelCatalog.DEFAULT,
     launchBrowser = true,
-    redirectUriOverride?: string
+    redirectUriOverride?: string,
   ): Promise<InitiateAuthResult> {
     return this.initiateAuth(model, launchBrowser, redirectUriOverride);
   }
@@ -83,7 +86,7 @@ export class AuthService implements IAuthService {
   async initiateGoogleAuth(
     model: string = ModelCatalog.DEFAULT,
     launchBrowser = true,
-    redirectUriOverride?: string
+    redirectUriOverride?: string,
   ): Promise<InitiateAuthResult> {
     return this.initiateProviderAuth(model, launchBrowser, redirectUriOverride);
   }
@@ -97,7 +100,7 @@ export class AuthService implements IAuthService {
     clientIp?: string,
     redirectUriOverride?: string,
     manualCodeVerifier?: string,
-    targetModel?: string
+    targetModel?: string,
   ): Promise<ModelAuth> {
     const model = targetModel || ModelCatalog.DEFAULT;
     const provider = this.providerRegistry.getProvider(model);
@@ -111,7 +114,7 @@ export class AuthService implements IAuthService {
         manualCodeVerifier,
         model,
       },
-      this.authRepository
+      this.authRepository,
     );
 
     await this.auditRepository.logEvent({
@@ -128,8 +131,8 @@ export class AuthService implements IAuthService {
     });
 
     logger.info(
-      'AUTH',
-      `Successfully authenticated model '${savedAuth.model}' via ${provider.providerId} (${savedAuth.account_email})`
+      "AUTH",
+      `Successfully authenticated model '${savedAuth.model}' via ${provider.providerId} (${savedAuth.account_email})`,
     );
     return savedAuth;
   }
@@ -144,10 +147,12 @@ export class AuthService implements IAuthService {
     email?: string,
     authType: (typeof AuthType)[keyof typeof AuthType] = AuthType.API_KEY,
     clientIp?: string,
-    id?: string
+    id?: string,
   ): Promise<ModelAuth> {
     const provider = this.providerRegistry.getProvider(model);
-    const resolvedAccountName = email ? email.split('@')[0] : config.getAccountName(model);
+    const resolvedAccountName = email
+      ? email.split("@")[0]
+      : config.getAccountName(model);
 
     const saved = await this.authRepository.saveModelAuth({
       id,
@@ -157,8 +162,14 @@ export class AuthService implements IAuthService {
       account_name: resolvedAccountName,
       access_token: token,
       status: AuthStatusConstant.AUTHENTICATED,
-      expires_at: new Date(Date.now() + TimeDurationMs.CREDENTIAL_DEFAULT_EXPIRY).toISOString(),
-      metadata: { direct_auth: true, provider: provider.providerId, session_id: id },
+      expires_at: new Date(
+        Date.now() + TimeDurationMs.CREDENTIAL_DEFAULT_EXPIRY,
+      ).toISOString(),
+      metadata: {
+        direct_auth: true,
+        provider: provider.providerId,
+        session_id: id,
+      },
     });
 
     await provider.syncCredentials(saved);
@@ -168,14 +179,24 @@ export class AuthService implements IAuthService {
       client_ip: clientIp,
       model_used: model,
       status: CommonStatus.SUCCESS,
-      details: { model, auth_type: authType, provider: provider.providerId, id: saved.id },
+      details: {
+        model,
+        auth_type: authType,
+        provider: provider.providerId,
+        id: saved.id,
+      },
     });
 
     return saved;
   }
 
   async saveApiKey(model: string, apiKey: string): Promise<ModelAuth> {
-    return this.loginWithCredentials(model, apiKey, undefined, AuthType.API_KEY);
+    return this.loginWithCredentials(
+      model,
+      apiKey,
+      undefined,
+      AuthType.API_KEY,
+    );
   }
 
   /**
@@ -183,11 +204,18 @@ export class AuthService implements IAuthService {
    * Conforms to Requirement #2: Logout is executed only when an active session exists.
    */
   async logout(
-    options: { model?: string; id?: string; account_email?: string; all?: boolean } | string = { all: true },
-    clientIp?: string
-  ): Promise<{ success: boolean; model?: string; count?: number; message: string }> {
-    const opts = typeof options === 'string' ? { model: options } : options;
-    const shouldLogoutAll = Boolean(opts.all) || opts.model === 'all';
+    options:
+      | { model?: string; id?: string; account_email?: string; all?: boolean }
+      | string = { all: true },
+    clientIp?: string,
+  ): Promise<{
+    success: boolean;
+    model?: string;
+    count?: number;
+    message: string;
+  }> {
+    const opts = typeof options === "string" ? { model: options } : options;
+    const shouldLogoutAll = Boolean(opts.all) || opts.model === "all";
 
     if (shouldLogoutAll) {
       const count = await this.authRepository.deleteAllModelAuth();
@@ -199,17 +227,23 @@ export class AuthService implements IAuthService {
         status: CommonStatus.SUCCESS,
         details: { count },
       });
-      logger.info('AUTH', `Logged out all authenticated models (total: ${count})`);
+      logger.info(
+        "AUTH",
+        `Logged out all authenticated models (total: ${count})`,
+      );
       return {
         success: true,
         count,
-        message: 'All model connections and sessions have been logged out successfully.',
+        message:
+          "All model connections and sessions have been logged out successfully.",
       };
     }
 
     const target = opts.id
       ? { id: opts.id }
-      : (opts.account_email ? { model: opts.model, account_email: opts.account_email } : (opts.model || ''));
+      : opts.account_email
+        ? { model: opts.model, account_email: opts.account_email }
+        : opts.model || "";
 
     const deleted = await this.authRepository.deleteModelAuth(target);
     if (opts.model) {
@@ -225,8 +259,10 @@ export class AuthService implements IAuthService {
       details: { target, deleted },
     });
 
-    const targetDesc = opts.id ? `Session '${opts.id}'` : `Model '${opts.model || 'target'}'`;
-    logger.info('AUTH', `Logged out ${targetDesc} (deleted: ${deleted})`);
+    const targetDesc = opts.id
+      ? `Session '${opts.id}'`
+      : `Model '${opts.model || "target"}'`;
+    logger.info("AUTH", `Logged out ${targetDesc} (deleted: ${deleted})`);
     return {
       success: true,
       model: opts.model,
@@ -248,8 +284,12 @@ export class AuthService implements IAuthService {
   async switchSession(
     sessionId: string,
     model?: string,
-    clientIp?: string
-  ): Promise<{ success: boolean; active_session?: ModelAuth; message: string }> {
+    clientIp?: string,
+  ): Promise<{
+    success: boolean;
+    active_session?: ModelAuth;
+    message: string;
+  }> {
     const active = await this.authRepository.setActiveSession(sessionId, model);
     if (!active) {
       return {
@@ -274,8 +314,8 @@ export class AuthService implements IAuthService {
     });
 
     logger.info(
-      'AUTH',
-      `Switched active session for model '${active.model}' to session '${active.id}' (${active.account_email || active.account_name})`
+      "AUTH",
+      `Switched active session for model '${active.model}' to session '${active.id}' (${active.account_email || active.account_name})`,
     );
 
     return {
@@ -318,13 +358,14 @@ export class AuthService implements IAuthService {
    * 2. Active sessions organized by group with multi-ID support
    */
   async getStatus(): Promise<AuthStatusResponse> {
-    const activeAuthList: ModelAuth[] = await this.authRepository.listAllModelAuth();
-    const defaultGeminiModel = config.geminiDefaultModel || 'gemini-3.8-flash';
+    const activeAuthList: ModelAuth[] =
+      await this.authRepository.listAllModelAuth();
+    const defaultGeminiModel = config.geminiDefaultModel || "gemini-3.8-flash";
 
     // Group active sessions by model
     const sessionsByModel = new Map<string, ModelAuth[]>();
     for (const auth of activeAuthList) {
-      const isDefault = auth.model === 'default' || auth.model === '*';
+      const isDefault = auth.model === "default" || auth.model === "*";
       const effectiveModel = isDefault ? defaultGeminiModel : auth.model;
 
       const list = sessionsByModel.get(effectiveModel) || [];
@@ -342,27 +383,35 @@ export class AuthService implements IAuthService {
 
     // Populate all known verified models (omit 'default' as an artificial model card)
     for (const m of KNOWN_MODELS) {
-      if (m === 'default' || (m as string) === '*') continue;
+      if (m === "default" || (m as string) === "*") continue;
       const modelSessions = sessionsByModel.get(m) || [];
       const primaryAuth = modelSessions[0];
       const family = getModelFamily(m);
 
       modelsStatus[m] = {
         family,
-        authenticated: modelSessions.some((s) => s.status === AuthStatusConstant.AUTHENTICATED),
+        authenticated: modelSessions.some(
+          (s) => s.status === AuthStatusConstant.AUTHENTICATED,
+        ),
         auth_type: primaryAuth?.auth_type,
         account_email: primaryAuth?.account_email,
         expires_at: primaryAuth?.expires_at,
-        status: primaryAuth ? primaryAuth.status : AuthStatusConstant.UNAUTHENTICATED,
+        status: primaryAuth
+          ? primaryAuth.status
+          : AuthStatusConstant.UNAUTHENTICATED,
         active_sessions: modelSessions.map((s, idx) => {
-          const isDef = s.model === 'default' || s.model === '*';
+          const isDef = s.model === "default" || s.model === "*";
           const resolvedM = isDef ? defaultGeminiModel : s.model;
-          const properName = s.account_name && s.account_name.trim()
-            ? s.account_name.trim()
-            : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
-          const isCurrentActive = Boolean(s.is_active ?? (idx === 0));
+          const properName =
+            s.account_name && s.account_name.trim()
+              ? s.account_name.trim()
+              : s.account_email
+                ? s.account_email.split("@")[0]
+                : "Active User";
+          const isCurrentActive = Boolean(s.is_active ?? idx === 0);
           return {
-            id: s.id,
+            session_id: s.session_id || s.id,
+            id: s.session_id || s.id,
             model: resolvedM,
             original_model: s.model,
             display_name: properName,
@@ -374,7 +423,7 @@ export class AuthService implements IAuthService {
             status: s.status,
             is_active: Boolean(s.is_active ?? true),
             is_current_active: isCurrentActive,
-            login_state: 'Active (Logged In)',
+            login_state: "Active (Logged In)",
             login_date_time: s.created_timestamp,
             created_timestamp: s.created_timestamp,
           };
@@ -384,24 +433,32 @@ export class AuthService implements IAuthService {
 
     // Include custom dynamic models
     for (const [m, modelSessions] of sessionsByModel.entries()) {
-      if (m === 'default' || m === '*') continue;
+      if (m === "default" || m === "*") continue;
       if (!modelsStatus[m]) {
         const primaryAuth = modelSessions[0];
         const family = getModelFamily(m);
         modelsStatus[m] = {
           family,
-          authenticated: modelSessions.some((s) => s.status === AuthStatusConstant.AUTHENTICATED),
+          authenticated: modelSessions.some(
+            (s) => s.status === AuthStatusConstant.AUTHENTICATED,
+          ),
           auth_type: primaryAuth?.auth_type,
           account_email: primaryAuth?.account_email,
           expires_at: primaryAuth?.expires_at,
-          status: primaryAuth ? primaryAuth.status : AuthStatusConstant.UNAUTHENTICATED,
+          status: primaryAuth
+            ? primaryAuth.status
+            : AuthStatusConstant.UNAUTHENTICATED,
           active_sessions: modelSessions.map((s, idx) => {
-            const properName = s.account_name && s.account_name.trim()
-              ? s.account_name.trim()
-              : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
-            const isCurrentActive = Boolean(s.is_active ?? (idx === 0));
+            const properName =
+              s.account_name && s.account_name.trim()
+                ? s.account_name.trim()
+                : s.account_email
+                  ? s.account_email.split("@")[0]
+                  : "Active User";
+            const isCurrentActive = Boolean(s.is_active ?? idx === 0);
             return {
-              id: s.id,
+              session_id: s.session_id || s.id,
+              id: s.session_id || s.id,
               model: s.model,
               display_name: properName,
               display_model: s.model,
@@ -412,7 +469,7 @@ export class AuthService implements IAuthService {
               status: s.status,
               is_active: Boolean(s.is_active ?? true),
               is_current_active: isCurrentActive,
-              login_state: 'Active (Logged In)',
+              login_state: "Active (Logged In)",
               login_date_time: s.created_timestamp,
               created_timestamp: s.created_timestamp,
             };
@@ -422,42 +479,50 @@ export class AuthService implements IAuthService {
     }
 
     const overallAuthenticated = activeAuthList.some(
-      (a: ModelAuth) => a.status === AuthStatusConstant.AUTHENTICATED
+      (a: ModelAuth) => a.status === AuthStatusConstant.AUTHENTICATED,
     );
 
     const seenActiveModels = new Set<string>();
     const rootActiveSessions = activeAuthList
       .filter((a) => a.status === AuthStatusConstant.AUTHENTICATED)
       .map((s) => {
-        const isDefault = s.model === 'default' || s.model === '*';
+        const isDefault = s.model === "default" || s.model === "*";
         const resolvedModel = isDefault ? defaultGeminiModel : s.model;
-        const resolvedFamily = (isDefault && s.auth_type?.includes('google'))
-          ? ModelFamily.GEMINI
-          : getModelFamily(resolvedModel);
+        const resolvedFamily =
+          isDefault && s.auth_type?.includes("google")
+            ? ModelFamily.GEMINI
+            : getModelFamily(resolvedModel);
 
-        const properName = s.account_name && s.account_name.trim()
-          ? s.account_name.trim()
-          : (s.account_email ? s.account_email.split('@')[0] : 'Active User');
+        const properName =
+          s.account_name && s.account_name.trim()
+            ? s.account_name.trim()
+            : s.account_email
+              ? s.account_email.split("@")[0]
+              : "Active User";
 
-        const isCurrentActive = Boolean(s.is_active ?? false) || !seenActiveModels.has(resolvedModel);
+        const isCurrentActive =
+          Boolean(s.is_active ?? false) || !seenActiveModels.has(resolvedModel);
         if (isCurrentActive) {
           seenActiveModels.add(resolvedModel);
         }
 
         return {
-          id: s.id,
+          session_id: s.session_id || s.id || "",
+          id: s.session_id || s.id || "",
           model: resolvedModel,
           original_model: s.model,
           display_name: properName,
-          display_model: isDefault ? `${resolvedModel} (Default Engine)` : resolvedModel,
+          display_model: isDefault
+            ? `${resolvedModel} (Default Engine)`
+            : resolvedModel,
           family: resolvedFamily,
           auth_type: s.auth_type,
-          account_email: s.account_email || 'Authenticated User',
+          account_email: s.account_email || "Authenticated User",
           account_name: s.account_name || properName,
           status: s.status,
           is_active: Boolean(s.is_active ?? true),
           is_current_active: isCurrentActive,
-          login_state: 'Active (Logged In)',
+          login_state: "Active (Logged In)",
           login_date_time: s.created_timestamp,
           created_timestamp: s.created_timestamp,
         };

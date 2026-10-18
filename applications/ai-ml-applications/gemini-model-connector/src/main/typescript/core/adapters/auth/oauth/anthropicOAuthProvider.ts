@@ -1,9 +1,14 @@
-import { BaseOAuthProvider } from '@/core/adapters/auth/oauth/baseOAuthProvider.js';
-import type { OAuthTokenResult } from '@/core/adapters/auth/oauth/iOAuthProvider.js';
-import { config, environment } from '@/core/config/index.js';
-import { logger } from '@/core/observability/logging/logger.js';
-import { AuthProviderId, ModelFamily, CLAUDE_MODELS, AuthType } from '@/domain/constants/index.js';
-import type { ModelAuth } from '@/domain/index.js';
+import { BaseOAuthProvider } from "@/core/adapters/auth/oauth/baseOAuthProvider.js";
+import type { OAuthTokenResult } from "@/core/adapters/auth/oauth/iOAuthProvider.js";
+import { config, environment } from "@/core/config/index.js";
+import { logger } from "@/core/observability/logging/logger.js";
+import {
+  AuthProviderId,
+  ModelFamily,
+  CLAUDE_MODELS,
+  AuthType,
+} from "@/domain/constants/index.js";
+import type { ModelAuth } from "@/domain/index.js";
 
 /**
  * Anthropic Claude Authentication Provider.
@@ -26,27 +31,28 @@ export class AnthropicOAuthProvider extends BaseOAuthProvider {
   }
 
   protected getAuthUrl(): string {
-    const providerConfig = config.auth.providers['anthropic'];
+    const providerConfig = config.auth.providers["anthropic"];
     return providerConfig?.authUrl || config.authEndpoints.anthropicAuthUrl;
   }
 
-  protected async exchangeTokens(
-    code: string
-  ): Promise<OAuthTokenResult> {
-    const token = code || environment.getProperty('ANTHROPIC_API_KEY', '');
+  protected async exchangeTokens(code: string): Promise<OAuthTokenResult> {
+    const token = code || environment.getProperty("ANTHROPIC_API_KEY", "");
     return {
       accessToken: token,
-      refreshToken: '',
+      refreshToken: "",
       accountEmail: config.getAccountEmail(ModelFamily.CLAUDE),
       accountName: config.getAccountName(ModelFamily.CLAUDE),
     };
   }
 
   public async syncCredentials(auth: ModelAuth): Promise<void> {
-    logger.info('AUTH_CLAUDE', `Synchronized Anthropic Claude credentials for model ${auth.model}`);
+    logger.info(
+      "AUTH_CLAUDE",
+      `Synchronized Anthropic Claude credentials for model ${auth.model}`,
+    );
   }
 
   public async clearCredentials(): Promise<void> {
-    logger.info('AUTH_CLAUDE', 'Cleared Anthropic Claude credentials');
+    logger.info("AUTH_CLAUDE", "Cleared Anthropic Claude credentials");
   }
 }

@@ -1,16 +1,19 @@
-import type { Request, Response } from 'express';
+import type { Request, Response } from "express";
 import {
   modelDiscoveryService,
   type ModelDiscoveryService,
-} from '@/services/model/modelDiscoveryService.js';
-import { subscriptionManager, type SubscriptionManager } from '@/core/subscription/subscriptionManager.js';
-import { HttpStatus } from '@/domain/constants/index.js';
+} from "@/services/model/modelDiscoveryService.js";
+import {
+  subscriptionManager,
+  type SubscriptionManager,
+} from "@/core/subscription/subscriptionManager.js";
+import { HttpStatus } from "@/domain/constants/index.js";
 import {
   getRouteParam,
   getQueryParam,
   sendJsonResponse,
   sendJsonError,
-} from '@/core/web/helper/responseHelper.js';
+} from "@/core/web/helper/responseHelper.js";
 
 /**
  * Controller exposing dynamically discovered models and subscription tiers.
@@ -24,7 +27,7 @@ export class ModelController {
 
   constructor(
     discovery: ModelDiscoveryService = modelDiscoveryService,
-    subMgr: SubscriptionManager = subscriptionManager
+    subMgr: SubscriptionManager = subscriptionManager,
   ) {
     this.discoveryService = discovery;
     this.subManager = subMgr;
@@ -32,8 +35,9 @@ export class ModelController {
 
   public async listModels(req: Request, res: Response): Promise<void> {
     try {
-      const forceRefresh = getQueryParam(req.query.refresh) === 'true';
-      const models = await this.discoveryService.listAvailableModels(forceRefresh);
+      const forceRefresh = getQueryParam(req.query.refresh) === "true";
+      const models =
+        await this.discoveryService.listAvailableModels(forceRefresh);
       sendJsonResponse(res, HttpStatus.OK, {
         success: true,
         count: models.length,
@@ -41,7 +45,11 @@ export class ModelController {
         models,
       });
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to list models.');
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || "Failed to list models.",
+      );
     }
   }
 
@@ -50,7 +58,11 @@ export class ModelController {
       const modelName = getRouteParam(req.params.model);
       const model = await this.discoveryService.getModel(modelName);
       if (!model) {
-        sendJsonError(res, HttpStatus.NOT_FOUND, `Model '${modelName}' not found via live CLI/API.`);
+        sendJsonError(
+          res,
+          HttpStatus.NOT_FOUND,
+          `Model '${modelName}' not found via live CLI/API.`,
+        );
         return;
       }
       sendJsonResponse(res, HttpStatus.OK, {
@@ -58,7 +70,11 @@ export class ModelController {
         model,
       });
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to get model.');
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || "Failed to get model.",
+      );
     }
   }
 }

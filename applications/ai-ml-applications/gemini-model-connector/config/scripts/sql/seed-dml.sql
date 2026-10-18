@@ -3,7 +3,7 @@
 -- Seed script for initial state (Capitalized Tables & Columns)
 
 INSERT OR IGNORE INTO MODEL_AUTH (
-  ID,
+  SESSION_ID,
   MODEL,
   AUTH_TYPE,
   ACCOUNT_EMAIL,
@@ -23,7 +23,7 @@ INSERT OR IGNORE INTO MODEL_AUTH (
 );
 
 INSERT OR IGNORE INTO JOB_SEARCH_PROMPTS (
-  ID,
+  PROMPT_ID,
   PROMPT_KEY,
   PROMPT_TYPE,
   CONTENT,
@@ -37,7 +37,7 @@ INSERT OR IGNORE INTO JOB_SEARCH_PROMPTS (
 );
 
 INSERT OR IGNORE INTO JOB_SEARCH_PROMPTS (
-  ID,
+  PROMPT_ID,
   PROMPT_KEY,
   PROMPT_TYPE,
   CONTENT,
@@ -55,7 +55,7 @@ Provide your output as a JSON block with keys ''job_analysis'', ''resume_match''
 );
 
 INSERT OR IGNORE INTO JOB_SEARCH_PROMPTS (
-  ID,
+  PROMPT_ID,
   PROMPT_KEY,
   PROMPT_TYPE,
   CONTENT,
@@ -108,7 +108,7 @@ Format your entire response strictly as a JSON object:
 );
 
 INSERT OR IGNORE INTO JOB_SEARCH_PROMPTS (
-  ID,
+  PROMPT_ID,
   PROMPT_KEY,
   PROMPT_TYPE,
   CONTENT,

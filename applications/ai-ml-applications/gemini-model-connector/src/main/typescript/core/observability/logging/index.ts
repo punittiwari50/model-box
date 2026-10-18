@@ -1,1 +1,1 @@
-export * from '@/core/observability/logging/logger.js';
+export * from "@/core/observability/logging/logger.js";

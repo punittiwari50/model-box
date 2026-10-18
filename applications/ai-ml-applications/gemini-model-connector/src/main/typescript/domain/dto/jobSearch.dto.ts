@@ -32,7 +32,7 @@ export interface JobSearchRequest {
   readonly resume_content: string;
   readonly generate_markdown_files?: boolean;
   readonly api_key?: string;
-  readonly mode?: 'auto' | 'api' | 'cli' | 'mock';
+  readonly mode?: "auto" | "api" | "cli" | "mock";
   readonly idempotency_key?: string;
   readonly prompt_template?: string;
   readonly system_instruction?: string;

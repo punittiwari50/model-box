@@ -28,8 +28,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     jq \
     gnupg \
-    zstd \
-    procps \
     && mkdir -p -m 755 /etc/apt/keyrings \
     && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
     && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
@@ -40,13 +38,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install model CLIs: Google Gemini CLI and Anthropic Claude Code CLI
 RUN npm install -g @google/gemini-cli @anthropic-ai/claude-code && npm cache clean --force
 
-# Install Ollama CLI client binary via official installer
-RUN curl -fsSL https://ollama.com/install.sh | sh || echo "Ollama client installed"
-
 # Verify CLI installations
 RUN gemini --version || echo "Gemini CLI ready" && \
-    gh --version || echo "GitHub CLI ready" && \
-    ollama --version || echo "Ollama CLI ready"
+    gh --version || echo "GitHub CLI ready"
 
 # Set up runtime directories and permissions for non-root node user
 RUN mkdir -p /app/config/data /app/config/artifacts /app/AGENTS /home/node/.gemini /root/.gemini /home/node/.config /root/.config && \

@@ -1,4 +1,4 @@
-import type { Environment } from '@/core/config/environment.js';
+import type { Environment } from "@/core/config/environment.js";
 
 /**
  * Strongly-typed configuration properties for task queuing.
@@ -10,8 +10,11 @@ export class QueueProperties {
   public readonly partitionKeyPattern: string;
 
   constructor(env: Environment) {
-    this.maxCapacity = env.getPropertyAsNumber('queue.maxCapacity', 1000);
-    this.ttlMs = env.getPropertyAsNumber('queue.ttlMs', 300000);
-    this.partitionKeyPattern = env.getProperty('queue.partitionKeyPattern', 'user:{userId}:{model}:{promptHash}');
+    this.maxCapacity = env.getPropertyAsNumber("queue.maxCapacity", 1000);
+    this.ttlMs = env.getPropertyAsNumber("queue.ttlMs", 300000);
+    this.partitionKeyPattern = env.getProperty(
+      "queue.partitionKeyPattern",
+      "user:{userId}:{model}:{promptHash}",
+    );
   }
 }

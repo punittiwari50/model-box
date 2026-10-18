@@ -1,1 +1,1 @@
-export * from '@/core/config/queue/queueConfig.js';
+export * from "@/core/config/queue/queueConfig.js";

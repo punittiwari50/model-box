@@ -1,5 +1,8 @@
-import type { IDataSourceDriver, DataSourceDriverResult } from '@/core/datasource/driver.js';
-import { logger } from '@/core/observability/logging/logger.js';
+import type {
+  IDataSourceDriver,
+  DataSourceDriverResult,
+} from "@/core/datasource/driver.js";
+import { logger } from "@/core/observability/logging/logger.js";
 
 export interface DataSourcePoolConfig {
   readonly minConnections?: number;
@@ -30,7 +33,7 @@ export class DataSourceConnectionPool implements IDataSourceDriver {
 
   constructor(
     factory: () => Promise<IDataSourceDriver>,
-    config: DataSourcePoolConfig = {}
+    config: DataSourcePoolConfig = {},
   ) {
     this.factory = factory;
     this.minConnections = config.minConnections ?? 1;
@@ -43,7 +46,9 @@ export class DataSourceConnectionPool implements IDataSourceDriver {
       const conn = await this.factory();
       this.available.push(conn);
     }
-    logger.datasource(`DataSourceConnectionPool: Initialized with ${this.available.length} connection(s). (Max: ${this.maxConnections})`);
+    logger.datasource(
+      `DataSourceConnectionPool: Initialized with ${this.available.length} connection(s). (Max: ${this.maxConnections})`,
+    );
   }
 
   public async acquire(): Promise<IDataSourceDriver> {
@@ -61,14 +66,16 @@ export class DataSourceConnectionPool implements IDataSourceDriver {
 
     return new Promise<IDataSourceDriver>((resolve, reject) => {
       const timer = setTimeout(() => {
-        const idx = this.waitQueue.findIndex((entry) => entry.resolve === resolve);
+        const idx = this.waitQueue.findIndex(
+          (entry) => entry.resolve === resolve,
+        );
         if (idx !== -1) {
           this.waitQueue.splice(idx, 1);
         }
         reject(
           new Error(
-            `DataSource pool acquire timeout (${this.acquireTimeoutMs}ms). Active: ${this.inUse.size}, Available: ${this.available.length}, Queued: ${this.waitQueue.length}`
-          )
+            `DataSource pool acquire timeout (${this.acquireTimeoutMs}ms). Active: ${this.inUse.size}, Available: ${this.available.length}, Queued: ${this.waitQueue.length}`,
+          ),
         );
       }, this.acquireTimeoutMs);
       timer.unref?.();
@@ -94,7 +101,10 @@ export class DataSourceConnectionPool implements IDataSourceDriver {
     this.available.push(conn);
   }
 
-  public async run(sql: string, params: any[] = []): Promise<DataSourceDriverResult> {
+  public async run(
+    sql: string,
+    params: any[] = [],
+  ): Promise<DataSourceDriverResult> {
     const conn = await this.acquire();
     try {
       return await conn.run(sql, params);
@@ -103,7 +113,10 @@ export class DataSourceConnectionPool implements IDataSourceDriver {
     }
   }
 
-  public async get<T = any>(sql: string, params: any[] = []): Promise<T | undefined> {
+  public async get<T = any>(
+    sql: string,
+    params: any[] = [],
+  ): Promise<T | undefined> {
     const conn = await this.acquire();
     try {
       return await conn.get<T>(sql, params);
@@ -124,7 +137,7 @@ export class DataSourceConnectionPool implements IDataSourceDriver {
   public async close(): Promise<void> {
     for (const { reject, timer } of this.waitQueue) {
       clearTimeout(timer);
-      reject(new Error('DataSourceConnectionPool is shutting down.'));
+      reject(new Error("DataSourceConnectionPool is shutting down."));
     }
     this.waitQueue = [];
 
@@ -134,7 +147,7 @@ export class DataSourceConnectionPool implements IDataSourceDriver {
     }
     this.available = [];
     this.inUse.clear();
-    logger.datasource('DataSourceConnectionPool: All connections closed.');
+    logger.datasource("DataSourceConnectionPool: All connections closed.");
   }
 
   public getPoolStats() {

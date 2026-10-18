@@ -11,7 +11,7 @@ export interface BulkheadConfig {
 export class BulkheadFullException extends Error {
   constructor(name: string) {
     super(`Bulkhead '${name}' is full: max concurrent calls reached.`);
-    this.name = 'BulkheadFullException';
+    this.name = "BulkheadFullException";
   }
 }
 
@@ -21,7 +21,7 @@ export class Bulkhead {
 
   constructor(
     public readonly name: string,
-    config: Partial<BulkheadConfig> = {}
+    config: Partial<BulkheadConfig> = {},
   ) {
     this.config = {
       maxConcurrentCalls: config.maxConcurrentCalls ?? 25,

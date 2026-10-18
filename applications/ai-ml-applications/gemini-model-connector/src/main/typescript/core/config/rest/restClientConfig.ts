@@ -1,4 +1,4 @@
-import type { Environment } from '@/core/config/environment.js';
+import type { Environment } from "@/core/config/environment.js";
 
 export interface IRestClientConfig {
   readonly connectTimeoutMs: number;
@@ -20,12 +20,30 @@ export class RestClientConfig implements IRestClientConfig {
   public readonly enableHttp2: boolean;
 
   constructor(env: Environment) {
-    this.connectTimeoutMs = env.getPropertyAsNumber('rest.client.connectTimeoutMs', 5000);
-    this.readTimeoutMs = env.getPropertyAsNumber('rest.client.readTimeoutMs', 30000);
-    this.maxRetries = env.getPropertyAsNumber('rest.client.maxRetries', 3);
-    this.retryBackoffMs = env.getPropertyAsNumber('rest.client.retryBackoffMs', 500);
-    this.maxIdleConnections = env.getPropertyAsNumber('rest.client.maxIdleConnections', 50);
-    this.keepAliveTimeoutMs = env.getPropertyAsNumber('rest.client.keepAliveTimeoutMs', 60000);
-    this.enableHttp2 = env.getPropertyAsBoolean('rest.client.enableHttp2', true);
+    this.connectTimeoutMs = env.getPropertyAsNumber(
+      "rest.client.connectTimeoutMs",
+      5000,
+    );
+    this.readTimeoutMs = env.getPropertyAsNumber(
+      "rest.client.readTimeoutMs",
+      30000,
+    );
+    this.maxRetries = env.getPropertyAsNumber("rest.client.maxRetries", 3);
+    this.retryBackoffMs = env.getPropertyAsNumber(
+      "rest.client.retryBackoffMs",
+      500,
+    );
+    this.maxIdleConnections = env.getPropertyAsNumber(
+      "rest.client.maxIdleConnections",
+      50,
+    );
+    this.keepAliveTimeoutMs = env.getPropertyAsNumber(
+      "rest.client.keepAliveTimeoutMs",
+      60000,
+    );
+    this.enableHttp2 = env.getPropertyAsBoolean(
+      "rest.client.enableHttp2",
+      true,
+    );
   }
 }

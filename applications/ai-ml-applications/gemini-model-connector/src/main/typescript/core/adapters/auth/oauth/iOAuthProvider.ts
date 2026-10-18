@@ -1,5 +1,5 @@
-import type { ModelAuth } from '@/domain/index.js';
-import type { IAuthRepository } from '@/repositories/authRepository.js';
+import type { ModelAuth } from "@/domain/index.js";
+import type { IAuthRepository } from "@/repositories/authRepository.js";
 
 export interface InitiateAuthRequest {
   readonly model: string;
@@ -45,7 +45,10 @@ export interface IOAuthProvider {
   readonly providerId: string;
   supports(modelOrProvider: string): boolean;
   initiateAuth(request: InitiateAuthRequest): Promise<InitiateAuthResult>;
-  handleCallback(request: AuthCallbackRequest, authRepository: IAuthRepository): Promise<ModelAuth>;
+  handleCallback(
+    request: AuthCallbackRequest,
+    authRepository: IAuthRepository,
+  ): Promise<ModelAuth>;
   syncCredentials(auth: ModelAuth): Promise<void>;
   clearCredentials(): Promise<void>;
 }

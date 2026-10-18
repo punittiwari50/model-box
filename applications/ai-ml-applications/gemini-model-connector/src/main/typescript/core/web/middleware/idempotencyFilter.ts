@@ -1,6 +1,6 @@
-import type { Request, Response, NextFunction } from 'express';
-import crypto from 'node:crypto';
-import { getClientIp } from '@/core/web/helper/responseHelper.js';
+import type { Request, Response, NextFunction } from "express";
+import crypto from "node:crypto";
+import { getClientIp } from "@/core/web/helper/responseHelper.js";
 
 interface CachedResponse {
   readonly statusCode: number;
@@ -20,21 +20,32 @@ export class IdempotencyFilter {
 
   public static handle(req: Request, res: Response, next: NextFunction): void {
     // Only apply idempotency to state-mutating requests (POST, PUT, PATCH, DELETE)
-    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    if (
+      req.method === "GET" ||
+      req.method === "HEAD" ||
+      req.method === "OPTIONS"
+    ) {
       next();
       return;
     }
 
-    const explicitKey = req.headers['idempotency-key'] as string | undefined;
+    const explicitKey = req.headers["idempotency-key"] as string | undefined;
     const clientIp = getClientIp(req);
-    const bodyHash = crypto.createHash('sha256').update(JSON.stringify(req.body || {})).digest('hex').slice(0, 16);
+    const bodyHash = crypto
+      .createHash("sha256")
+      .update(JSON.stringify(req.body || {}))
+      .digest("hex")
+      .slice(0, 16);
     const key = `idemp:${clientIp}:${req.originalUrl}:${explicitKey || bodyHash}`;
 
     // Check existing cache
     const existing = IdempotencyFilter.cache.get(key);
-    if (existing && Date.now() - existing.timestamp < IdempotencyFilter.TTL_MS) {
-      res.setHeader('X-Cache-Lookup', 'HIT');
-      res.setHeader('X-Idempotent-Replay', 'true');
+    if (
+      existing &&
+      Date.now() - existing.timestamp < IdempotencyFilter.TTL_MS
+    ) {
+      res.setHeader("X-Cache-Lookup", "HIT");
+      res.setHeader("X-Idempotent-Replay", "true");
       res.status(existing.statusCode).json(existing.body);
       return;
     }

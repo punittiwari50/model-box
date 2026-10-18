@@ -1,1 +1,1 @@
-export * from '@/core/concurrency/virtualThread.js';
+export * from "@/core/concurrency/virtualThread.js";

@@ -1,9 +1,15 @@
-import { BaseOAuthProvider } from '@/core/adapters/auth/oauth/baseOAuthProvider.js';
-import type { OAuthTokenResult } from '@/core/adapters/auth/oauth/iOAuthProvider.js';
-import { config } from '@/core/config/index.js';
-import { logger } from '@/core/observability/logging/logger.js';
-import { AuthProviderId, ModelFamily, OLLAMA_MODELS, AuthType, isFallbackModel } from '@/domain/constants/index.js';
-import type { ModelAuth } from '@/domain/index.js';
+import { BaseOAuthProvider } from "@/core/adapters/auth/oauth/baseOAuthProvider.js";
+import type { OAuthTokenResult } from "@/core/adapters/auth/oauth/iOAuthProvider.js";
+import { config } from "@/core/config/index.js";
+import { logger } from "@/core/observability/logging/logger.js";
+import {
+  AuthProviderId,
+  ModelFamily,
+  OLLAMA_MODELS,
+  AuthType,
+  isFallbackModel,
+} from "@/domain/constants/index.js";
+import type { ModelAuth } from "@/domain/index.js";
 
 /**
  * Ollama Local AI Model Provider.
@@ -26,25 +32,30 @@ export class OllamaOAuthProvider extends BaseOAuthProvider {
   }
 
   protected getAuthUrl(): string {
-    return config.getApiBaseUrl(ModelFamily.OLLAMA) || config.auth.providers['ollama']?.authUrl || 'http://127.0.0.1:11435';
+    return (
+      config.getApiBaseUrl(ModelFamily.OLLAMA) ||
+      config.auth.providers["ollama"]?.authUrl ||
+      "http://127.0.0.1:11435"
+    );
   }
 
-  protected async exchangeTokens(
-    code: string
-  ): Promise<OAuthTokenResult> {
+  protected async exchangeTokens(code: string): Promise<OAuthTokenResult> {
     return {
-      accessToken: code || 'ollama-local-token',
-      refreshToken: '',
+      accessToken: code || "ollama-local-token",
+      refreshToken: "",
       accountEmail: config.getAccountEmail(ModelFamily.OLLAMA),
       accountName: config.getAccountName(ModelFamily.OLLAMA),
     };
   }
 
   public async syncCredentials(auth: ModelAuth): Promise<void> {
-    logger.info('AUTH_OLLAMA', `Ollama local credentials synced for model '${auth.model}'`);
+    logger.info(
+      "AUTH_OLLAMA",
+      `Ollama local credentials synced for model '${auth.model}'`,
+    );
   }
 
   public async clearCredentials(): Promise<void> {
-    logger.info('AUTH_OLLAMA', 'Ollama local credentials cleared');
+    logger.info("AUTH_OLLAMA", "Ollama local credentials cleared");
   }
 }

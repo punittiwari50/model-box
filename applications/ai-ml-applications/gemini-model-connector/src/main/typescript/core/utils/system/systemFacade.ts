@@ -1,8 +1,10 @@
-import { osUtils, type IOperatingSystem } from '@/core/utils/system/os.js';
-import { fsUtils, type IFileSystem } from '@/core/utils/system/fs.js';
-import { processUtils, type IProcessUtils } from '@/core/utils/system/process.js';
-import { cryptoUtils, type ICryptoUtils } from '@/core/utils/system/crypto.js';
-
+import { osUtils, type IOperatingSystem } from "@/core/utils/system/os.js";
+import { fsUtils, type IFileSystem } from "@/core/utils/system/fs.js";
+import {
+  processUtils,
+  type IProcessUtils,
+} from "@/core/utils/system/process.js";
+import { cryptoUtils, type ICryptoUtils } from "@/core/utils/system/crypto.js";
 
 /**
  * Enterprise System Facade Abstraction.
@@ -18,7 +20,7 @@ export class SystemFacade {
     os: IOperatingSystem = osUtils,
     fs: IFileSystem = fsUtils,
     process: IProcessUtils = processUtils,
-    crypto: ICryptoUtils = cryptoUtils
+    crypto: ICryptoUtils = cryptoUtils,
   ) {
     this.os = os;
     this.fs = fs;

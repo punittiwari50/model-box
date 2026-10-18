@@ -1,6 +1,6 @@
-import type { Request, Response, NextFunction } from 'express';
-import { logger } from '@/core/observability/logging/logger.js';
-import { httpResponseFormatter } from '@/core/web/helper/responseHelper.js';
+import type { Request, Response, NextFunction } from "express";
+import { logger } from "@/core/observability/logging/logger.js";
+import { httpResponseFormatter } from "@/core/web/helper/responseHelper.js";
 
 /**
  * Sanitizing Error Filter (OOP Pattern).
@@ -12,15 +12,20 @@ export class SanitizingErrorFilter {
     err: any,
     _req: Request,
     res: Response,
-    _next: NextFunction
+    _next: NextFunction,
   ): void {
-    const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
-    const rawMessage = typeof err.message === 'string' ? err.message : 'Unknown internal error';
+    const statusCode =
+      typeof err.statusCode === "number" ? err.statusCode : 500;
+    const rawMessage =
+      typeof err.message === "string" ? err.message : "Unknown internal error";
 
     // Log full unsanitized error to server-side logs for investigation
-    logger.error('SERVER', `Unhandled exception caught by SanitizingErrorFilter: ${rawMessage}`);
+    logger.error(
+      "SERVER",
+      `Unhandled exception caught by SanitizingErrorFilter: ${rawMessage}`,
+    );
     if (err.stack) {
-      logger.debug('SERVER', err.stack);
+      logger.debug("SERVER", err.stack);
     }
 
     // Sanitize message for client consumption
@@ -28,17 +33,26 @@ export class SanitizingErrorFilter {
 
     // Mask internal SQL details
     if (
-      /SELECT|INSERT|UPDATE|DELETE|SQLITE_|DATABASE|SYNTAX ERROR|TABLE|COLUMN/i.test(sanitized) ||
+      /SELECT|INSERT|UPDATE|DELETE|SQLITE_|DATABASE|SYNTAX ERROR|TABLE|COLUMN/i.test(
+        sanitized,
+      ) ||
       statusCode >= 500
     ) {
-      sanitized = 'An internal system error occurred while processing the request.';
+      sanitized =
+        "An internal system error occurred while processing the request.";
     }
 
     // Strip file system paths
-    sanitized = sanitized.replace(/([a-zA-Z]:|\/app|\/usr|\/home|\/node_modules)[\w\-\.\/\\\:]+/g, '[masked-path]');
+    sanitized = sanitized.replace(
+      /([a-zA-Z]:|\/app|\/usr|\/home|\/node_modules)[\w\-\.\/\\\:]+/g,
+      "[masked-path]",
+    );
 
     // Strip potential tokens or keys
-    sanitized = sanitized.replace(/(AIza|Bearer\s+|key=|token=)[\w\-\._]+/gi, '[masked-credential]');
+    sanitized = sanitized.replace(
+      /(AIza|Bearer\s+|key=|token=)[\w\-\._]+/gi,
+      "[masked-credential]",
+    );
 
     httpResponseFormatter.sendError(res, statusCode, sanitized);
   }
@@ -49,5 +63,5 @@ export const sanitizingErrorFilter = (
   err: any,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => sanitizingErrorFilterInstance.handle(err, req, res, next);

@@ -1,1 +1,1 @@
-export * from '@/core/adapters/http/restClient.js';
+export * from "@/core/adapters/http/restClient.js";

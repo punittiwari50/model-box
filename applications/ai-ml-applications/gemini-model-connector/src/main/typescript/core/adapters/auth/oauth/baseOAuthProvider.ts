@@ -1,16 +1,21 @@
-import { systemFacade } from '@/core/utils/system/systemFacade.js';
-import { logger } from '@/core/observability/logging/logger.js';
-import { hostBrowserLauncher } from '@/core/utils/browser/browserLauncher.js';
-import { TimeDurationMs, ModelCatalog, AuthStatusConstant, AuthType } from '@/domain/constants/index.js';
-import type { ModelAuth } from '@/domain/index.js';
-import type { IAuthRepository } from '@/repositories/authRepository.js';
+import { systemFacade } from "@/core/utils/system/systemFacade.js";
+import { logger } from "@/core/observability/logging/logger.js";
+import { hostBrowserLauncher } from "@/core/utils/browser/browserLauncher.js";
+import {
+  TimeDurationMs,
+  ModelCatalog,
+  AuthStatusConstant,
+  AuthType,
+} from "@/domain/constants/index.js";
+import type { ModelAuth } from "@/domain/index.js";
+import type { IAuthRepository } from "@/repositories/authRepository.js";
 import type {
   IOAuthProvider,
   InitiateAuthRequest,
   InitiateAuthResult,
   AuthCallbackRequest,
   OAuthTokenResult,
-} from '@/core/adapters/auth/oauth/iOAuthProvider.js';
+} from "@/core/adapters/auth/oauth/iOAuthProvider.js";
 
 export interface PendingOAuthState {
   readonly model: string;
@@ -32,15 +37,21 @@ export abstract class BaseOAuthProvider implements IOAuthProvider {
   protected readonly pendingStates = new Map<string, PendingOAuthState>();
 
   public abstract supports(modelOrProvider: string): boolean;
-  protected abstract getAuthUrl(state: string, codeChallenge: string, redirectUri: string): string;
+  protected abstract getAuthUrl(
+    state: string,
+    codeChallenge: string,
+    redirectUri: string,
+  ): string;
   protected abstract exchangeTokens(
     code: string,
     redirectUri: string,
-    codeVerifier?: string
+    codeVerifier?: string,
   ): Promise<OAuthTokenResult>;
   protected abstract getAuthType(): (typeof AuthType)[keyof typeof AuthType];
 
-  public async initiateAuth(request: InitiateAuthRequest): Promise<InitiateAuthResult> {
+  public async initiateAuth(
+    request: InitiateAuthRequest,
+  ): Promise<InitiateAuthResult> {
     const { model, launchBrowser, redirectUriOverride } = request;
     const state = systemFacade.crypto.randomHex(16);
     const codeVerifier = systemFacade.crypto.randomBase64Url(32);
@@ -60,7 +71,10 @@ export abstract class BaseOAuthProvider implements IOAuthProvider {
       browserLaunched = await hostBrowserLauncher.launch(authUrl);
     }
 
-    logger.info(`AUTH_${this.providerId.toUpperCase()}`, `Initiated OAuth for '${model}' (browser: ${browserLaunched})`);
+    logger.info(
+      `AUTH_${this.providerId.toUpperCase()}`,
+      `Initiated OAuth for '${model}' (browser: ${browserLaunched})`,
+    );
 
     return {
       auth_url: authUrl,
@@ -78,12 +92,13 @@ export abstract class BaseOAuthProvider implements IOAuthProvider {
 
   public async handleCallback(
     request: AuthCallbackRequest,
-    authRepository: IAuthRepository
+    authRepository: IAuthRepository,
   ): Promise<ModelAuth> {
     const { code, state, manualCodeVerifier, redirectUriOverride } = request;
     const pending = state ? this.pendingStates.get(state) : undefined;
     const model = request.model || pending?.model || ModelCatalog.DEFAULT;
-    const redirectUri = redirectUriOverride || pending?.redirectUri || this.resolveRedirectUri();
+    const redirectUri =
+      redirectUriOverride || pending?.redirectUri || this.resolveRedirectUri();
     const codeVerifier = manualCodeVerifier || pending?.codeVerifier;
 
     if (state && pending) {
@@ -101,7 +116,9 @@ export abstract class BaseOAuthProvider implements IOAuthProvider {
       account_name: tokens.accountName,
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,
-      expires_at: new Date(Date.now() + TimeDurationMs.OAUTH_TOKEN_DEFAULT_EXPIRY).toISOString(),
+      expires_at: new Date(
+        Date.now() + TimeDurationMs.OAUTH_TOKEN_DEFAULT_EXPIRY,
+      ).toISOString(),
       metadata: { code_exchange: true, auth_provider: this.providerId },
       status: AuthStatusConstant.AUTHENTICATED,
     });
@@ -114,7 +131,7 @@ export abstract class BaseOAuthProvider implements IOAuthProvider {
   public abstract clearCredentials(): Promise<void>;
 
   protected resolveRedirectUri(override?: string): string {
-    return override || 'http://127.0.0.1:8090/api/v1/auth/callback';
+    return override || "http://127.0.0.1:8090/api/v1/auth/callback";
   }
 
   protected trackPendingState(state: string, data: PendingOAuthState): void {

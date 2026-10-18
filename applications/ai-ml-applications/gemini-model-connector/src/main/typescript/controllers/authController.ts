@@ -1,15 +1,15 @@
-import type { Request, Response } from 'express';
-import { container } from '@/core/context/appContext.js';
-import type { AuthService } from '@/services/auth/authService.js';
-import { config } from '@/core/config/index.js';
-import { HttpStatus, ModelCatalog } from '@/domain/constants/index.js';
-import { authTypeResolver } from '@/core/adapters/auth/index.js';
+import type { Request, Response } from "express";
+import { container } from "@/core/context/appContext.js";
+import type { AuthService } from "@/services/auth/authService.js";
+import { config } from "@/core/config/index.js";
+import { HttpStatus, ModelCatalog } from "@/domain/constants/index.js";
+import { authTypeResolver } from "@/core/adapters/auth/index.js";
 import {
   getClientIp,
   getRouteParam,
   sendJsonResponse,
   sendJsonError,
-} from '@/core/web/helper/responseHelper.js';
+} from "@/core/web/helper/responseHelper.js";
 
 /**
  * Controller managing model authentication and distributed OAuth flows.
@@ -27,25 +27,41 @@ export class AuthController {
       const status = await this.authService.getStatus();
       sendJsonResponse(res, HttpStatus.OK, status);
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to retrieve auth status.');
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || "Failed to retrieve auth status.",
+      );
     }
   }
 
   public async initiateLogin(req: Request, res: Response): Promise<void> {
     try {
       const model = (req.query.model as string) || ModelCatalog.DEFAULT;
-      const shouldRedirect = req.query.redirect === 'true' || Boolean(req.headers.accept?.includes('text/html'));
-      const isUserCode = req.query.user_code === 'true';
-      const redirectOverride = isUserCode ? config.geminiOAuthUserCodeUri : undefined;
+      const shouldRedirect =
+        req.query.redirect === "true" ||
+        Boolean(req.headers.accept?.includes("text/html"));
+      const isUserCode = req.query.user_code === "true";
+      const redirectOverride = isUserCode
+        ? config.geminiOAuthUserCodeUri
+        : undefined;
 
-      const result = await this.authService.initiateAuth(model, !shouldRedirect, redirectOverride);
+      const result = await this.authService.initiateAuth(
+        model,
+        !shouldRedirect,
+        redirectOverride,
+      );
       if (shouldRedirect) {
         res.redirect(result.auth_url);
         return;
       }
       sendJsonResponse(res, HttpStatus.OK, result);
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to initiate login.');
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || "Failed to initiate login.",
+      );
     }
   }
 
@@ -55,10 +71,13 @@ export class AuthController {
   public redirectToProvider(req: Request, res: Response): void {
     const provider = getRouteParam(req.params.provider);
     const query = new URLSearchParams(req.query as any);
-    if (!query.has('model')) {
-      query.set('model', provider);
+    if (!query.has("model")) {
+      query.set("model", provider);
     }
-    res.redirect(HttpStatus.TEMPORARY_REDIRECT, `/api/v1/auth/login?${query.toString()}`);
+    res.redirect(
+      HttpStatus.TEMPORARY_REDIRECT,
+      `/api/v1/auth/login?${query.toString()}`,
+    );
   }
 
   public async directLogin(req: Request, res: Response): Promise<void> {
@@ -76,10 +95,17 @@ export class AuthController {
       }
 
       const model = req.body.model || ModelCatalog.DEFAULT;
-      const result = await this.authService.initiateAuth(model, req.body.launch_browser !== false);
+      const result = await this.authService.initiateAuth(
+        model,
+        req.body.launch_browser !== false,
+      );
       sendJsonResponse(res, HttpStatus.OK, result);
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to process login.');
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || "Failed to process login.",
+      );
     }
   }
 
@@ -88,13 +114,19 @@ export class AuthController {
       const code = req.query.code as string;
       const state = req.query.state as string;
       if (!code) {
-        res.status(HttpStatus.BAD_REQUEST).send('OAuth authorization code missing.');
+        res
+          .status(HttpStatus.BAD_REQUEST)
+          .send("OAuth authorization code missing.");
         return;
       }
 
-      const auth = await this.authService.handleOAuthCallback(code, state || '', getClientIp(req));
-      if (req.headers.accept?.includes('text/html')) {
-        const queryParams = `auth=success&model=${encodeURIComponent(auth.model)}&email=${encodeURIComponent(auth.account_email || '')}`;
+      const auth = await this.authService.handleOAuthCallback(
+        code,
+        state || "",
+        getClientIp(req),
+      );
+      if (req.headers.accept?.includes("text/html")) {
+        const queryParams = `auth=success&model=${encodeURIComponent(auth.model)}&email=${encodeURIComponent(auth.account_email || "")}`;
         res.redirect(`/?${queryParams}`);
         return;
       }
@@ -104,17 +136,26 @@ export class AuthController {
         auth,
       });
     } catch (error: any) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(`Authentication failed: ${error.message}`);
+      res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .send(`Authentication failed: ${error.message}`);
     }
   }
 
   public async logout(req: Request, res: Response): Promise<void> {
     try {
       const { model, id, account_email, all } = req.body || {};
-      const result = await this.authService.logout({ model, id, account_email, all }, getClientIp(req));
+      const result = await this.authService.logout(
+        { model, id, account_email, all },
+        getClientIp(req),
+      );
       sendJsonResponse(res, HttpStatus.OK, result);
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to logout model(s).');
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || "Failed to logout model(s).",
+      );
     }
   }
 
@@ -123,17 +164,29 @@ export class AuthController {
       const { sessionId, id, session_id, model } = req.body || {};
       const targetId = sessionId || id || session_id;
       if (!targetId) {
-        sendJsonError(res, HttpStatus.BAD_REQUEST, 'Missing required sessionId parameter.');
+        sendJsonError(
+          res,
+          HttpStatus.BAD_REQUEST,
+          "Missing required sessionId parameter.",
+        );
         return;
       }
-      const result = await this.authService.switchSession(targetId, model, getClientIp(req));
+      const result = await this.authService.switchSession(
+        targetId,
+        model,
+        getClientIp(req),
+      );
       if (!result.success) {
         sendJsonError(res, HttpStatus.NOT_FOUND, result.message);
         return;
       }
       sendJsonResponse(res, HttpStatus.OK, result);
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || 'Failed to switch active session.');
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || "Failed to switch active session.",
+      );
     }
   }
 
@@ -143,18 +196,28 @@ export class AuthController {
       const result = await this.authService.logout({ model }, getClientIp(req));
       sendJsonResponse(res, HttpStatus.OK, result);
     } catch (error: any) {
-      sendJsonError(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message || `Failed to logout model '${req.params.model}'.`);
+      sendJsonError(
+        res,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || `Failed to logout model '${req.params.model}'.`,
+      );
     }
   }
 
   private async handleCodeLogin(req: Request, res: Response): Promise<void> {
-    const { code, state, redirect_uri, code_verifier, model = ModelCatalog.DEFAULT } = req.body;
+    const {
+      code,
+      state,
+      redirect_uri,
+      code_verifier,
+      model = ModelCatalog.DEFAULT,
+    } = req.body;
     const auth = await this.authService.handleOAuthCallback(
       code,
       state,
       getClientIp(req),
       redirect_uri || config.geminiOAuthUserCodeUri,
-      code_verifier
+      code_verifier,
     );
     sendJsonResponse(res, HttpStatus.OK, {
       success: true,
@@ -163,8 +226,19 @@ export class AuthController {
     });
   }
 
-  private async handleTokenLogin(req: Request, res: Response, effectiveToken: string): Promise<void> {
-    const { model = ModelCatalog.DEFAULT, email, account_email, account_id, id, auth_type } = req.body;
+  private async handleTokenLogin(
+    req: Request,
+    res: Response,
+    effectiveToken: string,
+  ): Promise<void> {
+    const {
+      model = ModelCatalog.DEFAULT,
+      email,
+      account_email,
+      account_id,
+      id,
+      auth_type,
+    } = req.body;
     const resolvedEmail = email || account_email || account_id;
     const resolvedAuthType = authTypeResolver.resolveAuthType({
       model,
@@ -177,7 +251,7 @@ export class AuthController {
       resolvedEmail,
       resolvedAuthType,
       getClientIp(req),
-      id || account_id
+      id || account_id,
     );
     sendJsonResponse(res, HttpStatus.OK, {
       success: true,

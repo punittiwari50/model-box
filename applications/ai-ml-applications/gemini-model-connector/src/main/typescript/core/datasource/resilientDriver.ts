@@ -1,4 +1,7 @@
-import type { IDataSourceDriver, DataSourceDriverResult } from '@/core/datasource/driver.js';
+import type {
+  IDataSourceDriver,
+  DataSourceDriverResult,
+} from "@/core/datasource/driver.js";
 
 /**
  * Resilient DataSource Driver Decorator.
@@ -17,11 +20,17 @@ export class ResilientDataSourceDriver implements IDataSourceDriver {
     await this.delegate.init();
   }
 
-  public async run(sql: string, params: any[] = []): Promise<DataSourceDriverResult> {
+  public async run(
+    sql: string,
+    params: any[] = [],
+  ): Promise<DataSourceDriverResult> {
     return this.delegate.run(sql, params);
   }
 
-  public async get<T = any>(sql: string, params: any[] = []): Promise<T | undefined> {
+  public async get<T = any>(
+    sql: string,
+    params: any[] = [],
+  ): Promise<T | undefined> {
     return this.delegate.get<T>(sql, params);
   }
 

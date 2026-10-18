@@ -1,6 +1,6 @@
-import { exec } from 'node:child_process';
-import { environment } from '@/core/config/environment.js';
-import { logger } from '@/core/observability/logging/logger.js';
+import { exec } from "node:child_process";
+import { environment } from "@/core/config/environment.js";
+import { logger } from "@/core/observability/logging/logger.js";
 
 export interface IBrowserCommandStrategy {
   readonly platformName: string;
@@ -9,10 +9,10 @@ export interface IBrowserCommandStrategy {
 }
 
 export class WindowsBrowserCommandStrategy implements IBrowserCommandStrategy {
-  public readonly platformName = 'win32';
+  public readonly platformName = "win32";
 
   public supports(platform: string): boolean {
-    return platform === 'win32';
+    return platform === "win32";
   }
 
   public buildCommand(url: string): string {
@@ -21,10 +21,10 @@ export class WindowsBrowserCommandStrategy implements IBrowserCommandStrategy {
 }
 
 export class DarwinBrowserCommandStrategy implements IBrowserCommandStrategy {
-  public readonly platformName = 'darwin';
+  public readonly platformName = "darwin";
 
   public supports(platform: string): boolean {
-    return platform === 'darwin';
+    return platform === "darwin";
   }
 
   public buildCommand(url: string): string {
@@ -33,7 +33,7 @@ export class DarwinBrowserCommandStrategy implements IBrowserCommandStrategy {
 }
 
 export class LinuxBrowserCommandStrategy implements IBrowserCommandStrategy {
-  public readonly platformName = 'linux';
+  public readonly platformName = "linux";
 
   public supports(_platform: string): boolean {
     return true; // Default fallback for all other UNIX-like runtimes
@@ -56,7 +56,7 @@ export class HostBrowserLauncher {
       new WindowsBrowserCommandStrategy(),
       new DarwinBrowserCommandStrategy(),
       new LinuxBrowserCommandStrategy(),
-    ]
+    ],
   ) {
     this.strategies = strategies;
   }
@@ -66,7 +66,10 @@ export class HostBrowserLauncher {
     const strategy = this.strategies.find((s) => s.supports(platform));
 
     if (!strategy) {
-      logger.warn('BROWSER', `No browser launcher strategy found for platform: ${platform}. URL: ${url}`);
+      logger.warn(
+        "BROWSER",
+        `No browser launcher strategy found for platform: ${platform}. URL: ${url}`,
+      );
       return false;
     }
 
@@ -74,7 +77,10 @@ export class HostBrowserLauncher {
     return new Promise((resolve) => {
       exec(command, { timeout: 3000 }, (err) => {
         if (err) {
-          logger.debug('AUTH_BROWSER', `Failed to open host browser (${strategy.platformName}): ${err.message}`);
+          logger.debug(
+            "AUTH_BROWSER",
+            `Failed to open host browser (${strategy.platformName}): ${err.message}`,
+          );
           resolve(false);
         } else {
           resolve(true);

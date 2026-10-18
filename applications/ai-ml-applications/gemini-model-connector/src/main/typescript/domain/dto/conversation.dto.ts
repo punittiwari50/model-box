@@ -1,4 +1,4 @@
-import type { ConversationEntity } from '@/domain/entities/conversation.entity.js';
+import type { ConversationEntity } from "@/domain/entities/conversation.entity.js";
 
 export interface CreateConversationRequest {
   readonly title: string;
@@ -16,7 +16,7 @@ export interface ResumeConversationRequest {
   readonly temperature?: number;
   readonly additional_context?: string;
   readonly api_key?: string;
-  readonly mode?: 'auto' | 'api' | 'cli' | 'mock';
+  readonly mode?: "auto" | "api" | "cli" | "mock";
 }
 
 export interface ChatConversationRequest {
@@ -29,9 +29,8 @@ export interface ChatConversationRequest {
   readonly temperature?: number;
   readonly additional_context?: string;
   readonly api_key?: string;
-  readonly mode?: 'auto' | 'api' | 'cli' | 'mock';
+  readonly mode?: "auto" | "api" | "cli" | "mock";
   readonly resume?: boolean;
 }
 
 export type ConversationResponse = ConversationEntity;
-

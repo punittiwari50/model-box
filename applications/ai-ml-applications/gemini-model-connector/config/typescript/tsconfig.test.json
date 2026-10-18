@@ -4,6 +4,9 @@
     "rootDir": "../..",
     "noEmit": true
   },
-  "include": ["../../src/main/typescript/**/*", "../../src/test/typescript/**/*"],
+  "include": [
+    "../../src/main/typescript/**/*",
+    "../../src/test/typescript/**/*"
+  ],
   "exclude": ["../../node_modules", "../../dist"]
 }

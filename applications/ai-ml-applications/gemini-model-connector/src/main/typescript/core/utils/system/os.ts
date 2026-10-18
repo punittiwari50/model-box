@@ -1,4 +1,4 @@
-import os from 'node:os';
+import os from "node:os";
 
 export interface IOperatingSystem {
   platform(): NodeJS.Platform;
@@ -60,7 +60,7 @@ export class OperatingSystemUtils implements IOperatingSystem {
   }
 
   public isWindows(): boolean {
-    return os.platform() === 'win32';
+    return os.platform() === "win32";
   }
 }
 

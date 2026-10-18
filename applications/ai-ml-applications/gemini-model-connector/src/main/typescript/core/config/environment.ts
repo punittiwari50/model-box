@@ -1,7 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import dotenv from 'dotenv';
-import { projectRoot } from '@/core/utils/io/pathUtils.js';
+import fs from "node:fs";
+import path from "node:path";
+import dotenv from "dotenv";
+import { projectRoot } from "@/core/utils/io/pathUtils.js";
 
 /**
  * Standard Application Environment Interface.
@@ -83,36 +83,171 @@ export interface Environment {
  * Standard Environment implementation encapsulating process.env and dotenv.
  * Acts as the exclusive authority for operating system and container environment resolution.
  */
-const PROPERTY_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  'model.gemini.cli': Object.freeze(['GEMINI_CLI_COMMAND', 'MODEL_GEMINI_CLI', 'gemini.cli', 'models.gemini.cli']),
-  'GEMINI_CLI_COMMAND': Object.freeze(['model.gemini.cli', 'MODEL_GEMINI_CLI', 'gemini.cli', 'models.gemini.cli']),
-  'model.claude.cli': Object.freeze(['CLAUDE_CLI_COMMAND', 'MODEL_CLAUDE_CLI', 'claude.cli', 'models.claude.cli']),
-  'CLAUDE_CLI_COMMAND': Object.freeze(['model.claude.cli', 'MODEL_CLAUDE_CLI', 'claude.cli', 'models.claude.cli']),
-  'model.codex.cli': Object.freeze(['CODEX_CLI_COMMAND', 'MODEL_CODEX_CLI', 'codex.cli', 'models.codex.cli']),
-  'CODEX_CLI_COMMAND': Object.freeze(['model.codex.cli', 'MODEL_CODEX_CLI', 'codex.cli', 'models.codex.cli']),
-  'model.cursor.cli': Object.freeze(['CURSOR_CLI_COMMAND', 'MODEL_CURSOR_CLI', 'cursor.cli', 'models.cursor.cli']),
-  'CURSOR_CLI_COMMAND': Object.freeze(['model.cursor.cli', 'MODEL_CURSOR_CLI', 'cursor.cli', 'models.cursor.cli']),
-  'model.copilot.cli': Object.freeze(['COPILOT_CLI_COMMAND', 'MODEL_COPILOT_CLI', 'copilot.cli', 'models.copilot.cli']),
-  'COPILOT_CLI_COMMAND': Object.freeze(['model.copilot.cli', 'MODEL_COPILOT_CLI', 'copilot.cli', 'models.copilot.cli']),
-  'datasource.name': Object.freeze(['DATABASE_NAME', 'db.name', 'storage.databaseName', 'DATASOURCE_NAME']),
-  'DATABASE_NAME': Object.freeze(['datasource.name', 'db.name', 'storage.databaseName', 'DATASOURCE_NAME']),
-  'datasource.pool.min': Object.freeze(['DB_POOL_MIN', 'db.pool.min', 'DATASOURCE_POOL_MIN']),
-  'DB_POOL_MIN': Object.freeze(['datasource.pool.min', 'db.pool.min', 'DATASOURCE_POOL_MIN']),
-  'datasource.pool.max': Object.freeze(['DB_POOL_MAX', 'db.pool.max', 'DATASOURCE_POOL_MAX']),
-  'DB_POOL_MAX': Object.freeze(['datasource.pool.max', 'db.pool.max', 'DATASOURCE_POOL_MAX']),
-  'datasource.pool.acquireTimeoutMs': Object.freeze(['DB_POOL_ACQUIRE_TIMEOUT_MS', 'db.pool.acquireTimeoutMs', 'DATASOURCE_POOL_ACQUIRE_TIMEOUT_MS']),
-  'DB_POOL_ACQUIRE_TIMEOUT_MS': Object.freeze(['datasource.pool.acquireTimeoutMs', 'db.pool.acquireTimeoutMs', 'DATASOURCE_POOL_ACQUIRE_TIMEOUT_MS']),
-  'datasource.init.enabled': Object.freeze(['DB_INIT_ENABLED', 'db.init.enabled', 'DATASOURCE_INIT_ENABLED']),
-  'DB_INIT_ENABLED': Object.freeze(['datasource.init.enabled', 'db.init.enabled', 'DATASOURCE_INIT_ENABLED']),
-  'models.gemini.apiKey': Object.freeze(['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'model.gemini.apiKey', 'model.apiKey', 'MODEL_API_KEY']),
-  'model.gemini.apiKey': Object.freeze(['models.gemini.apiKey', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'model.apiKey', 'MODEL_API_KEY']),
-  'model.apiKey': Object.freeze(['models.gemini.apiKey', 'model.gemini.apiKey', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'MODEL_API_KEY']),
-  'GEMINI_API_KEY': Object.freeze(['models.gemini.apiKey', 'model.gemini.apiKey', 'model.apiKey', 'GOOGLE_API_KEY', 'MODEL_API_KEY']),
-  'GOOGLE_API_KEY': Object.freeze(['models.gemini.apiKey', 'model.gemini.apiKey', 'model.apiKey', 'GEMINI_API_KEY', 'MODEL_API_KEY']),
-  'model.default_model': Object.freeze(['GEMINI_DEFAULT_MODEL', 'model.default', 'models.gemini.model']),
-  'model.default': Object.freeze(['GEMINI_DEFAULT_MODEL', 'model.default_model', 'models.gemini.model']),
-  'GEMINI_DEFAULT_MODEL': Object.freeze(['model.default_model', 'model.default', 'models.gemini.model']),
-});
+const PROPERTY_ALIASES: Readonly<Record<string, readonly string[]>> =
+  Object.freeze({
+    "model.gemini.cli": Object.freeze([
+      "GEMINI_CLI_COMMAND",
+      "MODEL_GEMINI_CLI",
+      "gemini.cli",
+      "models.gemini.cli",
+    ]),
+    GEMINI_CLI_COMMAND: Object.freeze([
+      "model.gemini.cli",
+      "MODEL_GEMINI_CLI",
+      "gemini.cli",
+      "models.gemini.cli",
+    ]),
+    "model.claude.cli": Object.freeze([
+      "CLAUDE_CLI_COMMAND",
+      "MODEL_CLAUDE_CLI",
+      "claude.cli",
+      "models.claude.cli",
+    ]),
+    CLAUDE_CLI_COMMAND: Object.freeze([
+      "model.claude.cli",
+      "MODEL_CLAUDE_CLI",
+      "claude.cli",
+      "models.claude.cli",
+    ]),
+    "model.codex.cli": Object.freeze([
+      "CODEX_CLI_COMMAND",
+      "MODEL_CODEX_CLI",
+      "codex.cli",
+      "models.codex.cli",
+    ]),
+    CODEX_CLI_COMMAND: Object.freeze([
+      "model.codex.cli",
+      "MODEL_CODEX_CLI",
+      "codex.cli",
+      "models.codex.cli",
+    ]),
+    "model.cursor.cli": Object.freeze([
+      "CURSOR_CLI_COMMAND",
+      "MODEL_CURSOR_CLI",
+      "cursor.cli",
+      "models.cursor.cli",
+    ]),
+    CURSOR_CLI_COMMAND: Object.freeze([
+      "model.cursor.cli",
+      "MODEL_CURSOR_CLI",
+      "cursor.cli",
+      "models.cursor.cli",
+    ]),
+    "model.copilot.cli": Object.freeze([
+      "COPILOT_CLI_COMMAND",
+      "MODEL_COPILOT_CLI",
+      "copilot.cli",
+      "models.copilot.cli",
+    ]),
+    COPILOT_CLI_COMMAND: Object.freeze([
+      "model.copilot.cli",
+      "MODEL_COPILOT_CLI",
+      "copilot.cli",
+      "models.copilot.cli",
+    ]),
+    "datasource.name": Object.freeze([
+      "DATABASE_NAME",
+      "db.name",
+      "storage.databaseName",
+      "DATASOURCE_NAME",
+    ]),
+    DATABASE_NAME: Object.freeze([
+      "datasource.name",
+      "db.name",
+      "storage.databaseName",
+      "DATASOURCE_NAME",
+    ]),
+    "datasource.pool.min": Object.freeze([
+      "DB_POOL_MIN",
+      "db.pool.min",
+      "DATASOURCE_POOL_MIN",
+    ]),
+    DB_POOL_MIN: Object.freeze([
+      "datasource.pool.min",
+      "db.pool.min",
+      "DATASOURCE_POOL_MIN",
+    ]),
+    "datasource.pool.max": Object.freeze([
+      "DB_POOL_MAX",
+      "db.pool.max",
+      "DATASOURCE_POOL_MAX",
+    ]),
+    DB_POOL_MAX: Object.freeze([
+      "datasource.pool.max",
+      "db.pool.max",
+      "DATASOURCE_POOL_MAX",
+    ]),
+    "datasource.pool.acquireTimeoutMs": Object.freeze([
+      "DB_POOL_ACQUIRE_TIMEOUT_MS",
+      "db.pool.acquireTimeoutMs",
+      "DATASOURCE_POOL_ACQUIRE_TIMEOUT_MS",
+    ]),
+    DB_POOL_ACQUIRE_TIMEOUT_MS: Object.freeze([
+      "datasource.pool.acquireTimeoutMs",
+      "db.pool.acquireTimeoutMs",
+      "DATASOURCE_POOL_ACQUIRE_TIMEOUT_MS",
+    ]),
+    "datasource.init.enabled": Object.freeze([
+      "DB_INIT_ENABLED",
+      "db.init.enabled",
+      "DATASOURCE_INIT_ENABLED",
+    ]),
+    DB_INIT_ENABLED: Object.freeze([
+      "datasource.init.enabled",
+      "db.init.enabled",
+      "DATASOURCE_INIT_ENABLED",
+    ]),
+    "models.gemini.apiKey": Object.freeze([
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "model.gemini.apiKey",
+      "model.apiKey",
+      "MODEL_API_KEY",
+    ]),
+    "model.gemini.apiKey": Object.freeze([
+      "models.gemini.apiKey",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "model.apiKey",
+      "MODEL_API_KEY",
+    ]),
+    "model.apiKey": Object.freeze([
+      "models.gemini.apiKey",
+      "model.gemini.apiKey",
+      "GEMINI_API_KEY",
+      "GOOGLE_API_KEY",
+      "MODEL_API_KEY",
+    ]),
+    GEMINI_API_KEY: Object.freeze([
+      "models.gemini.apiKey",
+      "model.gemini.apiKey",
+      "model.apiKey",
+      "GOOGLE_API_KEY",
+      "MODEL_API_KEY",
+    ]),
+    GOOGLE_API_KEY: Object.freeze([
+      "models.gemini.apiKey",
+      "model.gemini.apiKey",
+      "model.apiKey",
+      "GEMINI_API_KEY",
+      "MODEL_API_KEY",
+    ]),
+    "model.default_model": Object.freeze([
+      "GEMINI_DEFAULT_MODEL",
+      "model.default",
+      "models.gemini.model",
+    ]),
+    "model.default": Object.freeze([
+      "GEMINI_DEFAULT_MODEL",
+      "model.default_model",
+      "models.gemini.model",
+    ]),
+    GEMINI_DEFAULT_MODEL: Object.freeze([
+      "model.default_model",
+      "model.default",
+      "models.gemini.model",
+    ]),
+  });
 
 /**
  * Standard Environment implementation encapsulating process.env, dotenv, YAML, and CLI args.
@@ -125,24 +260,34 @@ const PROPERTY_ALIASES: Readonly<Record<string, readonly string[]>> = Object.fre
 export class StandardEnvironment implements Environment {
   private readonly propertySource: Readonly<Record<string, string | undefined>>;
   private readonly activeProfiles: readonly string[];
-  private readonly defaultProfiles: readonly string[] = Object.freeze(['development']);
+  private readonly defaultProfiles: readonly string[] = Object.freeze([
+    "development",
+  ]);
   private readonly platform: string;
 
   constructor(
     customSource?: Record<string, string | undefined>,
     platform = process.platform,
-    cliArgs: readonly string[] = process.argv
+    cliArgs: readonly string[] = process.argv,
   ) {
     this.platform = platform;
 
     // --- TIER A: Base application.yml inside application loaded first ---
-    const baseYamlPath = path.resolve(projectRoot, 'config/env/application.yml');
-    const fallbackYamlPath = path.resolve(projectRoot, 'config/application.yml');
-    const tierA = this.loadYamlProperties(fs.existsSync(baseYamlPath) ? baseYamlPath : fallbackYamlPath);
+    const baseYamlPath = path.resolve(
+      projectRoot,
+      "config/env/application.yml",
+    );
+    const fallbackYamlPath = path.resolve(
+      projectRoot,
+      "config/application.yml",
+    );
+    const tierA = this.loadYamlProperties(
+      fs.existsSync(baseYamlPath) ? baseYamlPath : fallbackYamlPath,
+    );
 
     // --- TIER B: Load all environment variables (export GEMINI_CLI_COMMAND, .env, process.env) ---
     dotenv.config();
-    const localEnv = path.resolve(projectRoot, '.env');
+    const localEnv = path.resolve(projectRoot, ".env");
     if (fs.existsSync(localEnv)) {
       dotenv.config({ path: localEnv });
     }
@@ -154,24 +299,32 @@ export class StandardEnvironment implements Environment {
 
     // Determine active profile from layered hierarchy
     const activeEnv = (
-      tierC['server.env'] ||
-      tierC['APP_PROFILE'] ||
-      tierB['APP_PROFILE'] ||
-      tierB['NODE_ENV'] ||
-      tierB['APP_ENV'] ||
-      tierA['server.env'] ||
-      'development'
-    ).toLowerCase().trim();
+      tierC["server.env"] ||
+      tierC["APP_PROFILE"] ||
+      tierB["APP_PROFILE"] ||
+      tierB["NODE_ENV"] ||
+      tierB["APP_ENV"] ||
+      tierA["server.env"] ||
+      "development"
+    )
+      .toLowerCase()
+      .trim();
     this.activeProfiles = Object.freeze([activeEnv]);
 
     // Load profile .env if present
-    const envProfilePath = path.resolve(projectRoot, `config/env/.env.${activeEnv}`);
+    const envProfilePath = path.resolve(
+      projectRoot,
+      `config/env/.env.${activeEnv}`,
+    );
     if (fs.existsSync(envProfilePath)) {
       dotenv.config({ path: envProfilePath });
     }
 
     // --- TIER D: Profile-based application-{profile}.yml ---
-    const profileYamlPath = path.resolve(projectRoot, `config/env/application-${activeEnv}.yml`);
+    const profileYamlPath = path.resolve(
+      projectRoot,
+      `config/env/application-${activeEnv}.yml`,
+    );
     const tierD = this.loadYamlProperties(profileYamlPath);
 
     // Merge in exact order of override: Tier A < Tier B < Tier C < Tier D
@@ -187,7 +340,9 @@ export class StandardEnvironment implements Environment {
    * Expands known aliases and relaxed naming conventions (dot <-> underscore)
    * so that higher tier keys completely override lower tier keys across all aliases.
    */
-  private expandAliases(props: Record<string, string | undefined>): Record<string, string | undefined> {
+  private expandAliases(
+    props: Record<string, string | undefined>,
+  ): Record<string, string | undefined> {
     const expanded: Record<string, string | undefined> = { ...props };
     for (const [key, val] of Object.entries(props)) {
       if (val === undefined) continue;
@@ -199,8 +354,8 @@ export class StandardEnvironment implements Environment {
         }
       }
 
-      if (key.includes('_')) {
-        const dotNotation = key.toLowerCase().replace(/_/g, '.');
+      if (key.includes("_")) {
+        const dotNotation = key.toLowerCase().replace(/_/g, ".");
         expanded[dotNotation] = val;
         const dotAliases = PROPERTY_ALIASES[dotNotation];
         if (dotAliases) {
@@ -210,8 +365,8 @@ export class StandardEnvironment implements Environment {
         }
       }
 
-      if (key.includes('.')) {
-        const underscoreNotation = key.toUpperCase().replace(/\./g, '_');
+      if (key.includes(".")) {
+        const underscoreNotation = key.toUpperCase().replace(/\./g, "_");
         expanded[underscoreNotation] = val;
         const underscoreAliases = PROPERTY_ALIASES[underscoreNotation];
         if (underscoreAliases) {
@@ -233,7 +388,10 @@ export class StandardEnvironment implements Environment {
   }
 
   public acceptsProfiles(...profiles: string[]): boolean {
-    const current = this.activeProfiles.length > 0 ? this.activeProfiles : this.defaultProfiles;
+    const current =
+      this.activeProfiles.length > 0
+        ? this.activeProfiles
+        : this.defaultProfiles;
     return profiles.some((p) => current.includes(p.toLowerCase().trim()));
   }
 
@@ -264,13 +422,20 @@ export class StandardEnvironment implements Environment {
       return defaultValue;
     }
     const normalized = val.trim().toLowerCase();
-    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+    return (
+      normalized === "true" ||
+      normalized === "1" ||
+      normalized === "yes" ||
+      normalized === "on"
+    );
   }
 
   public getRequiredProperty(key: string): string {
     const val = this.resolveRawValue(key);
     if (val === undefined || val.trim().length === 0) {
-      throw new Error(`[Environment] Required configuration property '${key}' is missing or blank.`);
+      throw new Error(
+        `[Environment] Required configuration property '${key}' is missing or blank.`,
+      );
     }
     return val.trim();
   }
@@ -284,7 +449,7 @@ export class StandardEnvironment implements Environment {
   }
 
   public isWindows(): boolean {
-    return this.platform === 'win32';
+    return this.platform === "win32";
   }
 
   /**
@@ -298,24 +463,24 @@ export class StandardEnvironment implements Environment {
       const arg = args[i];
 
       // Explicit custom config file: --config=<path> or -c <path> or --config.location=<path>
-      if (arg.startsWith('--config=')) {
+      if (arg.startsWith("--config=")) {
         const filePath = arg.slice(9).trim();
         Object.assign(explicitProps, this.loadYamlProperties(filePath));
-      } else if ((arg === '--config' || arg === '-c') && i + 1 < args.length) {
+      } else if ((arg === "--config" || arg === "-c") && i + 1 < args.length) {
         const filePath = args[++i].trim();
         Object.assign(explicitProps, this.loadYamlProperties(filePath));
-      } else if (arg.startsWith('--config.location=')) {
+      } else if (arg.startsWith("--config.location=")) {
         const filePath = arg.slice(18).trim();
         Object.assign(explicitProps, this.loadYamlProperties(filePath));
-      } else if (arg.startsWith('--') && arg.includes('=')) {
+      } else if (arg.startsWith("--") && arg.includes("=")) {
         // Individual command-line property: --server.port=8090
-        const eqIdx = arg.indexOf('=');
+        const eqIdx = arg.indexOf("=");
         const key = arg.slice(2, eqIdx).trim();
         const value = arg.slice(eqIdx + 1).trim();
         if (key) explicitProps[key] = value;
-      } else if (arg.startsWith('-D') && arg.includes('=')) {
+      } else if (arg.startsWith("-D") && arg.includes("=")) {
         // JVM-style property: -Dserver.port=8090
-        const eqIdx = arg.indexOf('=');
+        const eqIdx = arg.indexOf("=");
         const key = arg.slice(2, eqIdx).trim();
         const value = arg.slice(eqIdx + 1).trim();
         if (key) explicitProps[key] = value;
@@ -334,12 +499,12 @@ export class StandardEnvironment implements Environment {
       return {};
     }
     const result: Record<string, string> = {};
-    const lines = fs.readFileSync(yamlPath, 'utf-8').split(/\r?\n/);
+    const lines = fs.readFileSync(yamlPath, "utf-8").split(/\r?\n/);
     const stack: { indent: number; key: string }[] = [];
     const listIndexTracker = new Map<string, number>();
 
     for (const rawLine of lines) {
-      const line = rawLine.replace(/#.*$/, '');
+      const line = rawLine.replace(/#.*$/, "");
       if (!line.trim()) continue;
 
       const indent = line.search(/\S/);
@@ -350,15 +515,15 @@ export class StandardEnvironment implements Environment {
       }
 
       let isListItem = false;
-      if (trimmed.startsWith('- ')) {
+      if (trimmed.startsWith("- ")) {
         isListItem = true;
         trimmed = trimmed.slice(2).trim();
       }
 
-      const colonIdx = trimmed.indexOf(':');
+      const colonIdx = trimmed.indexOf(":");
       if (colonIdx === -1) {
         if (isListItem && stack.length > 0) {
-          const parentKey = stack.map((s) => s.key).join('.');
+          const parentKey = stack.map((s) => s.key).join(".");
           const currentIndex = (listIndexTracker.get(parentKey) ?? -1) + 1;
           listIndexTracker.set(parentKey, currentIndex);
           result[`${parentKey}.${currentIndex}`] = trimmed;
@@ -370,7 +535,7 @@ export class StandardEnvironment implements Environment {
       const valPart = trimmed.slice(colonIdx + 1).trim();
 
       if (isListItem && stack.length > 0) {
-        const parentKey = stack.map((s) => s.key).join('.');
+        const parentKey = stack.map((s) => s.key).join(".");
         const currentIndex = (listIndexTracker.get(parentKey) ?? -1) + 1;
         listIndexTracker.set(parentKey, currentIndex);
         const indexKey = String(currentIndex);
@@ -396,7 +561,7 @@ export class StandardEnvironment implements Environment {
       } else if (valPart.length === 0) {
         stack.push({ indent, key: keyPart });
       } else {
-        const fullKey = [...stack.map((s) => s.key), keyPart].join('.');
+        const fullKey = [...stack.map((s) => s.key), keyPart].join(".");
         let cleanVal = valPart;
         if (
           (cleanVal.startsWith('"') && cleanVal.endsWith('"')) ||
@@ -412,10 +577,15 @@ export class StandardEnvironment implements Environment {
   }
 
   public interpolatePlaceholders(val: string): string {
-    return val.replace(/\$\{([^}:]+)(?::-?([^}]*))?\}/g, (_match, varName, defaultVal) => {
-      const envVal = process.env[varName];
-      return envVal !== undefined && envVal.length > 0 ? envVal : (defaultVal ?? '');
-    });
+    return val.replace(
+      /\$\{([^}:]+)(?::-?([^}]*))?\}/g,
+      (_match, varName, defaultVal) => {
+        const envVal = process.env[varName];
+        return envVal !== undefined && envVal.length > 0
+          ? envVal
+          : (defaultVal ?? "");
+      },
+    );
   }
 
   /**
@@ -439,17 +609,17 @@ export class StandardEnvironment implements Environment {
     }
 
     // 3. Relaxed formatting: UPPERCASE_UNDERSCORE, lowercase_underscore, lowercase-dash
-    const uppercaseUnderscore = key.toUpperCase().replace(/[\.\-]/g, '_');
+    const uppercaseUnderscore = key.toUpperCase().replace(/[\.\-]/g, "_");
     if (this.propertySource[uppercaseUnderscore] !== undefined) {
       return this.propertySource[uppercaseUnderscore];
     }
 
-    const lowercaseUnderscore = key.toLowerCase().replace(/[\.\-]/g, '_');
+    const lowercaseUnderscore = key.toLowerCase().replace(/[\.\-]/g, "_");
     if (this.propertySource[lowercaseUnderscore] !== undefined) {
       return this.propertySource[lowercaseUnderscore];
     }
 
-    const lowercaseDash = key.toLowerCase().replace(/[\._]/g, '-');
+    const lowercaseDash = key.toLowerCase().replace(/[\._]/g, "-");
     if (this.propertySource[lowercaseDash] !== undefined) {
       return this.propertySource[lowercaseDash];
     }

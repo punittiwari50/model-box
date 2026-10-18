@@ -1,20 +1,20 @@
-import { spawn } from 'node:child_process';
-import { config } from '@/core/config/index.js';
-import { logger } from '@/core/observability/logging/logger.js';
+import { spawn } from "node:child_process";
+import { config } from "@/core/config/index.js";
+import { logger } from "@/core/observability/logging/logger.js";
 import {
   ModelFamily,
   SubscriptionTierConstant,
   ModelDiscoverySource,
-} from '@/domain/constants/index.js';
-import { systemCliLocator } from '@/core/cli/cliLocator.js';
-import { authRepo } from '@/repositories/authRepository.js';
+} from "@/domain/constants/index.js";
+import { systemCliLocator } from "@/core/cli/cliLocator.js";
+import { authRepo } from "@/repositories/authRepository.js";
 
 export interface DiscoveredModel {
   readonly name: string;
   readonly family: string;
-  readonly tier: 'paid' | 'freeware';
-  readonly source: 'api' | 'cli';
-  readonly status: 'available' | 'offline';
+  readonly tier: "paid" | "freeware";
+  readonly source: "api" | "cli";
+  readonly status: "available" | "offline";
   readonly description?: string;
   readonly maxTokens?: number;
   readonly discovered_at: string;
@@ -31,13 +31,13 @@ export interface IModelDiscoveryStrategy {
 function runCommandSafely(command: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-      let stdout = '';
-      let stderr = '';
-      child.stdout.on('data', (d) => (stdout += d.toString()));
-      child.stderr.on('data', (d) => (stderr += d.toString()));
-      child.on('error', (err) => reject(err));
-      child.on('close', (code) => {
+      const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (d) => (stdout += d.toString()));
+      child.stderr.on("data", (d) => (stderr += d.toString()));
+      child.on("error", (err) => reject(err));
+      child.on("close", (code) => {
         if (code === 0) resolve(stdout);
         else reject(new Error(`Command exited with ${code}: ${stderr.trim()}`));
       });
@@ -55,12 +55,13 @@ export class OllamaModelDiscoveryStrategy implements IModelDiscoveryStrategy {
   public readonly family = ModelFamily.OLLAMA;
 
   public async discover(): Promise<DiscoveredModel[]> {
-    const baseUrl = config.getApiBaseUrl(ModelFamily.OLLAMA) || 'http://127.0.0.1:11435';
+    const baseUrl =
+      config.getApiBaseUrl(ModelFamily.OLLAMA) || "http://127.0.0.1:11435";
     const timestamp = new Date().toISOString();
 
     // 1. Try Live Ollama REST API
     try {
-      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`, {
+      const res = await fetch(`${baseUrl.replace(/\/$/, "")}/api/tags`, {
         signal: AbortSignal.timeout(3000),
       });
       if (res.ok) {
@@ -72,7 +73,7 @@ export class OllamaModelDiscoveryStrategy implements IModelDiscoveryStrategy {
             family: ModelFamily.OLLAMA,
             tier: SubscriptionTierConstant.FREEWARE,
             source: ModelDiscoverySource.API,
-            status: 'available',
+            status: "available",
             description: `Local Ollama model (${Math.round((m.size || 0) / (1024 * 1024))} MB)`,
             discovered_at: timestamp,
           }));
@@ -83,11 +84,11 @@ export class OllamaModelDiscoveryStrategy implements IModelDiscoveryStrategy {
     }
 
     // 2. Try Live Ollama CLI
-    const cliCommand = config.getCliCommand(ModelFamily.OLLAMA) || 'ollama';
+    const cliCommand = config.getCliCommand(ModelFamily.OLLAMA) || "ollama";
     if (systemCliLocator.isAvailable(cliCommand)) {
       try {
-        const stdout = await runCommandSafely(cliCommand, ['list']);
-        const lines = stdout.split('\n').filter((l) => l.trim().length > 0);
+        const stdout = await runCommandSafely(cliCommand, ["list"]);
+        const lines = stdout.split("\n").filter((l) => l.trim().length > 0);
         // Header line: NAME ID SIZE MODIFIED
         const results: DiscoveredModel[] = [];
         for (let i = 1; i < lines.length; i++) {
@@ -98,7 +99,7 @@ export class OllamaModelDiscoveryStrategy implements IModelDiscoveryStrategy {
               family: ModelFamily.OLLAMA,
               tier: SubscriptionTierConstant.FREEWARE,
               source: ModelDiscoverySource.CLI,
-              status: 'available',
+              status: "available",
               discovered_at: timestamp,
             });
           }
@@ -112,12 +113,12 @@ export class OllamaModelDiscoveryStrategy implements IModelDiscoveryStrategy {
     // Default installed fallback if offline
     return [
       {
-        name: config.fallbackModel || 'tinyllama',
+        name: config.fallbackModel || "tinyllama",
         family: ModelFamily.OLLAMA,
         tier: SubscriptionTierConstant.FREEWARE,
         source: ModelDiscoverySource.API,
-        status: 'available',
-        description: 'Default local freeware fallback model',
+        status: "available",
+        description: "Default local freeware fallback model",
         discovered_at: timestamp,
       },
     ];
@@ -133,8 +134,11 @@ export class GeminiModelDiscoveryStrategy implements IModelDiscoveryStrategy {
 
   public async discover(): Promise<DiscoveredModel[]> {
     const timestamp = new Date().toISOString();
-    const modelAuth = await authRepo.getModelAuth('gemini');
-    const apiKey = modelAuth?.access_token || config.googleClientSecret || process.env.GEMINI_API_KEY;
+    const modelAuth = await authRepo.getModelAuth("gemini");
+    const apiKey =
+      modelAuth?.access_token ||
+      config.googleClientSecret ||
+      process.env.GEMINI_API_KEY;
 
     // 1. Try Live Gemini REST API
     if (apiKey) {
@@ -145,13 +149,17 @@ export class GeminiModelDiscoveryStrategy implements IModelDiscoveryStrategy {
           const data = (await res.json()) as any;
           if (Array.isArray(data?.models)) {
             return data.models
-              .filter((m: any) => m.name && m.supportedGenerationMethods?.includes('generateContent'))
+              .filter(
+                (m: any) =>
+                  m.name &&
+                  m.supportedGenerationMethods?.includes("generateContent"),
+              )
               .map((m: any) => ({
-                name: m.name.replace(/^models\//, ''),
+                name: m.name.replace(/^models\//, ""),
                 family: ModelFamily.GEMINI,
                 tier: SubscriptionTierConstant.PAID,
                 source: ModelDiscoverySource.API,
-                status: 'available',
+                status: "available",
                 description: m.displayName || m.description,
                 maxTokens: m.outputTokenLimit,
                 discovered_at: timestamp,
@@ -164,33 +172,39 @@ export class GeminiModelDiscoveryStrategy implements IModelDiscoveryStrategy {
     }
 
     // 2. Try Live Gemini CLI
-    const cliCommand = config.getCliCommand(ModelFamily.GEMINI) || 'gemini';
+    const cliCommand = config.getCliCommand(ModelFamily.GEMINI) || "gemini";
     const cliAvailable = systemCliLocator.isAvailable(cliCommand);
 
     return [
       {
-        name: config.geminiDefaultModel || 'gemini-3.8-flash',
+        name: config.geminiDefaultModel || "gemini-3.8-flash",
         family: ModelFamily.GEMINI,
         tier: SubscriptionTierConstant.PAID,
-        source: cliAvailable ? ModelDiscoverySource.CLI : ModelDiscoverySource.API,
-        status: 'available',
-        description: 'Google Gemini multimodal foundational model',
+        source: cliAvailable
+          ? ModelDiscoverySource.CLI
+          : ModelDiscoverySource.API,
+        status: "available",
+        description: "Google Gemini multimodal foundational model",
         discovered_at: timestamp,
       },
       {
-        name: 'gemini-2.5-flash',
+        name: "gemini-2.5-flash",
         family: ModelFamily.GEMINI,
         tier: SubscriptionTierConstant.PAID,
-        source: cliAvailable ? ModelDiscoverySource.CLI : ModelDiscoverySource.API,
-        status: 'available',
+        source: cliAvailable
+          ? ModelDiscoverySource.CLI
+          : ModelDiscoverySource.API,
+        status: "available",
         discovered_at: timestamp,
       },
       {
-        name: 'gemini-2.5-pro',
+        name: "gemini-2.5-pro",
         family: ModelFamily.GEMINI,
         tier: SubscriptionTierConstant.PAID,
-        source: cliAvailable ? ModelDiscoverySource.CLI : ModelDiscoverySource.API,
-        status: 'available',
+        source: cliAvailable
+          ? ModelDiscoverySource.CLI
+          : ModelDiscoverySource.API,
+        status: "available",
         discovered_at: timestamp,
       },
     ];
@@ -206,17 +220,20 @@ export class CopilotModelDiscoveryStrategy implements IModelDiscoveryStrategy {
 
   public async discover(): Promise<DiscoveredModel[]> {
     const timestamp = new Date().toISOString();
-    const modelAuth = await authRepo.getModelAuth('copilot');
-    const token = modelAuth?.access_token || process.env.GITHUB_TOKEN || process.env.COPILOT_API_KEY;
+    const modelAuth = await authRepo.getModelAuth("copilot");
+    const token =
+      modelAuth?.access_token ||
+      process.env.GITHUB_TOKEN ||
+      process.env.COPILOT_API_KEY;
 
     // 1. Try Live Copilot REST API
     if (token) {
       try {
-        const res = await fetch('https://api.githubcopilot.com/models', {
+        const res = await fetch("https://api.githubcopilot.com/models", {
           headers: {
             Authorization: `Bearer ${token}`,
-            'Editor-Version': 'vscode/1.95.0',
-            'Editor-Plugin-Version': 'copilot-chat/0.22.0',
+            "Editor-Version": "vscode/1.95.0",
+            "Editor-Plugin-Version": "copilot-chat/0.22.0",
           },
           signal: AbortSignal.timeout(3000),
         });
@@ -228,7 +245,7 @@ export class CopilotModelDiscoveryStrategy implements IModelDiscoveryStrategy {
               family: ModelFamily.COPILOT,
               tier: SubscriptionTierConstant.PAID,
               source: ModelDiscoverySource.API,
-              status: 'available',
+              status: "available",
               discovered_at: timestamp,
             }));
           }
@@ -241,28 +258,28 @@ export class CopilotModelDiscoveryStrategy implements IModelDiscoveryStrategy {
     // 2. Discover known Copilot models
     return [
       {
-        name: 'copilot-chat',
+        name: "copilot-chat",
         family: ModelFamily.COPILOT,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
-        description: 'GitHub Copilot Default Chat Model',
+        status: "available",
+        description: "GitHub Copilot Default Chat Model",
         discovered_at: timestamp,
       },
       {
-        name: 'copilot-gpt-4o',
+        name: "copilot-gpt-4o",
         family: ModelFamily.COPILOT,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
+        status: "available",
         discovered_at: timestamp,
       },
       {
-        name: 'copilot-claude-3.5-sonnet',
+        name: "copilot-claude-3.5-sonnet",
         family: ModelFamily.COPILOT,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
+        status: "available",
         discovered_at: timestamp,
       },
     ];
@@ -280,20 +297,20 @@ export class ClaudeModelDiscoveryStrategy implements IModelDiscoveryStrategy {
     const timestamp = new Date().toISOString();
     return [
       {
-        name: 'claude-3-7-sonnet',
+        name: "claude-3-7-sonnet",
         family: ModelFamily.CLAUDE,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
+        status: "available",
         maxTokens: 200000,
         discovered_at: timestamp,
       },
       {
-        name: 'claude-3-5-sonnet',
+        name: "claude-3-5-sonnet",
         family: ModelFamily.CLAUDE,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
+        status: "available",
         maxTokens: 200000,
         discovered_at: timestamp,
       },
@@ -312,20 +329,20 @@ export class CodexModelDiscoveryStrategy implements IModelDiscoveryStrategy {
     const timestamp = new Date().toISOString();
     return [
       {
-        name: 'gpt-4o',
+        name: "gpt-4o",
         family: ModelFamily.CODEX,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
+        status: "available",
         maxTokens: 128000,
         discovered_at: timestamp,
       },
       {
-        name: 'gpt-4o-mini',
+        name: "gpt-4o-mini",
         family: ModelFamily.CODEX,
         tier: SubscriptionTierConstant.FREEWARE,
         source: ModelDiscoverySource.API,
-        status: 'available',
+        status: "available",
         maxTokens: 128000,
         discovered_at: timestamp,
       },
@@ -344,11 +361,11 @@ export class CursorModelDiscoveryStrategy implements IModelDiscoveryStrategy {
     const timestamp = new Date().toISOString();
     return [
       {
-        name: 'cursor-default',
+        name: "cursor-default",
         family: ModelFamily.CURSOR,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.CLI,
-        status: 'available',
+        status: "available",
         maxTokens: 128000,
         discovered_at: timestamp,
       },
@@ -367,30 +384,30 @@ export class GrokModelDiscoveryStrategy implements IModelDiscoveryStrategy {
     const timestamp = new Date().toISOString();
     return [
       {
-        name: 'grok-3',
+        name: "grok-3",
         family: ModelFamily.GROK,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
-        description: 'xAI Grok-3 High-Reasoning Flagship',
+        status: "available",
+        description: "xAI Grok-3 High-Reasoning Flagship",
         discovered_at: timestamp,
       },
       {
-        name: 'grok-2',
+        name: "grok-2",
         family: ModelFamily.GROK,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
-        description: 'xAI Grok-2 Advanced Intelligence',
+        status: "available",
+        description: "xAI Grok-2 Advanced Intelligence",
         discovered_at: timestamp,
       },
       {
-        name: 'grok-beta',
+        name: "grok-beta",
         family: ModelFamily.GROK,
         tier: SubscriptionTierConstant.PAID,
         source: ModelDiscoverySource.API,
-        status: 'available',
-        description: 'xAI Grok Beta Preview',
+        status: "available",
+        description: "xAI Grok Beta Preview",
         discovered_at: timestamp,
       },
     ];
@@ -424,20 +441,31 @@ export class ModelDiscoveryService {
     this.strategies.set(strategy.family.toLowerCase(), strategy);
   }
 
-  public async listAvailableModels(forceRefresh = false): Promise<DiscoveredModel[]> {
+  public async listAvailableModels(
+    forceRefresh = false,
+  ): Promise<DiscoveredModel[]> {
     const now = Date.now();
-    if (!forceRefresh && this.cachedModels.length > 0 && now - this.lastFetchedAt < this.ttlMs) {
+    if (
+      !forceRefresh &&
+      this.cachedModels.length > 0 &&
+      now - this.lastFetchedAt < this.ttlMs
+    ) {
       return this.cachedModels;
     }
 
-    const discoveryPromises = Array.from(this.strategies.values()).map(async (strategy) => {
-      try {
-        return await strategy.discover();
-      } catch (err: any) {
-        logger.warn('MODEL_DISCOVERY', `Discovery failed for family '${strategy.family}': ${err.message}`);
-        return [];
-      }
-    });
+    const discoveryPromises = Array.from(this.strategies.values()).map(
+      async (strategy) => {
+        try {
+          return await strategy.discover();
+        } catch (err: any) {
+          logger.warn(
+            "MODEL_DISCOVERY",
+            `Discovery failed for family '${strategy.family}': ${err.message}`,
+          );
+          return [];
+        }
+      },
+    );
 
     const results = await Promise.all(discoveryPromises);
     const flattened = results.flat();
@@ -445,15 +473,20 @@ export class ModelDiscoveryService {
     if (flattened.length > 0) {
       this.cachedModels = flattened;
       this.lastFetchedAt = now;
-      logger.info('MODEL_DISCOVERY', `Dynamically discovered ${flattened.length} models across providers via live API/CLI.`);
+      logger.info(
+        "MODEL_DISCOVERY",
+        `Dynamically discovered ${flattened.length} models across providers via live API/CLI.`,
+      );
     }
 
     return this.cachedModels;
   }
 
-  public async getModel(modelName: string): Promise<DiscoveredModel | undefined> {
+  public async getModel(
+    modelName: string,
+  ): Promise<DiscoveredModel | undefined> {
     const models = await this.listAvailableModels();
-    const normalized = (modelName || '').toLowerCase().trim();
+    const normalized = (modelName || "").toLowerCase().trim();
     if (!normalized) {
       return undefined;
     }
@@ -462,7 +495,7 @@ export class ModelDiscoveryService {
       return (
         candidate === normalized ||
         candidate.startsWith(`${normalized}:`) ||
-        candidate.replace(/:.*$/, '') === normalized
+        candidate.replace(/:.*$/, "") === normalized
       );
     });
   }

@@ -1,4 +1,4 @@
-import { sysCrypto } from '@/core/utils/system/systemFacade.js';
+import { sysCrypto } from "@/core/utils/system/systemFacade.js";
 
 export interface ICredentialManager {
   hashSecret(secret: string): string;
@@ -11,7 +11,7 @@ export class CredentialManager implements ICredentialManager {
     return sysCrypto.sha256Hex(secret);
   }
 
-  public generateApiKey(prefix = 'mb_sec'): string {
+  public generateApiKey(prefix = "mb_sec"): string {
     return `${prefix}_${sysCrypto.randomBase64Url(24)}`;
   }
 
@@ -20,7 +20,10 @@ export class CredentialManager implements ICredentialManager {
     if (providedHash.length !== expectedHash.length) {
       return false;
     }
-    return sysCrypto.timingSafeEqual(Buffer.from(providedHash), Buffer.from(expectedHash));
+    return sysCrypto.timingSafeEqual(
+      Buffer.from(providedHash),
+      Buffer.from(expectedHash),
+    );
   }
 }
 

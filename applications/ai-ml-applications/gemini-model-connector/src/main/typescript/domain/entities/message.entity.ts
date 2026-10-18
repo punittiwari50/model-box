@@ -1,9 +1,10 @@
-export type Role = 'user' | 'assistant' | 'system';
+export type Role = "user" | "assistant" | "system";
 
 /**
  * Domain Database Entity: MESSAGES table.
  */
 export interface MessageEntity {
+  readonly message_id?: string;
   readonly id: string;
   readonly conversation_id: string;
   readonly role: Role;
@@ -17,5 +18,5 @@ export interface MessageEntity {
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly created_timestamp?: string;
   readonly update_timestamp?: string;
-  readonly created_at: string;
+  readonly created_at?: string;
 }

@@ -2,8 +2,8 @@ import {
   SubscriptionTierConstant,
   SubscriptionPolicyConstant,
   isFallbackModel,
-} from '@/domain/constants/index.js';
-import { config } from '@/core/config/index.js';
+} from "@/domain/constants/index.js";
+import { config } from "@/core/config/index.js";
 
 /**
  * Context payload for evaluating subscription tier execution.
@@ -50,7 +50,9 @@ export interface ISubscriptionPolicyStrategy {
 export class PaidFirstSubscriptionStrategy implements ISubscriptionPolicyStrategy {
   public readonly policyName = SubscriptionPolicyConstant.PAID_FIRST;
 
-  public decide(context: SubscriptionEvaluationContext): SubscriptionRoutingDecision {
+  public decide(
+    context: SubscriptionEvaluationContext,
+  ): SubscriptionRoutingDecision {
     const isModelFreeware = isFallbackModel(context.requestedModel);
     const initialTier = isModelFreeware
       ? SubscriptionTierConstant.FREEWARE
@@ -91,7 +93,9 @@ export class PaidFirstSubscriptionStrategy implements ISubscriptionPolicyStrateg
       };
     }
 
-    if (context.tokenConsumedPercentage >= context.fallbackThresholdPercentage) {
+    if (
+      context.tokenConsumedPercentage >= context.fallbackThresholdPercentage
+    ) {
       return {
         targetModel: context.fallbackModel,
         executedTier: SubscriptionTierConstant.FREEWARE,
@@ -121,7 +125,9 @@ export class PaidFirstSubscriptionStrategy implements ISubscriptionPolicyStrateg
 export class FreeFirstSubscriptionStrategy implements ISubscriptionPolicyStrategy {
   public readonly policyName = SubscriptionPolicyConstant.FREE_FIRST;
 
-  public decide(context: SubscriptionEvaluationContext): SubscriptionRoutingDecision {
+  public decide(
+    context: SubscriptionEvaluationContext,
+  ): SubscriptionRoutingDecision {
     return {
       targetModel: context.fallbackModel,
       executedTier: SubscriptionTierConstant.FREEWARE,
@@ -140,7 +146,9 @@ export class FreeFirstSubscriptionStrategy implements ISubscriptionPolicyStrateg
 export class PaidOnlySubscriptionStrategy implements ISubscriptionPolicyStrategy {
   public readonly policyName = SubscriptionPolicyConstant.PAID_ONLY;
 
-  public decide(context: SubscriptionEvaluationContext): SubscriptionRoutingDecision {
+  public decide(
+    context: SubscriptionEvaluationContext,
+  ): SubscriptionRoutingDecision {
     return {
       targetModel: context.requestedModel,
       executedTier: SubscriptionTierConstant.PAID,
@@ -159,7 +167,9 @@ export class PaidOnlySubscriptionStrategy implements ISubscriptionPolicyStrategy
 export class FreeOnlySubscriptionStrategy implements ISubscriptionPolicyStrategy {
   public readonly policyName = SubscriptionPolicyConstant.FREE_ONLY;
 
-  public decide(context: SubscriptionEvaluationContext): SubscriptionRoutingDecision {
+  public decide(
+    context: SubscriptionEvaluationContext,
+  ): SubscriptionRoutingDecision {
     return {
       targetModel: context.fallbackModel,
       executedTier: SubscriptionTierConstant.FREEWARE,
@@ -180,7 +190,8 @@ export class FreeOnlySubscriptionStrategy implements ISubscriptionPolicyStrategy
  * - STD-COD-007: SLAP & Immutability by Default
  */
 export class SubscriptionManager {
-  private readonly strategies: Map<string, ISubscriptionPolicyStrategy> = new Map();
+  private readonly strategies: Map<string, ISubscriptionPolicyStrategy> =
+    new Map();
   private activePolicy: string = SubscriptionPolicyConstant.PAID_FIRST;
 
   constructor() {
@@ -210,10 +221,12 @@ export class SubscriptionManager {
     isAuthenticated: boolean,
     tokenConsumedPercentage = 0,
     circuitBreakerOpen = false,
-    policyOverride?: string
+    policyOverride?: string,
   ): SubscriptionRoutingDecision {
     const policyKey = (policyOverride || this.activePolicy).toLowerCase();
-    const strategy = this.strategies.get(policyKey) || this.strategies.get(SubscriptionPolicyConstant.PAID_FIRST)!;
+    const strategy =
+      this.strategies.get(policyKey) ||
+      this.strategies.get(SubscriptionPolicyConstant.PAID_FIRST)!;
 
     const evalContext: SubscriptionEvaluationContext = {
       requestedModel,
@@ -225,7 +238,10 @@ export class SubscriptionManager {
     };
 
     const decision = strategy.decide(evalContext);
-    const sub = config.getSubscription(decision.targetModel, decision.executedTier);
+    const sub = config.getSubscription(
+      decision.targetModel,
+      decision.executedTier,
+    );
     return {
       ...decision,
       accountEmail: sub.accountEmail,

@@ -1,11 +1,11 @@
-import type { Request, Response } from 'express';
+import type { Request, Response } from "express";
 import {
   getCurrentTraceContext,
   getTraceId,
   getSpanId,
   getCorrelationId,
-} from '@/core/observability/tracing/traceContext.js';
-import { HttpHeader, NetworkConstant } from '@/domain/constants/index.js';
+} from "@/core/observability/tracing/traceContext.js";
+import { HttpHeader, NetworkConstant } from "@/domain/constants/index.js";
 
 export interface TraceableResponse {
   readonly trace_id?: string;
@@ -17,8 +17,17 @@ export interface IHttpResponseFormatter {
   getClientIp(req: Request): string;
   getRouteParam(param: string | string[] | undefined): string;
   getQueryParam(param: unknown): string;
-  sendJson<T extends Record<string, any>>(res: Response, statusCode: number, data: T): void;
-  sendError(res: Response, statusCode: number, message: string, extra?: Record<string, any>): void;
+  sendJson<T extends Record<string, any>>(
+    res: Response,
+    statusCode: number,
+    data: T,
+  ): void;
+  sendError(
+    res: Response,
+    statusCode: number,
+    message: string,
+    extra?: Record<string, any>,
+  ): void;
 }
 
 /**
@@ -28,27 +37,31 @@ export interface IHttpResponseFormatter {
 export class HttpResponseFormatter implements IHttpResponseFormatter {
   public getClientIp(req: Request): string {
     const forwarded = req.headers[HttpHeader.X_FORWARDED_FOR];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
+    if (typeof forwarded === "string") {
+      return forwarded.split(",")[0].trim();
     }
     return req.socket.remoteAddress || NetworkConstant.LOOPBACK_IP;
   }
 
   public getRouteParam(param: string | string[] | undefined): string {
     if (Array.isArray(param)) {
-      return param[0] || '';
+      return param[0] || "";
     }
-    return param || '';
+    return param || "";
   }
 
   public getQueryParam(param: unknown): string {
     if (Array.isArray(param)) {
-      return String(param[0] || '');
+      return String(param[0] || "");
     }
-    return typeof param === 'string' ? param : '';
+    return typeof param === "string" ? param : "";
   }
 
-  public sendJson<T extends Record<string, any>>(res: Response, statusCode: number, data: T): void {
+  public sendJson<T extends Record<string, any>>(
+    res: Response,
+    statusCode: number,
+    data: T,
+  ): void {
     const currentContext = getCurrentTraceContext();
     const traceId = currentContext?.traceId || getTraceId();
     const spanId = currentContext?.spanId || getSpanId();
@@ -72,7 +85,7 @@ export class HttpResponseFormatter implements IHttpResponseFormatter {
     res: Response,
     statusCode: number,
     message: string,
-    extra: Record<string, any> = {}
+    extra: Record<string, any> = {},
   ): void {
     const currentContext = getCurrentTraceContext();
     const traceId = currentContext?.traceId || getTraceId();
@@ -87,12 +100,21 @@ export class HttpResponseFormatter implements IHttpResponseFormatter {
     let sanitized = message;
     if (
       statusCode >= 500 &&
-      /SELECT|INSERT|UPDATE|DELETE|SQLITE_|SYNTAX ERROR|TABLE|COLUMN/i.test(sanitized)
+      /SELECT|INSERT|UPDATE|DELETE|SQLITE_|SYNTAX ERROR|TABLE|COLUMN/i.test(
+        sanitized,
+      )
     ) {
-      sanitized = 'An internal system error occurred while processing the request.';
+      sanitized =
+        "An internal system error occurred while processing the request.";
     }
-    sanitized = sanitized.replace(/([a-zA-Z]:|\/app|\/usr|\/home|\/node_modules)[\w\-\.\/\\\:]+/g, '[masked-path]');
-    sanitized = sanitized.replace(/(AIza|Bearer\s+|key=|token=)[\w\-\._]+/gi, '[masked-credential]');
+    sanitized = sanitized.replace(
+      /([a-zA-Z]:|\/app|\/usr|\/home|\/node_modules)[\w\-\.\/\\\:]+/g,
+      "[masked-path]",
+    );
+    sanitized = sanitized.replace(
+      /(AIza|Bearer\s+|key=|token=)[\w\-\._]+/gi,
+      "[masked-credential]",
+    );
 
     res.status(statusCode).json({
       error: sanitized,
@@ -122,7 +144,7 @@ export function getQueryParam(param: unknown): string {
 export function sendJsonResponse<T extends Record<string, any>>(
   res: Response,
   statusCode: number,
-  data: T
+  data: T,
 ): void {
   httpResponseFormatter.sendJson(res, statusCode, data);
 }
@@ -131,7 +153,7 @@ export function sendJsonError(
   res: Response,
   statusCode: number,
   message: string,
-  extra: Record<string, any> = {}
+  extra: Record<string, any> = {},
 ): void {
   httpResponseFormatter.sendError(res, statusCode, message, extra);
 }

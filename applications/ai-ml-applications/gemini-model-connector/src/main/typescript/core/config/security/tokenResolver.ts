@@ -1,6 +1,6 @@
-import { AuthStatusConstant } from '@/domain/constants/index.js';
-import type { ModelAuth } from '@/domain/index.js';
-import { modelApiKeyRegistry } from '@/core/config/security/modelApiKeyProvider.js';
+import { AuthStatusConstant } from "@/domain/constants/index.js";
+import type { ModelAuth } from "@/domain/index.js";
+import { modelApiKeyRegistry } from "@/core/config/security/modelApiKeyProvider.js";
 
 export interface TokenResolutionContext {
   readonly modelName?: string;
@@ -30,7 +30,9 @@ export abstract class BaseTokenResolver implements TokenResolver {
     return this.nextResolver?.resolve(context);
   }
 
-  protected abstract doResolve(context: TokenResolutionContext): string | undefined;
+  protected abstract doResolve(
+    context: TokenResolutionContext,
+  ): string | undefined;
 }
 
 export class ExplicitOptionTokenResolver extends BaseTokenResolver {
@@ -41,12 +43,13 @@ export class ExplicitOptionTokenResolver extends BaseTokenResolver {
 
 export class ModelMetadataApiKeyResolver extends BaseTokenResolver {
   protected doResolve(context: TokenResolutionContext): string | undefined {
-    const metadata = context.modelAuth?.metadata as Record<string, unknown> | undefined;
+    const metadata = context.modelAuth?.metadata as
+      Record<string, unknown> | undefined;
     if (!metadata) {
       return undefined;
     }
     const apiKey = metadata.api_key || metadata.apiKey;
-    return typeof apiKey === 'string' ? apiKey : undefined;
+    return typeof apiKey === "string" ? apiKey : undefined;
   }
 }
 
@@ -63,10 +66,7 @@ export class AuthenticatedAccessTokenResolver extends BaseTokenResolver {
 export class ModelRegistryApiKeyResolver extends BaseTokenResolver {
   protected doResolve(context: TokenResolutionContext): string | undefined {
     const targetModel = context.modelName || context.modelAuth?.model;
-    return (
-      modelApiKeyRegistry.getApiKey(targetModel) ||
-      context.configApiKey
-    );
+    return modelApiKeyRegistry.getApiKey(targetModel) || context.configApiKey;
   }
 }
 
@@ -79,10 +79,7 @@ export class TokenResolutionPipeline {
     const oauth = new AuthenticatedAccessTokenResolver();
     const modelRegistry = new ModelRegistryApiKeyResolver();
 
-    explicit
-      .setNext(metadata)
-      .setNext(oauth)
-      .setNext(modelRegistry);
+    explicit.setNext(metadata).setNext(oauth).setNext(modelRegistry);
 
     this.head = explicit;
   }

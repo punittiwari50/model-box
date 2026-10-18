@@ -1,6 +1,6 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { environment, type Environment } from '@/core/config/environment.js';
+import fs from "node:fs";
+import path from "node:path";
+import { environment, type Environment } from "@/core/config/environment.js";
 
 export interface IExecutableExtensionStrategy {
   supports(isWindows: boolean): boolean;
@@ -13,7 +13,7 @@ export class WindowsExecutableExtensionStrategy implements IExecutableExtensionS
   }
 
   public getExtensions(): readonly string[] {
-    return ['.cmd', '.exe', '.bat', ''];
+    return [".cmd", ".exe", ".bat", ""];
   }
 }
 
@@ -23,7 +23,7 @@ export class PosixExecutableExtensionStrategy implements IExecutableExtensionStr
   }
 
   public getExtensions(): readonly string[] {
-    return [''];
+    return [""];
   }
 }
 
@@ -63,7 +63,7 @@ export interface ICliLocator {
 export class SystemCliLocator implements ICliLocator {
   constructor(
     private readonly env: Environment = environment,
-    private readonly extensionRegistry: ExecutableExtensionRegistry = executableExtensionRegistry
+    private readonly extensionRegistry: ExecutableExtensionRegistry = executableExtensionRegistry,
   ) {}
 
   public isAvailable(command: string): boolean {
@@ -72,7 +72,9 @@ export class SystemCliLocator implements ICliLocator {
 
   public locate(command: string): string | null {
     const pathDirs = this.getPathDirectories();
-    const extensions = this.extensionRegistry.resolve(this.env.isWindows()).getExtensions();
+    const extensions = this.extensionRegistry
+      .resolve(this.env.isWindows())
+      .getExtensions();
 
     for (const dir of pathDirs) {
       const match = this.probeDirectory(dir, command, extensions);
@@ -85,14 +87,18 @@ export class SystemCliLocator implements ICliLocator {
   }
 
   private getPathDirectories(): string[] {
-    const pathEnv = this.env.getProperty('PATH', '');
+    const pathEnv = this.env.getProperty("PATH", "");
     if (!pathEnv) {
       return [];
     }
     return pathEnv.split(path.delimiter);
   }
 
-  private probeDirectory(dir: string, command: string, extensions: readonly string[]): string | null {
+  private probeDirectory(
+    dir: string,
+    command: string,
+    extensions: readonly string[],
+  ): string | null {
     for (const ext of extensions) {
       const fullPath = path.join(dir, `${command}${ext}`);
       if (this.isFileExecutable(fullPath)) {

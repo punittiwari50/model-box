@@ -1,8 +1,8 @@
-import { CircuitBreaker } from '@/core/resilience/circuitBreaker.js';
-import { Bulkhead } from '@/core/resilience/bulkhead.js';
-import { RateLimiter } from '@/core/resilience/rateLimiter.js';
-import { RetryPolicy } from '@/core/resilience/retryPolicy.js';
-import { RequestDeduplicator } from '@/core/resilience/requestDeduplicator.js';
+import { CircuitBreaker } from "@/core/resilience/circuitBreaker.js";
+import { Bulkhead } from "@/core/resilience/bulkhead.js";
+import { RateLimiter } from "@/core/resilience/rateLimiter.js";
+import { RetryPolicy } from "@/core/resilience/retryPolicy.js";
+import { RequestDeduplicator } from "@/core/resilience/requestDeduplicator.js";
 
 export interface ResiliencePipelineConfig {
   circuitBreaker?: CircuitBreaker;
@@ -40,7 +40,7 @@ export class ResiliencePipeline {
   public async execute<T>(
     _operationKey: string,
     action: () => Promise<T>,
-    dedupKey?: string
+    dedupKey?: string,
   ): Promise<T> {
     const wrappedAction = async (): Promise<T> => {
       // 1. Rate Limiter stage

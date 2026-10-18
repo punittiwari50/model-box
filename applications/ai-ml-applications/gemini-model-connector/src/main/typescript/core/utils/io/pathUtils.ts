@@ -1,6 +1,6 @@
-import path from 'node:path';
-import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 
 export interface IModulePathResolver {
   getDirname(importMetaUrl: string): string;
@@ -27,20 +27,23 @@ export class ModulePathResolver implements IModulePathResolver {
     return fileURLToPath(importMetaUrl);
   }
 
-  public resolveFromModule(importMetaUrl: string, ...segments: string[]): string {
+  public resolveFromModule(
+    importMetaUrl: string,
+    ...segments: string[]
+  ): string {
     return path.resolve(this.getDirname(importMetaUrl), ...segments);
   }
 
   public getDataDir(): string {
-    return path.resolve(projectRoot, 'config', 'data');
+    return path.resolve(projectRoot, "config", "data");
   }
 
   public getArtifactsDir(): string {
-    return path.resolve(projectRoot, 'config', 'artifacts');
+    return path.resolve(projectRoot, "config", "artifacts");
   }
 
   public getAgentsDir(): string {
-    return path.resolve(projectRoot, 'AGENTS');
+    return path.resolve(projectRoot, "AGENTS");
   }
 
   public resolveDataPath(...segments: string[]): string {
@@ -69,11 +72,17 @@ export function getFilename(importMetaUrl: string): string {
   return modulePathResolver.getFilename(importMetaUrl);
 }
 
-export function resolveFromModule(importMetaUrl: string, ...segments: string[]): string {
+export function resolveFromModule(
+  importMetaUrl: string,
+  ...segments: string[]
+): string {
   return modulePathResolver.resolveFromModule(importMetaUrl, ...segments);
 }
 
-export function resolveModulePath(importMetaUrl: string, ...segments: string[]): string {
+export function resolveModulePath(
+  importMetaUrl: string,
+  ...segments: string[]
+): string {
   return modulePathResolver.resolveFromModule(importMetaUrl, ...segments);
 }
 
@@ -89,8 +98,8 @@ function findProjectRoot(fromDir: string): string {
   let curr = fromDir;
   for (let i = 0; i < 7; i++) {
     if (
-      fs.existsSync(path.join(curr, 'package.json')) ||
-      fs.existsSync(path.join(curr, 'config', 'env', 'application.yml'))
+      fs.existsSync(path.join(curr, "package.json")) ||
+      fs.existsSync(path.join(curr, "config", "env", "application.yml"))
     ) {
       return curr;
     }
@@ -98,11 +107,13 @@ function findProjectRoot(fromDir: string): string {
     if (parent === curr) break;
     curr = parent;
   }
-  return path.resolve(fromDir, '../../../../../');
+  return path.resolve(fromDir, "../../../../../");
 }
 
 /**
  * Root directory path of the gemini-model-connector project.
  * Automatically resolved from runtime or development directory.
  */
-export const projectRoot = findProjectRoot(path.dirname(fileURLToPath(import.meta.url)));
+export const projectRoot = findProjectRoot(
+  path.dirname(fileURLToPath(import.meta.url)),
+);

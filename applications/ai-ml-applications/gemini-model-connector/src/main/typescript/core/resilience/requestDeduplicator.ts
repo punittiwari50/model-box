@@ -1,5 +1,5 @@
-import crypto from 'node:crypto';
-import { logger } from '@/core/observability/logging/logger.js';
+import crypto from "node:crypto";
+import { logger } from "@/core/observability/logging/logger.js";
 
 export interface DeduplicationOptions {
   readonly windowMs?: number;
@@ -20,7 +20,10 @@ export interface DeduplicationOptions {
  */
 export class RequestDeduplicator {
   private readonly inFlight = new Map<string, Promise<any>>();
-  private readonly recentResults = new Map<string, { result: any; expiresAt: number }>();
+  private readonly recentResults = new Map<
+    string,
+    { result: any; expiresAt: number }
+  >();
   private readonly windowMs: number;
   private readonly maxPending: number;
   private readonly maxRecentEntries: number;
@@ -35,9 +38,17 @@ export class RequestDeduplicator {
    * Generates a deterministic hash key partitioned by userContext.
    * Ensures User A and User B never collide or coalesce onto each other's responses.
    */
-  public generateKey(prefix: string, payload: unknown, userContext = 'anonymous'): string {
-    const raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    const hash = crypto.createHash('sha256').update(raw).digest('hex').slice(0, 16);
+  public generateKey(
+    prefix: string,
+    payload: unknown,
+    userContext = "anonymous",
+  ): string {
+    const raw = typeof payload === "string" ? payload : JSON.stringify(payload);
+    const hash = crypto
+      .createHash("sha256")
+      .update(raw)
+      .digest("hex")
+      .slice(0, 16);
     return `user:${userContext}:${prefix}:${hash}`;
   }
 
@@ -52,7 +63,7 @@ export class RequestDeduplicator {
     const recent = this.recentResults.get(key);
     if (recent) {
       if (now < recent.expiresAt) {
-        logger.debug('DEDUP', `Served recent cached result for key '${key}'`);
+        logger.debug("DEDUP", `Served recent cached result for key '${key}'`);
         return recent.result as T;
       }
       this.recentResults.delete(key);
@@ -60,13 +71,19 @@ export class RequestDeduplicator {
 
     // 2. Coalesce onto in-flight promise if identical task is currently running
     if (this.inFlight.has(key)) {
-      logger.info('DEDUP', `Coalescing duplicate concurrent request onto in-flight task for '${key}'`);
+      logger.info(
+        "DEDUP",
+        `Coalescing duplicate concurrent request onto in-flight task for '${key}'`,
+      );
       return this.inFlight.get(key) as Promise<T>;
     }
 
     // 3. Ensure queue capacity bounds
     if (this.inFlight.size >= this.maxPending) {
-      logger.warn('DEDUP', `Deduplication queue reached limit (${this.maxPending}). Proceeding without coalescing.`);
+      logger.warn(
+        "DEDUP",
+        `Deduplication queue reached limit (${this.maxPending}). Proceeding without coalescing.`,
+      );
       return task();
     }
 

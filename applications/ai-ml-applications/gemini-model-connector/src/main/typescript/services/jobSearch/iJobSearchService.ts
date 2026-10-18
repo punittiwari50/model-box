@@ -1,4 +1,7 @@
-import type { JobSearchRequest, JobSearchArtifactResponse } from '@/domain/index.js';
+import type {
+  JobSearchRequest,
+  JobSearchArtifactResponse,
+} from "@/domain/index.js";
 
 /**
  * Port contract for Job Search Application Service.
@@ -6,6 +9,6 @@ import type { JobSearchRequest, JobSearchArtifactResponse } from '@/domain/index
 export interface IJobSearchService {
   analyzeAndGenerateMarkdown(
     request: JobSearchRequest,
-    clientIp?: string
+    clientIp?: string,
   ): Promise<JobSearchArtifactResponse>;
 }

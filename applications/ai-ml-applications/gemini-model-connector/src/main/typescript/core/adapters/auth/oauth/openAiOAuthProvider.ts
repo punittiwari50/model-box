@@ -1,9 +1,14 @@
-import { BaseOAuthProvider } from '@/core/adapters/auth/oauth/baseOAuthProvider.js';
-import type { OAuthTokenResult } from '@/core/adapters/auth/oauth/iOAuthProvider.js';
-import { config, environment } from '@/core/config/index.js';
-import { logger } from '@/core/observability/logging/logger.js';
-import { AuthProviderId, ModelFamily, OPENAI_MODELS, AuthType } from '@/domain/constants/index.js';
-import type { ModelAuth } from '@/domain/index.js';
+import { BaseOAuthProvider } from "@/core/adapters/auth/oauth/baseOAuthProvider.js";
+import type { OAuthTokenResult } from "@/core/adapters/auth/oauth/iOAuthProvider.js";
+import { config, environment } from "@/core/config/index.js";
+import { logger } from "@/core/observability/logging/logger.js";
+import {
+  AuthProviderId,
+  ModelFamily,
+  OPENAI_MODELS,
+  AuthType,
+} from "@/domain/constants/index.js";
+import type { ModelAuth } from "@/domain/index.js";
 
 /**
  * OpenAI / Codex Authentication Provider.
@@ -26,27 +31,28 @@ export class OpenAiOAuthProvider extends BaseOAuthProvider {
   }
 
   protected getAuthUrl(): string {
-    const providerConfig = config.auth.providers['openai'];
+    const providerConfig = config.auth.providers["openai"];
     return providerConfig?.authUrl || config.authEndpoints.openAiAuthUrl;
   }
 
-  protected async exchangeTokens(
-    code: string
-  ): Promise<OAuthTokenResult> {
-    const token = code || environment.getProperty('OPENAI_API_KEY', '');
+  protected async exchangeTokens(code: string): Promise<OAuthTokenResult> {
+    const token = code || environment.getProperty("OPENAI_API_KEY", "");
     return {
       accessToken: token,
-      refreshToken: '',
+      refreshToken: "",
       accountEmail: config.getAccountEmail(ModelFamily.CODEX),
       accountName: config.getAccountName(ModelFamily.CODEX),
     };
   }
 
   public async syncCredentials(auth: ModelAuth): Promise<void> {
-    logger.info('AUTH_OPENAI', `Synchronized OpenAI / Codex credentials for model ${auth.model}`);
+    logger.info(
+      "AUTH_OPENAI",
+      `Synchronized OpenAI / Codex credentials for model ${auth.model}`,
+    );
   }
 
   public async clearCredentials(): Promise<void> {
-    logger.info('AUTH_OPENAI', 'Cleared OpenAI / Codex credentials');
+    logger.info("AUTH_OPENAI", "Cleared OpenAI / Codex credentials");
   }
 }

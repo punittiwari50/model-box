@@ -1,7 +1,10 @@
-import type { CliExecutionResult } from '@/domain/index.js';
-import type { ExecutePromptOptions, IModelRunner } from '@/core/cli/modelRunnerInterface.js';
-import { logger } from '@/core/observability/logging/logger.js';
-import { isFallbackModel } from '@/domain/constants/index.js';
+import type { CliExecutionResult } from "@/domain/index.js";
+import type {
+  ExecutePromptOptions,
+  IModelRunner,
+} from "@/core/cli/modelRunnerInterface.js";
+import { logger } from "@/core/observability/logging/logger.js";
+import { isFallbackModel } from "@/domain/constants/index.js";
 
 /**
  * Execution strategy interface for dispatching prompts.
@@ -15,7 +18,7 @@ export interface ExecutionStrategy {
     runner: IModelRunner,
     options: ExecutePromptOptions,
     startTime: number,
-    effectiveToken?: string
+    effectiveToken?: string,
   ): Promise<CliExecutionResult>;
 }
 
@@ -27,17 +30,22 @@ export class MockExecutionStrategy implements ExecutionStrategy {
   public async execute(
     runner: IModelRunner,
     options: ExecutePromptOptions,
-    startTime: number
+    startTime: number,
   ): Promise<CliExecutionResult> {
     const isTestEnv =
-      process.env.NODE_ENV === 'test' ||
-      Boolean(process.env.npm_lifecycle_event?.includes('test')) ||
-      process.argv.some((arg) => arg.includes('test'));
+      process.env.NODE_ENV === "test" ||
+      Boolean(process.env.npm_lifecycle_event?.includes("test")) ||
+      process.argv.some((arg) => arg.includes("test"));
 
     if (!isTestEnv || !runner.isMockAllowed()) {
-      throw new Error('Mock responses are disabled. Mock execution is strictly permitted only during test cases.');
+      throw new Error(
+        "Mock responses are disabled. Mock execution is strictly permitted only during test cases.",
+      );
     }
-    logger.info('RUNNER', `Mock execution dispatched for model: ${options.model || runner.getDefaultModel()}`);
+    logger.info(
+      "RUNNER",
+      `Mock execution dispatched for model: ${options.model || runner.getDefaultModel()}`,
+    );
     return runner.executeMock(options, startTime);
   }
 }
@@ -49,10 +57,13 @@ export class ApiExecutionStrategy implements ExecutionStrategy {
   public async execute(
     runner: IModelRunner,
     options: ExecutePromptOptions,
-    startTime: number
+    startTime: number,
   ): Promise<CliExecutionResult> {
     const chosenModel = options.model || runner.getDefaultModel();
-    logger.info('RUNNER', `Executing via direct Google Gemini REST API (model: ${chosenModel}).`);
+    logger.info(
+      "RUNNER",
+      `Executing via direct Google Gemini REST API (model: ${chosenModel}).`,
+    );
     return runner.executeApi(options, startTime);
   }
 }
@@ -64,7 +75,7 @@ export class CliExecutionStrategy implements ExecutionStrategy {
   public async execute(
     runner: IModelRunner,
     options: ExecutePromptOptions,
-    startTime: number
+    startTime: number,
   ): Promise<CliExecutionResult> {
     return runner.executeCli(options, startTime);
   }
@@ -77,14 +88,17 @@ export class WebSocketExecutionStrategy implements ExecutionStrategy {
   public async execute(
     runner: IModelRunner,
     options: ExecutePromptOptions,
-    startTime: number
+    startTime: number,
   ): Promise<CliExecutionResult> {
     const chosenModel = options.model || runner.getDefaultModel();
-    logger.info('RUNNER', `Executing prompt via WebSocket channel (model: ${chosenModel}).`);
+    logger.info(
+      "RUNNER",
+      `Executing prompt via WebSocket channel (model: ${chosenModel}).`,
+    );
     const result = await runner.executeApi(options, startTime);
     return {
       ...result,
-      runner_type: 'websocket',
+      runner_type: "websocket",
     };
   }
 }
@@ -98,14 +112,17 @@ export class AutoExecutionStrategy implements ExecutionStrategy {
     runner: IModelRunner,
     options: ExecutePromptOptions,
     startTime: number,
-    effectiveToken?: string
+    effectiveToken?: string,
   ): Promise<CliExecutionResult> {
     const chosenModel = options.model || runner.getDefaultModel();
     if (isFallbackModel(chosenModel) || effectiveToken) {
       try {
         return await runner.executeApi(options, startTime);
       } catch (apiErr: any) {
-        logger.warn('RUNNER', `Direct API attempt failed (${apiErr.message}). Trying CLI fallback.`);
+        logger.warn(
+          "RUNNER",
+          `Direct API attempt failed (${apiErr.message}). Trying CLI fallback.`,
+        );
       }
     }
     return runner.executeCli(options, startTime);
@@ -120,16 +137,16 @@ export class ExecutionStrategyRegistry {
   private readonly strategies = new Map<string, ExecutionStrategy>();
 
   constructor() {
-    this.strategies.set('mock', new MockExecutionStrategy());
-    this.strategies.set('api', new ApiExecutionStrategy());
-    this.strategies.set('cli', new CliExecutionStrategy());
-    this.strategies.set('websocket', new WebSocketExecutionStrategy());
-    this.strategies.set('ws', new WebSocketExecutionStrategy());
-    this.strategies.set('auto', new AutoExecutionStrategy());
+    this.strategies.set("mock", new MockExecutionStrategy());
+    this.strategies.set("api", new ApiExecutionStrategy());
+    this.strategies.set("cli", new CliExecutionStrategy());
+    this.strategies.set("websocket", new WebSocketExecutionStrategy());
+    this.strategies.set("ws", new WebSocketExecutionStrategy());
+    this.strategies.set("auto", new AutoExecutionStrategy());
   }
 
   public get(mode: string): ExecutionStrategy {
-    return this.strategies.get(mode) || this.strategies.get('auto')!;
+    return this.strategies.get(mode) || this.strategies.get("auto")!;
   }
 }
 

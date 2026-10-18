@@ -1,7 +1,7 @@
-import { logger } from '@/core/observability/logging/logger.js';
-import { ModelFamily } from '@/domain/constants/index.js';
+import { logger } from "@/core/observability/logging/logger.js";
+import { ModelFamily } from "@/domain/constants/index.js";
 
-export type CircuitBreakerState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+export type CircuitBreakerState = "CLOSED" | "OPEN" | "HALF_OPEN";
 
 export interface CircuitBreakerConfig {
   readonly failureRateThreshold: number; // percentage (0-100)
@@ -11,18 +11,21 @@ export interface CircuitBreakerConfig {
   readonly permittedNumberOfCallsInHalfOpenState: number;
 }
 
-export const DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = Object.freeze({
-  failureRateThreshold: 50,
-  waitDurationInOpenStateMs: 8000,
-  slidingWindowSize: 10,
-  minimumNumberOfCalls: 4,
-  permittedNumberOfCallsInHalfOpenState: 2,
-});
+export const DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig =
+  Object.freeze({
+    failureRateThreshold: 50,
+    waitDurationInOpenStateMs: 8000,
+    slidingWindowSize: 10,
+    minimumNumberOfCalls: 4,
+    permittedNumberOfCallsInHalfOpenState: 2,
+  });
 
 export class CircuitBreakerOpenException extends Error {
   constructor(public readonly circuitName: string) {
-    super(`[CircuitBreaker:${circuitName}] Circuit is OPEN. Execution blocked to prevent cascading failure.`);
-    this.name = 'CircuitBreakerOpenException';
+    super(
+      `[CircuitBreaker:${circuitName}] Circuit is OPEN. Execution blocked to prevent cascading failure.`,
+    );
+    this.name = "CircuitBreakerOpenException";
   }
 }
 
@@ -35,14 +38,17 @@ export class CircuitBreakerOpenException extends Error {
 export class CircuitBreaker {
   public readonly name: string;
   private readonly config: CircuitBreakerConfig;
-  private state: CircuitBreakerState = 'CLOSED';
+  private state: CircuitBreakerState = "CLOSED";
   private lastStateTransitionTime: number = Date.now();
   private callResults: boolean[] = []; // true = success, false = failure
   private halfOpenTrialCalls = 0;
 
   constructor(name: string, config: Partial<CircuitBreakerConfig> = {}) {
     this.name = name;
-    this.config = Object.freeze({ ...DEFAULT_CIRCUIT_BREAKER_CONFIG, ...config });
+    this.config = Object.freeze({
+      ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
+      ...config,
+    });
   }
 
   public getState(): CircuitBreakerState {
@@ -51,26 +57,32 @@ export class CircuitBreaker {
   }
 
   public isOpen(): boolean {
-    return this.getState() === 'OPEN';
+    return this.getState() === "OPEN";
   }
 
   /**
    * Executes a protected asynchronous action within the circuit breaker boundary.
    * If circuit is OPEN, immediately executes the fallback if provided or throws CircuitBreakerOpenException.
    */
-  public async execute<T>(action: () => Promise<T>, fallback?: (err: Error) => Promise<T> | T): Promise<T> {
+  public async execute<T>(
+    action: () => Promise<T>,
+    fallback?: (err: Error) => Promise<T> | T,
+  ): Promise<T> {
     this.checkStateTransition();
 
-    if (this.state === 'OPEN') {
+    if (this.state === "OPEN") {
       const openError = new CircuitBreakerOpenException(this.name);
       if (fallback) {
-        logger.warn('CIRCUIT_BREAKER', `Circuit '${this.name}' is OPEN. Invoking fallback mechanism.`);
+        logger.warn(
+          "CIRCUIT_BREAKER",
+          `Circuit '${this.name}' is OPEN. Invoking fallback mechanism.`,
+        );
         return fallback(openError);
       }
       throw openError;
     }
 
-    if (this.state === 'HALF_OPEN') {
+    if (this.state === "HALF_OPEN") {
       this.halfOpenTrialCalls++;
     }
 
@@ -81,7 +93,10 @@ export class CircuitBreaker {
     } catch (err: any) {
       this.recordFailure();
       if (fallback) {
-        logger.warn('CIRCUIT_BREAKER', `Action in '${this.name}' failed (${err.message}). Invoking fallback.`);
+        logger.warn(
+          "CIRCUIT_BREAKER",
+          `Action in '${this.name}' failed (${err.message}). Invoking fallback.`,
+        );
         return fallback(err);
       }
       throw err;
@@ -89,9 +104,12 @@ export class CircuitBreaker {
   }
 
   private recordSuccess(): void {
-    if (this.state === 'HALF_OPEN') {
-      if (this.halfOpenTrialCalls >= this.config.permittedNumberOfCallsInHalfOpenState) {
-        this.transitionTo('CLOSED');
+    if (this.state === "HALF_OPEN") {
+      if (
+        this.halfOpenTrialCalls >=
+        this.config.permittedNumberOfCallsInHalfOpenState
+      ) {
+        this.transitionTo("CLOSED");
       }
       return;
     }
@@ -103,8 +121,8 @@ export class CircuitBreaker {
   }
 
   private recordFailure(): void {
-    if (this.state === 'HALF_OPEN') {
-      this.transitionTo('OPEN');
+    if (this.state === "HALF_OPEN") {
+      this.transitionTo("OPEN");
       return;
     }
 
@@ -117,16 +135,16 @@ export class CircuitBreaker {
       const failures = this.callResults.filter((r) => !r).length;
       const failureRate = (failures / this.callResults.length) * 100;
       if (failureRate >= this.config.failureRateThreshold) {
-        this.transitionTo('OPEN');
+        this.transitionTo("OPEN");
       }
     }
   }
 
   private checkStateTransition(): void {
-    if (this.state === 'OPEN') {
+    if (this.state === "OPEN") {
       const elapsed = Date.now() - this.lastStateTransitionTime;
       if (elapsed >= this.config.waitDurationInOpenStateMs) {
-        this.transitionTo('HALF_OPEN');
+        this.transitionTo("HALF_OPEN");
       }
     }
   }
@@ -137,7 +155,10 @@ export class CircuitBreaker {
     this.lastStateTransitionTime = Date.now();
     this.callResults = [];
     this.halfOpenTrialCalls = 0;
-    logger.info('CIRCUIT_BREAKER', `Circuit '${this.name}' transitioned from ${oldState} -> ${newState}`);
+    logger.info(
+      "CIRCUIT_BREAKER",
+      `Circuit '${this.name}' transitioned from ${oldState} -> ${newState}`,
+    );
   }
 
   public getMetrics() {
@@ -159,29 +180,56 @@ export class CircuitBreakerRegistry {
 
   constructor() {
     // Database instance
-    this.register('database', {
+    this.register("database", {
       failureRateThreshold: 40,
       waitDurationInOpenStateMs: 5000,
       slidingWindowSize: 6,
       minimumNumberOfCalls: 3,
     });
     // AI Model instances
-    this.register(ModelFamily.GEMINI, { failureRateThreshold: 50, waitDurationInOpenStateMs: 8000 });
-    this.register(ModelFamily.CLAUDE, { failureRateThreshold: 40, waitDurationInOpenStateMs: 10000 });
-    this.register(ModelFamily.CODEX, { failureRateThreshold: 40, waitDurationInOpenStateMs: 8000 });
-    this.register(ModelFamily.COPILOT, { failureRateThreshold: 40, waitDurationInOpenStateMs: 8000 });
-    this.register(ModelFamily.CURSOR, { failureRateThreshold: 40, waitDurationInOpenStateMs: 8000 });
-    this.register(ModelFamily.OLLAMA, { failureRateThreshold: 50, waitDurationInOpenStateMs: 5000 });
-    this.register(ModelFamily.GROK, { failureRateThreshold: 40, waitDurationInOpenStateMs: 8000 });
+    this.register(ModelFamily.GEMINI, {
+      failureRateThreshold: 50,
+      waitDurationInOpenStateMs: 8000,
+    });
+    this.register(ModelFamily.CLAUDE, {
+      failureRateThreshold: 40,
+      waitDurationInOpenStateMs: 10000,
+    });
+    this.register(ModelFamily.CODEX, {
+      failureRateThreshold: 40,
+      waitDurationInOpenStateMs: 8000,
+    });
+    this.register(ModelFamily.COPILOT, {
+      failureRateThreshold: 40,
+      waitDurationInOpenStateMs: 8000,
+    });
+    this.register(ModelFamily.CURSOR, {
+      failureRateThreshold: 40,
+      waitDurationInOpenStateMs: 8000,
+    });
+    this.register(ModelFamily.OLLAMA, {
+      failureRateThreshold: 50,
+      waitDurationInOpenStateMs: 5000,
+    });
+    this.register(ModelFamily.GROK, {
+      failureRateThreshold: 40,
+      waitDurationInOpenStateMs: 8000,
+    });
   }
 
-  public register(name: string, config?: Partial<CircuitBreakerConfig>): CircuitBreaker {
+  public register(
+    name: string,
+    config?: Partial<CircuitBreakerConfig>,
+  ): CircuitBreaker {
     const cb = new CircuitBreaker(name, config);
     this.instances.set(name, cb);
     return cb;
   }
 
-  public get(name: string, config?: Partial<CircuitBreakerConfig>): CircuitBreaker {
+  public get(
+    name: string,
+    config?: Partial<CircuitBreakerConfig>,
+  ): CircuitBreaker {
     if (!this.instances.has(name)) {
       this.register(name, config);
     }
