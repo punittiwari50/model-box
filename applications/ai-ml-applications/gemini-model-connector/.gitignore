@@ -16,7 +16,8 @@ pnpm-debug.log*
 
 # Build Outputs & Compilation Cache
 dist/
-build/
+/build/
+!config/scripts/build/
 out/
 target/
 *.tsbuildinfo
@@ -33,7 +34,7 @@ coverage/
 *.war
 *.ear
 .gradle/
-build/
+/build/
 target/
 .factorypath
 *.suo

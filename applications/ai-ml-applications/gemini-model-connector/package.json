@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc -p config/typescript/tsconfig.json && tsc-alias -p config/typescript/tsconfig.json && node -e \"import('node:fs').then(fs => fs.cpSync('src/main/resources', 'dist/resources', { recursive: true, force: true }))\"",
+    "build": "tsc -p config/typescript/tsconfig.json && tsc-alias -p config/typescript/tsconfig.json && node config/scripts/build/build-resources.js",
+    "build:resources": "node config/scripts/build/build-resources.js",
     "start": "node dist/index.js",
     "dev": "tsx watch --tsconfig config/typescript/tsconfig.json src/main/typescript/index.ts",
     "clean": "node -e \"import('node:fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\"",

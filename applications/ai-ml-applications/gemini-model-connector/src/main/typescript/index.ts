@@ -58,24 +58,14 @@ async function bootstrap() {
   if (fs.existsSync(activeResourcesDir)) {
     // Dynamic SCSS stylesheet handler conforming to Directive #4 & #6 (pure SCSS from resources/assets)
     app.get('/assets/scss/main.scss', (_req, res) => {
+      const cssPath = path.join(activeResourcesDir, 'assets', 'css', 'main.css');
+      if (fs.existsSync(cssPath)) {
+        res.type('text/css').send(fs.readFileSync(cssPath, 'utf-8'));
+        return;
+      }
       const scssPath = path.join(activeResourcesDir, 'assets', 'scss', 'main.scss');
       if (fs.existsSync(scssPath)) {
-        let content = fs.readFileSync(scssPath, 'utf-8');
-        content = content
-          .replace(/#\{\$bg-primary\}/g, '#0f172a')
-          .replace(/#\{\$bg-secondary\}/g, '#1e293b')
-          .replace(/#\{\$bg-card\}/g, 'rgba(30, 41, 59, 0.7)')
-          .replace(/#\{\$border-color\}/g, '#334155')
-          .replace(/#\{\$accent-color\}/g, '#38bdf8')
-          .replace(/#\{\$accent-hover\}/g, '#0284c7')
-          .replace(/#\{\$text-main\}/g, '#f8fafc')
-          .replace(/#\{\$text-muted\}/g, '#94a3b8')
-          .replace(/#\{\$success-color\}/g, '#10b981')
-          .replace(/#\{\$warning-color\}/g, '#f59e0b')
-          .replace(/#\{\$danger-color\}/g, '#ef4444')
-          .replace(/#\{\$radius\}/g, '10px')
-          .replace(/@use\s+['"][^'"]+['"]\s+as\s+\*;/g, '');
-        res.type('text/css').send(content);
+        res.type('text/css').send(fs.readFileSync(scssPath, 'utf-8'));
         return;
       }
       res.status(404).send('SCSS not found');

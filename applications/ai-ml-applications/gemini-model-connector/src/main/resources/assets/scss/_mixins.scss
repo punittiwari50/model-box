@@ -1,4 +1,7 @@
-// SCSS Mixins & Utilities conforming to SCSS best practices
+// ==============================================================================
+// ModelBox Enterprise SCSS Mixins & Utilities
+// Conforms to SCSS modular best practices
+// ==============================================================================
 @use './variables' as *;
 
 @mixin flex-center {
@@ -7,32 +10,43 @@
   justify-content: center;
 }
 
-@mixin glassmorphism($bg: $bg-card, $blur: 12px) {
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin glassmorphism($bg: $bg-card, $blur: 16px, $border: $border-subtle, $radius: $radius-lg) {
   background: $bg;
   backdrop-filter: blur($blur);
   -webkit-backdrop-filter: blur($blur);
-  border: 1px solid $border-color;
+  border: 1px solid $border;
   border-radius: $radius;
 }
 
-@mixin transition($prop: all, $duration: 0.2s, $timing: ease-in-out) {
+@mixin transition($prop: all, $duration: 0.2s, $timing: ease) {
   transition: $prop $duration $timing;
 }
 
-@mixin scrollbar-style {
+@mixin scrollbar-style($width: 6px, $thumb-color: rgba(148, 163, 184, 0.25), $track-color: rgba(15, 23, 42, 0.6)) {
   &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: $width;
+    height: $width;
   }
   &::-webkit-scrollbar-track {
-    background: transparent;
+    background: $track-color;
   }
   &::-webkit-scrollbar-thumb {
-    background: $border-color;
-    border-radius: 4px;
+    background: $thumb-color;
+    border-radius: $radius-full;
   }
   &::-webkit-scrollbar-thumb:hover {
-    background: $text-muted;
+    background: rgba(148, 163, 184, 0.45);
   }
 }
 
@@ -40,9 +54,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 500;
-  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: $radius-md;
   cursor: pointer;
   border: none;
+  gap: 6px;
   @include transition();
 }
