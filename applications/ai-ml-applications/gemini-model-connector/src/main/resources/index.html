@@ -2066,6 +2066,10 @@
       }
 
       // Initialize on page load
+      if (window.location.search) {
+        // Strip query parameters immediately to avoid lingering URLs in browser history
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       loadAvailableModels();
       loadConversations();
       loadAuthStatus();

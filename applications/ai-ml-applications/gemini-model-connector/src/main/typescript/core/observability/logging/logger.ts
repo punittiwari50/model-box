@@ -25,10 +25,48 @@ const SENSITIVE_KEY_PATTERNS = [
   /credentials/i,
   /privateKey/i,
   /private_key/i,
+  /email/i,
+  /account_email/i,
+  /user_email/i,
+  /phone/i,
+  /mobile/i,
+  /ssn/i,
+  /username/i,
+  /firstName/i,
+  /lastName/i,
+  /first_name/i,
+  /last_name/i,
 ];
 
 const BEARER_REGEX = /Bearer\s+([a-zA-Z0-9_\-\.]+)/gi;
 const API_KEY_QUERY_REGEX = /(?:key|api_key|token)=([a-zA-Z0-9_\-]{8,})/gi;
+const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+
+/**
+ * Sanitizes URLs to mask any PII or sensitive query parameters before logging.
+ */
+export function maskSensitiveUrl(rawUrl: string): string {
+  if (!rawUrl || !rawUrl.includes("?")) return rawUrl;
+  try {
+    const [path, queryString] = rawUrl.split("?");
+    const params = new URLSearchParams(queryString);
+    for (const key of Array.from(params.keys())) {
+      const lower = key.toLowerCase();
+      if (
+        SENSITIVE_KEY_PATTERNS.some((p) => p.test(lower)) ||
+        lower.includes("email") ||
+        lower.includes("token") ||
+        lower.includes("key") ||
+        lower.includes("secret")
+      ) {
+        params.set(key, "[REDACTED]");
+      }
+    }
+    return `${path}?${params.toString()}`;
+  } catch {
+    return rawUrl.replace(EMAIL_REGEX, "[REDACTED_EMAIL]");
+  }
+}
 
 export function maskSensitiveData(value: unknown, depth = 0): unknown {
   if (depth > 6 || value === null || value === undefined) {
@@ -38,7 +76,8 @@ export function maskSensitiveData(value: unknown, depth = 0): unknown {
   if (typeof value === "string") {
     return value
       .replace(BEARER_REGEX, "Bearer [REDACTED]")
-      .replace(API_KEY_QUERY_REGEX, "key=[REDACTED]");
+      .replace(API_KEY_QUERY_REGEX, "key=[REDACTED]")
+      .replace(EMAIL_REGEX, "[REDACTED_EMAIL]");
   }
 
   if (Array.isArray(value)) {
@@ -201,7 +240,8 @@ export class Logger {
         NetworkConstant.LOOPBACK_IP;
 
       const safeQuery = maskSensitiveData(req.query);
-      this.http(`--> INCOMING ${req.method} ${req.originalUrl || req.url}`, {
+      const safeUrl = maskSensitiveUrl(req.originalUrl || req.url);
+      this.http(`--> INCOMING ${req.method} ${safeUrl}`, {
         ip: clientIp,
         query: Object.keys(req.query || {}).length > 0 ? safeQuery : undefined,
       });
@@ -219,7 +259,7 @@ export class Logger {
           this.formatMessage(
             level,
             "HTTP",
-            `<-- COMPLETED ${req.method} ${req.originalUrl || req.url} ${status} (${durationMs}ms)${tier ? ` [tier: ${tier}]` : ""}`,
+            `<-- COMPLETED ${req.method} ${safeUrl} ${status} (${durationMs}ms)${tier ? ` [tier: ${tier}]` : ""}`,
             {
               ip: clientIp,
               statusCode: status,

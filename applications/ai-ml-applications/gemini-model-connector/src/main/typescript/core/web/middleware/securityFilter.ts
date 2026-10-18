@@ -9,30 +9,50 @@ import type { Request, Response, NextFunction } from "express";
 export class SecurityFilter {
   private static readonly FORBIDDEN_QUERY_KEYS = Object.freeze([
     "api_key",
-    "apiKey",
+    "apikey",
     "token",
     "access_token",
+    "id_token",
+    "refresh_token",
+    "auth_token",
+    "bearer",
     "secret",
     "password",
     "client_secret",
+    "email",
+    "account_email",
+    "user_email",
+    "username",
+    "phone",
+    "mobile",
+    "ssn",
+    "dob",
+    "first_name",
+    "last_name",
+    "full_name",
   ]);
 
   public filter(req: Request, res: Response, next: NextFunction): void {
-    // 1. Strict OWASP Security Headers
+    // 1. Strict OWASP Security Headers (Zero PII leakage via Referrer)
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("X-XSS-Protection", "1; mode=block");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
     );
 
-    // 2. Anti-PII & Parameter Protection (Requirement #15)
-    for (const key of SecurityFilter.FORBIDDEN_QUERY_KEYS) {
-      if (req.query[key]) {
+    // 2. Anti-PII & Parameter Protection: strictly forbid PII in URL query parameters
+    const incomingQueryKeys = Object.keys(req.query || {});
+    for (const rawKey of incomingQueryKeys) {
+      const lowerKey = rawKey.toLowerCase().replace(/[-_]/g, "");
+      const isForbidden = SecurityFilter.FORBIDDEN_QUERY_KEYS.some(
+        (forbidden) => forbidden.replace(/[-_]/g, "") === lowerKey,
+      );
+      if (isForbidden) {
         res.status(400).json({
-          error: `Sensitive information must not be passed via URL query parameter '${key}'. Please supply credentials in the secure JSON request body.`,
+          error: `Sensitive information or PII must not be passed via URL query parameter '${rawKey}'. Supply data via secure request body.`,
         });
         return;
       }

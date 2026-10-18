@@ -67,16 +67,21 @@ export class AuthController {
 
   /**
    * Dynamic model/provider redirect eliminating static /auth/google.
+   * Strips all potential PII or untrusted parameters; passes strictly allowlisted non-PII params.
    */
   public redirectToProvider(req: Request, res: Response): void {
     const provider = getRouteParam(req.params.provider);
-    const query = new URLSearchParams(req.query as any);
-    if (!query.has("model")) {
-      query.set("model", provider);
+    const safeParams = new URLSearchParams();
+    safeParams.set("model", (req.query.model as string) || provider);
+    if (req.query.redirect === "true") {
+      safeParams.set("redirect", "true");
+    }
+    if (req.query.user_code === "true") {
+      safeParams.set("user_code", "true");
     }
     res.redirect(
       HttpStatus.TEMPORARY_REDIRECT,
-      `/api/v1/auth/login?${query.toString()}`,
+      `/api/v1/auth/login?${safeParams.toString()}`,
     );
   }
 
@@ -126,7 +131,8 @@ export class AuthController {
         getClientIp(req),
       );
       if (req.headers.accept?.includes("text/html")) {
-        const queryParams = `auth=success&model=${encodeURIComponent(auth.model)}&email=${encodeURIComponent(auth.account_email || "")}`;
+        // Zero-PII redirect: never leak account_email, username, or credentials in the URL
+        const queryParams = `auth=success&model=${encodeURIComponent(auth.model)}`;
         res.redirect(`/?${queryParams}`);
         return;
       }
