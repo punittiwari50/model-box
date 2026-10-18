@@ -316,5 +316,50 @@ describe("Model Groups, Categories & Multi-Session Authentication Tests", () => 
         assert.equal(geminiStatus.active_sessions.length, 0);
       }
     });
+
+    it("should sync remaining session to CLI on logout when other active sessions exist, and full CLI purge when last session logged out", async () => {
+      // Setup: 2 active sessions for copilot
+      const sess1 = await authService.loginWithCredentials(
+        "github-copilot",
+        "gho_testtoken1",
+        "copilot-user1@example.com",
+        undefined,
+        "127.0.0.1",
+        "sess-copilot-1",
+      );
+      const sess2 = await authService.loginWithCredentials(
+        "github-copilot",
+        "gho_testtoken2",
+        "copilot-user2@example.com",
+        undefined,
+        "127.0.0.1",
+        "sess-copilot-2",
+      );
+
+      // Logout sess-copilot-1; sess-copilot-2 still remains
+      const logoutResult1 = await authService.logout({ id: "sess-copilot-1" });
+      assert.equal(logoutResult1.success, true);
+
+      // Verify sess-copilot-2 is still active in DB and CLI was synced
+      const remainingSessions = (await authRepo.listAllModelAuth()).filter(
+        (s) => s.model === "github-copilot" && s.status === "AUTHENTICATED",
+      );
+      assert.equal(remainingSessions.length, 1);
+      assert.equal(remainingSessions[0].id, "sess-copilot-2");
+
+      // Now logout the last session: sess-copilot-2
+      const logoutResult2 = await authService.logout({ id: "sess-copilot-2" });
+      assert.equal(logoutResult2.success, true);
+
+      const finalRemaining = (await authRepo.listAllModelAuth()).filter(
+        (s) => s.model === "github-copilot",
+      );
+      assert.equal(finalRemaining.length, 0);
+
+      // Verify environment variables cleared for CLI
+      assert.equal(process.env.GITHUB_TOKEN, undefined);
+      assert.equal(process.env.GH_TOKEN, undefined);
+      assert.equal(process.env.COPILOT_API_KEY, undefined);
+    });
   });
 });

@@ -239,6 +239,14 @@ export class AuthService implements IAuthService {
       };
     }
 
+    let modelToClear = opts.model;
+    if (opts.id && !modelToClear) {
+      const existing = await this.authRepository.getModelAuthById?.(opts.id);
+      if (existing) {
+        modelToClear = existing.model;
+      }
+    }
+
     const target = opts.id
       ? { id: opts.id }
       : opts.account_email
@@ -246,9 +254,34 @@ export class AuthService implements IAuthService {
         : opts.model || "";
 
     const deleted = await this.authRepository.deleteModelAuth(target);
-    if (opts.model) {
-      const provider = this.providerRegistry.getProvider(opts.model);
-      await provider.clearCredentials();
+
+    // Actual CLI logout: if no active sessions remain for this model, purge CLI credentials.
+    // Otherwise, sync the CLI with the remaining active session.
+    if (modelToClear) {
+      const allAuth = this.authRepository.listAllModelAuth
+        ? await this.authRepository.listAllModelAuth()
+        : [];
+      const activeRemaining = allAuth.filter(
+        (s) =>
+          (s.model === modelToClear ||
+            (modelToClear === "gemini-3.8-flash" &&
+              (s.model === "default" || s.model === "*"))) &&
+          s.status === AuthStatusConstant.AUTHENTICATED,
+      );
+      const provider = this.providerRegistry.getProvider(modelToClear);
+      if (activeRemaining.length > 0) {
+        await provider.syncCredentials(activeRemaining[0]);
+        logger.info(
+          "AUTH",
+          `Active session remaining for model '${modelToClear}'. Synced CLI to session '${activeRemaining[0].session_id || activeRemaining[0].id}'`,
+        );
+      } else {
+        await provider.clearCredentials();
+        logger.info(
+          "AUTH",
+          `Zero active sessions remaining for model '${modelToClear}'. Full CLI logout executed.`,
+        );
+      }
     }
 
     await this.auditRepository.logEvent({

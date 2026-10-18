@@ -11,6 +11,7 @@ export interface IFileSystem {
     options?: { force?: boolean; recursive?: boolean },
   ): void;
   statSync(filePath: string): fs.Stats;
+  readdirSync(dirPath: string): string[];
   createReadStream(filePath: string): fs.ReadStream;
   createWriteStream(filePath: string): fs.WriteStream;
 }
@@ -59,6 +60,13 @@ export class FileSystemUtils implements IFileSystem {
 
   public statSync(filePath: string): fs.Stats {
     return fs.statSync(filePath);
+  }
+
+  public readdirSync(dirPath: string): string[] {
+    if (fs.existsSync(dirPath)) {
+      return fs.readdirSync(dirPath);
+    }
+    return [];
   }
 
   public createReadStream(filePath: string): fs.ReadStream {

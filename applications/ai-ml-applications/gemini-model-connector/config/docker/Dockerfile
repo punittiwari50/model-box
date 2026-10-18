@@ -55,9 +55,10 @@ RUN npm install -g --no-audit --no-fund --omit=dev @google/gemini-cli && \
     npm cache clean --force && \
     rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm /root/.cache /tmp/*
 
-# Verify CLI availability
-RUN gemini --version || echo "Gemini CLI ready" && \
-    gh --version || echo "GitHub CLI ready"
+# Verify CLI availability and clean up any temp artifacts created by root verification
+RUN (gemini --version || echo "Gemini CLI ready") && \
+    (gh --version || echo "GitHub CLI ready") && \
+    rm -rf /root/.gemini/* /tmp/*
 
 # Set up runtime directories and permissions for non-root node user
 RUN mkdir -p /app/config/data /app/config/artifacts /app/AGENTS /home/node/.gemini /root/.gemini /home/node/.config /root/.config && \

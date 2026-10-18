@@ -1,3 +1,5 @@
+import path from "node:path";
+import { systemFacade } from "@/core/utils/system/systemFacade.js";
 import { BaseOAuthProvider } from "@/core/adapters/auth/oauth/baseOAuthProvider.js";
 import type { OAuthTokenResult } from "@/core/adapters/auth/oauth/iOAuthProvider.js";
 import { config, environment } from "@/core/config/index.js";
@@ -53,6 +55,33 @@ export class OpenAiOAuthProvider extends BaseOAuthProvider {
   }
 
   public async clearCredentials(): Promise<void> {
-    logger.info("AUTH_OPENAI", "Cleared OpenAI / Codex credentials");
+    const homedirs = [
+      systemFacade.os.homedir(),
+      "/root",
+      "/home/node",
+      environment.getProperty("HOME", ""),
+      environment.getProperty("USERPROFILE", ""),
+    ].filter(Boolean);
+
+    for (const h of new Set(homedirs)) {
+      try {
+        const openaiDir = path.join(h, ".openai");
+        const codexDir = path.join(h, ".codex");
+        if (systemFacade.fs.existsSync(openaiDir)) {
+          systemFacade.fs.rmSync(openaiDir, { recursive: true, force: true });
+        }
+        if (systemFacade.fs.existsSync(codexDir)) {
+          systemFacade.fs.rmSync(codexDir, { recursive: true, force: true });
+        }
+      } catch (err: any) {
+        logger.debug(
+          "AUTH_OPENAI",
+          `Could not purge openai config in ${h}: ${err.message}`,
+        );
+      }
+    }
+
+    delete process.env.OPENAI_API_KEY;
+    logger.info("AUTH_OPENAI", "Full OpenAI / Codex CLI logout executed");
   }
 }

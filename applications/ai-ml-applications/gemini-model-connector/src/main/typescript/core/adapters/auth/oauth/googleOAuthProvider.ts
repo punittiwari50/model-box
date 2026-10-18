@@ -193,17 +193,33 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
     for (const h of new Set(homedirs)) {
       try {
-        const credsPath = path.join(h, ".gemini", "oauth_creds.json");
-        if (systemFacade.fs.existsSync(credsPath))
-          systemFacade.fs.rmSync(credsPath, { force: true });
-        const adcPath = path.join(
-          h,
-          ".config",
-          "gcloud",
-          "application_default_credentials.json",
-        );
-        if (systemFacade.fs.existsSync(adcPath))
-          systemFacade.fs.rmSync(adcPath, { force: true });
+        const geminiDir = path.join(h, ".gemini");
+        const targets = [
+          path.join(geminiDir, "oauth_creds.json"),
+          path.join(geminiDir, "credentials.json"),
+          path.join(geminiDir, "token.json"),
+          path.join(
+            h,
+            ".config",
+            "gcloud",
+            "application_default_credentials.json",
+          ),
+        ];
+
+        for (const t of targets) {
+          if (systemFacade.fs.existsSync(t)) {
+            systemFacade.fs.rmSync(t, { force: true });
+          }
+        }
+
+        if (systemFacade.fs.existsSync(geminiDir)) {
+          const files = systemFacade.fs.readdirSync(geminiDir);
+          for (const f of files) {
+            if (f.startsWith("projects.json") || f.endsWith(".tmp")) {
+              systemFacade.fs.rmSync(path.join(geminiDir, f), { force: true });
+            }
+          }
+        }
       } catch (err: any) {
         logger.debug(
           "AUTH_GOOGLE",
@@ -211,5 +227,10 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         );
       }
     }
+
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.GOOGLE_GENAI_API_KEY;
+    logger.info("AUTH_GOOGLE", "Gemini CLI credentials and session files purged");
   }
 }
