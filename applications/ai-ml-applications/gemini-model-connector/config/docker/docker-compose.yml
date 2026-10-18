@@ -7,6 +7,7 @@ name: gemini-model-connector
 services:
   # Node.js Server Side Service communicating with Google Gemini CLI
   gemini-model-connector:
+    image: gemini-model-connector:latest
     build:
       context: ../..
       dockerfile: config/docker/Dockerfile
@@ -53,6 +54,7 @@ services:
 
   # Python Execution Container for Hermetic Verification & Client Operations
   gemini-python-verifier:
+    image: gemini-python-verifier:latest
     build:
       context: ../..
       dockerfile: config/docker/Dockerfile.python
@@ -71,6 +73,7 @@ services:
 
   # Automated Test Suite Container (Unit, Integration, Concurrent, Performance)
   gemini-test-runner:
+    image: gemini-test-runner:latest
     build:
       context: ../..
       dockerfile: config/docker/Dockerfile.test
