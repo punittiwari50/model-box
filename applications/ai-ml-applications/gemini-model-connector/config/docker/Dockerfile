@@ -1,11 +1,11 @@
-# Multi-stage Dockerfile for Gemini Model Connector using official Node.js 26 (Current) runtime
+# Multi-stage Dockerfile for Gemini Model Connector
 # Optimized for minimal image size, zero redundant build layers, and non-root execution
 # Conforms to STD-BLD-001, STD-BLD-002, STD-BLD-008, STD-BLD-013
 
 # ==============================================================================
 # Stage 1: Build & Prune Stage
 # ==============================================================================
-FROM node:current-bookworm-slim AS builder
+FROM node:slim AS builder
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ RUN npm prune --omit=dev --no-audit --no-fund && \
 # ==============================================================================
 # Stage 2: Minimal Production Runtime
 # ==============================================================================
-FROM node:current-bookworm-slim AS runner
+FROM node:slim AS runner
 
 WORKDIR /app
 
@@ -75,8 +75,9 @@ COPY --chown=node:node package.json ./
 COPY config/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Set environment defaults
+# Set environment defaults (unset/clear NODE_VERSION to prevent runtime fingerprinting)
 ENV NODE_ENV=production \
+    NODE_VERSION="" \
     PORT=8090 \
     HOST=0.0.0.0 \
     DATA_DIR=/app/config/data \

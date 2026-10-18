@@ -11,6 +11,8 @@ import { traceMiddleware } from "@/core/observability/tracing/traceMiddleware.js
 
 async function bootstrap() {
   const app = express();
+  app.disable("x-powered-by");
+  delete process.env.NODE_VERSION;
 
   // Distributed Tracing & Correlation Middleware (Micrometer / W3C TraceContext)
   app.use(traceMiddleware());
