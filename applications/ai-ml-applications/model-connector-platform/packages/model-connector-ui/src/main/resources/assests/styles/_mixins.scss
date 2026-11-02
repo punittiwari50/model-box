@@ -1,0 +1,68 @@
+// ==============================================================================
+// SCSS Mixins: Responsive Breakpoints, Flexbox/Grid Helpers, Glassmorphism
+// Path: src/main/resources/assests/styles/_mixins.scss
+// Invariant: Strictly use @/ instead of ./
+// ==============================================================================
+@use "@/styles/variables" as *;
+
+// Responsive Breakpoint Media Queries
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == "xs" {
+    @media (max-width: $breakpoint-xs) { @content; }
+  } @else if $breakpoint == "sm" {
+    @media (max-width: $breakpoint-sm) { @content; }
+  } @else if $breakpoint == "md" {
+    @media (max-width: $breakpoint-md) { @content; }
+  } @else if $breakpoint == "lg" {
+    @media (max-width: $breakpoint-lg) { @content; }
+  } @else if $breakpoint == "xl" {
+    @media (max-width: $breakpoint-xl) { @content; }
+  }
+}
+
+// Flexbox Center Helper
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Flexbox Space Between Helper
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// Glassmorphism Card Effect
+@mixin glassmorphism($opacity: 0.85, $blur: 12px) {
+  background: rgba($color-bg-secondary, $opacity);
+  backdrop-filter: blur($blur);
+  -webkit-backdrop-filter: blur($blur);
+  border: 1px solid rgba($color-border, 0.6);
+}
+
+// Custom Scrollbar
+@mixin custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $color-border;
+    border-radius: $radius-full;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: lighten($color-border, 10%);
+  }
+}
+
+// Text Truncation with Ellipsis
+@mixin text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

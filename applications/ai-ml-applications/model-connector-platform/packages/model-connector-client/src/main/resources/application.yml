@@ -1,0 +1,61 @@
+# Model Connector Client Configuration
+client:
+  name: "model-connector-client"
+  version: "1.0.0"
+  defaults:
+    model: "gemini-3.8-flash"
+    timeoutMs: 30000
+    retries: 3
+    retryBackoffMs: 1000
+    temperature: 0.7
+    maxOutputTokens: 2048
+
+  models:
+    gemini:
+      defaultModel: "gemini-3.8-flash"
+      apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta"
+      cliCommand: "gemini"
+    grok:
+      defaultModel: "grok-3"
+      apiBaseUrl: "https://api.x.ai/v1"
+      cliCommand: "grok"
+    copilot:
+      defaultModel: "copilot-gpt-4o"
+      apiBaseUrl: "https://api.githubcopilot.com"
+      cliCommand: "github-copilot-cli"
+    chatgpt:
+      defaultModel: "gpt-4o"
+      apiBaseUrl: "https://api.openai.com/v1"
+      cliCommand: "chatgpt"
+    claude:
+      defaultModel: "claude-3-7-sonnet"
+      apiBaseUrl: "https://api.anthropic.com/v1"
+      cliCommand: "claude"
+    ollama:
+      defaultModel: "llama3.2"
+      apiBaseUrl: "http://localhost:11435"
+      oauthBaseUrl: "http://localhost:11436/ollama-oauth"
+      dockerCandidateUrls:
+        - "http://localhost:11435"
+        - "http://host.docker.internal:11435"
+        - "http://127.0.0.1:11435"
+        - "http://ollama:11434"
+        - "http://host.docker.internal:11434"
+        - "http://localhost:11434"
+        - "http://127.0.0.1:11434"
+      cliCommand: "ollama"
+    fallback:
+      provider: "ollama"
+      defaultModel: "llama3.2"
+      apiBaseUrl: "http://localhost:11435"
+      cliCommand: "ollama"
+
+  strategies:
+    cli:
+      defaultArgs: ["--format", "json"]
+      idleTimeoutMs: 60000
+    api:
+      connectionTimeoutMs: 10000
+    cookie:
+      cookieHeaderName: "Authorization"
+      lineageTracking: true

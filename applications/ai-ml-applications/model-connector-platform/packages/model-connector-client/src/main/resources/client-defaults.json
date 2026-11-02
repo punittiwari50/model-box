@@ -1,0 +1,58 @@
+{
+  "clientName": "model-connector-client",
+  "version": "1.0.0",
+  "defaultStrategy": "API",
+  "defaultFallbackModel": "llama3.2",
+  "defaultFallbackProvider": "ollama",
+  "supportedStrategies": ["CLI", "API", "COOKIE"],
+  "models": [
+    {
+      "modelId": "gemini-3.8-flash",
+      "provider": "google",
+      "contextWindow": 1048576,
+      "multimodal": true
+    },
+    {
+      "modelId": "gemini-3.5-flash",
+      "provider": "google",
+      "contextWindow": 1048576,
+      "multimodal": true
+    },
+    {
+      "modelId": "grok-3",
+      "provider": "xai",
+      "contextWindow": 131072,
+      "multimodal": true
+    },
+    {
+      "modelId": "copilot-gpt-4o",
+      "provider": "microsoft",
+      "contextWindow": 128000,
+      "multimodal": true
+    },
+    {
+      "modelId": "gpt-4o",
+      "provider": "openai",
+      "contextWindow": 128000,
+      "multimodal": true
+    },
+    {
+      "modelId": "claude-3-7-sonnet",
+      "provider": "anthropic",
+      "contextWindow": 200000,
+      "multimodal": true
+    },
+    {
+      "modelId": "llama3.2",
+      "provider": "ollama",
+      "contextWindow": 128000,
+      "multimodal": false
+    },
+    {
+      "modelId": "tinyllama",
+      "provider": "ollama",
+      "contextWindow": 32768,
+      "multimodal": false
+    }
+  ]
+}

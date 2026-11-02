@@ -1,0 +1,31 @@
+{
+  "name": "@model-box/model-connector-service",
+  "version": "1.0.0",
+  "description": "Enterprise Express REST & SSE backend service bridging React UI with @model-box/model-connector-client",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p config/typescript/tsconfig.json && tsc-alias -p config/typescript/tsconfig.json --resolve-full-paths",
+    "test": "tsx --tsconfig config/typescript/tsconfig.json --test src/test/typescript/unit/*.test.ts",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/main/typescript/index.ts",
+    "clean": "node -e \"import('node:fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\""
+  },
+  "dependencies": {
+    "@model-box/model-connector-core": "*",
+    "@model-box/model-connector-client": "*",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.13.10",
+    "tsc-alias": "^1.9.8",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

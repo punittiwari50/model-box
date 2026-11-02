@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-connector-service
+  namespace: model-box
+  labels:
+    app.kubernetes.io/name: model-connector-service
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: model-connector-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: model-connector-service
+        app.kubernetes.io/component: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      initContainers:
+        # ----------------------------------------------------------------------
+        # Init Container: Prepares customized CLI and cache download locations
+        # ----------------------------------------------------------------------
+        - name: init-cli-environment
+          image: node:22-bookworm-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "[INIT] Setting up custom model CLI directories..."
+              mkdir -p ${CLI_BIN_DIR} ${CLI_CACHE_DIR}/npm ${CLI_CACHE_DIR}/downloads ${CLI_NPM_PREFIX} ${CLI_MODELS_DIR}
+              echo "[INIT] Custom CLI directories initialized at ${CLI_BASE_DIR}."
+          envFrom:
+            - configMapRef:
+                name: model-connector-config
+          volumeMounts:
+            - name: cli-storage
+              mountPath: /opt/model-connector
+      containers:
+        - name: service
+          image: model-connector-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8095
+              name: http
+          envFrom:
+            - configMapRef:
+                name: model-connector-config
+          env:
+            - name: PATH
+              value: "/opt/model-connector/npm/bin:/opt/model-connector/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: model-connector-db-secret
+                  key: password
+                  optional: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          volumeMounts:
+            - name: cli-storage
+              mountPath: /opt/model-connector
+            - name: platform-data
+              mountPath: /app/config/data
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8095
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8095
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: cli-storage
+          persistentVolumeClaim:
+            claimName: model-connector-cli-pvc
+        - name: platform-data
+          emptyDir: {}

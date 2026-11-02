@@ -1,0 +1,25 @@
+{
+  "name": "@model-box/model-connector-ui",
+  "version": "1.0.0",
+  "description": "Modern responsive React Web and Mobile UI for Model Connector Platform",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config config/vite/vite.config.ts",
+    "build": "tsc -p config/typescript/tsconfig.json && vite build --config config/vite/vite.config.ts",
+    "preview": "vite preview --config config/vite/vite.config.ts",
+    "clean": "node -e \"import('node:fs').then(fs => { fs.rmSync('dist', { recursive: true, force: true }); fs.rmSync('build', { recursive: true, force: true }); })\"",
+    "test": "tsx --tsconfig config/typescript/tsconfig.json --test src/test/typescript/unit/*.test.ts"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "sass": "^1.83.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  }
+}

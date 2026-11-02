@@ -1,0 +1,14 @@
+// ==============================================================================
+// SCSS Layout: Responsive Viewport Baseline
+// Path: src/main/resources/assests/styles/_layout.scss
+// Invariant: Strictly use @/ instead of ./
+// ==============================================================================
+@use "@/styles/variables" as *;
+@use "@/styles/mixins" as *;
+
+.platform-viewport {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

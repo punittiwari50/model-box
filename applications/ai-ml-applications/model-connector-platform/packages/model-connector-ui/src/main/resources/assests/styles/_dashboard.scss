@@ -1,0 +1,14 @@
+// ==============================================================================
+// SCSS Dashboard: Common Metric Card Styles
+// Path: src/main/resources/assests/styles/_dashboard.scss
+// Invariant: Strictly use @/ instead of ./
+// ==============================================================================
+@use "@/styles/variables" as *;
+@use "@/styles/mixins" as *;
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: $spacing-md;
+  width: 100%;
+}

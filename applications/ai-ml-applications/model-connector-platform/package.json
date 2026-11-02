@@ -1,0 +1,55 @@
+{
+  "name": "@model-box/model-connector-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise multi-module platform for omni-channel AI model connectivity via CLI, REST API, and Cookie Session Lineage",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=@model-box/model-connector-core && npm run build --workspace=@model-box/model-connector-client && npm run build --workspace=@model-box/model-connector-service && npm run build --workspace=@model-box/model-connector-ui && npm run build --workspace=@model-box/model-connector-playwright",
+    "clean": "npm run clean --workspaces --if-present && node -e \"import('node:fs').then(fs => ['.dockerignore', 'docker-compose.yml', 'pnpm-workspace.yaml'].forEach(f => { try { fs.unlinkSync(f); } catch {} }))\"",
+    "dev:backend": "npm run dev --workspace=@model-box/model-connector-service",
+    "dev:frontend": "npm run dev --workspace=@model-box/model-connector-ui",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "docker:build": "docker compose --project-directory . -f config/docker/docker-compose.build.yml run --rm model-connector-platform-builder",
+    "docker:up": "docker compose -f config/docker/docker-compose.yml up -d --build",
+    "docker:down": "docker compose -f config/docker/docker-compose.yml down",
+    "docker:logs": "docker compose -f config/docker/docker-compose.yml logs -f",
+    "docker:prune-buildx": "docker buildx prune -a -f",
+    "docker:prune-unused": "docker image prune -a -f",
+    "docker:prune-system": "docker system prune -a --volumes -f",
+    "docker:clean-builder": "node -e \"const { execSync } = require('child_process'); try { execSync('docker rmi model-connector-platform-builder:latest -f', { stdio: 'inherit' }); } catch {}\"",
+    "docker:reset": "docker compose -f config/docker/docker-compose.yml down --remove-orphans --volumes --rmi local && npm run docker:prune-buildx && npm run docker:prune-unused",
+    "docker:pipeline": "npm run docker:build && npm run docker:up && npm run docker:clean-builder && npm run docker:prune-buildx && npm run docker:prune-unused",
+    "docker:test": "docker compose --project-directory . -f config/docker/docker-compose.build.yml run --rm model-connector-platform-tester",
+    "docker:verify": "docker compose --project-directory . -f config/docker/docker-compose.build.yml run --rm model-connector-platform-verifier",
+    "verify": "npm run docker:verify",
+    "verify:local": "python config/scripts/verification/verify_platform.py",
+    "test:sanity": "npm run test:sanity --workspace=@model-box/model-connector-playwright",
+    "test:usecases": "npm run test:usecases --workspace=@model-box/model-connector-playwright",
+    "docker:test:sanity": "docker run --rm --network model-connector-net -e UI_BASE_URL=http://model-connector-ui:80 -v model-connector-playwright-browsers:/root/.cache/ms-playwright -v ./packages/model-connector-playwright/reports:/app/packages/model-connector-playwright/reports model-connector-playwright:latest npm run test:sanity --workspace=@model-box/model-connector-playwright",
+    "docker:test:usecases": "docker run --rm --network model-connector-net -e UI_BASE_URL=http://model-connector-ui:80 -v model-connector-playwright-browsers:/root/.cache/ms-playwright -v ./packages/model-connector-playwright/reports:/app/packages/model-connector-playwright/reports model-connector-playwright:latest npm run test:usecases --workspace=@model-box/model-connector-playwright",
+    "deploy": "npm run docker:pipeline",
+    "test": "npm run docker:test",
+    "test:all": "npm run test --workspace=@model-box/model-connector-core && npm run test --workspace=@model-box/model-connector-client && npm run test --workspace=@model-box/model-connector-service && npm run test --workspace=@model-box/model-connector-ui && npm run test --workspace=@model-box/model-connector-playwright"
+  },
+  "keywords": [
+    "model-connector",
+    "gemini",
+    "multi-module",
+    "cli-connector",
+    "api-connector",
+    "cookie-session",
+    "react",
+    "vite",
+    "express"
+  ],
+  "author": "ModelBox Enterprise Team",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "tsc-alias": "^1.9.8",
+    "tsx": "^4.19.3"
+  }
+}

@@ -1,0 +1,12 @@
+# Model Connector UI Configuration
+ui:
+  appName: "ModelConnector Enterprise Platform"
+  version: "1.0.0"
+  port: 3005
+  apiProxyUrl: "http://127.0.0.1:8095"
+  defaultTheme: "dark"
+  features:
+    streamingInference: true
+    sessionPersistence: true
+    upstreamSync: true
+    auditLogViewer: true

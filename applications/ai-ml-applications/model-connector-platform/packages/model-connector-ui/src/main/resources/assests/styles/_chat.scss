@@ -1,0 +1,17 @@
+// ==============================================================================
+// SCSS Chat: Common Chat Tokens
+// Path: src/main/resources/assests/styles/_chat.scss
+// Invariant: Strictly use @/ instead of ./
+// ==============================================================================
+@use "@/styles/variables" as *;
+@use "@/styles/mixins" as *;
+
+.chat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: $radius-sm;
+}

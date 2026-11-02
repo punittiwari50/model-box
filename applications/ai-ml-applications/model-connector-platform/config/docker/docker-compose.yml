@@ -1,0 +1,373 @@
+name: model-connector-platform
+
+services:
+  # --------------------------------------------------------------------------
+  # Relational Database: PostgreSQL Enterprise Engine
+  # --------------------------------------------------------------------------
+  postgres:
+    profiles: ["infra"]
+    image: postgres:17-alpine
+    container_name: model-connector-postgres
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-model_connector_db}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - model-connector-postgres-data:/var/lib/postgresql/data
+      - ../database/ddl:/docker-entrypoint-initdb.d:ro
+    networks:
+      - model-connector-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-model_connector_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # --------------------------------------------------------------------------
+  # Database Management: pgAdmin 4 Web Console
+  # --------------------------------------------------------------------------
+  pgadmin:
+    profiles: ["infra"]
+    image: dpage/pgadmin4:latest
+    container_name: model-connector-pgadmin
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@modelbox.enterprise}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-admin}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_LISTEN_PORT=80
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - model-connector-pgadmin-data:/var/lib/pgadmin
+      - ../database/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - model-connector-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/misc/ping || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # NoSQL Document Store: MongoDB Enterprise Engine
+  # --------------------------------------------------------------------------
+  mongodb:
+    profiles: ["infra"]
+    image: mongo:7.0
+    container_name: model-connector-mongodb
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.2'
+          memory: 512M
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - model-connector-mongo-data:/data/db
+      - ../database/nosql/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - model-connector-net
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # --------------------------------------------------------------------------
+  # In-Memory Cache & Mutex: Redis Distributed State Tier
+  # --------------------------------------------------------------------------
+  redis:
+    profiles: ["infra"]
+    image: redis:7.2-alpine
+    container_name: model-connector-redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - model-connector-redis-data:/data
+    networks:
+      - model-connector-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # --------------------------------------------------------------------------
+  # Distributed Messaging: RabbitMQ Multi-Tenant Event Broker
+  # --------------------------------------------------------------------------
+  rabbitmq:
+    profiles: ["infra"]
+    image: rabbitmq:3.13-management-alpine
+    container_name: model-connector-rabbitmq
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-guest}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - model-connector-rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    networks:
+      - model-connector-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # --------------------------------------------------------------------------
+  # Backend Microservice: Model Connector Service API & Client Library Engine
+  # --------------------------------------------------------------------------
+  backend:
+    image: model-connector-service:latest
+    build:
+      context: ../..
+      dockerfile: packages/model-connector-service/src/main/resources/Dockerfile
+    container_name: model-connector-service
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "8095:8095"
+      - "8085:8085"
+      - "11436:11436"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - NODE_ENV=production
+      - PORT=8095
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+      - CORS_ORIGINS=http://localhost:3005,http://127.0.0.1:3005,http://localhost:8095
+      - ALLOW_MOCK_FALLBACK=${ALLOW_MOCK_FALLBACK:-false}
+      - ENABLE_SIMULATION_FALLBACK=${ENABLE_SIMULATION_FALLBACK:-false}
+      - CONTAINER_ROLE=runner
+      - IS_BUILDER=false
+
+      # PostgreSQL Database Credentials
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-model_connector_db}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+
+      # Redis & MongoDB
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MONGO_URI=mongodb://mongodb:27017/model_connector
+
+      # Google Gemini Model Configuration
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_DEFAULT_MODEL=${GEMINI_DEFAULT_MODEL:-gemini-3.8-flash}
+      - GEMINI_CLI_COMMAND=${GEMINI_CLI_COMMAND:-gemini}
+      - GEMINI_API_BASE_URL=${GEMINI_API_BASE_URL:-https://generativelanguage.googleapis.com}
+
+      # xAI Grok Model Configuration
+      - GROK_API_KEY=${GROK_API_KEY:-}
+      - GROK_DEFAULT_MODEL=${GROK_DEFAULT_MODEL:-grok-3}
+      - GROK_CLI_COMMAND=${GROK_CLI_COMMAND:-grok}
+      - GROK_API_BASE_URL=${GROK_API_BASE_URL:-https://api.x.ai/v1}
+
+      # Microsoft/GitHub Copilot Configuration
+      - COPILOT_API_KEY=${COPILOT_API_KEY:-}
+      - COPILOT_DEFAULT_MODEL=${COPILOT_DEFAULT_MODEL:-copilot-gpt-4o}
+      - COPILOT_CLI_COMMAND=${COPILOT_CLI_COMMAND:-github-copilot-cli}
+      - COPILOT_API_BASE_URL=${COPILOT_API_BASE_URL:-https://api.githubcopilot.com}
+
+      # OpenAI ChatGPT Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - CHATGPT_DEFAULT_MODEL=${CHATGPT_DEFAULT_MODEL:-gpt-4o}
+      - CHATGPT_CLI_COMMAND=${CHATGPT_CLI_COMMAND:-chatgpt}
+      - OPENAI_API_BASE_URL=${OPENAI_API_BASE_URL:-https://api.openai.com/v1}
+
+      # Anthropic Claude Configuration
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CLAUDE_DEFAULT_MODEL=${CLAUDE_DEFAULT_MODEL:-claude-3-7-sonnet}
+      - CLAUDE_CLI_COMMAND=${CLAUDE_CLI_COMMAND:-claude}
+      - CLAUDE_API_BASE_URL=${CLAUDE_API_BASE_URL:-https://api.anthropic.com/v1}
+
+      # Ollama Local Runtime Configuration (Use Case 1: without OAuth on :11435, Use Case 2: with OAuth on :11436)
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11435}
+      - OLLAMA_OAUTH_BASE_URL=${OLLAMA_OAUTH_BASE_URL:-http://localhost:11436}
+      - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-lfm3-omni}
+      - OLLAMA_CLI_COMMAND=${OLLAMA_CLI_COMMAND:-ollama}
+
+      # Fallback Runtime Configuration
+      - FALLBACK_PROVIDER=${FALLBACK_PROVIDER:-ollama}
+      - FALLBACK_DEFAULT_MODEL=${FALLBACK_DEFAULT_MODEL:-${OLLAMA_DEFAULT_MODEL:-lfm3-omni}}
+      - FALLBACK_BASE_URL=${FALLBACK_BASE_URL:-${OLLAMA_BASE_URL:-http://host.docker.internal:11435}}
+      - FALLBACK_CLI_COMMAND=${FALLBACK_CLI_COMMAND:-${OLLAMA_CLI_COMMAND:-ollama}}
+      - DATA_DIR=/app/config/data
+    volumes:
+      - model-connector-backend-data:/app/config/data
+    networks:
+      - model-connector-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8095/api/v1/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # --------------------------------------------------------------------------
+  # Frontend Presentation: Modern React Web & Mobile Responsive UI
+  # --------------------------------------------------------------------------
+  frontend:
+    image: model-connector-ui:latest
+    build:
+      context: ../..
+      dockerfile: packages/model-connector-ui/src/main/resources/Dockerfile
+    container_name: model-connector-ui
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    ports:
+      - "3005:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8095
+      - VITE_DEFAULT_MODEL=gemini-3.8-flash
+      - VITE_SUPPORTED_FAMILIES=gemini,grok,copilot,chatgpt,claude,ollama
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - model-connector-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # --------------------------------------------------------------------------
+  # E2E & Sanity Testing: Playwright Automated Verification Engine
+  # --------------------------------------------------------------------------
+  model-connector-playwright:
+    image: model-connector-playwright:latest
+    build:
+      context: ../..
+      dockerfile: config/docker/Dockerfile.playwright
+    container_name: model-connector-playwright
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    environment:
+      - UI_BASE_URL=http://model-connector-ui:80
+      - HEADLESS=true
+      - REPORT_OUTPUT_DIR=/app/packages/model-connector-playwright/reports
+    volumes:
+      - model-connector-playwright-browsers:/root/.cache/ms-playwright
+      - ../../packages/model-connector-playwright/reports:/app/packages/model-connector-playwright/reports
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks:
+      - model-connector-net
+    command: ["npm", "run", "test:usecases", "--workspace=@model-box/model-connector-playwright"]
+
+volumes:
+  model-connector-postgres-data:
+    name: model-connector-postgres-data
+  model-connector-pgadmin-data:
+    name: model-connector-pgadmin-data
+  model-connector-mongo-data:
+    name: model-connector-mongo-data
+  model-connector-redis-data:
+    name: model-connector-redis-data
+  model-connector-rabbitmq-data:
+    name: model-connector-rabbitmq-data
+  model-connector-backend-data:
+    name: model-connector-backend-data
+  model-connector-playwright-browsers:
+    name: model-connector-playwright-browsers
+
+networks:
+  model-connector-net:
+    driver: bridge
+    name: model-connector-net

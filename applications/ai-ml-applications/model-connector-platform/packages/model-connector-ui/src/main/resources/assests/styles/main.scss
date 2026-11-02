@@ -1,0 +1,18 @@
+// ==============================================================================
+// Main SCSS Manifest: Enterprise Modular Stylesheet for ModelConnector UI
+// Path: src/main/resources/assests/styles/main.scss
+// Invariant: Strictly use @/ alias imports
+// ==============================================================================
+
+@use "@/styles/variables" as *;
+@use "@/styles/mixins" as *;
+@use "@/styles/reset";
+@use "@/styles/typography";
+@use "@/styles/components";
+@use "@/styles/pagination";
+@use "@/styles/layout";
+@use "@/styles/dashboard";
+@use "@/styles/chat";
+@use "@/styles/desktop";
+@use "@/styles/mobile";
+@use "@/styles/rbac_config";

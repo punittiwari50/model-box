@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-connector-config
+  namespace: model-box
+  labels:
+    app.kubernetes.io/name: model-connector-platform
+    app.kubernetes.io/component: configuration
+data:
+  # ----------------------------------------------------------------------------
+  # Custom CLI Installation & Package Download Directory Topology
+  # Can be customized per environment, cluster, or storage class.
+  # ----------------------------------------------------------------------------
+  CLI_BASE_DIR: "/opt/model-connector"
+  CLI_BIN_DIR: "/opt/model-connector/bin"
+  CLI_CACHE_DIR: "/opt/model-connector/cache"
+  CLI_NPM_PREFIX: "/opt/model-connector/npm"
+  CLI_MODELS_DIR: "/opt/model-connector/models"
+  MODEL_CLI_PATH: "/opt/model-connector/npm/bin:/opt/model-connector/bin"
+
+  # Core Service Settings
+  NODE_ENV: "production"
+  PORT: "8095"
+  HOST: "0.0.0.0"
+  LOG_LEVEL: "info"
+
+  # Task Lifecycle Configuration (Matches application.yml defaults)
+  TASKS_LIFECYCLE_HEARTBEAT_TIMEOUT_SECONDS: "30"
+  TASKS_LIFECYCLE_MAX_STALLED_TIMEOUT_SECONDS: "90"
+  TASKS_LIFECYCLE_PULSE_INTERVAL_SECONDS: "10"
+
+  # Model Defaults
+  GEMINI_DEFAULT_MODEL: "gemini-3.8-flash"
+  CLAUDE_DEFAULT_MODEL: "claude-3-7-sonnet"
+  CHATGPT_DEFAULT_MODEL: "gpt-4o"
+  GROK_DEFAULT_MODEL: "grok-3"
+  COPILOT_DEFAULT_MODEL: "copilot-gpt-4o"
+  OLLAMA_DEFAULT_MODEL: "llama3.2"
+
+  # Database Connection
+  POSTGRES_HOST: "model-connector-postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "model_connector_db"

@@ -1,0 +1,31 @@
+{
+  "name": "@model-box/model-connector-core",
+  "version": "1.0.0",
+  "description": "Enterprise Core Foundation module providing Spring-style Environment, encapsulated utils, Resilience4j pipeline, connection pool, protocol configs, and logging",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p config/typescript/tsconfig.json && tsc-alias -p config/typescript/tsconfig.json --resolve-full-paths",
+    "test": "tsx --tsconfig config/typescript/tsconfig.json --test src/test/typescript/unit/*.test.ts",
+    "clean": "node -e \"import('node:fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\"",
+    "dev": "tsc -p config/typescript/tsconfig.json --watch"
+  },
+  "keywords": [
+    "model-connector-core",
+    "spring-environment",
+    "resilience4j",
+    "circuit-breaker",
+    "connection-pool",
+    "process-utils",
+    "enterprise-standards"
+  ],
+  "author": "ModelBox Enterprise Team",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsc-alias": "^1.9.8",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

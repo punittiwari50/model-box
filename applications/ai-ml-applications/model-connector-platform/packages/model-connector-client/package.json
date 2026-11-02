@@ -1,0 +1,33 @@
+{
+  "name": "@model-box/model-connector-client",
+  "version": "1.0.0",
+  "description": "Enterprise omni-channel client library implementing AI model connectivity via CLI, REST API, and Cookie Session Lineage with upstream Gemini Model Connector integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p config/typescript/tsconfig.json && tsc-alias -p config/typescript/tsconfig.json --resolve-full-paths",
+    "test": "node --experimental-strip-types --test-concurrency=1 --import ./config/test/register-test-loader.mjs --test src/test/typescript/unit/*.test.ts",
+    "clean": "node -e \"import('node:fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\"",
+    "dev": "tsc -p config/typescript/tsconfig.json --watch"
+  },
+  "keywords": [
+    "model-connector-client",
+    "gemini",
+    "ollama",
+    "cli-connector",
+    "api-connector",
+    "cookie-session",
+    "strategy-pattern"
+  ],
+  "author": "ModelBox Enterprise Team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@model-box/model-connector-core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsc-alias": "^1.9.8",
+    "typescript": "^5.7.3"
+  }
+}

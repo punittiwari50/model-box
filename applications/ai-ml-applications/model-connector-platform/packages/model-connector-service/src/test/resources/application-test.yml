@@ -1,0 +1,12 @@
+# Test Configuration for Model Connector Service
+server:
+  port: 8099
+  host: "127.0.0.1"
+
+upstream:
+  geminiModelConnector:
+    url: "http://127.0.0.1:8080"
+    timeoutMs: 1000
+
+connector:
+  defaultStrategy: "API"
