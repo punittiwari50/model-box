@@ -194,8 +194,6 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     : (resolvedOAuthConfig?.authorizationEndpoint || selectedStrategy.authUrl));
 
   const executableLaunchUrl = resolvedOAuthConfig?.executableLaunchUrl || "";
-  const canLaunchBrowserRedirect = executableLaunchUrl.trim().length > 0 && !isClientIdMissingForRedirect;
-  const isGoogleIndividualCliMode = selectedProviderId.toLowerCase() === ProviderId.GOOGLE && accountCategory === "individual";
 
   const buildOAuthScopes = (): readonly string[] =>
     oauthScopes
@@ -206,13 +204,10 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const resolveHostBrowserLaunchTarget = (
     url: string,
   ): { targetUrl: string; usingEdgeProtocol: boolean; requiresExternalBrowser: boolean } => {
-    const isGoogleProvider = selectedProviderId.toLowerCase() === ProviderId.GOOGLE;
-    const userAgent = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
-    const isEmbeddedBrowser = /vscode|electron|webview/i.test(userAgent);
     return {
       targetUrl: url,
       usingEdgeProtocol: false,
-      requiresExternalBrowser: isGoogleProvider && isEmbeddedBrowser,
+      requiresExternalBrowser: false,
     };
   };
 
@@ -397,7 +392,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   };
 
   const ensureAppliedOAuthClientConfiguration = async (): Promise<UiModelOAuthConfig | null> => {
-    if (!requiresRegisteredClient || resolvedDefaultClientId.length > 0) {
+    if (!requiresRegisteredClient || resolvedDefaultClientId.length > 0 || !oauthClientId.trim()) {
       return null;
     }
     try {
@@ -429,10 +424,13 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       });
       const fallbackConfig = refreshedConfig || (await ApiService.fetchModelOAuthConfig(targetModelId));
       const launchUrl =
-        cliResponse.loginResult?.config?.authorizationUrl || fallbackConfig?.executableLaunchUrl || executableLaunchUrl;
+        cliResponse.loginResult?.config?.authorizationUrl ||
+        fallbackConfig?.executableLaunchUrl ||
+        computedAuthorizationUrl ||
+        executableLaunchUrl;
       const nextStep = cliResponse.loginResult?.config?.nextStep;
       const setupGuide = cliResponse.loginResult?.config?.setupGuide;
-      const needsRegistration = Boolean(cliResponse.loginResult?.config?.requiresClientRegistration);
+      const needsRegistration = Boolean(cliResponse.loginResult?.config?.requiresClientRegistration && !effectiveClientId);
 
       if (needsRegistration && !launchUrl) {
         setIsWaitingForCallback(false);
@@ -1204,41 +1202,28 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                       <div className="oauth-action-toolbar">
                         <button
                           type="button"
-                          className="btn-oauth-action btn-cli-auth"
+                          className="btn-oauth-action btn-cli-auth btn-launch-primary"
+                          data-testid="btn-oauth-launch-browser"
                           onClick={handleExecuteCliLogin}
-                          disabled={isCliLoggingIn}
+                          disabled={isCliLoggingIn || isRedirecting}
                         >
                           <span className="btn-icon">⚡</span>
-                          <span>{isCliLoggingIn ? "Authenticating CLI..." : `Run CLI Authentication (${selectedStrategy.cliCommand})`}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-oauth-action btn-browser-auth"
-                          onClick={handleInitiateBrowserRedirect}
-                          disabled={isGoogleIndividualCliMode || isRedirecting || !canLaunchBrowserRedirect}
-                        >
-                          <span className="btn-icon">🌐</span>
                           <span>
-                            {isGoogleIndividualCliMode
-                              ? "Use CLI Authentication Mode"
-                              : isRedirecting
-                              ? "Opening Browser..."
-                              : canLaunchBrowserRedirect
-                                ? `Redirect to ${selectedStrategy.name} Site`
-                                : "Configure Client ID to Enable Redirect"}
+                            {isCliLoggingIn || isRedirecting
+                              ? "Opening Browser & Awaiting OAuth Consent..."
+                              : `Launch Browser Sign-In (${selectedStrategy.cliCommand})`}
                           </span>
                         </button>
 
-                        <button
-                          type="button"
-                          className="btn-oauth-action btn-verify-auth"
-                          onClick={() => handleCompleteOAuthExchange()}
-                          disabled={isGoogleIndividualCliMode}
-                        >
-                          <span className="btn-icon">✔</span>
-                          <span>{isGoogleIndividualCliMode ? "Run CLI Auth Then Test Connection" : "Complete & Verify Handshake"}</span>
-                        </button>
+                        {isWaitingForCallback && (
+                          <div className="oauth-waiting-banner" data-testid="oauth-waiting-indicator">
+                            <span className="waiting-spinner">⏳</span>
+                            <div className="waiting-text">
+                              <strong>Browser Opened for OAuth Sign-In</strong>
+                              <span>Complete account sign-in in the launched browser tab. Loopback listening on port 8085...</span>
+                            </div>
+                          </div>
+                        )}
 
                         {oauthSession && (
                           <button
@@ -1393,15 +1378,13 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                               type="button"
                               className="btn-oauth-action btn-browser-auth"
                               onClick={handleInitiateBrowserRedirect}
-                              disabled={isGoogleIndividualCliMode || isRedirecting}
+                              disabled={isRedirecting}
                             >
                               <span className="btn-icon">🌐</span>
                               <span>
-                                {isGoogleIndividualCliMode
-                                  ? "Use CLI Authentication Mode"
-                                  : isRedirecting
-                                    ? "Opening Browser..."
-                                    : `Launch Browser & Redirect to ${selectedStrategy.name}`}
+                                {isRedirecting
+                                  ? "Opening Browser..."
+                                  : `Launch Browser & Redirect to ${selectedStrategy.name}`}
                               </span>
                             </button>
                             <button
@@ -1440,15 +1423,13 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                           type="button"
                           className="btn-oauth-action btn-browser-auth"
                           onClick={handleInitiateBrowserRedirect}
-                          disabled={isGoogleIndividualCliMode || isRedirecting}
+                          disabled={isRedirecting}
                         >
                           <span className="btn-icon">🌐</span>
                           <span>
-                            {isGoogleIndividualCliMode
-                              ? "Use CLI Authentication Mode"
-                              : isRedirecting
-                                ? "Opening Browser..."
-                                : `Launch Browser & Redirect (${selectedStrategy.name})`}
+                            {isRedirecting
+                              ? "Opening Browser..."
+                              : `Launch Browser & Redirect (${selectedStrategy.name})`}
                           </span>
                         </button>
                         <button
@@ -1718,15 +1699,13 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                       type="button"
                       className="btn-reauth-browser"
                       onClick={handleInitiateBrowserRedirect}
-                      disabled={isGoogleIndividualCliMode || isRedirecting}
+                      disabled={isRedirecting}
                     >
                       <span className="btn-icon">🌐</span>
                       <span>
-                        {isGoogleIndividualCliMode
-                          ? "Use CLI Authentication Mode"
-                          : isRedirecting
-                            ? "Opening Browser..."
-                            : `Launch Browser & Redirect to ${selectedStrategy.name}`}
+                        {isRedirecting
+                          ? "Opening Browser..."
+                          : `Launch Browser & Redirect to ${selectedStrategy.name}`}
                       </span>
                     </button>
                     <button

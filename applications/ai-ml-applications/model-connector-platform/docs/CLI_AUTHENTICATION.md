@@ -1,4 +1,4 @@
-﻿# CLI & Multi-Provider OAuth Authentication Architecture
+# CLI & Multi-Provider OAuth Authentication Architecture
 
 ## 1. Overview & References
 

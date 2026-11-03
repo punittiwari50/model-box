@@ -128,6 +128,15 @@ class GoogleGeminiOAuthStrategy extends ConfiguredProviderOAuthStrategy {
     const normalized = modelId.toLowerCase();
     return normalized.includes("gemini") || super.supports(modelId);
   }
+
+  public override getDescriptor(modelId = "default"): ModelOAuthDescriptor {
+    const desc = super.getDescriptor(modelId);
+    return {
+      ...desc,
+      defaultClientId: desc.defaultClientId?.trim() || GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID,
+      defaultScopes: GoogleAuthConstants.DEFAULT_SCOPES,
+    };
+  }
 }
 
 class XAiGrokOAuthStrategy extends ConfiguredProviderOAuthStrategy {
@@ -368,7 +377,9 @@ export class ModelOAuthProviderService {
         ? platformCallbackUrl
         : descriptor.defaultRedirectUri || DEFAULT_CALLBACK_URL);
     this.validateOAuthDescriptor(modelId, descriptor, resolvedRedirectUri);
-    const resolvedClientId = (oauthClientIdOverride || descriptor.defaultClientId || "").trim();
+    const defaultGoogleClientId =
+      descriptor.provider === ProviderId.GOOGLE ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID : "";
+    const resolvedClientId = (oauthClientIdOverride || descriptor.defaultClientId || defaultGoogleClientId).trim();
     const oauthClientIdForPreview = resolvedClientId || "<DB_MANAGED_OAUTH_CLIENT_REFERENCE>";
     const structuredState = this.buildStructuredState(modelId, descriptor.provider);
     const authorizationUrl = this.buildAuthorizationUrl(

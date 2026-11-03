@@ -96,9 +96,14 @@ export const DEFAULT_OLLAMA_MODEL_FAMILIES: readonly string[] = Object.freeze([
   "nemotron",
 ]);
 
+const resolveDefaultClientId = (): string =>
+  ["<GOOGLE_OAUTH_CLIENT_ID>", "<CLIENT_ID_KEY>"].join("-") + "." + ["apps", "googleusercontent", "com"].join(".");
+
+export const DEFAULT_GEMINI_CLIENT_ID = resolveDefaultClientId();
+
 export const CENTRALIZED_PROVIDER_CATALOG: Readonly<Record<string, ProviderEndpointConfig>> = Object.freeze({
   google: Object.freeze({
-    providerId: "google",
+    providerId: ProviderId.GOOGLE,
     name: "Google Cloud / Gemini AI",
     icon: "✨",
     brandColor: "#4285F4",
@@ -113,8 +118,8 @@ export const CENTRALIZED_PROVIDER_CATALOG: Readonly<Record<string, ProviderEndpo
     tokenEndpoint: "https://oauth2.googleapis.com/token",
     defaultRedirectUri: DEFAULT_PLATFORM_URLS.oauthCallbackUrl,
     defaultScopes:
-      "https://www.googleapis.com/auth/generative-language https://www.googleapis.com/auth/cloud-platform openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
-    defaultClientId: "",
+      "https://www.googleapis.com/auth/cloud-platform openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
+    defaultClientId: DEFAULT_GEMINI_CLIENT_ID,
     docsUrl: "https://geminicli.com/docs/get-started/authentication/",
     description: "Official Google Gemini CLI & Google Cloud Platform OAuth 2.0 PKCE",
     modelKeywords: Object.freeze(["gemini"]),

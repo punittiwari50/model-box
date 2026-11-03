@@ -1,4 +1,4 @@
-﻿# Gemini CLI Authentication Architecture
+# Gemini CLI Authentication Architecture
 
 ## 1. Overview
 The Gemini CLI authentication system supports multi-mode identity providers tailored for individual developers, corporate cloud environments, and headless automated runners.

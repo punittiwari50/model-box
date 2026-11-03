@@ -1,4 +1,4 @@
-﻿# Use Case 15 — Universal Model Connector Client: Omni-Authentication Mesh (CLI, Cookie, API, OAuth, Enterprise IAM) & Google Search AI Grounding
+# Use Case 15 — Universal Model Connector Client: Omni-Authentication Mesh (CLI, Cookie, API, OAuth, Enterprise IAM) & Google Search AI Grounding
 
 > **Document ID**: `UC-15`  
 > **Category**: Model Connectivity, Omni-Channel Ingress & Grounded Intelligence  

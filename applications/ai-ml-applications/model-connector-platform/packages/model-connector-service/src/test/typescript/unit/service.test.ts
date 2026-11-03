@@ -77,13 +77,13 @@ test("TaskHeartbeatWatchdog - evaluates task liveness dynamically from applicati
 test("ModelOAuthProviderService - generates valid, structured OAuth URL for Gemini models", async () => {
   const { modelOAuthProviderService } = await import("@/services/modelOAuthProviderService");
   const googleDefaultClientId = `oauth-ref-${Date.now()}-google-default`;
-  const placeholderConfig = modelOAuthProviderService.getOAuthConfigForModel("gemini-3.8-flash");
-  assert.equal(placeholderConfig.requiresClientRegistration, true);
-  assert.equal(placeholderConfig.executableLaunchUrl, undefined);
-  assert.equal(placeholderConfig.defaultClientId, "");
-  assert.equal(
-    new URL(placeholderConfig.authorizationUrl).searchParams.get("client_id"),
-    "<DB_MANAGED_OAUTH_CLIENT_REFERENCE>",
+  const defaultGoogleConfig = modelOAuthProviderService.getOAuthConfigForModel("gemini-3.8-flash");
+  assert.equal(defaultGoogleConfig.provider, "google");
+  assert.equal(defaultGoogleConfig.requiresClientRegistration, false);
+  assert.ok(Boolean(defaultGoogleConfig.executableLaunchUrl?.includes("accounts.google.com")));
+  assert.ok(defaultGoogleConfig.defaultClientId.length > 0);
+  assert.ok(
+    (new URL(defaultGoogleConfig.authorizationUrl).searchParams.get("client_id") || "").length > 0,
   );
   const config = modelOAuthProviderService.getOAuthConfigForModel(
     "gemini-3.8-flash",

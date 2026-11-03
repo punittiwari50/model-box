@@ -26,6 +26,9 @@ export const ModelCatalogSelectors = Object.freeze({
 export const ModelConfigSelectors = Object.freeze({
   CONTAINER: ".desktop-model-config-page, .desktop-model-config",
   PROTOCOL_TAB_BTN: ".protocol-tab-btn",
+  OAUTH_LAUNCH_BROWSER_BTN: '[data-testid="btn-oauth-launch-browser"], .btn-launch-primary',
+  COMPUTED_AUTH_URL_INPUT: ".url-preview-input",
+  OAUTH_WAITING_INDICATOR: '[data-testid="oauth-waiting-indicator"], .oauth-waiting-banner',
 });
 
 export const SessionHistorySelectors = Object.freeze({

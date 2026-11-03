@@ -172,7 +172,9 @@ export abstract class BaseOAuthProviderStrategy implements IOAuthProviderStrateg
   }
 
   private buildRawProviderUrl(options?: OAuthUrlOptions): string {
-    const clientId = (options?.clientId || this.defaultClientId || "").trim();
+    const clientId = options && options.clientId !== undefined
+      ? options.clientId.trim()
+      : (this.defaultClientId || "").trim();
     if (clientId.length === 0) {
       return "";
     }
