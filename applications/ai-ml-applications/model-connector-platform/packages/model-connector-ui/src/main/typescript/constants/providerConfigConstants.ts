@@ -96,8 +96,16 @@ export const DEFAULT_OLLAMA_MODEL_FAMILIES: readonly string[] = Object.freeze([
   "nemotron",
 ]);
 
-const resolveDefaultClientId = (): string =>
-  ["<GOOGLE_OAUTH_CLIENT_ID>", "<CLIENT_ID_KEY>"].join("-") + "." + ["apps", "googleusercontent", "com"].join(".");
+const resolveDefaultClientId = (): string => {
+  if (typeof process !== "undefined") {
+    return (
+      process.env?.REACT_APP_GEMINI_CLI_OAUTH_CLIENT_ID ||
+      process.env?.GEMINI_CLI_OAUTH_CLIENT_ID ||
+      ""
+    );
+  }
+  return "";
+};
 
 export const DEFAULT_GEMINI_CLIENT_ID = resolveDefaultClientId();
 

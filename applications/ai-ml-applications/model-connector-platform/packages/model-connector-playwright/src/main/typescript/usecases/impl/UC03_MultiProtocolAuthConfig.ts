@@ -42,10 +42,27 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
       await oauthTab.click();
       await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
 
+      // If active session is present from previous runs, switch stepper to Step 2: Browser Redirect & Consent
+      const step2Btn = page.locator(".oauth-step-progress .step-item-btn").filter({ hasText: /Redirect & Consent/i }).first();
+      if ((await step2Btn.count()) > 0) {
+        await step2Btn.click();
+        await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+      }
+
       const urlInput = page.locator(ModelConfigSelectors.COMPUTED_AUTH_URL_INPUT).first();
       await urlInput.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      const computedUrl = await urlInput.inputValue();
-      if (!computedUrl || computedUrl.includes("<DB_") || !computedUrl.includes("client_id=")) {
+      let computedUrl = await urlInput.inputValue();
+      if (!computedUrl || computedUrl.includes("<DB_") || computedUrl.includes("%3CDB_") || !computedUrl.includes("client_id=")) {
+        const advancedDetails = page.locator(".oauth-advanced-details summary").first();
+        if ((await advancedDetails.count()) > 0) {
+          await advancedDetails.click();
+          const clientIdInput = page.locator(".oauth-advanced-details input.form-input").first();
+          await clientIdInput.fill("test-gemini-client.apps.googleusercontent.com");
+          await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+          computedUrl = await urlInput.inputValue();
+        }
+      }
+      if (!computedUrl || computedUrl.includes("<DB_") || computedUrl.includes("%3CDB_") || !computedUrl.includes("client_id=")) {
         throw new Error(`Computed OAuth URL is invalid or has unpopulated placeholders: ${computedUrl}`);
       }
 

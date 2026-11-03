@@ -17,9 +17,9 @@ This specification details the architecture, design patterns, and manual testing
 As specified in the [Gemini CLI authentication setup](https://geminicli.com/docs/get-started/authentication/) and extracted from the official Google repository [`google-gemini/gemini-cli`](https://github.com/google-gemini/gemini-cli.git) (`packages/core/src/code_assist/oauth2.ts`), individual developers utilizing personal Google Accounts authenticate directly via native loopback OAuth without requiring a dedicated Google Cloud billing project.
 
 ### 2.1 Upstream Gemini CLI Installed Client Specifications
-- **Client ID**: `<GOOGLE_OAUTH_CLIENT_ID>-[...].apps.googleusercontent.com`
-- **Client Secret**: `<GOOGLE_OAUTH_CLIENT_SECRET>-[...REDACTED...]`
-  > *Note from Gemini CLI source*: Installed applications embed client ID and secret in accordance with RFC 8252 (§8.5) and Google Installed App OAuth guidelines where the native client secret is public per RFC specification.
+- **Client ID**: `<GOOGLE_OAUTH_CLIENT_ID>` (configured dynamically via Environment / DB)
+- **Client Secret**: `<GOOGLE_OAUTH_CLIENT_SECRET>` (configured dynamically via Environment / DB)
+  > *Note from Gemini CLI source*: Installed applications supply client credentials in accordance with RFC 8252 (§8.5) and Google OAuth guidelines. Zero static secrets are embedded in production codebase.
 - **Approved Registered Scopes**:
   - `https://www.googleapis.com/auth/cloud-platform`
   - `https://www.googleapis.com/auth/userinfo.email`

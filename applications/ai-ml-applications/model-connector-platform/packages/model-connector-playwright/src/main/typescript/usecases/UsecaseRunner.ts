@@ -57,6 +57,13 @@ export class UsecaseRunner {
       const res = await uc.execute(page);
       results.push(res);
       console.log(`   ${res.status === "PASSED" ? "✔" : "✖"} Status: ${res.status} (${res.durationMs}ms)`);
+      if (res.status === "FAILED") {
+        console.error(`   ❌ Error: ${res.error ?? "Unknown error"}`);
+        const failedStep = res.steps.find((s) => s.status === "FAILED");
+        if (failedStep) {
+          console.error(`   ❌ Failed Step ${failedStep.stepNumber} [${failedStep.name}]: ${failedStep.details}`);
+        }
+      }
     }
     return results;
   }

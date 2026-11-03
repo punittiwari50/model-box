@@ -183,17 +183,42 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const requiresClientRegistration = Boolean(resolvedOAuthConfig?.requiresClientRegistration && !resolvedDefaultClientId);
   const isClientIdMissingForRedirect = requiresClientRegistration && effectiveClientId.length === 0;
 
-  const computedAuthorizationUrl = resolvedOAuthConfig?.authorizationUrl || (effectiveClientId
-    ? selectedStrategy.buildAuthorizationUrl({
-      clientId: effectiveClientId,
-      redirectUri: computedAuthRedirectUri,
-      scopes: oauthScopes,
-      modelId: targetModelId,
-      userEmail: userEmail,
-    })
-    : (resolvedOAuthConfig?.authorizationEndpoint || selectedStrategy.authUrl));
+  const computedAuthorizationUrl =
+    effectiveClientId &&
+    (!resolvedOAuthConfig?.authorizationUrl ||
+      resolvedOAuthConfig.authorizationUrl.includes("<DB_") ||
+      effectiveClientId !== resolvedDefaultClientId)
+      ? selectedStrategy.buildAuthorizationUrl({
+          clientId: effectiveClientId,
+          redirectUri: computedAuthRedirectUri,
+          scopes: oauthScopes,
+          modelId: targetModelId,
+          userEmail: userEmail,
+        })
+      : resolvedOAuthConfig?.authorizationUrl ||
+        (effectiveClientId
+          ? selectedStrategy.buildAuthorizationUrl({
+              clientId: effectiveClientId,
+              redirectUri: computedAuthRedirectUri,
+              scopes: oauthScopes,
+              modelId: targetModelId,
+              userEmail: userEmail,
+            })
+          : resolvedOAuthConfig?.authorizationEndpoint || selectedStrategy.authUrl);
 
-  const executableLaunchUrl = resolvedOAuthConfig?.executableLaunchUrl || "";
+  const executableLaunchUrl =
+    effectiveClientId &&
+    (!resolvedOAuthConfig?.executableLaunchUrl ||
+      resolvedOAuthConfig.executableLaunchUrl.includes("<DB_") ||
+      effectiveClientId !== resolvedDefaultClientId)
+      ? selectedStrategy.buildAuthorizationUrl({
+          clientId: effectiveClientId,
+          redirectUri: computedAuthRedirectUri,
+          scopes: oauthScopes,
+          modelId: targetModelId,
+          userEmail: userEmail,
+        })
+      : resolvedOAuthConfig?.executableLaunchUrl || "";
 
   const buildOAuthScopes = (): readonly string[] =>
     oauthScopes
@@ -453,13 +478,12 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         setActionError("Google OAuth is not supported in VS Code embedded browser. Authorization URL copied — open it in host Microsoft Edge.");
         return;
       }
+      setIsWaitingForCallback(true);
       const popup = window.open(launchTarget.targetUrl, "_blank", "width=600,height=750");
       if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        window.location.assign(launchTarget.targetUrl);
-        setActionSuccess(`Browser popup blocked. Redirecting current tab to ${selectedStrategy.name} authorization...`);
+        setActionSuccess(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
         return;
       }
-      setIsWaitingForCallback(true);
       setActionSuccess(`Launching ${selectedStrategy.name} CLI authentication in your browser... Please sign in.`);
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Failed to generate CLI authentication instructions.");

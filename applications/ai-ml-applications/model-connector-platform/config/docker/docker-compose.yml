@@ -231,6 +231,8 @@ services:
       - GEMINI_DEFAULT_MODEL=${GEMINI_DEFAULT_MODEL:-gemini-3.8-flash}
       - GEMINI_CLI_COMMAND=${GEMINI_CLI_COMMAND:-gemini}
       - GEMINI_API_BASE_URL=${GEMINI_API_BASE_URL:-https://generativelanguage.googleapis.com}
+      - GEMINI_CLI_OAUTH_CLIENT_ID=${GEMINI_CLI_OAUTH_CLIENT_ID:-}
+      - GEMINI_CLI_OAUTH_CLIENT_SECRET=${GEMINI_CLI_OAUTH_CLIENT_SECRET:-}
 
       # xAI Grok Model Configuration
       - GROK_API_KEY=${GROK_API_KEY:-}

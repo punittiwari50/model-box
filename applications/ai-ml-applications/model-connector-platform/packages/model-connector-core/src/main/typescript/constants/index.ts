@@ -373,15 +373,25 @@ export const WorkflowLedgerStatus = Object.freeze({
 });
 
 const resolveDefaultClientId = (): string => {
-  if (typeof process !== "undefined" && process.env?.GEMINI_CLI_OAUTH_CLIENT_ID) {
-    return process.env.GEMINI_CLI_OAUTH_CLIENT_ID;
+  if (typeof process !== "undefined") {
+    return (
+      process.env?.GEMINI_CLI_OAUTH_CLIENT_ID ||
+      process.env?.GOOGLE_OAUTH_CLIENT_ID ||
+      process.env?.GOOGLE_CLIENT_ID ||
+      ""
+    );
   }
   return "";
 };
 
 const resolveDefaultClientSecret = (): string => {
-  if (typeof process !== "undefined" && process.env?.GEMINI_CLI_OAUTH_CLIENT_SECRET) {
-    return process.env.GEMINI_CLI_OAUTH_CLIENT_SECRET;
+  if (typeof process !== "undefined") {
+    return (
+      process.env?.GEMINI_CLI_OAUTH_CLIENT_SECRET ||
+      process.env?.GOOGLE_OAUTH_CLIENT_SECRET ||
+      process.env?.GOOGLE_CLIENT_SECRET ||
+      ""
+    );
   }
   return "";
 };
@@ -391,8 +401,12 @@ const resolveDefaultClientSecret = (): string => {
  */
 export const GoogleAuthConstants = Object.freeze({
   SIGN_IN_WITH_GOOGLE: "sign_in_with_google",
-  DEFAULT_GEMINI_CLIENT_ID: resolveDefaultClientId(),
-  DEFAULT_GEMINI_CLIENT_SECRET: resolveDefaultClientSecret(),
+  get DEFAULT_GEMINI_CLIENT_ID(): string {
+    return resolveDefaultClientId();
+  },
+  get DEFAULT_GEMINI_CLIENT_SECRET(): string {
+    return resolveDefaultClientSecret();
+  },
   DEFAULT_GEMINI_OAUTH_FILE: "oauth_creds.json",
   ENV_GOOGLE_APPLICATION_CREDENTIALS: "GOOGLE_APPLICATION_CREDENTIALS",
   ENV_GEMINI_CLI_AUTH_DIR: "GEMINI_CLI_AUTH_DIR",

@@ -1,4 +1,4 @@
-﻿# Model Connector UI — Screens, Onboarding & Role-Based Workflows
+# Model Connector UI — Screens, Onboarding & Role-Based Workflows
 
 > **Canonical Document**: Unified UI specification, screen architecture, onboarding flows (UI & API), and RBAC management for `model-connector-ui`.  
 > **Master Blueprint**: [blueprint.md](blueprint.md)  
@@ -435,7 +435,7 @@ flowchart TD
     LoopbackRecv --> TokenPost{POST /token Exchange}:::decision
 
     TokenPost -->|Missing client_secret| Err400["Error 400: invalid_request<br/>client_secret is missing"]:::err
-    Err400 --> Fix400["Fix: Inject upstream native secret<br/>(<GOOGLE_OAUTH_CLIENT_SECRET>-[...REDACTED...]-...)"]:::fix
+    Err400 --> Fix400["Fix: Inject upstream native secret<br/>(Client Secret configured via Env/DB)"]:::fix
     Fix400 --> TokenPost
 
     TokenPost -->|Success 200 OK| FetchUser[Fetch User Profile from userinfo]:::step
@@ -466,7 +466,7 @@ The platform resolves three critical failure modes identified during native Gemi
 
 | Observed State / Error | Visual Manifest | Root Cause | Architectural Resolution |
 | :--- | :--- | :--- | :--- |
-| **HTTP 400: `client_secret is missing`** | Browser callback displays:<br/>`OAuth code exchange rejected (400) for Google Cloud / Gemini: { "error": "invalid_request", "error_description": "client_secret is missing." }` | In Google OAuth Installed Application flows, exchanging an authorization code at `https://oauth2.googleapis.com/token` requires the client secret. Omitting it causes Google token endpoint to reject the request with HTTP 400. | `OAuthCallbackServer.ts` and `GoogleAuthConstants` supply both the official native `client_id` (`<GOOGLE_OAUTH_CLIENT_ID>-...`) and `client_secret` (`<GOOGLE_OAUTH_CLIENT_SECRET>-[...REDACTED...]`) matching upstream Gemini CLI (`google-gemini/gemini-cli.git`). |
+| **HTTP 400: `client_secret is missing`** | Browser callback displays:<br/>`OAuth code exchange rejected (400) for Google Cloud / Gemini: { "error": "invalid_request", "error_description": "client_secret is missing." }` | In Google OAuth Installed Application flows, exchanging an authorization code at `https://oauth2.googleapis.com/token` requires the client secret. Omitting it causes Google token endpoint to reject the request with HTTP 400. | `OAuthCallbackServer.ts` and `GoogleAuthConstants` supply both the dynamic `client_id` (`<GOOGLE_OAUTH_CLIENT_ID>`) and `client_secret` (`<GOOGLE_OAUTH_CLIENT_SECRET>`) configured via environment variables or DB storage matching upstream Gemini CLI (`google-gemini/gemini-cli.git`). |
 | **HTTP 403: `restricted_client`** | Google consent page blocks:<br/>`Access blocked: Authorization Error`<br/>`Unregistered scope(s) in the request: https://www.googleapis.com/auth/cclog, https://www.googleapis.com/auth/aicode`<br/>`Error 403: restricted_client` | Requesting internal Google first-party scopes (`cclog`, `aicode`, `generative-language`) that are not whitelisted for third-party or native OAuth clients triggers strict Google OAuth 403 security blocks. | `GoogleOAuthStrategy.ts` restricts the requested scopes exclusively to the 3 registered, whitelisted scopes: `cloud-platform`, `userinfo.email`, and `userinfo.profile`. |
 | **Google First-Party App Safety Warning** | Google consent dialog prompts:<br/>`Make sure that you downloaded this app from Google`<br/>`Don't sign in to Google Antigravity unless you're sure you downloaded this app from Google...`<br/>Buttons: `[Cancel]` and `[Sign in]` | Because the OAuth application identity identifies as Google Antigravity / Gemini CLI native client, Google warns the user to verify the binary before approving access. | The user verifies their account identity (`punittiwari58@gmail.com`) and clicks **Sign in**. The host browser handles this transparently outside the container. |
 | **Duplicate Rows on Multi-Save** | Clicking "Save & Activate Configuration" repeatedly inserted duplicate account rows in `MODEL_ACCOUNTS`. | Lack of an upsert constraint matching existing `(model_id, user_email)`. | Enforced record upsert invariant in `ModelAccountRepository.ts`: queries for existing record by `model_id` + `user_email` and executes `UPDATE` in-place, keeping total count clean and stable. |

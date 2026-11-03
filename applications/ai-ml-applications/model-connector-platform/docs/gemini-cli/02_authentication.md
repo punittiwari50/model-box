@@ -14,8 +14,8 @@ The Gemini CLI authentication system supports multi-mode identity providers tail
 - **Target Audience**: Free tier users, Google AI Pro, Google AI Ultra, and Google One subscribers.
 - **Google Cloud Project**: **Not Required**. Users authenticate directly with their personal Google Account.
 - **Upstream Gemini CLI Native Client Specifications** (from `google-gemini/gemini-cli.git`):
-  - `client_id`: `<GOOGLE_OAUTH_CLIENT_ID>-[...].apps.googleusercontent.com`
-  - `client_secret`: `<GOOGLE_OAUTH_CLIENT_SECRET>-[...REDACTED...]`
+  - `client_id`: `<GOOGLE_OAUTH_CLIENT_ID>` (configured dynamically via Environment / DB)
+  - `client_secret`: `<GOOGLE_OAUTH_CLIENT_SECRET>` (configured dynamically via Environment / DB)
 - **CLI Command**:
   ```bash
   gemini auth login --browser
@@ -25,7 +25,7 @@ The Gemini CLI authentication system supports multi-mode identity providers tail
   2. Opens the user's default browser to:
      ```
      https://accounts.google.com/o/oauth2/v2/auth?
-       client_id=<GOOGLE_OAUTH_CLIENT_ID>-[...].apps.googleusercontent.com&
+       client_id=<GOOGLE_OAUTH_CLIENT_ID>&
        redirect_uri=http://localhost:8085/oauth2callback&
        response_type=code&
        scope=https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile&
@@ -103,7 +103,7 @@ sequenceDiagram
 
 | Error / State | Visual Indicator | Root Cause | Fix / Architectural Behavior |
 | :--- | :--- | :--- | :--- |
-| **HTTP 400 `client_secret is missing`** | `OAuth code exchange rejected (400) for Google Cloud / Gemini: { "error": "invalid_request", "error_description": "client_secret is missing." }` | Missing client_secret in token exchange POST payload. | Upstream Gemini native `client_secret` (`<GOOGLE_OAUTH_CLIENT_SECRET>-[...REDACTED...]`) supplied in token exchange body. |
+| **HTTP 400 `client_secret is missing`** | `OAuth code exchange rejected (400) for Google Cloud / Gemini: { "error": "invalid_request", "error_description": "client_secret is missing." }` | Missing client_secret in token exchange POST payload. | Dynamic Gemini native `client_secret` (`<GOOGLE_OAUTH_CLIENT_SECRET>`) configured via environment/DB and supplied in token exchange body. |
 | **HTTP 403 `restricted_client`** | `Access blocked: Authorization Error`<br/>`Unregistered scope(s) in the request: .../cclog, .../aicode` | Non-public internal scopes requested. | Scopes restricted exclusively to approved set: `cloud-platform`, `userinfo.email`, and `userinfo.profile`. |
 | **Google First-Party Safety Dialog** | `"Make sure that you downloaded this app from Google... Don't sign in to Google Antigravity unless you're sure..."` | Identity verification for native app ID. | User clicks **Sign in** to proceed with OAuth consent. |
 | **Duplicate Records on Multi-Save** | Multiple identical rows for same user/model. | INSERT called without conflict resolution. | Enforced upsert invariant in `ModelAccountRepository.ts` updating existing row in-place. |
