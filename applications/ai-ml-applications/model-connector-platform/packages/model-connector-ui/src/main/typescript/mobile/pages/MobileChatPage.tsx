@@ -141,8 +141,8 @@ export const MobileChatPage: React.FC<MobileChatPageProps> = ({ state }) => {
             {state.selectedModel === ModelCatalog.GEMINI_3_8_FLASH
               ? "⭐ Recommended Model"
               : state.selectedModel.startsWith("claude")
-              ? "🧠 Agentic Reasoning"
-              : "Standard Inference"}
+                ? "🧠 Agentic Reasoning"
+                : "Standard Inference"}
           </span>
         </div>
       </div>

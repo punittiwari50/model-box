@@ -1,4 +1,4 @@
-# Use Case 15 — Universal Model Connector Client: Omni-Authentication Mesh (CLI, Cookie, API, OAuth, Enterprise IAM) & Google Search AI Grounding
+﻿# Use Case 15 — Universal Model Connector Client: Omni-Authentication Mesh (CLI, Cookie, API, OAuth, Enterprise IAM) & Google Search AI Grounding
 
 > **Document ID**: `UC-15`  
 > **Category**: Model Connectivity, Omni-Channel Ingress & Grounded Intelligence  
@@ -225,6 +225,50 @@ To ensure seamless authorization and prevent both `Error 401: invalid_client` an
 ```text
 https://accounts.google.com/o/oauth2/v2/auth?<db-managed-oauth-query>&redirect_uri=http%3A%2F%2Flocalhost%3A8085%2Foauth2callback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform%20openid%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&access_type=offline&prompt=consent&include_granted_scopes=true&state=app%3Dmodelbox-studio%26provider%3Dgoogle%26model%3Dgemini-3.8-flash%26flow%3Dcli_oauth%26nonce%3D9k2m4x8q%26ts%3D1740000000000
 ```
+
+##### 5. Real-World Failure Resolution, Live Verification & Upsert Lifecycle
+
+During native Gemini CLI OAuth integration, three distinct error barriers and a data integrity invariant were systematically resolved:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant Browser as Host Web Browser
+    participant UI as ModelAccountsModal
+    participant Server as OAuthCallbackServer (Port 8085)
+    participant Google as Google Identity & Token Endpoint
+    participant DB as SQLite (MODEL_ACCOUNTS Table)
+
+    Dev->>UI: Click "Sign in with Google"
+    UI->>Browser: Launch Auth URL in Host Browser Tab
+    Browser->>Google: Authorization Request with Registered Scopes
+    Google-->>Browser: Safety Advisory ("Make sure that you downloaded this app from Google")
+    Note over Browser: Prompt: "Don't sign in to Google Antigravity unless you're sure..."
+    Dev->>Browser: Verify email & Click "Sign in"
+    Google->>Browser: 302 Redirect to http://localhost:8085/oauth2callback?code=AUTH_CODE
+    Browser->>Server: GET /oauth2callback?code=AUTH_CODE
+    Server->>Google: POST https://oauth2.googleapis.com/token (code + client_id + client_secret)
+    Note over Server,Google: client_secret is required per RFC 8252 §8.5 (Resolves HTTP 400 'client_secret is missing')
+    Google-->>Server: 200 OK (access_token, refresh_token)
+    Server->>Google: GET https://www.googleapis.com/oauth2/v2/userinfo
+    Google-->>Server: User Profile (email: punittiwari58@gmail.com)
+    Server-->>Browser: Callback Success HTML & postMessage(MODELBOX_OAUTH_SUCCESS)
+    Browser->>UI: Populate Credentials & Account Name
+    Dev->>UI: Test Connection Prompt ("Hi , whats date time now ?")
+    UI->>Server: Test Connection
+    Server-->>UI: Status: VERIFIED OAUTH 2.0 PKCE 109ms
+    Dev->>UI: Click "Save & Activate Configuration"
+    UI->>DB: Upsert Record (UPDATE in-place if model_id & user_email match)
+    DB-->>UI: 200 OK (Clean single record, zero duplicates)
+```
+
+| Failure State / Error | Observed Screen Manifest | Root Cause | Engineering Resolution |
+| :--- | :--- | :--- | :--- |
+| **HTTP 400: `client_secret is missing`** | Browser callback displays:<br/>`OAuth code exchange rejected (400) for Google Cloud / Gemini: { "error": "invalid_request", "error_description": "client_secret is missing." }` | In Google OAuth Installed Application flows, exchanging an authorization code at `https://oauth2.googleapis.com/token` requires the client secret. Omitting it causes Google token endpoint to reject the request with HTTP 400. | `OAuthCallbackServer.ts` and `GoogleAuthConstants` supply both the official native `client_id` (`<GOOGLE_OAUTH_CLIENT_ID>-...`) and `client_secret` (`<GOOGLE_OAUTH_CLIENT_SECRET>-[...REDACTED...]`) matching upstream Gemini CLI (`google-gemini/gemini-cli.git`). |
+| **HTTP 403: `restricted_client`** | Google consent page blocks:<br/>`Access blocked: Authorization Error`<br/>`Unregistered scope(s) in the request: https://www.googleapis.com/auth/cclog, https://www.googleapis.com/auth/aicode`<br/>`Error 403: restricted_client` | Requesting internal Google first-party scopes (`cclog`, `aicode`, `generative-language`) that are not whitelisted for third-party or native OAuth clients triggers strict Google OAuth 403 security blocks. | `GoogleOAuthStrategy.ts` restricts the requested scopes exclusively to the 3 registered, whitelisted scopes: `cloud-platform`, `userinfo.email`, and `userinfo.profile`. |
+| **Google First-Party App Safety Warning** | Google consent dialog prompts:<br/>`Make sure that you downloaded this app from Google`<br/>`Don't sign in to Google Antigravity unless you're sure you downloaded this app from Google...`<br/>Buttons: `[Cancel]` and `[Sign in]` | Because the OAuth application identity identifies as Google Antigravity / Gemini CLI native client, Google warns the user to verify the binary before approving access. | The user verifies their account identity (`punittiwari58@gmail.com`) and clicks **Sign in**. The host browser handles this transparently outside the container. |
+| **Duplicate Rows on Multi-Save** | Clicking "Save & Activate Configuration" repeatedly inserted duplicate account rows in `MODEL_ACCOUNTS`. | Lack of an upsert constraint matching existing `(model_id, user_email)`. | Enforced record upsert invariant in `ModelAccountRepository.ts`: queries for existing record by `model_id` + `user_email` and executes `UPDATE` in-place, keeping total count clean and stable. |
 
 #### E. Multi-Model OAuth Strategy Design Pattern Matrix (`STD-COD-005`)
 

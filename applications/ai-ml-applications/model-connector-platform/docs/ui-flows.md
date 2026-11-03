@@ -1,4 +1,4 @@
-# Model Connector UI — Screens, Onboarding & Role-Based Workflows
+﻿# Model Connector UI — Screens, Onboarding & Role-Based Workflows
 
 > **Canonical Document**: Unified UI specification, screen architecture, onboarding flows (UI & API), and RBAC management for `model-connector-ui`.  
 > **Master Blueprint**: [blueprint.md](blueprint.md)  
@@ -362,24 +362,130 @@ flowchart TD
 
 ### 5.4 Model Accounts & Polymorphic OAuth 2.0 Web Consent Flow (`STD-COD-005`)
 
-Referencing the upstream [Gemini CLI authentication setup | Gemini CLI](https://geminicli.com/docs/get-started/authentication/), the platform employs the **Strategy Pattern** via `OAuthProviderRegistry` and `ModelOAuthProviderService`. Instead of hardcoded conditional branching (`if (provider === "google")`), each provider (Google Gemini, xAI Grok, Anthropic Claude, OpenAI, GitHub Copilot, Microsoft Azure) encapsulates its own endpoints, scopes, documentation links, individual account setup guides, and URL generator.
+Referencing the upstream [Gemini CLI authentication setup | Gemini CLI](https://geminicli.com/docs/get-started/authentication/) and the official [`google-gemini/gemini-cli`](https://github.com/google-gemini/gemini-cli.git) architecture (`packages/core/src/code_assist/oauth2.ts`), the platform employs the **Strategy Pattern** via `OAuthProviderRegistry` and `ModelOAuthProviderService`. Instead of hardcoded conditional branching (`if (provider === "google")`), each provider (Google Gemini, xAI Grok, Anthropic Claude, OpenAI, GitHub Copilot, Microsoft Azure) encapsulates its own endpoints, scopes, client parameters, individual account setup guides, and URL generator.
 
-#### 1. OAuth Architecture & Error Prevention
-- **Issue Prevented (Error 401)**: Rejection with `Error 401: invalid_client` ("The OAuth client was not found") caused by placeholder or unregistered client IDs.
-  - **Solution**: The UI and backend dynamically resolve the configured Google OAuth Client ID from the database OAuth client registry and use standard loopback redirect URI (`http://localhost:8085/oauth2callback`).
-- **Issue Prevented (Error 403)**: Rejection with `Error 403: restricted_client` ("Unregistered scope(s) in the request: https://www.googleapis.com/auth/generative-language").
-  - **Solution**: The UI and backend request only trusted, public OAuth scopes (`openid`, `https://www.googleapis.com/auth/userinfo.email`, `https://www.googleapis.com/auth/userinfo.profile`, `https://www.googleapis.com/auth/cloud-platform`), completely avoiding unregistered restricted scopes.
-- **Structured State Verification**: Authorization URLs embed a structured, audit-correlated state parameter (`app=modelbox-studio&provider=<provider>&model=<modelId>&flow=cli_oauth&nonce=<nonce>&ts=<timestamp>`).
-- **Documentation Policy**: All documentation links and detailed guides reside exclusively in `.md` files; no external documentation URLs are embedded in runtime application code.
+#### 1. End-to-End OAuth 2.0 Handshake, Verification & Upsert Sequence
 
-#### 2. Individual Account Setup vs Enterprise Cloud
-- **Google Gemini**: [Gemini CLI Authentication Setup (Individual Google Accounts)](https://geminicli.com/docs/get-started/authentication/) — For personal Google accounts (Free tier, Google AI Pro / Ultra), users choose **"Sign in with Google"** via `gemini auth login --browser`. **No Google Cloud Project required!**
-- **xAI Grok**: [xAI Developer Authentication](https://docs.x.ai/) — Individual developer accounts authenticate via `xai auth login` using personal developer tokens.
-- **Anthropic Claude**: [Claude Code / Anthropic Documentation](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) — Individual Claude Pro/Max accounts authenticate via `claude login` without AWS Bedrock or GCP Vertex IAM roles.
-- **GitHub Copilot**: [Copilot Individual Subscriber Guide](https://docs.github.com/en/copilot/managing-copilot/managing-copilot-as-an-individual-subscriber) — Individual Copilot subscribers authenticate via `gh auth login --web` without Enterprise SAML SSO.
-- **OpenAI Platform**: [OpenAI Developer Quickstart](https://platform.openai.com/docs/quickstart) — Individual developer accounts authenticate via `openai login`.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Developer / End User
+    participant Browser as Host Web Browser (OS Default)
+    participant UI as ModelAccountsModal (React UI)
+    participant Loopback as OAuthCallbackServer (Port 8085)
+    participant Google as Google Identity OAuth 2.0 (accounts.google.com)
+    participant DB as SQLite (MODEL_ACCOUNTS Table)
+
+    User->>UI: Click "Sign in with Google" / "Configure Account"
+    UI->>UI: ModelOAuthProviderService.generateAuthorizationUrl()
+    Note over UI: client_id: <GOOGLE_OAUTH_CLIENT_ID><br/>redirect_uri: http://localhost:8085/oauth2callback<br/>scopes: cloud-platform, userinfo.email, userinfo.profile<br/>prompt: select_account consent
+    UI->>Browser: Open consent URL in external host tab
+    Browser->>Google: GET /o/oauth2/v2/auth?client_id=...&response_type=code
+    Google-->>Browser: Render Account Selection & Safety Warning Dialog
+    Note over Browser: Dialog: "Make sure that you downloaded this app from Google.<br/>Don't sign in to Google Antigravity unless you're sure..."
+    User->>Browser: Click "Sign in" to grant consent
+    Google->>Browser: Redirect 302 to http://localhost:8085/oauth2callback?code=AUTH_CODE&state=...
+    Browser->>Loopback: GET /oauth2callback?code=AUTH_CODE
+    Loopback->>Google: POST https://oauth2.googleapis.com/token<br/>(code, client_id, client_secret: <GOOGLE_OAUTH_CLIENT_SECRET>)
+    Note over Loopback,Google: Exchange code for Access & Refresh Tokens<br/>(client_secret required per RFC 8252 §8.5)
+    Google-->>Loopback: 200 OK { access_token, refresh_token, id_token }
+    Loopback->>Google: GET https://www.googleapis.com/oauth2/v2/userinfo
+    Google-->>Loopback: 200 OK { email: "punittiwari58@gmail.com", name: "Punit Tiwari" }
+    Loopback-->>Browser: Render OAuth Callback Success HTML & postMessage(MODELBOX_OAUTH_SUCCESS)
+    Browser->>UI: window.postMessage({ type: "MODELBOX_OAUTH_SUCCESS", email, credentialValue })
+    UI-->>User: Auto-fill credentials: "Google Cloud / Gemini (punittiwari58@gmail.com)"
+
+    User->>UI: Enter prompt: "Hi , whats date time now ?" & Click "Test Connection"
+    UI->>Loopback: POST /api/v1/models/verify (model: "gemini-3.8-flash", strategy: "gemini_cli")
+    Loopback-->>UI: 200 OK { status: "VERIFIED", latencyMs: 109, strategy: "OAUTH 2.0 PKCE" }
+    UI-->>User: Render Status Pill: "VERIFIED OAUTH 2.0 PKCE 109ms"
+
+    User->>UI: Click "Save & Activate Configuration"
+    UI->>Loopback: POST /api/v1/accounts (Upsert payload)
+    Loopback->>DB: Query existing account: SELECT id FROM MODEL_ACCOUNTS WHERE model_id = 'gemini-3.8-flash' AND user_email = 'punittiwari58@gmail.com'
+    alt Record Exists in Table
+        Loopback->>DB: UPDATE MODEL_ACCOUNTS SET credential_value = ?, updated_at = CURRENT_TIMESTAMP WHERE id = existing.id
+        Note over Loopback,DB: In-place update prevents duplicate rows!
+    else New Account
+        Loopback->>DB: INSERT INTO MODEL_ACCOUNTS (id, model_id, provider, user_email, credential_value, ...) VALUES (...)
+    end
+    Loopback-->>UI: 200 OK { status: "SAVED_AND_ACTIVATED", accountId: "acc-..." }
+    UI-->>User: Show Toast: "Configuration saved and activated successfully"
+```
+
+#### 2. OAuth 2.0 State Machine & Error Resolution Flowchart
+
+```mermaid
+flowchart TD
+    Start([User clicks 'Sign in with Google']):::step --> GenUrl[Generate Authorization URL<br/>client_id, loopback redirect, PKCE state]:::step
+    GenUrl --> LaunchHost[Launch Host Browser Tab]:::step
+    LaunchHost --> GoogleAuth{Google Auth Dialog}:::decision
+
+    GoogleAuth -->|Unregistered Scopes| Err403["Error 403: restricted_client<br/>(cclog, aicode rejected)"]:::err
+    Err403 --> Fix403["Fix: Restrict to approved registered scopes<br/>(cloud-platform, userinfo.email, userinfo.profile)"]:::fix
+    Fix403 --> GenUrl
+
+    GoogleAuth -->|First-Party Warning| PromptWarn["'Make sure that you downloaded this app from Google'<br/>Google Antigravity Identity Check"]:::warn
+    PromptWarn -->|User clicks 'Sign in'| ConsentOK[Consent Granted & Redirect to Loopback]:::step
+    PromptWarn -->|User clicks 'Cancel'| Abort([Flow Aborted]):::err
+
+    ConsentOK --> LoopbackRecv["OAuthCallbackServer receives code at :8085/oauth2callback"]:::step
+    LoopbackRecv --> TokenPost{POST /token Exchange}:::decision
+
+    TokenPost -->|Missing client_secret| Err400["Error 400: invalid_request<br/>client_secret is missing"]:::err
+    Err400 --> Fix400["Fix: Inject upstream native secret<br/>(<GOOGLE_OAUTH_CLIENT_SECRET>-[...REDACTED...]-...)"]:::fix
+    Fix400 --> TokenPost
+
+    TokenPost -->|Success 200 OK| FetchUser[Fetch User Profile from userinfo]:::step
+    FetchUser --> PostMsg[postMessage to Parent UI Window]:::step
+    PostMsg --> AutoFill[Auto-fill Model Account Modal]:::step
+
+    AutoFill --> TestConn{Click 'Test Connection'}:::step
+    TestConn --> ExecPrompt["Prompt: 'Hi , whats date time now ?'<br/>Dispatched to Gemini Execution Strategy"]:::step
+    ExecPrompt --> VerifiedBadge["Render Pill: VERIFIED OAUTH 2.0 PKCE 109ms"]:::step
+
+    VerifiedBadge --> SaveClick{Click 'Save & Activate Configuration'}:::step
+    SaveClick --> DBCheck{Record Exists in MODEL_ACCOUNTS?}:::decision
+    DBCheck -->|Yes: (model_id, user_email) match| DBUpdate["UPDATE in-place<br/>Zero Duplicate Rows"]:::step
+    DBCheck -->|No: New identity| DBInsert["INSERT new row"]:::step
+    DBUpdate --> Complete([Configuration Active & Ready]):::step
+    DBInsert --> Complete
+
+    classDef step fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef err fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#fecaca;
+    classDef fix fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#d1fae5;
+    classDef warn fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#fef3c7;
+    classDef decision fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#e0e7ff;
+```
+
+#### 3. OAuth Architecture, Error Prevention & Troubleshooting Matrix
+
+The platform resolves three critical failure modes identified during native Gemini CLI OAuth integration:
+
+| Observed State / Error | Visual Manifest | Root Cause | Architectural Resolution |
+| :--- | :--- | :--- | :--- |
+| **HTTP 400: `client_secret is missing`** | Browser callback displays:<br/>`OAuth code exchange rejected (400) for Google Cloud / Gemini: { "error": "invalid_request", "error_description": "client_secret is missing." }` | In Google OAuth Installed Application flows, exchanging an authorization code at `https://oauth2.googleapis.com/token` requires the client secret. Omitting it causes Google token endpoint to reject the request with HTTP 400. | `OAuthCallbackServer.ts` and `GoogleAuthConstants` supply both the official native `client_id` (`<GOOGLE_OAUTH_CLIENT_ID>-...`) and `client_secret` (`<GOOGLE_OAUTH_CLIENT_SECRET>-[...REDACTED...]`) matching upstream Gemini CLI (`google-gemini/gemini-cli.git`). |
+| **HTTP 403: `restricted_client`** | Google consent page blocks:<br/>`Access blocked: Authorization Error`<br/>`Unregistered scope(s) in the request: https://www.googleapis.com/auth/cclog, https://www.googleapis.com/auth/aicode`<br/>`Error 403: restricted_client` | Requesting internal Google first-party scopes (`cclog`, `aicode`, `generative-language`) that are not whitelisted for third-party or native OAuth clients triggers strict Google OAuth 403 security blocks. | `GoogleOAuthStrategy.ts` restricts the requested scopes exclusively to the 3 registered, whitelisted scopes: `cloud-platform`, `userinfo.email`, and `userinfo.profile`. |
+| **Google First-Party App Safety Warning** | Google consent dialog prompts:<br/>`Make sure that you downloaded this app from Google`<br/>`Don't sign in to Google Antigravity unless you're sure you downloaded this app from Google...`<br/>Buttons: `[Cancel]` and `[Sign in]` | Because the OAuth application identity identifies as Google Antigravity / Gemini CLI native client, Google warns the user to verify the binary before approving access. | The user verifies their account identity (`punittiwari58@gmail.com`) and clicks **Sign in**. The host browser handles this transparently outside the container. |
+| **Duplicate Rows on Multi-Save** | Clicking "Save & Activate Configuration" repeatedly inserted duplicate account rows in `MODEL_ACCOUNTS`. | Lack of an upsert constraint matching existing `(model_id, user_email)`. | Enforced record upsert invariant in `ModelAccountRepository.ts`: queries for existing record by `model_id` + `user_email` and executes `UPDATE` in-place, keeping total count clean and stable. |
+
+#### 4. Live Connection Verification & Status Feedback Flow
+Following successful OAuth token acquisition, the user validates connectivity directly inside the UI:
+1. **Verification Prompt Input**: Users can enter a custom test query (default: `"Hi , whats date time now ?"`).
+2. **Execution Latency Measurement**: The test dispatches through `GeminiProviderVerificationStrategy` and benchmarks roundtrip latency.
+3. **Structured Status Indicator**: Displays a real-time badge:
+   $$\boxed{\text{VERIFIED OAUTH 2.0 PKCE 109ms}}$$
+4. **Activation**: Clicking "Save & Activate Configuration" binds the credential to the active session and persists the record into SQLite without duplicating existing records.
+
+#### 5. Individual Account Setup vs Enterprise Cloud
+- **Google Gemini**: [Gemini CLI Authentication Setup (Individual Google Accounts)](https://geminicli.com/docs/get-started/authentication/) - For personal Google accounts (Free tier, Google AI Pro / Ultra), users choose **"Sign in with Google"** via `gemini auth login --browser`. **No Google Cloud Project required!**
+- **xAI Grok**: [xAI Developer Authentication](https://docs.x.ai/) - Individual developer accounts authenticate via `xai auth login` using personal developer tokens.
+- **Anthropic Claude**: [Claude Code / Anthropic Documentation](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) - Individual Claude Pro/Max accounts authenticate via `claude login` without AWS Bedrock or GCP Vertex IAM roles.
+- **GitHub Copilot**: [Copilot Individual Subscriber Guide](https://docs.github.com/en/copilot/managing-copilot/managing-copilot-as-an-individual-subscriber) - Individual Copilot subscribers authenticate via `gh auth login --web` without Enterprise SAML SSO.
+- **OpenAI Platform**: [OpenAI Developer Quickstart](https://platform.openai.com/docs/quickstart) - Individual developer accounts authenticate via `openai login`.
 
 ---
+
 
 ## 6. Screen 5: Employee / Operator RBAC Access Control
 

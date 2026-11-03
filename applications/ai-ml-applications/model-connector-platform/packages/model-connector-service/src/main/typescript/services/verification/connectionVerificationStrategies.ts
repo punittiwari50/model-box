@@ -49,7 +49,7 @@ export class OllamaProviderVerificationStrategy implements IProviderVerification
   constructor(
     private readonly configRegistry: IProviderConfigRegistry = modelProviderConfigService,
     private readonly ollamaCache: IOllamaModelDiscoveryCache = ollamaModelDiscoveryCache,
-  ) {}
+  ) { }
 
   public supports(modelId: string): boolean {
     return this.ollamaCache.isOllamaModel(modelId);
@@ -166,7 +166,7 @@ export class OllamaProviderVerificationStrategy implements IProviderVerification
 }
 
 export class CopilotProviderVerificationStrategy implements IProviderVerificationStrategy {
-  constructor(private readonly configRegistry: IProviderConfigRegistry = modelProviderConfigService) {}
+  constructor(private readonly configRegistry: IProviderConfigRegistry = modelProviderConfigService) { }
 
   public supports(modelId: string): boolean {
     const lower = modelId.toLowerCase();
@@ -263,7 +263,7 @@ export class CopilotProviderVerificationStrategy implements IProviderVerificatio
 }
 
 export class ClaudeProviderVerificationStrategy implements IProviderVerificationStrategy {
-  constructor(private readonly configRegistry: IProviderConfigRegistry = modelProviderConfigService) {}
+  constructor(private readonly configRegistry: IProviderConfigRegistry = modelProviderConfigService) { }
 
   public supports(modelId: string): boolean {
     const lower = modelId.toLowerCase();
@@ -345,7 +345,7 @@ export class ClaudeProviderVerificationStrategy implements IProviderVerification
 }
 
 export class GeminiProviderVerificationStrategy implements IProviderVerificationStrategy {
-  constructor(private readonly configRegistry: IProviderConfigRegistry = modelProviderConfigService) {}
+  constructor(private readonly configRegistry: IProviderConfigRegistry = modelProviderConfigService) { }
 
   public supports(_modelId: string): boolean {
     return true;
@@ -657,7 +657,7 @@ export class LocalProtocolVerificationStrategy implements IProtocolVerificationS
 }
 
 export class UnsupportedProtocolVerificationStrategy implements IProtocolVerificationStrategy {
-  constructor(private readonly protocolType: string) {}
+  constructor(private readonly protocolType: string) { }
 
   public supports(_protocolType: string): boolean {
     return true;
