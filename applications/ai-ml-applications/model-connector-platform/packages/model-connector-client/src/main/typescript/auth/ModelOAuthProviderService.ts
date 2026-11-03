@@ -1,6 +1,7 @@
 import {
   cryptoUtils,
   GoogleAuthConstants,
+  ProviderId,
   modelProviderConfigService,
   ollamaModelDiscoveryCache,
   providerOAuthClientRepository,
@@ -120,7 +121,7 @@ abstract class ConfiguredProviderOAuthStrategy implements IModelOAuthStrategy {
 
 class GoogleGeminiOAuthStrategy extends ConfiguredProviderOAuthStrategy {
   constructor(configRegistry: IProviderConfigRegistry = modelProviderConfigService) {
-    super("google", "individual", configRegistry);
+    super(ProviderId.GOOGLE, "individual", configRegistry);
   }
 
   public override supports(modelId: string): boolean {
@@ -363,7 +364,7 @@ export class ModelOAuthProviderService {
     const platformCallbackUrl = this.configRegistry.getPlatformUrl("oauthCallbackUrl") || DEFAULT_CALLBACK_URL;
     const resolvedRedirectUri =
       redirectUri ||
-      (descriptor.provider === "google"
+      (descriptor.provider === ProviderId.GOOGLE
         ? platformCallbackUrl
         : descriptor.defaultRedirectUri || DEFAULT_CALLBACK_URL);
     this.validateOAuthDescriptor(modelId, descriptor, resolvedRedirectUri);
@@ -378,7 +379,7 @@ export class ModelOAuthProviderService {
       structuredState,
     );
     const executableLaunchUrl =
-      descriptor.provider === "google"
+      descriptor.provider === ProviderId.GOOGLE
         ? (resolvedClientId
           ? this.buildAuthorizationUrl(descriptor, resolvedRedirectUri, modelId, resolvedClientId, structuredState)
           : undefined)
@@ -390,7 +391,7 @@ export class ModelOAuthProviderService {
           descriptor.defaultScopes.join(" "),
           structuredState,
         );
-    const requiresClientRegistration = descriptor.provider === "google" && !resolvedClientId;
+    const requiresClientRegistration = descriptor.provider === ProviderId.GOOGLE && !resolvedClientId;
 
     return {
       modelId,
@@ -430,7 +431,7 @@ export class ModelOAuthProviderService {
       access_type: ACCESS_TYPE_OFFLINE,
       prompt: "select_account consent",
     });
-    if (descriptor.provider === "google") {
+    if (descriptor.provider === ProviderId.GOOGLE) {
       params.set("include_granted_scopes", "true");
       const pkce = this.preparePkceChallenge(resolvedState);
       params.set("code_challenge", pkce.codeChallenge);
@@ -534,14 +535,14 @@ export class ModelOAuthProviderService {
         ? `${descriptor.providerName} (Individual CLI Account)`
         : `${descriptor.providerName} (Enterprise Project)`;
     const hasProviderClient = descriptor.defaultClientId.trim().length > 0;
-    const isGoogleIndividualCli = descriptor.provider === "google" && category === "individual";
+    const isGoogleIndividualCli = descriptor.provider === ProviderId.GOOGLE && category === "individual";
     const googleClientId = descriptor.defaultClientId.trim() || GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID;
     const platformCallbackUrl = this.configRegistry.getPlatformUrl("oauthCallbackUrl") || DEFAULT_CALLBACK_URL;
     const resolvedRedirectUri =
-      descriptor.provider === "google" ? platformCallbackUrl : descriptor.defaultRedirectUri || DEFAULT_CALLBACK_URL;
+      descriptor.provider === ProviderId.GOOGLE ? platformCallbackUrl : descriptor.defaultRedirectUri || DEFAULT_CALLBACK_URL;
     const structuredState = this.buildStructuredState(modelId, descriptor.provider);
     const authorizationUrl =
-      descriptor.provider === "google"
+      descriptor.provider === ProviderId.GOOGLE
         ? this.buildAuthorizationUrl(
             descriptor,
             resolvedRedirectUri,
@@ -557,7 +558,7 @@ export class ModelOAuthProviderService {
             descriptor.defaultScopes.join(" "),
             structuredState,
           );
-    const isGeminiWithoutClient = descriptor.provider === "google" && !hasProviderClient;
+    const isGeminiWithoutClient = descriptor.provider === ProviderId.GOOGLE && !hasProviderClient;
     const requiresClientRegistration = false;
 
     return {

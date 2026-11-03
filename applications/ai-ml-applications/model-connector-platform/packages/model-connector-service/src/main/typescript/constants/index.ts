@@ -1,4 +1,5 @@
-import { environment, modelProviderConfigService } from "@model-box/model-connector-core";
+import { environment, modelProviderConfigService, ModelCatalog, ProviderId } from "@model-box/model-connector-core";
+export { ModelCatalog, ProviderId };
 
 /**
  * Centralized Service Constants sourced from application.yml.
@@ -25,11 +26,11 @@ export const ServiceConstant = Object.freeze({
   DEFAULT_PORT: environment.getPropertyAsNumber("server.port", 8095),
   DEFAULT_HOST: environment.getProperty("server.host", "0.0.0.0"),
   DEFAULT_UPSTREAM_URL: environment.getProperty("upstream.geminiModelConnector.url", "http://127.0.0.1:8090"),
-  DEFAULT_FALLBACK_BASE_URL: modelProviderConfigService.getProviderConfig("ollama").baseUrl,
-  DEFAULT_FALLBACK_PROVIDER: environment.getProperty("connector.fallback.provider", "ollama"),
-  DEFAULT_FALLBACK_MODEL: environment.getProperty("connector.fallback.model", "llama3.2"),
-  DEFAULT_FALLBACK_CLI_COMMAND: modelProviderConfigService.getProviderConfig("ollama").cliExecutable,
-  DEFAULT_MODEL: environment.getProperty("connector.defaultModel", "gemini-3.8-flash"),
+  DEFAULT_FALLBACK_BASE_URL: modelProviderConfigService.getProviderConfig(ProviderId.OLLAMA).baseUrl,
+  DEFAULT_FALLBACK_PROVIDER: environment.getProperty("connector.fallback.provider", ProviderId.OLLAMA),
+  DEFAULT_FALLBACK_MODEL: environment.getProperty("connector.fallback.model", ModelCatalog.LLAMA_3_2),
+  DEFAULT_FALLBACK_CLI_COMMAND: modelProviderConfigService.getProviderConfig(ProviderId.OLLAMA).cliExecutable,
+  DEFAULT_MODEL: environment.getProperty("connector.defaultModel", ModelCatalog.GEMINI_3_8_FLASH),
   DEFAULT_LOG_LEVEL: environment.getProperty("logging.level", "info"),
   DEFAULT_CORS_ORIGINS: "*",
   DEFAULT_QUERY_LIMIT: 50,

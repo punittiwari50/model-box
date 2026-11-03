@@ -163,7 +163,7 @@ model-connector-platform/
             │   │   ├── services/
             │   │   ├── types/
             │   │   ├── App.tsx
-            │   │   ├── index.css
+            │   │   ├── main.scss (Modular SCSS styling)
             │   │   └── main.tsx
             │   └── resources/                  # Frontend Dockerfile, HTML & Nginx
             │       ├── Dockerfile

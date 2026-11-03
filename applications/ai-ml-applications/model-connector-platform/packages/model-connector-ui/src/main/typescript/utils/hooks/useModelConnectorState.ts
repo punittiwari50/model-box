@@ -14,6 +14,7 @@ import type {
   UiModelAccount,
 } from "@/types/ui.types";
 import { ApiService } from "@/utils/services/apiService";
+import { ModelConstants } from "@/constants/providerConfigConstants";
 
 export interface ModelConnectorState {
   readonly activeTab: ActiveTab;
@@ -56,7 +57,7 @@ export interface ModelConnectorState {
 export function useModelConnectorState(): ModelConnectorState {
   const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
   const [activeStrategy, setActiveStrategy] = useState<StrategyMode>("api");
-  const [selectedModel, setSelectedModel] = useState<string>("gemini-3.8-flash");
+  const [selectedModel, setSelectedModel] = useState<string>(ModelConstants.DEFAULT_MODEL_ID);
   const [models, setModels] = useState<UiModel[]>([]);
   const [categories, setCategories] = useState<UiCategory[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);

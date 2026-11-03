@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import type { ModelConnectorState } from "@/utils/hooks/useModelConnectorState";
+import { ModelCatalog } from "@/constants/providerConfigConstants";
 
 interface DesktopChatPageProps {
   readonly state: ModelConnectorState;
@@ -14,7 +15,7 @@ interface ModelGuide {
 }
 
 const MODEL_SELECTION_GUIDE: Record<string, ModelGuide> = {
-  "gemini-3.8-flash": {
+  [ModelCatalog.GEMINI_3_8_FLASH]: {
     title: "Google Gemini 3.8 Flash",
     badge: "⭐ RECOMMENDED FOR GENERAL USE",
     reason: "Best balance of lightning-fast speed (<200ms), deep multimodal reasoning, live date/time queries, and cost-free CLI OAuth bearer tokens.",
@@ -343,7 +344,7 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
                   <optgroup key={key} label={`${group.icon} ${group.label}`}>
                     {group.models.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.name} {m.id === "gemini-3.8-flash" ? "⭐ (Recommended)" : ""}
+                        {m.name} {m.id === ModelCatalog.GEMINI_3_8_FLASH ? "⭐ (Recommended)" : ""}
                       </option>
                     ))}
                   </optgroup>

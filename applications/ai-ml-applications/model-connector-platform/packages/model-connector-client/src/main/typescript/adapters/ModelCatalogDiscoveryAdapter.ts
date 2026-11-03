@@ -1,7 +1,7 @@
 import { HttpTransport } from "@/strategies/api/HttpTransport.js";
 import { DefaultEndpoint } from "@/domain/constants/index.js";
 import type { ModelDescriptor } from "@/domain/models/model.types.js";
-import { ModelFamily } from "@model-box/model-connector-core";
+import { ModelCatalog, ModelFamily } from "@model-box/model-connector-core";
 
 /**
  * Model Catalog Discovery Adapter.
@@ -46,7 +46,7 @@ export class ModelCatalogDiscoveryAdapter {
   public getStaticFallbackCatalog(): readonly ModelDescriptor[] {
     return Object.freeze([
       {
-        id: "gemini-3.8-flash",
+        id: ModelCatalog.GEMINI_3_8_FLASH,
         name: "Google Gemini 3.8 Flash",
         family: ModelFamily.GEMINI,
         tier: "freeware",

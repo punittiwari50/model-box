@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import type { ModelConnectorState } from "@/utils/hooks/useModelConnectorState";
+import { ModelCatalog } from "@/constants/providerConfigConstants";
 
 interface MobileChatPageProps {
   readonly state: ModelConnectorState;
@@ -89,7 +90,7 @@ export const MobileChatPage: React.FC<MobileChatPageProps> = ({ state }) => {
                 <optgroup key={key} label={`${group.icon} ${group.label}`}>
                   {group.models.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.name} {m.id === "gemini-3.8-flash" ? "⭐" : ""}
+                      {m.name} {m.id === ModelCatalog.GEMINI_3_8_FLASH ? "⭐" : ""}
                     </option>
                   ))}
                 </optgroup>
@@ -137,7 +138,7 @@ export const MobileChatPage: React.FC<MobileChatPageProps> = ({ state }) => {
           </span>
 
           <span style={{ fontSize: "0.68rem", color: "#94a3b8" }}>
-            {state.selectedModel === "gemini-3.8-flash"
+            {state.selectedModel === ModelCatalog.GEMINI_3_8_FLASH
               ? "⭐ Recommended Model"
               : state.selectedModel.startsWith("claude")
               ? "🧠 Agentic Reasoning"

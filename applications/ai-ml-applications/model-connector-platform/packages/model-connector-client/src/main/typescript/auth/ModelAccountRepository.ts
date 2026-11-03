@@ -1,5 +1,5 @@
 import { coreDatabaseManager, randomUUID } from "@model-box/model-connector-core";
-import { GoogleAuthConstants } from "@/domain/constants/index.js";
+import { GoogleAuthConstants, ProviderId, ModelConstants } from "@/domain/constants/index.js";
 import type { GeminiOAuthCredentialFile } from "@/domain/models/geminiOAuth.types.js";
 
 export type AuthType = "api_key" | "cookie" | "cli_oauth" | "api" | "cli" | "oauth";
@@ -267,7 +267,7 @@ export class AccountRepository {
     const updatedCfg = {
       ...existingCfg,
       authMethod: GoogleAuthConstants.SIGN_IN_WITH_GOOGLE,
-      authProvider: "google",
+      authProvider: ProviderId.GOOGLE,
       credentialsFileContent: params.fileContent,
       credentialsFileName: GoogleAuthConstants.DEFAULT_GEMINI_OAUTH_FILE,
       ...(params.customLocation ? { customLocation: params.customLocation } : {}),
@@ -290,9 +290,9 @@ export class AccountRepository {
     tokens?: GeminiOAuthCredentialFile;
     isActive?: boolean;
   }): ModelAccount {
-    const modelId = params.modelId || "gemini";
+    const modelId = params.modelId || ModelConstants.DEFAULT_MODEL_ID;
     const configPayload = {
-      authProvider: "google",
+      authProvider: ProviderId.GOOGLE,
       authMethod: GoogleAuthConstants.SIGN_IN_WITH_GOOGLE,
       credentialsFileContent: params.fileContent,
       credentialsFileName: GoogleAuthConstants.DEFAULT_GEMINI_OAUTH_FILE,

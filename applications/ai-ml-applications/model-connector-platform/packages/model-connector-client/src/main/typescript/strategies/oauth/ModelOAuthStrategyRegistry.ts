@@ -4,7 +4,7 @@ import {
   randomUUID,
   type IProviderConfigRegistry,
 } from "@model-box/model-connector-core";
-import { DefaultEndpoint, HttpHeader, ModelFamily } from "@/domain/constants/index.js";
+import { DefaultEndpoint, HttpHeader, ModelFamily, ProviderId } from "@/domain/constants/index.js";
 import {
   defaultUserModelCredentialResolver,
   type IUserModelCredentialResolver,
@@ -220,7 +220,7 @@ abstract class BaseModelOAuthProviderStrategy implements IModelOAuthProviderStra
 }
 
 export class GeminiOAuthProviderStrategy extends BaseModelOAuthProviderStrategy {
-  public readonly providerId = "google";
+  public readonly providerId = ProviderId.GOOGLE;
   public readonly modelFamily = ModelFamily.GEMINI;
   protected readonly modelKeywords = ["gemini", "google"];
   protected readonly defaultFallbackClientId = "google-gemini-cli-pkce-client";

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import type { UiModelAccount, UiModelOAuthConfig, UiOAuthExchangeResult, TestConnectionResult } from "@/types/ui.types";
 import { ApiService } from "@/utils/services/apiService";
 import { oauthProviderRegistry } from "@/utils/services/oauthProviderRegistry";
+import { ProviderId } from "@/constants/providerConfigConstants";
 
 interface ModelAccountsModalProps {
   readonly modelId: string;
@@ -265,7 +266,7 @@ export const ModelAccountsModal: React.FC<ModelAccountsModalProps> = ({
     params.set("state", structuredStatePayload);
     params.set("access_type", "offline");
     params.set("prompt", "select_account consent");
-    if (effectiveProvider === "google") {
+    if (effectiveProvider === ProviderId.GOOGLE) {
       params.set("include_granted_scopes", "true");
     }
     return `${effectiveEndpoint}?${params.toString()}`;

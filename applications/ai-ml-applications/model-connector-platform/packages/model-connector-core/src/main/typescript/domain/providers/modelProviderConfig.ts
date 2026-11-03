@@ -14,6 +14,7 @@ import {
   providerOAuthClientRepository,
   type IProviderOAuthClientRepository,
 } from "@/database/ProviderOAuthClientRepository.js";
+import { ProviderId } from "@/constants/index.js";
 
 export interface ProviderCliApiDefaults {
   readonly executable: string;
@@ -118,11 +119,11 @@ export class OllamaDynamicModelFamilyMatcher implements IModelFamilyMatcher {
 
 const KNOWN_PROVIDER_IDS = Object.freeze([
   "github",
-  "google",
-  "anthropic",
-  "openai",
-  "xai",
-  "ollama",
+  ProviderId.GOOGLE,
+  ProviderId.ANTHROPIC,
+  ProviderId.OPENAI,
+  ProviderId.XAI,
+  ProviderId.OLLAMA,
   "azure",
   "bedrock",
   "groq",
@@ -275,7 +276,7 @@ export class ModelProviderConfigService implements IProviderConfigRegistry {
   public resolveProviderForModel(modelId: string): IModelProviderConfig {
     const normalized = modelId.toLowerCase();
     const matched = this.matchers.find((matcher) => matcher.matches(normalized));
-    return this.getProviderConfig(matched ? matched.providerId : "google", modelId);
+    return this.getProviderConfig(matched ? matched.providerId : ProviderId.GOOGLE, modelId);
   }
 
   public resolveCliApiDefaults(modelId: string): ProviderCliApiDefaults {

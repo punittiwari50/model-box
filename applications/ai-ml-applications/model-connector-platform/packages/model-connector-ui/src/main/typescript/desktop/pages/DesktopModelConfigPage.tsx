@@ -13,6 +13,10 @@ import {
   type ConfigProtocolType,
   type ProtocolFormContext,
 } from "@/utils/services/protocolConfigStrategies";
+import {
+  ModelConstants,
+  ProviderId,
+} from "@/constants/providerConfigConstants";
 
 interface DesktopModelConfigPageProps {
   readonly state: ModelConnectorState;
@@ -32,11 +36,11 @@ interface AuthenticatedOAuthSession {
 }
 
 export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ state }) => {
-  const initialGoogleStrategy = oauthProviderRegistry.getStrategy("google");
-  const initialDefaults = initialGoogleStrategy.resolveCliDefaults("gemini-3.8-flash");
+  const initialGoogleStrategy = oauthProviderRegistry.getStrategy(ProviderId.GOOGLE);
+  const initialDefaults = initialGoogleStrategy.resolveCliDefaults(ModelConstants.DEFAULT_MODEL_ID);
 
   const [selectedProtocol, setSelectedProtocol] = useState<ConfigProtocol>("api");
-  const [targetModelId, setTargetModelId] = useState<string>("gemini-3.8-flash");
+  const [targetModelId, setTargetModelId] = useState<string>(ModelConstants.DEFAULT_MODEL_ID);
   const [accountName, setAccountName] = useState("");
   const [userEmail, setUserEmail] = useState(state.currentUser?.userEmail || "admin@enterprise.com");
 
@@ -56,7 +60,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [cookiePath, setCookiePath] = useState("/");
 
   // OAuth 2.0 Flow state (hydrated from centralized application.yml catalog)
-  const [selectedProviderId, setSelectedProviderId] = useState<string>("google");
+  const [selectedProviderId, setSelectedProviderId] = useState<string>(ProviderId.GOOGLE);
   const [oauthClientId, setOauthClientId] = useState(initialGoogleStrategy.defaultClientId);
   const [oauthClientSecret, setOauthClientSecret] = useState("");
   const [oauthAuthUrl, setOauthAuthUrl] = useState(initialGoogleStrategy.authUrl);
@@ -191,7 +195,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
   const executableLaunchUrl = resolvedOAuthConfig?.executableLaunchUrl || "";
   const canLaunchBrowserRedirect = executableLaunchUrl.trim().length > 0 && !isClientIdMissingForRedirect;
-  const isGoogleIndividualCliMode = selectedProviderId.toLowerCase() === "google" && accountCategory === "individual";
+  const isGoogleIndividualCliMode = selectedProviderId.toLowerCase() === ProviderId.GOOGLE && accountCategory === "individual";
 
   const buildOAuthScopes = (): readonly string[] =>
     oauthScopes
@@ -202,7 +206,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const resolveHostBrowserLaunchTarget = (
     url: string,
   ): { targetUrl: string; usingEdgeProtocol: boolean; requiresExternalBrowser: boolean } => {
-    const isGoogleProvider = selectedProviderId.toLowerCase() === "google";
+    const isGoogleProvider = selectedProviderId.toLowerCase() === ProviderId.GOOGLE;
     const userAgent = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
     const isEmbeddedBrowser = /vscode|electron|webview/i.test(userAgent);
     return {
@@ -1568,7 +1572,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="e.g. -m gemini-3.8-flash --non-interactive -o json"
+                      placeholder={`e.g. -m ${ModelConstants.DEFAULT_MODEL_ID} --non-interactive -o json`}
                       value={cliArgs}
                       onChange={(e) => setCliArgs(e.target.value)}
                     />

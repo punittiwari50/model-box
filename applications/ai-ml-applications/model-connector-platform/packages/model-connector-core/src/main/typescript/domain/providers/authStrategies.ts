@@ -1,6 +1,6 @@
 import type { IModelProviderConfig, IProviderConfigRegistry } from "@/domain/providers/modelProviderConfig.js";
 import { modelProviderConfigService } from "@/domain/providers/modelProviderConfig.js";
-import { GoogleAuthConstants } from "@/constants/index.js";
+import { GoogleAuthConstants, ProviderId } from "@/constants/index.js";
 
 /**
  * Onboarding Credential Types
@@ -118,7 +118,7 @@ export class OAuthOnboardingStrategy implements IOnboardingAuthStrategy {
     const clientId = options.clientId?.trim() || config.clientId;
     const redirectUri = options.redirectUri?.trim() || config.defaultRedirectUri;
     const rawScopes = options.scopes?.length ? options.scopes.join(" ") : config.defaultScopes.join(" ");
-    const scopes = config.providerId === "google"
+    const scopes = config.providerId === ProviderId.GOOGLE
       ? GoogleAuthConstants.DEFAULT_SCOPES.join(" ")
       : rawScopes;
 
@@ -134,7 +134,7 @@ export class OAuthOnboardingStrategy implements IOnboardingAuthStrategy {
       params.set("login_hint", options.userEmail.trim());
     }
 
-    if (config.providerId === "google") {
+    if (config.providerId === ProviderId.GOOGLE) {
       params.set("include_granted_scopes", "true");
     }
 
@@ -145,7 +145,7 @@ export class OAuthOnboardingStrategy implements IOnboardingAuthStrategy {
   }
 
   public async exchangeCredentials(config: IModelProviderConfig, request: CredentialExchangeRequest): Promise<CredentialExchangeResult> {
-    const isGoogle = config.providerId === "google";
+    const isGoogle = config.providerId === ProviderId.GOOGLE;
     const clientId =
       request.clientId?.trim() ||
       config.clientId ||

@@ -66,7 +66,7 @@ export class DynamicFallbackCascadeHandler {
       modelId: request.model || ModelCatalogDefaults.DEFAULT_MODEL,
       currentStrategy: request.strategy || ExecutionStrategyType.API,
     });
-    if (!resolution.fallbackStrategy) {
+    if (!resolution.fallbackStrategy || resolution.fallbackStrategy === request.strategy) {
       return null;
     }
     const secondaryStrategy = strategyResolver(resolution.fallbackStrategy);
@@ -84,6 +84,9 @@ export class DynamicFallbackCascadeHandler {
     request: ExecutionRequest,
     strategyResolver: (strategy: ExecutionStrategy) => IConnectorStrategy | undefined,
   ): Promise<ExecutionResponse | null> {
+    if (request.strategy === ExecutionStrategyType.CLI) {
+      return null;
+    }
     const fallbackCli = strategyResolver(ExecutionStrategyType.CLI);
     if (!fallbackCli) {
       return null;

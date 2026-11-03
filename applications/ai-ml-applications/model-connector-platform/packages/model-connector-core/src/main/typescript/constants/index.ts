@@ -212,6 +212,22 @@ export const ModelCatalog = Object.freeze({
   DEFAULT: "gemini-3.8-flash",
 });
 
+/**
+ * Enterprise Provider Identifiers (Centralized constants per STD-COD-002)
+ */
+export const ProviderId = Object.freeze({
+  GOOGLE: "google",
+  XAI: "xai",
+  MICROSOFT: "microsoft",
+  OPENAI: "openai",
+  ANTHROPIC: "anthropic",
+  OLLAMA: "ollama",
+  FALLBACK: "ollama",
+  GENERIC: "generic",
+});
+
+export type ProviderIdType = (typeof ProviderId)[keyof typeof ProviderId];
+
 export const ACTIVE_GEMINI_MODELS = Object.freeze([
   ModelCatalog.GEMINI_3_8_FLASH,
   ModelCatalog.GEMINI_3_5_FLASH,
@@ -273,22 +289,14 @@ export function isModelDeprecated(model: string): boolean {
 export const ModelConstants = Object.freeze({
   DEFAULT_MODEL_ID: ModelCatalog.GEMINI_3_8_FLASH,
   DEFAULT_FALLBACK_MODEL_ID: ModelCatalog.LLAMA_3_2,
-  DEFAULT_FALLBACK_PROVIDER: "ollama",
+  DEFAULT_FALLBACK_PROVIDER: ProviderId.OLLAMA,
   DEFAULT_FALLBACK_ENDPOINT: "http://127.0.0.1:11434",
   DEFAULT_FALLBACK_CLI_COMMAND: "ollama",
   DEFAULT_OLLAMA_MODEL_ID: ModelCatalog.LLAMA_3_2,
   DEFAULT_TEMPERATURE: 0.7,
   DEFAULT_MAX_OUTPUT_TOKENS: 4096,
   DEFAULT_CONTEXT_WINDOW: 1048576,
-  PROVIDERS: Object.freeze({
-    GOOGLE: "google",
-    XAI: "xai",
-    MICROSOFT: "microsoft",
-    OPENAI: "openai",
-    ANTHROPIC: "anthropic",
-    FALLBACK: "ollama",
-    OLLAMA: "ollama",
-  }),
+  PROVIDERS: ProviderId,
   STRATEGIES: Object.freeze({
     API: "API",
     CLI: "CLI",

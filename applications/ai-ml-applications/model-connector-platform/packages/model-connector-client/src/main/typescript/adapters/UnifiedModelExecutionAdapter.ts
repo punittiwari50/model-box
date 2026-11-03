@@ -2,7 +2,7 @@ import { HttpTransport } from "@/strategies/api/HttpTransport.js";
 import { DefaultEndpoint, ModelCatalogDefaults } from "@/domain/constants/index.js";
 import type { ModelDescriptor } from "@/domain/models/model.types.js";
 import type { UpstreamAuthStatus, UpstreamAuditLog } from "@/domain/models/session.types.js";
-import { environment, ModelFamily } from "@model-box/model-connector-core";
+import { environment, ModelCatalog, ModelFamily } from "@model-box/model-connector-core";
 import { ModelConnectorException } from "@/domain/errors/domainExceptions.js";
 import { SimulationPolicyFactory } from "@/domain/policies/SimulationPolicyFactory.js";
 import {
@@ -232,7 +232,7 @@ export class UnifiedModelExecutionAdapter {
     return Object.freeze([
       // 1. Google Gemini (Verified Active Flagships)
       {
-        id: "gemini-3.8-flash",
+        id: ModelCatalog.GEMINI_3_8_FLASH,
         name: "Google Gemini 3.8 Flash",
         family: ModelFamily.GEMINI,
         tier: "freeware",

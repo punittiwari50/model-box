@@ -3,6 +3,7 @@ import {
   modelProviderConfigService,
   ollamaModelDiscoveryCache,
   processUtils,
+  ProviderId,
   type IOllamaModelDiscoveryCache,
   type IProviderConfigRegistry,
 } from "@model-box/model-connector-core";
@@ -351,7 +352,7 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
   }
 
   public async verifyApi(ctx: VerificationContext): Promise<ConnectionTestResult> {
-    const cfg = this.configRegistry.getProviderConfig("google");
+    const cfg = this.configRegistry.getProviderConfig(ProviderId.GOOGLE);
     const isOAuth = ctx.credentialValue.startsWith("ya29.");
     const baseUrl = `${cfg.baseUrl}/${cfg.apiVersion}/models/${encodeURIComponent(ctx.modelId)}:generateContent`;
     const endpoint = isOAuth ? baseUrl : `${baseUrl}?key=${encodeURIComponent(ctx.credentialValue)}`;
@@ -404,7 +405,7 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
   }
 
   public buildCliPlan(_modelId: string, sanitizedPrompt: string, credential: string): CliExecutionPlan {
-    const cfg = this.configRegistry.getProviderConfig("google");
+    const cfg = this.configRegistry.getProviderConfig(ProviderId.GOOGLE);
     const baseEnv: Record<string, string | undefined> = {
       ...processUtils.env,
       GEMINI_CLI_TRUST_WORKSPACE: "true",

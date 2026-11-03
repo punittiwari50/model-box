@@ -6,7 +6,8 @@
  * - STD-COD-007.5: Immutability by Default
  */
 
-import { environment } from "@model-box/model-connector-core";
+import { environment, ModelCatalog, ProviderId, ModelConstants } from "@model-box/model-connector-core";
+export { ModelCatalog, ProviderId, ModelConstants };
 
 export const ExecutionStrategyType = Object.freeze({
   CLI: "cli",
@@ -107,15 +108,15 @@ export const DefaultTimeoutMs = Object.freeze({
 });
 
 export const ModelCatalogDefaults = Object.freeze({
-  DEFAULT_MODEL: "gemini-3.8-flash",
-  DEFAULT_GEMINI_MODEL: "gemini-3.8-flash",
-  DEFAULT_CLAUDE_MODEL: "claude-3-7-sonnet",
-  DEFAULT_OPENAI_MODEL: "gpt-4o",
-  DEFAULT_GROK_MODEL: "grok-3",
-  DEFAULT_COPILOT_MODEL: "copilot-gpt-4o",
-  DEFAULT_OLLAMA_MODEL: "llama3.2",
-  DEFAULT_FALLBACK_MODEL: "llama3.2",
-  DEFAULT_FALLBACK_PROVIDER: "ollama",
+  DEFAULT_MODEL: ModelCatalog.GEMINI_3_8_FLASH,
+  DEFAULT_GEMINI_MODEL: ModelCatalog.GEMINI_3_8_FLASH,
+  DEFAULT_CLAUDE_MODEL: ModelCatalog.CLAUDE_3_7_SONNET,
+  DEFAULT_OPENAI_MODEL: ModelCatalog.GPT_4O,
+  DEFAULT_GROK_MODEL: ModelCatalog.GROK_3,
+  DEFAULT_COPILOT_MODEL: ModelCatalog.COPILOT_GPT_4O,
+  DEFAULT_OLLAMA_MODEL: ModelCatalog.LLAMA_3_2,
+  DEFAULT_FALLBACK_MODEL: ModelCatalog.LLAMA_3_2,
+  DEFAULT_FALLBACK_PROVIDER: ProviderId.OLLAMA,
 });
 
 export const AuthStatusConstant = Object.freeze({

@@ -14,6 +14,7 @@ import type {
   UiModelOAuthConfig,
   UiOAuthExchangeResult,
 } from "@/types/ui.types";
+import { ModelConstants, ModelCatalog } from "@/constants/providerConfigConstants";
 import { ollamaUiModelCache, providerCatalogStore } from "@/utils/services/ollamaUiModelCache";
 
 const API_BASE = "/api/v1";
@@ -222,7 +223,7 @@ export class ApiService {
       const data = await res.json();
       return (data.sessions || []).map((s: any) => ({
         sessionId: s.sessionId,
-        model: s.activeModelId || s.model || "gemini-3.8-flash",
+        model: s.activeModelId || s.model || ModelConstants.DEFAULT_MODEL_ID,
         strategy: s.strategyMode || s.strategy || "api",
         turnCount: s.turnCount || 0,
         createdAt: s.createdTimestamp || s.createdAt || new Date().toISOString(),
@@ -254,7 +255,7 @@ export class ApiService {
     }
   }
 
-  public static async createSession(model = "gemini-3.8-flash", strategy: StrategyMode = "api"): Promise<UiSession> {
+  public static async createSession(model: string = ModelConstants.DEFAULT_MODEL_ID, strategy: StrategyMode = "api"): Promise<UiSession> {
     const res = await fetch(`${API_BASE}/sessions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -572,7 +573,7 @@ export class ApiService {
   private static getFallbackModels(): UiModel[] {
     return [
       {
-        id: "gemini-3.8-flash",
+        id: ModelCatalog.GEMINI_3_8_FLASH,
         name: "Google Gemini 3.8 Flash (Recommended)",
         family: "gemini",
         tier: "freeware",

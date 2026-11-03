@@ -12,6 +12,42 @@ export const OLLAMA_CACHE_TTL_HOURS = 24;
 export const OLLAMA_CACHE_TTL_MS = OLLAMA_CACHE_TTL_HOURS * 60 * 60 * 1000; // 86,400,000 ms (24 hours)
 export const OLLAMA_CACHE_STORAGE_KEY = "modelbox.ollama.models.cache.v1";
 
+/**
+ * Enterprise Provider Identifiers (Centralized constants per STD-COD-002)
+ */
+export const ProviderId = Object.freeze({
+  GOOGLE: "google",
+  ANTHROPIC: "anthropic",
+  OPENAI: "openai",
+  MICROSOFT: "microsoft",
+  XAI: "xai",
+  OLLAMA: "ollama",
+  GENERIC: "generic",
+});
+
+export type ProviderIdType = (typeof ProviderId)[keyof typeof ProviderId];
+
+/**
+ * Canonical Model Catalog Identifiers
+ */
+export const ModelCatalog = Object.freeze({
+  GEMINI_3_8_FLASH: "gemini-3.8-flash",
+  GEMINI_3_5_FLASH: "gemini-3.5-flash",
+  CLAUDE_3_7_SONNET: "claude-3-7-sonnet",
+  GPT_4O: "gpt-4o",
+  LLAMA_3_2: "llama3.2",
+});
+
+/**
+ * Enterprise UI Model and Platform Constants
+ */
+export const ModelConstants = Object.freeze({
+  DEFAULT_MODEL_ID: ModelCatalog.GEMINI_3_8_FLASH,
+  DEFAULT_FALLBACK_MODEL_ID: ModelCatalog.LLAMA_3_2,
+  DEFAULT_PROVIDER_ID: ProviderId.GOOGLE,
+  DEFAULT_FALLBACK_PROVIDER_ID: ProviderId.OLLAMA,
+});
+
 export interface PlatformUrlConfig {
   readonly uiBaseUrl: string;
   readonly serviceBaseUrl: string;

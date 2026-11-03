@@ -8,6 +8,7 @@
 
 import {
   DEFAULT_PLATFORM_URLS,
+  ProviderId,
   type ProviderEndpointConfig,
 } from "@/constants/providerConfigConstants";
 import {
@@ -197,7 +198,7 @@ export abstract class BaseOAuthProviderStrategy implements IOAuthProviderStrateg
 }
 
 export class GoogleGeminiOAuthStrategy extends BaseOAuthProviderStrategy {
-  public readonly id = "google";
+  public readonly id = ProviderId.GOOGLE;
 
   protected override enrichCustomParams(params: URLSearchParams): void {
     params.set("include_granted_scopes", "true");
@@ -205,11 +206,11 @@ export class GoogleGeminiOAuthStrategy extends BaseOAuthProviderStrategy {
 }
 
 export class OpenAiOAuthStrategy extends BaseOAuthProviderStrategy {
-  public readonly id = "openai";
+  public readonly id = ProviderId.OPENAI;
 }
 
 export class AnthropicClaudeOAuthStrategy extends BaseOAuthProviderStrategy {
-  public readonly id = "anthropic";
+  public readonly id = ProviderId.ANTHROPIC;
 }
 
 export class MicrosoftAzureOAuthStrategy extends BaseOAuthProviderStrategy {

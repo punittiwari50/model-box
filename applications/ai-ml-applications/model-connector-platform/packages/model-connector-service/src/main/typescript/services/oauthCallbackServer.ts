@@ -1,5 +1,5 @@
 import express, { type Request, type Response } from "express";
-import { GoogleAuthConstants } from "@model-box/model-connector-core";
+import { GoogleAuthConstants, ModelCatalog, ProviderId } from "@model-box/model-connector-core";
 import { accountRepository } from "@/repositories/accountRepository";
 import { OAuthConstants } from "@/constants/index";
 import { OAuthExecutorFactory } from "@/services/oauth";
@@ -105,7 +105,7 @@ export class UpstreamProviderCodeExchangeStrategy implements IOAuthCodeExchangeS
   public async exchange(ctx: OAuthCallbackContext): Promise<OAuthExchangeOutcome> {
     const executor = OAuthExecutorFactory.getExecutor();
     const pkceCodeVerifier = ctx.state ? modelOAuthProviderService.consumePkceCodeVerifier(ctx.state) : undefined;
-    const isGoogle = ctx.provider === "google";
+    const isGoogle = ctx.provider === ProviderId.GOOGLE;
     const exchangeResult = await executor.exchangeCode({
       code: ctx.code,
       modelId: ctx.modelId,
@@ -265,7 +265,7 @@ export class OAuthCallbackServer {
       access_type: "offline",
       prompt: req.query.prompt ? String(req.query.prompt) : "select_account consent",
     });
-    if (provider === "google") {
+    if (provider === ProviderId.GOOGLE) {
       params.set("include_granted_scopes", "true");
     }
     const loginHint = req.query.login_hint ? String(req.query.login_hint).trim() : "";
@@ -279,12 +279,12 @@ export class OAuthCallbackServer {
     try {
       const params = new URLSearchParams(stateStr);
       return {
-        modelId: params.get("model") || "gemini-3.8-flash",
-        provider: params.get("provider") || "google",
+        modelId: params.get("model") || ModelCatalog.GEMINI_3_8_FLASH,
+        provider: params.get("provider") || ProviderId.GOOGLE,
         returnUrl: params.get("returnUrl") || "",
       };
     } catch {
-      return { modelId: "gemini-3.8-flash", provider: "google", returnUrl: "" };
+      return { modelId: ModelCatalog.GEMINI_3_8_FLASH, provider: ProviderId.GOOGLE, returnUrl: "" };
     }
   }
 
@@ -369,7 +369,7 @@ export class OAuthCallbackServer {
       isActive: true,
       configJson: JSON.stringify({
         provider: providerId,
-        oauthClientId: descriptor.defaultClientId || (providerId === "google" ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID : ""),
+        oauthClientId: descriptor.defaultClientId || (providerId === ProviderId.GOOGLE ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID : ""),
         oauthAuthUrl: descriptor.authorizationEndpoint || "",
         oauthTokenUrl: descriptor.tokenEndpoint || "",
         oauthScopes: descriptor.defaultScopes,
@@ -540,7 +540,7 @@ export class OAuthCallbackServer {
     requestedScope: unknown,
     defaultScopes: readonly string[],
   ): string {
-    if (provider === "google") {
+    if (provider === ProviderId.GOOGLE) {
       return GoogleAuthConstants.DEFAULT_SCOPES.join(" ");
     }
     return requestedScope ? String(requestedScope) : defaultScopes.join(" ");
@@ -603,7 +603,7 @@ export class OAuthCallbackServer {
         ? `<div class="accounts">${listItems}</div>`
         : `<div class="empty">No active ${escapedProvider} account found for this model yet.</div>`;
     const googleDirectSignInUrl =
-      input.provider === "google"
+      input.provider === ProviderId.GOOGLE
         ? `${input.chooserUrl}&client_id=${encodeURIComponent(GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID)}`
         : "";
     const googleAction = googleDirectSignInUrl
