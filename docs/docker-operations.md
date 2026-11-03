@@ -1,247 +1,219 @@
 # Docker Operations for Ollama
 
+> **Consolidated Master Guide**: For complete, unified clean build, rebuild, volume mount, and lifecycle operations across **both Ollama and ComfyUI**, see the master document:  
+> 👉 [**Docker Compose Deployment Master Guide**](./docker-compose-deployment-guide.md)
+
 Execution policy: all steps in this guide are direct terminal procedures and are tool-neutral.
 They apply equally to human operators, scripted automation, and AI-assisted workflows.
 
+---
+
 ## 1. Execution Context
 
-Run commands from:
+**Execute all commands directly from the parent Git repository project root (`model-box`)**:
 
 ```bash
-infra/ollama/docker
+# If navigating from an external terminal or parent workspace folder:
+cd model-box
 ```
 
-Authoritative references:
+Do not `cd` into subfolders like `infra/ollama/docker` for steady-state operations. Running directly from the parent repository root guarantees consistent relative path resolution across all services, scripts, and shared networks.
 
+### Authoritative references:
 - [Ollama Docker Hub image](https://hub.docker.com/r/ollama/ollama)
 - [Ollama official site](https://ollama.com)
+- [Docker Compose Deployment Master Guide](./docker-compose-deployment-guide.md)
 
-Environment strategy:
+### Compose Path Conventions from Repository Root:
+ModelBox provides two equivalent, fully supported ways to run Ollama Compose commands from the parent repository root:
 
+1. **Parent-Level Compose Entrypoints (Recommended):**
+   - **GPU Mode:** `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml <action>`
+   - **CPU Mode:** `docker compose --env-file infra/compose/ollama-cpu.env -f infra/compose/compose.ollama.cpu.yaml <action>`
+2. **Subsystem Direct Entrypoints:**
+   - **GPU Mode:** `docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml <action>`
+   - **CPU Mode:** `docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/docker/compose.cpu.yaml <action>`
+
+### Environment Strategy:
 1. `.env` is for Compose interpolation values (host paths, ports, container limits, image).
 2. `ollama.env` is the legacy single-stack runtime file.
-3. `ollama-gpu.env` and `ollama-cpu.env` are the current mode-specific runtime files.
-4. Use the matching `--env-file` with the matching compose file, otherwise default `.env` values may be used.
-5. Initialize local interpolation file:
+3. `ollama-gpu.env` and `ollama-cpu.env` are the mode-specific runtime files (available in both `infra/compose/` and `infra/ollama/docker/`).
+4. Always pass the matching `--env-file` with the corresponding compose file to ensure path variables are resolved accurately.
+5. Initialize local interpolation file from the repository root:
+   ```bash
+   cp infra/ollama/docker/.env.example infra/ollama/docker/.env
+   ```
+6. Ensure shared external bridge network exists:
+   ```bash
+   docker network inspect model-box-net >/dev/null 2>&1 || docker network create model-box-net
+   ```
 
-```bash
-cp .env.example .env
-```
+### Relative Path Resolution & Persistence:
+1. Canonical host model repository is configured via `COMPOSE_OLLAMA_MODELS_HOST` (Default: `C:\DEV\WSB\CONFIG\volume\volume-docker_ollama`).
+2. Both `ollama-gpu.env` and `ollama-cpu.env` point to the identical host model path, ensuring all 11 models remain accessible when switching between CPU and GPU runtimes.
+3. When downloading models inside the container (e.g. `ollama pull qwen3:8b`), they are written directly to the host volume and persist across container deletions and rebuilds.
 
-Relative path resolution note:
+### Mount Behavior Matrix:
 
-1. Default values use a bind mount for Ollama data and a named volume for `workspace_data` for portability.
-2. To use alternative bind mounts, set relative or absolute paths in `.env`.
-3. Compose resolves relative paths from the directory that contains the selected compose file.
-4. Example bind override: `COMPOSE_OLLAMA_MODELS_HOST=./volumes/ollama`.
-5. Canonical host model repository: configured via `COMPOSE_OLLAMA_MODELS_HOST`.
-6. Keep the same host path in `compose.ollama.yaml`, `compose.gpu.yaml`, `compose.cpu.yaml`, `ollama.env`, `ollama-gpu.env`, `ollama-cpu.env`, `.env.example`, and `.env`.
-7. Use `ollama-gpu.env` for GPU mode and `ollama-cpu.env` for CPU-only mode; both reference the same host model path.
-7. The host volume is consolidated into a single root manifest tree; all 11 available models are discoverable via `ollama list` in both CPU and GPU containers.
-8. When pulling new models through the container (e.g., `ollama pull qwen3:8b`), they are persisted to the host volume and remain visible across container restarts and mode switches (CPU ↔ GPU).
+| Mount Type | Host Source | Container Target | Behavior | Typical Use |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bidirectional Bind Mount** | `${COMPOSE_OLLAMA_MODELS_HOST}` | `/models` | Read-Write | Default Ollama models and manifest persistence |
+| **Host Read-Only Bind** | `./data` | `/workspace:ro` | Read-Only | Static assets or immutable reference data |
+| **Container Rootfs Read-Only** | `read_only: true` | `/` | Read-Only | Restricted runtimes (not recommended for Ollama) |
 
-Mount behavior matrix:
+---
 
-| Mount type | Example | Host side | Container side | Typical use |
-|---|---|---|---|---|
-| Bind mount, read-write (bidirectional) | `${COMPOSE_OLLAMA_MODELS_HOST}:/models` | Writable | Writable | Default Ollama data and model persistence |
-| Bind mount, host read-only | `./data:/workspace:ro` | Read-only to container | Read-only inside container | Static assets or source data |
-| Full container filesystem read-only | `read_only: true` | No direct change from host | Read-only for app filesystem | Only when app does not write to disk |
+## 2. Runtime Baseline Defaults
 
-Notes:
+| Purpose | Setting | Default | Scope |
+| :--- | :--- | :--- | :--- |
+| **Image Pinning** | `COMPOSE_OLLAMA_IMAGE` | `ollama/ollama:latest` | Container Image |
+| **Host Bind Scope** | `COMPOSE_BIND_IP` | `127.0.0.1` | Localhost only |
+| **Host API Port** | `COMPOSE_HOST_PORT` | `11435` | Host listener |
+| **Container API Port** | `COMPOSE_CONTAINER_PORT` | `11434` | Internal service port |
+| **Model Storage Source** | `COMPOSE_OLLAMA_MODELS_HOST` | `C:\DEV\WSB\CONFIG\volume\volume-docker_ollama` | Host directory |
+| **Model Mount Target** | `COMPOSE_OLLAMA_MODELS_CONTAINER` | `/models` | Internal mount |
+| **CPU Limit** | `COMPOSE_CPUS` | `6` (CPU) / `8` (GPU) | Resource ceiling |
+| **Memory Limit** | `COMPOSE_MEM_LIMIT` | `20g` – `24g` | Maximum RAM |
+| **Shared Memory** | `COMPOSE_SHM_SIZE` | `2g` | IPC shared memory |
 
-1. The default configuration is read-write in both directions, so the Ollama model bind is bidirectional (`read_only: false`).
-2. To make a mounted path read-only for the container, append `:ro` to the mount definition.
-3. `read_only: true` is a service-level setting and affects the whole container filesystem, not just one path.
-4. Ollama writes model/runtime state, so `read_only: true` is not recommended unless the runtime is intentionally constrained.
-5. Bidirectional read-write is required so that models downloaded inside the container (via `ollama pull`) are persisted to the host volume and remain discoverable after container restarts or mode changes.
-
-## 2. Runtime baseline defaults
-
-| Purpose | Setting | Default |
-|---|---|---|
-| Image pinning | `COMPOSE_OLLAMA_IMAGE` | `ollama/ollama:latest` |
-| Host bind scope | `COMPOSE_BIND_IP` | `127.0.0.1` |
-| Host API port | `COMPOSE_HOST_PORT` | `11435` |
-| Container API port | `COMPOSE_CONTAINER_PORT` | `11434` |
-| Model data storage source | `COMPOSE_OLLAMA_MODELS_HOST` | configured per host |
-| Model mount target | `COMPOSE_OLLAMA_MODELS_CONTAINER` | `/models` |
-| CPU limit | `COMPOSE_CPUS` | `6` |
-| Memory limit | `COMPOSE_MEM_LIMIT` | `24g` |
-| Shared memory | `COMPOSE_SHM_SIZE` | `2g` |
+---
 
 ## 2a. Ollama Runtime Properties (CPU Mode)
 
-CPU-only mode is used when GPU is unavailable or for validation runs. Use `ollama-cpu.env` environment file.
+CPU-only mode is used when GPU is unavailable or for validation runs. Uses `ollama-cpu.env`.
 
 | Property | Purpose | Available Values | Default | Mode |
-|---|---|---|---|---|
-| `OLLAMA_HOST` | Network interface and port binding | `0.0.0.0:11434`, `127.0.0.1:11434`, `[::]:11434` | `0.0.0.0:11434` | CPU/GPU |
-| `OLLAMA_MODELS` | Container path for model storage | `/models`, `/mnt/models`, any mounted path | `/models` | CPU/GPU |
+| :--- | :--- | :--- | :--- | :--- |
+| `OLLAMA_HOST` | Network interface and port binding | `0.0.0.0:11434`, `127.0.0.1:11434` | `0.0.0.0:11434` | CPU/GPU |
+| `OLLAMA_MODELS` | Container path for model storage | `/models`, `/mnt/models` | `/models` | CPU/GPU |
 | `OLLAMA_NO_CLOUD` | Disable Ollama cloud integration | `true`, `false` | `true` | CPU/GPU |
-| `OLLAMA_NUM_PARALLEL` | Concurrent model load threads | `1`, `2`, `4`, `8` (depends on CPU cores) | `2` | CPU/GPU |
-| `OLLAMA_MAX_LOADED_MODELS` | Max models in memory simultaneously | `1`, `2`, `4`, (1 recommended for limited RAM) | `1` | CPU/GPU |
+| `OLLAMA_NUM_PARALLEL` | Concurrent model load threads | `1`, `2`, `4`, `8` | `2` | CPU/GPU |
+| `OLLAMA_MAX_LOADED_MODELS` | Max models in memory simultaneously | `1`, `2`, `4` | `1` | CPU/GPU |
 | `OLLAMA_MAX_QUEUE` | Request queue limit | `32`, `64`, `128`, `256` | `128` | CPU/GPU |
 | `OLLAMA_CONTEXT_LENGTH` | Token context window | `2048`, `4096`, `8192`, `16384` | `8192` | CPU/GPU |
-| `OLLAMA_KEEP_ALIVE` | Model memory retention time | `5m`, `10m`, `30m`, `1h`, `-1` (permanent) | `10m` | CPU/GPU |
-| `COMPOSE_CPUS` | CPU limit for container | `2`, `4`, `6`, `8`, `12` (count of cores) | `6` | CPU/GPU |
+| `OLLAMA_KEEP_ALIVE` | Model memory retention time | `5m`, `10m`, `30m`, `1h`, `-1` | `10m` | CPU/GPU |
+| `COMPOSE_CPUS` | CPU limit for container | `2`, `4`, `6`, `8`, `12` | `6` | CPU/GPU |
 | `COMPOSE_MEM_LIMIT` | Memory limit for container | `8g`, `16g`, `24g`, `32g` | `24g` | CPU/GPU |
-| `COMPOSE_SHM_SIZE` | Shared memory for inter-process communication | `1g`, `2g`, `4g` | `2g` | CPU/GPU |
+| `COMPOSE_SHM_SIZE` | Shared memory for IPC | `1g`, `2g`, `4g` | `2g` | CPU/GPU |
 
-**CPU Mode Environment File (`ollama-cpu.env`):**
-All properties above with no GPU-specific settings. Omits `NVIDIA_VISIBLE_DEVICES` and `NVIDIA_DRIVER_CAPABILITIES`.
+---
 
 ## 2b. Ollama Runtime Properties (GPU Mode)
 
-GPU-accelerated mode requires NVIDIA Container Toolkit on host. Use `ollama-gpu.env` environment file.
+GPU-accelerated mode requires NVIDIA Container Toolkit on host. Uses `ollama-gpu.env`.
 
 | Property | Purpose | Available Values | Default | Mode |
-|---|---|---|---|---|
-| `OLLAMA_HOST` | Network interface and port binding | `0.0.0.0:11434`, `127.0.0.1:11434`, `[::]:11434` | `0.0.0.0:11434` | CPU/GPU |
-| `OLLAMA_MODELS` | Container path for model storage | `/models`, `/mnt/models`, any mounted path | `/models` | CPU/GPU |
+| :--- | :--- | :--- | :--- | :--- |
+| `OLLAMA_HOST` | Network interface and port binding | `0.0.0.0:11434`, `127.0.0.1:11434` | `0.0.0.0:11434` | CPU/GPU |
+| `OLLAMA_MODELS` | Container path for model storage | `/models`, `/mnt/models` | `/models` | CPU/GPU |
 | `OLLAMA_NO_CLOUD` | Disable Ollama cloud integration | `true`, `false` | `true` | CPU/GPU |
-| `OLLAMA_NUM_PARALLEL` | Concurrent model load threads | `1`, `2`, `4`, `8` | `2` | CPU/GPU |
-| `OLLAMA_MAX_LOADED_MODELS` | Max models in memory simultaneously | `1`, `2`, `4` (GPU memory dependent) | `1` | CPU/GPU |
-| `OLLAMA_MAX_QUEUE` | Request queue limit | `32`, `64`, `128`, `256` | `128` | CPU/GPU |
-| `OLLAMA_CONTEXT_LENGTH` | Token context window | `2048`, `4096`, `8192`, `16384` | `8192` | CPU/GPU |
-| `OLLAMA_KEEP_ALIVE` | Model memory retention time | `5m`, `10m`, `30m`, `1h`, `-1` (permanent) | `10m` | CPU/GPU |
-| `COMPOSE_CPUS` | CPU limit for container | `2`, `4`, `6`, `8`, `12` | `6` | CPU/GPU |
-| `COMPOSE_MEM_LIMIT` | Memory limit for container | `8g`, `16g`, `24g`, `32g` | `24g` | CPU/GPU |
-| `COMPOSE_SHM_SIZE` | Shared memory for inter-process communication | `1g`, `2g`, `4g` | `2g` | CPU/GPU |
-| `NVIDIA_VISIBLE_DEVICES` | GPU device visibility to container | `0`, `1`, `2` (device index), `all` | `0` | GPU only |
-| `NVIDIA_DRIVER_CAPABILITIES` | GPU driver capabilities required | `compute,utility`, `graphics,compute,utility` | `compute,utility` | GPU only |
+| `OLLAMA_NUM_PARALLEL` | Concurrent model load threads | `1`, `2`, `4`, `8` | `4` | CPU/GPU |
+| `OLLAMA_MAX_LOADED_MODELS` | Max models in memory simultaneously | `1`, `2`, `4` | `2` | CPU/GPU |
+| `OLLAMA_MAX_QUEUE` | Request queue limit | `32`, `64`, `128`, `256` | `256` | CPU/GPU |
+| `OLLAMA_CONTEXT_LENGTH` | Token context window | `4096`, `8192`, `16384`, `32768` | `32768` | CPU/GPU |
+| `OLLAMA_KEEP_ALIVE` | Model memory retention time | `5m`, `10m`, `30m`, `1h`, `-1` | `30m` | CPU/GPU |
+| `COMPOSE_CPUS` | CPU limit for container | `4`, `6`, `8`, `12` | `8` | CPU/GPU |
+| `COMPOSE_MEM_LIMIT` | Memory limit for container | `16g`, `20g`, `24g`, `32g` | `20g` | CPU/GPU |
+| `NVIDIA_VISIBLE_DEVICES` | GPU device visibility | `0`, `1`, `all` | `all` | GPU only |
+| `NVIDIA_DRIVER_CAPABILITIES`| GPU driver capabilities required | `compute,utility,graphics` | `compute,utility,graphics`| GPU only |
+| `CUDA_VISIBLE_DEVICES` | CUDA index | `0`, `1` | `0` | GPU only |
 
-**GPU Mode Environment File (`ollama-gpu.env`):**
-All properties above plus GPU-specific NVIDIA settings. Requires `gpus: all` in compose service definition.
+### Security and Reliability Defaults (Both Modes):
+1. `init: true` enabled to prevent zombie processes.
+2. `no-new-privileges:true` enforced.
+3. Linux capabilities dropped via `cap_drop: [ALL]`.
+4. `pids_limit` set to `1024`.
+5. `nofile` ulimit set to `65536`.
+6. Non-blocking logging with bounded memory buffer.
 
-**GPU Requirements:**
-- NVIDIA GPU on host
-- NVIDIA Container Toolkit installed and running
-- Docker daemon configured to use NVIDIA runtime
+---
 
-Security and reliability defaults (both modes):
+<a id="4-complete-lifecycle-workflows"></a>
+## 3. Operational Command Catalog (Run from `model-box/` Root)
 
-1. `init: true` is enabled to handle zombie processes correctly.
-2. `no-new-privileges:true` is enabled.
-3. Linux capabilities are dropped with `cap_drop: [ALL]`.
-4. `pids_limit` is set to `1024`.
-5. `nofile` ulimit is set to `65536`.
-6. Logging uses non-blocking mode with bounded buffer.
+All commands below are executed from the **parent git repository root (`model-box/`)**:
 
-## 3. Operational Command Catalog
+| Operational Goal | Exact Command (From Repository Root) | Expected Output / State |
+| :--- | :--- | :--- |
+| **Start GPU Runtime** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml up -d --wait` | GPU service started and healthy |
+| **Start CPU Runtime** | `docker compose --env-file infra/compose/ollama-cpu.env -f infra/compose/compose.ollama.cpu.yaml up -d --wait` | CPU service started and healthy |
+| **Clean Build GPU (No-Cache)** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml build --no-cache` | Clean image layers generated |
+| **Clean Build CPU (No-Cache)** | `docker compose --env-file infra/compose/ollama-cpu.env -f infra/compose/compose.ollama.cpu.yaml build --no-cache` | Clean image layers generated |
+| **Stop GPU Runtime** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml down` | Containers and stack removed |
+| **Stop CPU Runtime** | `docker compose --env-file infra/compose/ollama-cpu.env -f infra/compose/compose.ollama.cpu.yaml down` | Containers and stack removed |
+| **Deep Teardown (Orphans/Volumes)** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml down -v --remove-orphans` | Containers, volumes, and orphans removed |
+| **Check Runtime Status** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml ps` | Container state, health, port `11435` |
+| **Stream Live Logs** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml logs -f ollama` | Real-time NDJSON logs |
+| **Health Check (cURL)** | `curl -fsS http://localhost:11435/api/tags` | JSON array of installed model tags |
+| **Health Check (PowerShell)** | `(Invoke-WebRequest -UseBasicParsing http://localhost:11435/api/tags).StatusCode` | Returns status code `200` |
+| **List Installed Models** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml exec -T ollama ollama list` | Tabular list of 11 loaded models |
+| **Pull New Model** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml exec -T ollama ollama pull llama3.2:latest` | Downloads & saves to host volume |
+| **Remove Model Tag** | `docker compose --env-file infra/compose/ollama-gpu.env -f infra/compose/compose.ollama.gpu.yaml exec -T ollama ollama rm deepseek-r1:7b` | Model deleted from host volume |
 
-| Purpose | Command | Output |
-|---|---|---|
-| Start GPU runtime | `docker compose --env-file ollama-gpu.env -f compose.gpu.yaml up -d` | GPU service started |
-| Start CPU runtime | `docker compose --env-file ollama-cpu.env -f compose.cpu.yaml up -d` | CPU service started |
-| Stop GPU runtime | `docker compose --env-file ollama-gpu.env -f compose.gpu.yaml down` | GPU service and Compose network removed |
-| Stop CPU runtime | `docker compose --env-file ollama-cpu.env -f compose.cpu.yaml down` | CPU service and Compose network removed |
-| Full cleanup (including orphans) | `docker compose --env-file ollama-gpu.env -f compose.gpu.yaml down -v --remove-orphans` | Containers, network, volumes, and orphans removed |
-| Runtime status | `docker compose --env-file ollama-gpu.env -f compose.gpu.yaml ps` | Current service state and ports |
-| Stream logs | `docker compose --env-file ollama-gpu.env -f compose.gpu.yaml logs -f ollama` | Real-time runtime logs |
-| Health check (Linux/macOS) | `curl -fsS http://localhost:11435/api/tags` | Model inventory JSON |
-| Health check (PowerShell) | `Invoke-WebRequest -UseBasicParsing http://localhost:11435/api/tags | Select-Object -ExpandProperty StatusCode` | HTTP status code (`200` expected) |
-| List models | `docker compose --env-file ollama-gpu.env -f compose.gpu.yaml exec -T ollama ollama list` | Installed model tags (currently 11 models) |
-| Pull or update model | `docker compose --env-file ollama-gpu.env -f compose.gpu.yaml exec -T ollama ollama pull llama2:7b` | Model pulled to host volume and persisted |
-| Remove model tag | `docker compose --env-file ollama-gpu.env -f compose.gpu.yaml exec -T ollama ollama rm deepseek-r1:7b` | Local model tag removed from host volume |
+---
 
-Current available models (consolidated 2026-09-27):
+## 3a. One-Click Repository Orchestration (From Root)
 
-| Model | Size | Status |
-|---|---|---|
-| tinyllama:latest | 637 MB | ✓ Available |
-| qwen3:8b | 5.2 GB | ✓ Available |
-| llama3.1:8b | 4.9 GB | ✓ Available |
-| qwen3-coder:latest | 18 GB | ✓ Available |
-| gemma4:e4b | 9.6 GB | ✓ Available |
-| phi4:latest | 9.1 GB | ✓ Available |
-| llama3.2-vision:latest | 7.8 GB | ✓ Available |
-| nemotron3:33b | 27 GB | ✓ Available |
-| qwen2.5vl:3b | 3.2 GB | ✓ Available |
-| deepseek-r1:7b | 4.7 GB | ✓ Available |
-| minicpm-v:latest | 5.5 GB | ✓ Available |
+For automated stack discovery, network creation, and clean rebuilds across Ollama, ComfyUI, and Connectors, execute the orchestrator script directly from the repository root:
 
-## 3a. One-click repo orchestration
-
-Use the repository-level orchestrator when you want one PowerShell entry point that discovers and manages all Compose stacks across the repo.
-
-A Linux Bash entry point is available for non-PowerShell environments.
-
-Execution context:
-
+### Windows PowerShell:
 ```powershell
-# Run from the project root itself
-./infra/scripts/Deploy-All-Compose.ps1
+# Clean build and launch Ollama stack only
+.\infra\scripts\Deploy-All-Compose.ps1 -Action BuildAndUp -Stacks 'ollama' -CleanRecreate -NoCache -Wait
+
+# Standard start for Ollama
+.\infra\scripts\Deploy-All-Compose.ps1 -Stacks 'ollama'
+
+# Check status across all stacks
+.\infra\scripts\Deploy-All-Compose.ps1 -Action Status
+
+# Stream logs across all stacks
+.\infra\scripts\Deploy-All-Compose.ps1 -Action Logs -FollowLogs
+
+# Stop Ollama stack
+.\infra\scripts\Deploy-All-Compose.ps1 -Action Down -Stacks 'ollama'
 ```
 
+### Linux / macOS Bash:
 ```bash
-# Run from the project root itself (Linux/macOS)
-./infra/scripts/Deploy-All-Compose.sh
-```
+# Clean build and launch Ollama stack only
+./infra/scripts/Deploy-All-Compose.sh --action BuildAndUp --stack ollama --clean-recreate --no-cache --wait
 
-Default behavior:
-
-- Starts all discovered Compose files under the repo by building and then bringing them up
-- Logs the exact docker command used for each stack before execution
-- Writes detailed operational logs to `infra/logs/docker-compose-orchestrator-<timestamp>.log`
-- Produces a final summary table showing the result of each stack execution
-- Supports selective execution with `-Stacks` and actions such as `Up`, `Down`, `Build`, `BuildAndUp`, `Status`, `Logs`, and `Config`
-
-Common examples:
-
-```powershell
-# Default: start all stacks
-./infra/scripts/Deploy-All-Compose.ps1
-
-# Only Ollama stacks
-./infra/scripts/Deploy-All-Compose.ps1 -Stacks 'ollama'
-
-# Only performance stack
-./infra/scripts/Deploy-All-Compose.ps1 -Stacks 'performance'
-
-# Build and then start all stacks
-./infra/scripts/Deploy-All-Compose.ps1 -Action BuildAndUp -Build
-
-# Stop everything
-./infra/scripts/Deploy-All-Compose.ps1 -Action Down
-
-# Stream logs for all stacks
-./infra/scripts/Deploy-All-Compose.ps1 -Action Logs -FollowLogs
-```
-
-```bash
-# Default: start all stacks
-./infra/scripts/Deploy-All-Compose.sh
-
-# Only Ollama stacks
+# Standard start for Ollama
 ./infra/scripts/Deploy-All-Compose.sh --stack ollama
 
-# Only performance stack
-./infra/scripts/Deploy-All-Compose.sh --stack performance
+# Check status across all stacks
+./infra/scripts/Deploy-All-Compose.sh --action Status
 
-# Build and then start all stacks
-./infra/scripts/Deploy-All-Compose.sh --action BuildAndUp --build
-
-# Stop everything
-./infra/scripts/Deploy-All-Compose.sh --action Down
-
-# Stream logs for all stacks
-./infra/scripts/Deploy-All-Compose.sh --action Logs --follow-logs
+# Stop Ollama stack
+./infra/scripts/Deploy-All-Compose.sh --action Down --stack ollama
 ```
 
-Use the single orchestrator for repo-wide operations and keep direct compose commands for stack-specific troubleshooting or precise runtime validation.
+---
 
-## 4. Runbook and Policy Extensions
+## 4. Current Available Models Inventory
 
-The deep operational procedures were moved to a dedicated runbook to keep this core document concise and standards-focused.
+The persistent host storage repository (`C:\DEV\WSB\CONFIG\volume\volume-docker_ollama`) currently houses 11 pre-installed models:
 
-- [Docker Operations Runbook](./docker-operations-runbook.md)
+| Model Tag | Disk Footprint | Primary Capability / Architecture |
+| :--- | :--- | :--- |
+| `tinyllama:latest` | 637 MB | Ultra-lightweight local testing & CPU fallback |
+| `qwen3:8b` | 5.2 GB | Advanced reasoning and dialogue |
+| `llama3.1:8b` | 4.9 GB | General language instruction & story scripting |
+| `qwen3-coder:latest` | 18 GB | Full code synthesis and AST transformation |
+| `gemma4:e4b` | 9.6 GB | Google DeepMind multimodal reasoning |
+| `phi4:latest` | 9.1 GB | High-accuracy synthetic logic and mathematics |
+| `llama3.2-vision:latest` | 7.8 GB | Multimodal visual captioning & scene analysis |
+| `nemotron3:33b` | 27 GB | NVIDIA enterprise high-capacity generation |
+| `qwen2.5vl:3b` | 3.2 GB | Lightweight vision-language model |
+| `deepseek-r1:7b` | 4.7 GB | DeepSeek reasoning & chain-of-thought |
+| `minicpm-v:latest` | 5.5 GB | Mobile-efficient visual comprehension |
 
-Use the runbook for the following workflows:
+---
 
-1. Quick start and mode switching (GPU and CPU).
-2. Complete teardown and cleanup workflows.
-3. Repo-wide rebuild and verification checklist.
-4. Bulk model pull/update procedures (PowerShell and Linux/macOS).
-5. Model version governance policy.
-6. Exposure policy and runtime user policy.
+## 5. Runbook and Policy Extensions
+
+- [**Docker Compose Deployment Master Guide**](./docker-compose-deployment-guide.md) — Single consolidated master guide for clean builds, GPU/CPU mode switching, volume mounts, and complete teardown for **Ollama** and **ComfyUI**.
+- [**Docker Operations Runbook**](./docker-operations-runbook.md) — Extended operational checklists and lifecycle policies.
+- [**Ollama Endpoints Guide**](./ollama-endpoints.md) — API request/response templates and model parameter mapping.

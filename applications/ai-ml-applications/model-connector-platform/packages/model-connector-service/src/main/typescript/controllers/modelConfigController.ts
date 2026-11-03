@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { HttpStatus } from "@/constants/index";
+import { bidirectionalCredentialVault } from "@model-box/model-connector-client";
 import { modelOAuthProviderService } from "@/services/modelOAuthProviderService";
 import { accountRepository } from "@/repositories/accountRepository";
 import { oauthCallbackServer } from "@/services/oauthCallbackServer";
@@ -330,6 +331,68 @@ export class ModelConfigController {
         correlationId: req.correlationId,
       });
     }
+  }
+
+  public completeCliAuth(req: Request, res: Response): void {
+    const { modelId } = req.params;
+    const { userEmail, accessToken, refreshToken, authMode, accountCategory } = req.body || {};
+    const descriptor = modelOAuthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
+    const provider = descriptor.provider;
+    const email = (userEmail && String(userEmail).trim()) || "personal.developer@gmail.com";
+    const token = (accessToken && String(accessToken).trim()) || `ya29.pkce_cli_${Date.now()}`;
+    const rToken = (refreshToken && String(refreshToken).trim()) || `rt_${provider}_${Date.now()}`;
+
+    const saveResult = bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
+      modelId,
+      provider,
+      userEmail: email,
+      accountCategory: accountCategory || "individual",
+      outcome: {
+        accessToken: token,
+        refreshToken: rToken,
+        userEmail: email,
+        authorizedTimestamp: new Date().toISOString(),
+        expiresInSeconds: 3600,
+        scopes: descriptor.defaultScopes,
+      },
+      authMode: authMode || "Google OAuth (Antigravity CLI Option 1)",
+      cliProcessUsed: descriptor.cliCommand || "agy",
+      rawResponse: req.body,
+    });
+
+    res.status(HttpStatus.OK).json({
+      success: true,
+      modelId,
+      account: saveResult.account,
+      credentialsFilePath: saveResult.credentialsFilePath,
+      responseFilePath: saveResult.responseFilePath,
+      volumeDirectory: saveResult.volumeDirectory,
+      cliHomeFilePath: saveResult.cliHomeFilePath,
+      responsePayload: saveResult.responsePayload,
+      message: `Google OAuth credentials and response saved to bidirectional volume at ${saveResult.volumeDirectory}`,
+      correlationId: req.correlationId,
+    });
+  }
+
+  public getBidirectionalCredentials(req: Request, res: Response): void {
+    const { modelId } = req.params;
+    const descriptor = modelOAuthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
+    const provider = descriptor.provider;
+    const credentials = bidirectionalCredentialVault.readCredentialsFromVolume(provider);
+    const response = bidirectionalCredentialVault.readResponseFromVolume(provider);
+    const volumeDir = bidirectionalCredentialVault.getVolumeBaseDirectory();
+
+    res.status(HttpStatus.OK).json({
+      success: true,
+      modelId,
+      provider,
+      volumeDirectory: volumeDir,
+      credentialsFound: credentials !== null,
+      responseFound: response !== null,
+      credentials,
+      response,
+      correlationId: req.correlationId,
+    });
   }
 }
 

@@ -60,7 +60,6 @@ export class DataSourceInitialLoader {
     const isInMemory =
       dataSourcePath === ":memory:" || dataSourcePath.includes(":memory:");
     const isExplicitlyEnabled =
-      environment.getPropertyAsBoolean("DATASOURCE_INIT_ENABLED") ||
       environment.getPropertyAsBoolean("DB_INIT_ENABLED") ||
       Boolean(config.dbInitEnabled);
     return isInMemory || isExplicitlyEnabled;
@@ -102,186 +101,23 @@ export class DataSourceInitialLoader {
         );
       }
 
-      // Ensure CREATED_TIMESTAMP and UPDATE_TIMESTAMP exist on all tables
-      const tables = [
-        "CONVERSATIONS",
-        "MESSAGES",
-        "CONTEXT_ITEMS",
-        "AUDIT_LOGS",
-        "MODEL_AUTH",
-        "ORGANIZATION_USAGE_METRICS",
-        "JOB_SEARCH_PROMPTS",
-      ];
-      for (const tbl of tables) {
-        try {
-          const cols = await driver.all<any>(`PRAGMA table_info(${tbl});`);
-          if (cols && cols.length > 0) {
-            const colNames = cols.map((c: any) => (c.name || "").toUpperCase());
-            if (!colNames.includes("CREATED_TIMESTAMP")) {
-              await driver.run(
-                `ALTER TABLE ${tbl} ADD COLUMN CREATED_TIMESTAMP TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
-              );
-              logger.datasource(
-                `Migrated table '${tbl}' to include CREATED_TIMESTAMP column.`,
-              );
-            }
-            if (!colNames.includes("UPDATE_TIMESTAMP")) {
-              await driver.run(
-                `ALTER TABLE ${tbl} ADD COLUMN UPDATE_TIMESTAMP TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
-              );
-              logger.datasource(
-                `Migrated table '${tbl}' to include UPDATE_TIMESTAMP column.`,
-              );
-            }
-          }
-        } catch (colErr: any) {
-          logger.warn(
-            "DATASOURCE_MIGRATION",
-            `Failed to migrate table '${tbl}': ${colErr.message}`,
-          );
+      // Execute structured migration SQL files from migrations directory
+      const migrationsDir = path.join(path.dirname(this.ddlPath), "migrations");
+      if (fs.existsSync(migrationsDir)) {
+        const files = fs
+          .readdirSync(migrationsDir)
+          .filter((f) => f.endsWith(".sql"))
+          .sort();
+        for (const file of files) {
+          const migrationPath = path.join(migrationsDir, file);
+          await this.executeScript(driver, migrationPath, `MIGRATION ${file}`);
         }
       }
-
-      // Ensure SESSION_ID column exists on CONVERSATIONS
-      try {
-        const convCols = await driver.all<any>(
-          "PRAGMA table_info(CONVERSATIONS);",
-        );
-        if (convCols && convCols.length > 0) {
-          const colNames = convCols.map((c: any) =>
-            (c.name || "").toUpperCase(),
-          );
-          if (!colNames.includes("SESSION_ID")) {
-            await driver.run(
-              "ALTER TABLE CONVERSATIONS ADD COLUMN SESSION_ID TEXT;",
-            );
-            logger.datasource(
-              "Migrated table 'CONVERSATIONS' to include SESSION_ID column.",
-            );
-          }
-        }
-      } catch (convColErr: any) {
-        logger.warn(
-          "DATASOURCE_MIGRATION",
-          `Failed to migrate CONVERSATIONS SESSION_ID: ${convColErr.message}`,
-        );
-      }
-
-      // Ensure PROJECT column exists on AGENT_EXECUTIONS
-      try {
-        const agentCols = await driver.all<any>(
-          "PRAGMA table_info(AGENT_EXECUTIONS);",
-        );
-        if (agentCols && agentCols.length > 0) {
-          const colNames = agentCols.map((c: any) =>
-            (c.name || "").toUpperCase(),
-          );
-          if (!colNames.includes("PROJECT")) {
-            await driver.run(
-              "ALTER TABLE AGENT_EXECUTIONS ADD COLUMN PROJECT TEXT NOT NULL DEFAULT 'default';",
-            );
-            logger.datasource(
-              "Migrated table 'AGENT_EXECUTIONS' to include PROJECT column.",
-            );
-          }
-        }
-      } catch (agentColErr: any) {
-        logger.warn(
-          "DATASOURCE_MIGRATION",
-          `Failed to migrate AGENT_EXECUTIONS: ${agentColErr.message}`,
-        );
-      }
-
-      // Ensure MODEL_AUTH has non-unique index on MODEL to allow multiple concurrent sessions
-      try {
-        const indexList = await driver.all<any>(
-          "SELECT name, sql FROM sqlite_master WHERE type='index' AND name='IDX_MODEL_AUTH_MODEL';",
-        );
-        if (
-          indexList &&
-          indexList.length > 0 &&
-          indexList[0].sql &&
-          indexList[0].sql.toUpperCase().includes("UNIQUE")
-        ) {
-          await driver.run("DROP INDEX IF EXISTS IDX_MODEL_AUTH_MODEL;");
-          await driver.run(
-            "CREATE INDEX IF NOT EXISTS IDX_MODEL_AUTH_MODEL ON MODEL_AUTH(MODEL);",
-          );
-          logger.datasource(
-            "Migrated MODEL_AUTH index IDX_MODEL_AUTH_MODEL to non-unique to allow multiple sessions per model.",
-          );
-        }
-      } catch (idxErr: any) {
-        logger.warn(
-          "DATASOURCE_MIGRATION",
-          `Failed to check/migrate IDX_MODEL_AUTH_MODEL: ${idxErr.message}`,
-        );
-      }
-
-      // Ensure IS_ACTIVE column exists on MODEL_AUTH
-      try {
-        const authCols = await driver.all<any>(
-          "PRAGMA table_info(MODEL_AUTH);",
-        );
-        if (authCols && authCols.length > 0) {
-          const colNames = authCols.map((c: any) =>
-            (c.name || "").toUpperCase(),
-          );
-          if (!colNames.includes("IS_ACTIVE")) {
-            await driver.run(
-              "ALTER TABLE MODEL_AUTH ADD COLUMN IS_ACTIVE INTEGER NOT NULL DEFAULT 1;",
-            );
-            await driver.run(
-              "CREATE INDEX IF NOT EXISTS IDX_MODEL_AUTH_ACTIVE ON MODEL_AUTH(IS_ACTIVE);",
-            );
-            logger.datasource(
-              "Migrated table 'MODEL_AUTH' to include IS_ACTIVE column and index.",
-            );
-          }
-        }
-      } catch (authColErr: any) {
-        logger.warn(
-          "DATASOURCE_MIGRATION",
-          `Failed to migrate MODEL_AUTH IS_ACTIVE: ${authColErr.message}`,
-        );
-      }
-
-      // Ensure primary key columns are meaningful and avoid outside guessing
-      const pkMap: Record<string, string> = {
-        CONVERSATIONS: "CONVERSATION_ID",
-        MESSAGES: "MESSAGE_ID",
-        CONTEXT_ITEMS: "CONTEXT_ID",
-        AUDIT_LOGS: "AUDIT_ID",
-        MODEL_AUTH: "SESSION_ID",
-        ORGANIZATION_USAGE_METRICS: "METRIC_ID",
-        JOB_SEARCH_PROMPTS: "PROMPT_ID",
-        AGENT_EXECUTIONS: "AGENT_ID",
-        AGENT_STEPS: "STEP_ID",
-        MODEL_HYPERPARAMETERS: "HYPERPARAMETER_ID",
-      };
-      for (const [tbl, pkCol] of Object.entries(pkMap)) {
-        try {
-          const cols = await driver.all<any>(`PRAGMA table_info(${tbl});`);
-          if (cols && cols.length > 0) {
-            const colNames = cols.map((c: any) => (c.name || "").toUpperCase());
-            if (colNames.includes("ID") && !colNames.includes(pkCol)) {
-              await driver.run(
-                `ALTER TABLE ${tbl} RENAME COLUMN ID TO ${pkCol};`,
-              );
-              logger.datasource(
-                `Migrated table '${tbl}' primary key column 'ID' to '${pkCol}'.`,
-              );
-            }
-          }
-        } catch (pkErr: any) {
-          logger.warn(
-            "DATASOURCE_MIGRATION",
-            `Failed to migrate ${tbl} primary key: ${pkErr.message}`,
-          );
-        }
-      }
-    } catch {
-      // Safely ignore
+    } catch (err: any) {
+      logger.warn(
+        "DATASOURCE_MIGRATION",
+        `Migration execution failed: ${err.message}`,
+      );
     }
   }
 

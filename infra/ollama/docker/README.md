@@ -2,11 +2,14 @@
 
 This directory stores runtime artifacts only (Compose files, env files, and local volume placeholders).
 
+> **Master Guide Reference**: All end-to-end clean build procedures, GPU/CPU mode switching, volume persistence, and teardown commands across Ollama and ComfyUI are consolidated into the single authoritative document:  
+> 👉 [**Docker Compose Deployment Master Guide**](../../../docs/docker-compose-deployment-guide.md)
+
 Operational content has been consolidated into centralized project docs:
 
-1. Manual runtime commands and rebuild workflow: [../../../docs/docker-operations.md](../../../docs/docker-operations.md)
-2. Endpoint usage and payload examples: [../../../docs/ollama-endpoints.md](../../../docs/ollama-endpoints.md)
-3. Documentation policy and ownership: [../../../docs/README.md](../../../docs/README.md)
+1. Unified Clean Build & Deployment Master Runbook: [../../../docs/docker-compose-deployment-guide.md](../../../docs/docker-compose-deployment-guide.md)
+2. Manual runtime commands and model operations: [../../../docs/docker-operations.md](../../../docs/docker-operations.md)
+3. Endpoint usage and payload examples: [../../../docs/ollama-endpoints.md](../../../docs/ollama-endpoints.md)
 
 ## Quick Commands
 

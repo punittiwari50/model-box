@@ -190,12 +190,10 @@ const PROPERTY_ALIASES: Readonly<Record<string, readonly string[]>> =
     "datasource.init.enabled": Object.freeze([
       "DB_INIT_ENABLED",
       "db.init.enabled",
-      "DATASOURCE_INIT_ENABLED",
     ]),
     DB_INIT_ENABLED: Object.freeze([
       "datasource.init.enabled",
       "db.init.enabled",
-      "DATASOURCE_INIT_ENABLED",
     ]),
     "models.gemini.apiKey": Object.freeze([
       "GEMINI_API_KEY",

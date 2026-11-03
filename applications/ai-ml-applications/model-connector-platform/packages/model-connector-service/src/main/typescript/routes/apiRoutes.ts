@@ -94,6 +94,12 @@ apiRouter.post("/models/:modelId/oauth-exchange", (req, res) =>
 apiRouter.post("/models/:modelId/cli-login", (req, res) =>
   modelConfigController.executeCliLogin(req, res),
 );
+apiRouter.post("/models/:modelId/cli-auth-complete", (req, res) =>
+  modelConfigController.completeCliAuth(req, res),
+);
+apiRouter.get("/models/:modelId/bidirectional-credentials", (req, res) =>
+  modelConfigController.getBidirectionalCredentials(req, res),
+);
 apiRouter.get("/models/:modelId/latest-oauth-callback", (req, res) =>
   modelConfigController.getLatestOAuthCallback(req, res),
 );

@@ -25,6 +25,7 @@ export * from "@/strategies/oauth/ModelOAuthStrategyRegistry.js";
 export * from "@/auth/ModelOAuthProviderService.js";
 export * from "@/auth/ModelAccountRepository.js";
 export * from "@/auth/GeminiCliSessionAuthManager.js";
+export * from "@/auth/BidirectionalCredentialVault.js";
 
 // Security & Cryptographic Vault
 export * from "@/security/CookieVaultManager.js";

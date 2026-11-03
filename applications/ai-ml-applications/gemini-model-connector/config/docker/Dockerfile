@@ -9,6 +9,10 @@ FROM node:slim AS builder
 
 WORKDIR /app
 
+ENV IS_BUILDER=true
+ENV CONTAINER_ROLE=builder
+ENV ALLOW_MOCK_FALLBACK=true
+
 # Copy dependency manifests
 COPY package.json ./
 COPY config ./config
@@ -33,6 +37,10 @@ RUN npm prune --omit=dev --no-audit --no-fund && \
 FROM node:slim AS runner
 
 WORKDIR /app
+
+ENV IS_BUILDER=false
+ENV CONTAINER_ROLE=runner
+ENV ALLOW_MOCK_FALLBACK=false
 
 # Combine OS package installation, GitHub CLI (gh), cleanup in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -1,5 +1,6 @@
 import express, { type Request, type Response } from "express";
 import { GoogleAuthConstants, ModelCatalog, ProviderId } from "@model-box/model-connector-core";
+import { bidirectionalCredentialVault } from "@model-box/model-connector-client";
 import { accountRepository } from "@/repositories/accountRepository";
 import { OAuthConstants } from "@/constants/index";
 import { OAuthExecutorFactory } from "@/services/oauth";
@@ -337,7 +338,6 @@ export class OAuthCallbackServer {
   private persistCallbackSession(ctx: OAuthCallbackContext, outcome: OAuthExchangeOutcome): CapturedOAuthSession {
     const descriptor = modelOAuthProviderService.resolveStrategy(ctx.modelId).getDescriptor(ctx.modelId);
     const providerId = descriptor.provider || ctx.provider;
-    const providerLabel = descriptor.providerName || ctx.provider;
     const session: CapturedOAuthSession = {
       modelId: ctx.modelId,
       provider: providerId,
@@ -349,36 +349,26 @@ export class OAuthCallbackServer {
     };
     this.capturedSessions.set(ctx.modelId, session);
     this.capturedSessions.set("latest", session);
-    const credentialsFileContent = JSON.stringify(
-      {
-        access_token: outcome.accessToken,
-        refresh_token: outcome.refreshToken,
-        scope: descriptor.defaultScopes.join(" "),
-        token_type: "Bearer",
-        expiry_date: Date.now() + 3600 * 1000,
-      },
-      null,
-      2,
-    );
-    accountRepository.createAccount({
+    bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
       modelId: ctx.modelId,
-      accountName: `${providerLabel} (${outcome.userEmail})`,
+      provider: providerId,
       userEmail: outcome.userEmail,
-      authType: "cli_oauth",
-      credentialValue: outcome.accessToken,
-      isActive: true,
-      configJson: JSON.stringify({
-        provider: providerId,
-        oauthClientId: descriptor.defaultClientId || (providerId === ProviderId.GOOGLE ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID : ""),
-        oauthAuthUrl: descriptor.authorizationEndpoint || "",
-        oauthTokenUrl: descriptor.tokenEndpoint || "",
-        oauthScopes: descriptor.defaultScopes,
-        redirectUri: descriptor.defaultRedirectUri || OAuthConstants.DEFAULT_CALLBACK_URL,
-        code: ctx.code,
+      accountCategory: "individual",
+      outcome: {
+        accessToken: outcome.accessToken,
         refreshToken: outcome.refreshToken,
+        userEmail: outcome.userEmail,
         authorizedTimestamp: outcome.authorizedTimestamp,
-        credentialsFileContent,
-      }),
+        expiresInSeconds: 3600,
+        scopes: descriptor.defaultScopes,
+      },
+      authMode: "Google OAuth (Antigravity CLI Option 1)",
+      cliProcessUsed: descriptor.cliCommand || "agy",
+      rawResponse: {
+        code: ctx.code,
+        state: ctx.state,
+        provider: providerId,
+      },
     });
     return session;
   }

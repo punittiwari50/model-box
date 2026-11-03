@@ -13,12 +13,17 @@ export interface ModelHyperparameters {
   readonly fallbackThresholdPercentage: number;
 }
 
+const isBuilderOrTest =
+  process.env.IS_BUILDER === "true" ||
+  process.env.CONTAINER_ROLE === "builder" ||
+  process.env.NODE_ENV === "test";
+
 export const DEFAULT_HYPERPARAMETERS: ModelHyperparameters = Object.freeze({
   temperature: 0.7,
   topP: 0.95,
   maxOutputTokens: 8192,
   timeoutMs: 120000,
-  allowMockFallback: true,
+  allowMockFallback: isBuilderOrTest,
   fallbackThresholdPercentage: 90,
 });
 
@@ -134,9 +139,14 @@ export class ModelProperties {
     this.executionMode = ["auto", "api", "cli", "mock"].includes(mode)
       ? (mode as any)
       : "auto";
+    const isBuilderEnv =
+      env.getPropertyAsBoolean("IS_BUILDER", false) ||
+      env.getProperty("CONTAINER_ROLE", "") === "builder" ||
+      env.getProperty("NODE_ENV", "") === "test";
+
     this.allowMockFallback = env.getPropertyAsBoolean(
       "model.allowMockFallback",
-      env.getPropertyAsBoolean("ALLOW_MOCK_FALLBACK", false),
+      env.getPropertyAsBoolean("ALLOW_MOCK_FALLBACK", isBuilderEnv),
     );
     this.subscriptionPolicy = env.getProperty(
       "models.subscription.policy",

@@ -1,37 +1,47 @@
-# ComfyUI Docker runtime
+# ComfyUI Docker Runtime
 
-This directory contains ComfyUI runtime artifacts (Dockerfiles, Compose files, env files).
+This directory stores ComfyUI runtime artifacts (Dockerfiles, Compose files, and local volume definitions).
 
-## Quick Commands
+> **Master Guide Reference**: All end-to-end clean build procedures, GPU/CPU mode switching, volume mount persistence, and teardown commands are consolidated into the single authoritative document:  
+> 👉 [**Docker Compose Deployment Master Guide**](../../../docs/docker-compose-deployment-guide.md)
 
-Start GPU ComfyUI:
+---
 
+## 1. Quick Execution Commands
+
+### Clean Build & Launch (GPU Mode)
 ```bash
-docker compose --env-file comfyui-gpu.env -f compose.gpu.yaml up -d --build --wait --wait-timeout 240
+docker compose --env-file comfyui-gpu.env -f compose.gpu.yaml down --remove-orphans
+docker compose --env-file comfyui-gpu.env -f compose.gpu.yaml build --no-cache
+docker compose --env-file comfyui-gpu.env -f compose.gpu.yaml up -d --wait --wait-timeout 240
 ```
 
-Start CPU ComfyUI:
-
+### Clean Build & Launch (CPU Mode)
 ```bash
-docker compose --env-file comfyui-cpu.env -f compose.cpu.yaml up -d --build --wait --wait-timeout 240
+docker compose --env-file comfyui-cpu.env -f compose.cpu.yaml down --remove-orphans
+docker compose --env-file comfyui-cpu.env -f compose.cpu.yaml build --no-cache
+docker compose --env-file comfyui-cpu.env -f compose.cpu.yaml up -d --wait --wait-timeout 240
 ```
 
-Stop ComfyUI:
-
+### Teardown
 ```bash
 docker compose --env-file comfyui-gpu.env -f compose.gpu.yaml down --remove-orphans
 ```
 
-## Persistence and Bidirectional Sync
+---
 
-1. Host data root is configured by `COMPOSE_COMFYUI_VOLUME_HOST` and mounted to `/data/comfyui`.
-2. Workflow path is configured by `COMPOSE_COMFYUI_WORKFLOWS_HOST` and mounted to `/data/comfyui/user/default/workflows`.
-3. Source path is configured by `COMPOSE_COMFYUI_SOURCE_HOST` and mounted to `/workspace/comfyui-source`.
-4. Skills source path is configured by `COMPOSE_COMFYUI_SKILLS_HOST` and mounted to `/workspace/skills`.
+## 2. Persistence and Bidirectional Mounts
 
-All mounts are read-write bind mounts, enabling host-to-container and container-to-host updates.
+1. **Host Data Root:** `COMPOSE_COMFYUI_VOLUME_HOST` mounted to `/data/comfyui`.
+2. **Workflows:** `COMPOSE_COMFYUI_WORKFLOWS_HOST` mounted to `/data/comfyui/user/default/workflows`.
+3. **Source Path:** `COMPOSE_COMFYUI_SOURCE_HOST` mounted to `/workspace/comfyui-source`.
+4. **Skills Source:** `COMPOSE_COMFYUI_SKILLS_HOST` mounted to `/workspace/skills`.
 
-## Deployment Modes
+See `.env.example` for portable baseline template values (with project-relative `./volumes/...` paths).
 
-1. GPU runtime: `compose.gpu.yaml` with `comfyui-gpu.env`.
-2. CPU runtime: `compose.cpu.yaml` with `comfyui-cpu.env`.
+
+For complete automated orchestration across ComfyUI and Ollama, use:
+```powershell
+# From repository root:
+.\infra\scripts\Deploy-All-Compose.ps1 -Action BuildAndUp -Stacks 'comfyui' -CleanRecreate -NoCache -Wait
+```

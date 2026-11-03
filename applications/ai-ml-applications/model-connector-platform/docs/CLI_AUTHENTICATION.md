@@ -103,8 +103,10 @@ sequenceDiagram
     actor User as Operator / Developer
     participant UI as ModelBox Studio (Port 3005)
     participant Loopback as OAuthCallbackServer (Port 8085)
+    participant Vault as BidirectionalCredentialVault
     participant Google as Google OAuth2 Endpoint
     participant DB as SQLite (platform.db: MODEL_ACCOUNTS)
+    participant Vol as Bidirectional Volume (/app/config/data)
 
     User->>UI: Select Model ('gemini-3.8-flash') & Click "Sign in with Google"
     UI->>Loopback: GET /oauth2/authorize?provider=google&model=gemini-3.8-flash
@@ -116,7 +118,11 @@ sequenceDiagram
     Note over Loopback,Google: Exchange code for OAuth tokens
     Loopback->>Google: POST /token { code, client_id, client_secret, grant_type }
     Google-->>Loopback: 200 OK { access_token: ya29..., refresh_token, email }
-    Loopback->>DB: Check existing account & Save session credentials
+    Loopback->>Vault: saveOAuthResponseAndCredentials(session)
+    Vault->>Vol: Write credentials/google_oauth_creds.json & gemini_oauth_creds.json
+    Vault->>Vol: Write oauth_responses/google_auth_response.json & gemini_auth_response.json
+    Vault->>Vol: Write ~/.gemini/oauth_creds.json
+    Vault->>DB: Check existing account & In-place update / insert
     Loopback-->>UI: 200 OK HTML Callback / PostMessage redirect to Studio
     UI-->>User: Populate Active Account Credentials & Status
     User->>UI: Enter Test Prompt: "Hi , whats date time now ?"
@@ -126,6 +132,30 @@ sequenceDiagram
     UI->>DB: Upsert Record: match (model_id, user_email) -> UPDATE in-place
     DB-->>UI: Single row updated (0 duplicate rows created)
 ```
+
+---
+
+### 3.4 Bidirectional Volume Storage Engine & CLI Synchronization
+
+The platform utilizes `BidirectionalCredentialVault` to ensure credentials and full raw OAuth responses are kept in sync across three operational planes:
+1. **Container Persistent Volume**: Mounted at `/app/config/data` (`model-connector-backend-data`).
+2. **Host Local Filesystem**: Mapped to `applications/ai-ml-applications/model-connector-platform/config/data`.
+3. **CLI User Runtime Home**: `~/.gemini/oauth_creds.json` for seamless upstream CLI (`agy`, `gemini-cli`) execution.
+
+```
+/app/config/data/
+├── credentials/
+│   ├── google_oauth_creds.json       <-- Active token payload for Google provider
+│   └── gemini_oauth_creds.json       <-- Mirror credentials for Gemini inference
+├── oauth_responses/
+│   ├── google_auth_response.json     <-- Full OAuth token response + timestamps
+│   └── gemini_auth_response.json     <-- Gemini response payload
+└── platform.db                       <-- SQLite repository (MODEL_ACCOUNTS table)
+```
+
+#### Dedicated CLI Completion & Credentials Verification APIs
+* `POST /api/v1/models/:modelId/cli-auth-complete`: Ingests CLI OAuth outcomes and writes them across volume directories, user home, and SQLite repository.
+* `GET /api/v1/models/:modelId/bidirectional-credentials`: Inspects the on-disk state of credentials and response files in the bidirectional volume.
 
 ---
 

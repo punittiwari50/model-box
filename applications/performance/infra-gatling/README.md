@@ -1,4 +1,4 @@
-﻿# Infra Gatling Performance Harness
+# Infra Gatling Performance Harness
 
 This performance harness targets the Ollama runtime defined in the Compose stack at `infra/ollama/docker/compose.ollama.yaml`.
 
@@ -271,8 +271,8 @@ com.modelbox.simulation.ollama.OllamaSpikeSimulation
 
 Each simulation run is archived separately under `/reports/runs/<timestamp>_<simulation-class>/` with its own Gatling HTML report and metadata.
 
-For a current install-versus-online snapshot, see [Ollama endpoints and use cases](../../docs/ollama-endpoints.md#4-version-snapshot).
-For RTX 5080/5090 fit guidance, see [Ollama endpoints and use cases](../../docs/ollama-endpoints.md#5-rtx-support-snapshot).
+For a current install-versus-online snapshot, see [Ollama endpoints and use cases](../../../docs/ollama-endpoints.md#4-version-snapshot).
+For RTX 5080/5090 fit guidance, see [Ollama endpoints and use cases](../../../docs/ollama-endpoints.md#5-rtx-support-snapshot).
 
 ## Test Scenarios
 
