@@ -28,14 +28,49 @@ As specified in the [Gemini CLI authentication setup](https://geminicli.com/docs
   - `https://www.googleapis.com/auth/userinfo.email`
   - `https://www.googleapis.com/auth/userinfo.profile`
 
-### 2.2 The Two Account Categories
-1. **Individual Google Accounts (Personal / CLI Mode)**:
-   - **Command**: `gemini auth login --browser`
-   - **Authentication**: Direct Google Account identity consent with PKCE loopback redirect.
-   - **Google Cloud Project**: Not required.
-   - **Scopes**: Restricted strictly to the 3 approved registered scopes listed above.
-2. **Enterprise Cloud Projects (Service Account / Enterprise Mode)**:
-   - Managed Google Cloud project with Vertex AI API enabled and service-account or OAuth 2.0 Client Credentials.
+### 2.2 The Two Primary Authentication Modes in Gemini CLI
+
+When launching the CLI or initiating authentication (`gemini auth login` or `/auth signin`), the interface presents two foundational paths:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      GEMINI CLI AUTHENTICATION DIALOG                           │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  (*) 1. (Recommended) Sign in with Google (Personal Google OAuth)              │
+│  ( ) 2. Use Gemini API Key                                                      │
+│  ( ) 3. Vertex AI (Google Cloud Project)                                        │
+│  ( ) 4. Use Cloud Shell / Compute ADC                                           │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+The two primary modalities correspond directly to:
+
+#### Mode 1: Google OAuth (`AuthType.LOGIN_WITH_GOOGLE` / `'oauth-personal'`)
+- **CLI Representation**: `Sign in with Google` (Individual Account in ModelBox Studio).
+- **Backend Service**: Google Cloud Code Assist Server (`https://cloudcode-pa.googleapis.com`).
+- **Google Cloud Project**: **Not Required**. Users log in with a standard personal Google Account.
+- **Protocol**: OAuth 2.0 PKCE flow with local loopback listener (`http://localhost:<port>/oauth2callback`).
+- **Scopes**: Restricted strictly to registered scopes:
+  - `https://www.googleapis.com/auth/cloud-platform`
+  - `https://www.googleapis.com/auth/userinfo.email`
+  - `https://www.googleapis.com/auth/userinfo.profile`
+- **Tier & Quota**: Evaluated via `setupUser()` in `packages/core/src/code_assist/setup.ts`. Free tier access is granted directly without requiring a billing account or project ID.
+
+#### Mode 2: Google Cloud Project (`AuthType.USE_VERTEX_AI` / `'vertex-ai'`)
+- **CLI Representation**: `Vertex AI` (Enterprise Project in ModelBox Studio).
+- **Backend Service**: Google Cloud Vertex AI API (`https://<location>-aiplatform.googleapis.com`).
+- **Google Cloud Project**: **Mandatory**. Requires `GOOGLE_CLOUD_PROJECT` (or `GOOGLE_CLOUD_PROJECT_ID`) and `GOOGLE_CLOUD_LOCATION` (e.g. `us-central1`).
+- **Protocol**: Enterprise IAM authentication via Service Account credentials (`GOOGLE_APPLICATION_CREDENTIALS`), Application Default Credentials (`gcloud auth application-default login`), or `GOOGLE_API_KEY`.
+- **Tier & Quota**: Standard enterprise billing (pay-as-you-go or enterprise commitment), with access to enterprise models and private VPC Service Controls.
+
+| Parameter / Dimension | Mode 1: Google OAuth (Personal) | Mode 2: Google Cloud Project (Vertex AI) |
+| :--- | :--- | :--- |
+| **Enum Identifier** | `AuthType.LOGIN_WITH_GOOGLE` (`oauth-personal`) | `AuthType.USE_VERTEX_AI` (`vertex-ai`) |
+| **Google Cloud Project** | ❌ None (No project setup needed) | ✅ Required (`GOOGLE_CLOUD_PROJECT`) |
+| **Google Cloud Billing** | ❌ None (Free tier access) | ✅ Required (Pay-As-You-Go / Subscription) |
+| **Backend Target** | `cloudcode-pa.googleapis.com` | `aiplatform.googleapis.com` |
+| **Primary Credential** | OAuth 2.0 PKCE user token | Service Account / ADC / IAM Token |
+| **Consent UX** | Browser popup account selector | Cloud Console IAM permission grant |
 
 ---
 

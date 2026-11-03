@@ -80,3 +80,57 @@ npm run start
 | **OAuth Scope Governance** | Fixed upstream scopes (`cloud-platform`, `userinfo.email`, `userinfo.profile`). | Sanitized scopes dynamically preventing `Error 403: restricted_client` caused by unverified internal scopes (`cclog`, `aicode`). |
 | **Account Switching** | Must manually run `/auth signout` and re-authenticate. | Injects `prompt=select_account consent` into authorization URL to prompt user account chooser on every handshake. |
 
+---
+
+## 4. Upstream CLI Architecture: Google OAuth vs. Google Cloud Project
+
+In `gemini-cli`, the core authentication selection (`packages/cli/src/ui/auth/AuthDialog.tsx`) bifurcates into two distinct operational models:
+
+### 4.1 Option 1: Google OAuth (`AuthType.LOGIN_WITH_GOOGLE` / `'oauth-personal'`)
+* **Target Audience**: Individual developers, personal Google Accounts, zero-cost experimentation.
+* **Code Implementation**:
+  - Identified by enum `AuthType.LOGIN_WITH_GOOGLE = 'oauth-personal'` in `packages/core/src/core/contentGenerator.ts`.
+  - Invokes `createCodeAssistContentGenerator()` targeting Google's internal Code Assist server endpoint:
+    ```
+    CODE_ASSIST_ENDPOINT = 'https://cloudcode-pa.googleapis.com'
+    ```
+  - Dispatches `setupUser()` in `packages/core/src/code_assist/setup.ts`, which sends a `loadCodeAssist` RPC.
+  - If no `GOOGLE_CLOUD_PROJECT` is set, the user is automatically onboarded to the **FREE** tier.
+* **OAuth Loopback Handshake**:
+  - Runs local web server (`http://localhost:<port>/oauth2callback`).
+  - Scopes requested:
+    1. `https://www.googleapis.com/auth/cloud-platform`
+    2. `https://www.googleapis.com/auth/userinfo.email`
+    3. `https://www.googleapis.com/auth/userinfo.profile`
+  - Zero Google Cloud project creation, billing account, or service account setup required.
+
+### 4.2 Option 2: Google Cloud Project (`AuthType.USE_VERTEX_AI` / `'vertex-ai'`)
+* **Target Audience**: Enterprise teams, production workloads, corporate Google Cloud billing accounts.
+* **Code Implementation**:
+  - Identified by enum `AuthType.USE_VERTEX_AI = 'vertex-ai'` in `packages/core/src/core/contentGenerator.ts`.
+  - Directs inference requests to Google Cloud Vertex AI infrastructure:
+    ```
+    VERTEX_AI_ENDPOINT = 'https://<location>-aiplatform.googleapis.com'
+    ```
+  - Requires explicit Google Cloud configuration:
+    ```bash
+    export GOOGLE_CLOUD_PROJECT="my-enterprise-project-id"
+    export GOOGLE_CLOUD_LOCATION="us-central1"
+    ```
+  - Authenticates via Service Account key (`GOOGLE_APPLICATION_CREDENTIALS`), Google Cloud SDK Application Default Credentials (`gcloud auth application-default login`), or `GOOGLE_API_KEY`.
+* **Billing & Quota**:
+  - Standard enterprise pay-as-you-go or committed compute quota.
+  - Subject to corporate VPC Service Controls, data governance, and organizational IAM policies.
+
+### 4.3 Technical Comparison Matrix
+
+| Feature / Detail | Google OAuth (`LOGIN_WITH_GOOGLE`) | Google Cloud Project (`USE_VERTEX_AI`) |
+| :--- | :--- | :--- |
+| **Enum Value** | `'oauth-personal'` | `'vertex-ai'` |
+| **Backend API** | Google Cloud Code Assist (`cloudcode-pa.googleapis.com`) | Google Cloud Vertex AI (`aiplatform.googleapis.com`) |
+| **GCP Project Setup** | ❌ None required | ✅ Required (`GOOGLE_CLOUD_PROJECT`) |
+| **Billing Requirement** | ❌ None (Free tier access) | ✅ Mandatory GCP Billing Account |
+| **Auth Transport** | Interactive OAuth 2.0 PKCE Loopback | Service Account / ADC / IAM Bearer Token |
+| **Modelbox Studio Mapping**| **Individual Account (CLI)** card | **Enterprise Project (OAuth Web)** card |
+
+
