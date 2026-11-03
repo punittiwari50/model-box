@@ -276,3 +276,13 @@ npm run build
 # Run unit tests across workspaces
 npm run test
 ```
+
+---
+
+## 📚 Architectural & Authentication Documentation
+
+- [CLI & Multi-Provider OAuth Authentication Architecture](./docs/CLI_AUTHENTICATION.md)
+- [Antigravity CLI (v1.4.12) Authentication Specification](./docs/ANTIGRAVITY_CLI_AUTHENTICATION.md)
+- [Gemini CLI Upstream Codebase Scan & Comparison](./docs/GEMINI_CLI_AUTHENTICATION_ANALYSIS.md)
+- [UI Flow Documentation & State Machines](./docs/ui-flows.md)
+

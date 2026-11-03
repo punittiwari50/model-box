@@ -21,3 +21,6 @@ __pycache__/
 *.sqlite3
 config/data/*.db*
 !config/data/.gitkeep
+*.tar.gz
+*.tgz
+*.zip

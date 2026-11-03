@@ -7,6 +7,8 @@ This specification details the architecture, design patterns, and manual testing
 ### Normative Standards & Documentation References
 - **Official Gemini CLI Documentation**: [Gemini CLI Documentation](https://geminicli.com/docs/)
 - **Gemini CLI Authentication Setup for Individual Google Accounts**: [Gemini CLI authentication setup | Gemini CLI](https://geminicli.com/docs/get-started/authentication/)
+- **Antigravity CLI (v1.4.12) Authentication Specification**: [ANTIGRAVITY_CLI_AUTHENTICATION.md](./ANTIGRAVITY_CLI_AUTHENTICATION.md)
+- **Gemini CLI Upstream Codebase Scan & Comparison**: [GEMINI_CLI_AUTHENTICATION_ANALYSIS.md](./GEMINI_CLI_AUTHENTICATION_ANALYSIS.md)
 - **OAuth 2.0 for Native & Desktop Applications**: RFC 8252 (Loopback IP redirect `http://localhost:8085/oauth2callback`)
 - **Engineering Guidelines**: `GEMINI.md` — Invariant 3 (Strategy Pattern `STD-COD-005`), Invariant 4 (Centralized Constants `STD-COD-002`), Invariant 6 (Resilient Errors `STD-COD-007`).
 
