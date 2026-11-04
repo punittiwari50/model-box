@@ -1,5 +1,5 @@
 import { coreDatabaseManager } from "@/database/CoreDatabaseEngine.js";
-import { DatabaseTable } from "@/constants/index.js";
+import { DatabaseTable, CliOAuthConstants } from "@/constants/index.js";
 import { fileUtils } from "@/utils/file/fileUtils.js";
 import { pathUtils } from "@/utils/file/pathUtils.js";
 import { processUtils } from "@/utils/process/processUtils.js";
@@ -19,6 +19,14 @@ export interface CliOAuthSession {
   readonly status: "PENDING" | "COMPLETED" | "EXPIRED" | "FAILED";
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+export interface CliOAuthSessionDocument {
+  readonly version?: string;
+  readonly generatedAt?: string;
+  readonly updatedAt?: string;
+  readonly latestSessionId?: string;
+  readonly sessions: readonly CliOAuthSession[];
 }
 
 export class CliOAuthSessionRepository {
@@ -62,36 +70,46 @@ export class CliOAuthSessionRepository {
       .get(session.sessionId) as { SESSION_ID: string } | undefined;
 
     if (existing) {
-      db.prepare(`
-        UPDATE ${DatabaseTable.CLI_OAUTH_SESSIONS}
-        SET AUTH_CODE = COALESCE(?, AUTH_CODE),
-            STATUS = ?,
-            UPDATED_AT = ?
-        WHERE SESSION_ID = ?
-      `).run(session.authCode ?? null, session.status, session.updatedAt, session.sessionId);
+      this.executeSessionUpdate(session);
     } else {
-      db.prepare(`
-        INSERT INTO ${DatabaseTable.CLI_OAUTH_SESSIONS} (
-          SESSION_ID, PROVIDER, MODEL_ID, AUTH_MODE, OAUTH_URL,
-          CLIENT_ID, STATE, CODE_CHALLENGE, REDIRECT_URI,
-          AUTH_CODE, STATUS, CREATED_AT, UPDATED_AT
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        session.sessionId,
-        session.provider,
-        session.modelId,
-        session.authMode,
-        session.oauthUrl,
-        session.clientId ?? null,
-        session.state ?? null,
-        session.codeChallenge ?? null,
-        session.redirectUri ?? null,
-        session.authCode ?? null,
-        session.status,
-        session.createdAt,
-        session.updatedAt,
-      );
+      this.executeSessionInsert(session);
     }
+  }
+
+  private executeSessionUpdate(session: CliOAuthSession): void {
+    const db = coreDatabaseManager.getDatabase();
+    db.prepare(`
+      UPDATE ${DatabaseTable.CLI_OAUTH_SESSIONS}
+      SET AUTH_CODE = COALESCE(?, AUTH_CODE),
+          STATUS = ?,
+          UPDATED_AT = ?
+      WHERE SESSION_ID = ?
+    `).run(session.authCode ?? null, session.status, session.updatedAt, session.sessionId);
+  }
+
+  private executeSessionInsert(session: CliOAuthSession): void {
+    const db = coreDatabaseManager.getDatabase();
+    db.prepare(`
+      INSERT INTO ${DatabaseTable.CLI_OAUTH_SESSIONS} (
+        SESSION_ID, PROVIDER, MODEL_ID, AUTH_MODE, OAUTH_URL,
+        CLIENT_ID, STATE, CODE_CHALLENGE, REDIRECT_URI,
+        AUTH_CODE, STATUS, CREATED_AT, UPDATED_AT
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      session.sessionId,
+      session.provider,
+      session.modelId,
+      session.authMode,
+      session.oauthUrl,
+      session.clientId ?? null,
+      session.state ?? null,
+      session.codeChallenge ?? null,
+      session.redirectUri ?? null,
+      session.authCode ?? null,
+      session.status,
+      session.createdAt,
+      session.updatedAt,
+    );
   }
 
   public getSessionById(sessionId: string): CliOAuthSession | null {
@@ -143,29 +161,101 @@ export class CliOAuthSessionRepository {
     return rows.map((r) => this.mapRowToSession(r));
   }
 
-  public resolveCsvPath(customPath?: string): string {
+  public resolveJsonPath(customPath?: string): string {
     if (customPath && customPath.trim()) {
       return pathUtils.resolve(customPath.trim());
     }
-    const envDataDir = processUtils.getEnv("DATA_DIR", "/app/config/data");
+    const envDataDir = processUtils.getEnv("DATA_DIR", CliOAuthConstants.DEFAULT_DATA_DIR);
     const candidates = [
-      pathUtils.join(envDataDir, "oauth_sessions.csv"),
-      pathUtils.resolve(process.cwd(), "config", "data", "oauth_sessions.csv"),
-      "/app/config/data/oauth_sessions.csv",
+      pathUtils.join(envDataDir, CliOAuthConstants.JSON_SESSIONS_FILE),
+      pathUtils.resolve(process.cwd(), "config", "data", CliOAuthConstants.JSON_SESSIONS_FILE),
+      pathUtils.join(CliOAuthConstants.DEFAULT_DATA_DIR, CliOAuthConstants.JSON_SESSIONS_FILE),
     ];
     return candidates.find((c) => fileUtils.exists(c)) ?? candidates[0];
   }
 
-  public syncFromCsv(customCsvPath?: string): number {
-    const csvPath = this.resolveCsvPath(customCsvPath);
-    if (!fileUtils.exists(csvPath)) {
+  public resolveCsvPath(customPath?: string): string {
+    if (customPath && customPath.trim()) {
+      return pathUtils.resolve(customPath.trim());
+    }
+    const envDataDir = processUtils.getEnv("DATA_DIR", CliOAuthConstants.DEFAULT_DATA_DIR);
+    const candidates = [
+      pathUtils.join(envDataDir, CliOAuthConstants.CSV_SESSIONS_FILE),
+      pathUtils.resolve(process.cwd(), "config", "data", CliOAuthConstants.CSV_SESSIONS_FILE),
+      pathUtils.join(CliOAuthConstants.DEFAULT_DATA_DIR, CliOAuthConstants.CSV_SESSIONS_FILE),
+    ];
+    return candidates.find((c) => fileUtils.exists(c)) ?? candidates[0];
+  }
+
+  public syncFromJson(customJsonPath?: string): number {
+    const jsonPath = this.resolveJsonPath(customJsonPath);
+    if (!fileUtils.exists(jsonPath)) return 0;
+
+    try {
+      const content = fileUtils.readFileSync(jsonPath);
+      const parsed = JSON.parse(content);
+      const sessionList: unknown[] = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.sessions)
+          ? parsed.sessions
+          : [];
+
+      return this.persistSessionList(sessionList);
+    } catch (err: unknown) {
+      logger.warn(`[CliOAuthSessionRepository] Failed to sync sessions from JSON: ${String(err)}`);
       return 0;
     }
+  }
+
+  private persistSessionList(sessionList: unknown[]): number {
+    let inserted = 0;
+    for (const raw of sessionList) {
+      const session = this.validateAndMapJsonSession(raw);
+      if (!session) continue;
+      const existing = this.getSessionById(session.sessionId);
+      if (!existing) {
+        this.upsertSession(session);
+        inserted++;
+      } else if (session.authCode && session.authCode !== existing.authCode) {
+        this.updateAuthCode(session.sessionId, session.authCode);
+      }
+    }
+    if (inserted > 0) {
+      logger.info(`[CliOAuthSessionRepository] Synced ${inserted} session(s) from JSON to database.`);
+    }
+    return inserted;
+  }
+
+  private validateAndMapJsonSession(raw: unknown): CliOAuthSession | null {
+    if (!raw || typeof raw !== "object") return null;
+    const r = raw as Record<string, unknown>;
+    if (!r.sessionId || !r.oauthUrl) return null;
+
+    return {
+      sessionId: String(r.sessionId),
+      provider: String(r.provider || CliOAuthConstants.DEFAULT_PROVIDER),
+      modelId: String(r.modelId || CliOAuthConstants.DEFAULT_MODEL_ID),
+      authMode: String(r.authMode || CliOAuthConstants.AUTH_MODE_OAUTH),
+      oauthUrl: String(r.oauthUrl),
+      clientId: r.clientId ? String(r.clientId) : undefined,
+      state: r.state ? String(r.state) : undefined,
+      codeChallenge: r.codeChallenge ? String(r.codeChallenge) : undefined,
+      redirectUri: r.redirectUri ? String(r.redirectUri) : undefined,
+      authCode: r.authCode ? String(r.authCode) : undefined,
+      status: (r.status as any) || "PENDING",
+      createdAt: String(r.createdAt || new Date().toISOString()),
+      updatedAt: String(r.updatedAt || new Date().toISOString()),
+    };
+  }
+
+  public syncFromCsv(customCsvPath?: string): number {
+    const csvPath = this.resolveCsvPath(customCsvPath);
+    if (!fileUtils.exists(csvPath)) return 0;
 
     try {
       const content = fileUtils.readFileSync(csvPath);
       const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-      if (lines.length <= 1) return 0; // Header only
+      if (lines.length <= 1) return 0;
 
       let insertedCount = 0;
       for (let i = 1; i < lines.length; i++) {
@@ -180,10 +270,6 @@ export class CliOAuthSessionRepository {
           }
         }
       }
-
-      if (insertedCount > 0) {
-        logger.info(`[CliOAuthSessionRepository] Synced ${insertedCount} new session(s) from CSV to database.`);
-      }
       return insertedCount;
     } catch (err: unknown) {
       logger.warn(`[CliOAuthSessionRepository] Failed to sync sessions from CSV: ${String(err)}`);
@@ -191,8 +277,13 @@ export class CliOAuthSessionRepository {
     }
   }
 
+  public syncAll(): number {
+    const jsonCount = this.syncFromJson();
+    const csvCount = this.syncFromCsv();
+    return jsonCount + csvCount;
+  }
+
   private parseCsvLine(line: string): CliOAuthSession | null {
-    // Standard CSV quote unescaping
     const parts: string[] = [];
     let insideQuotes = false;
     let entry = "";
@@ -208,40 +299,27 @@ export class CliOAuthSessionRepository {
       }
     }
     parts.push(entry.trim());
-
     if (parts.length < 5) return null;
 
     const cleaned = parts.map((p) => p.replace(/^"|"$/g, "").trim());
-    const [
-      sessionId,
-      provider,
-      modelId,
-      authMode,
-      oauthUrl,
-      clientId,
-      state,
-      codeChallenge,
-      redirectUri,
-      authCode,
-      status,
-      createdAt,
-      updatedAt,
-    ] = cleaned;
+    return this.buildSessionFromParts(cleaned);
+  }
 
+  private buildSessionFromParts(p: string[]): CliOAuthSession {
     return {
-      sessionId,
-      provider: provider || "google",
-      modelId: modelId || "gemini-3.8-flash",
-      authMode: authMode || "1. Google OAuth",
-      oauthUrl,
-      clientId: clientId || undefined,
-      state: state || undefined,
-      codeChallenge: codeChallenge || undefined,
-      redirectUri: redirectUri || undefined,
-      authCode: authCode || undefined,
-      status: (status as any) || "PENDING",
-      createdAt: createdAt || new Date().toISOString(),
-      updatedAt: updatedAt || new Date().toISOString(),
+      sessionId: p[0],
+      provider: p[1] || CliOAuthConstants.DEFAULT_PROVIDER,
+      modelId: p[2] || CliOAuthConstants.DEFAULT_MODEL_ID,
+      authMode: p[3] || CliOAuthConstants.AUTH_MODE_OAUTH,
+      oauthUrl: p[4],
+      clientId: p[5] || undefined,
+      state: p[6] || undefined,
+      codeChallenge: p[7] || undefined,
+      redirectUri: p[8] || undefined,
+      authCode: p[9] || undefined,
+      status: (p[10] as any) || "PENDING",
+      createdAt: p[11] || new Date().toISOString(),
+      updatedAt: p[12] || new Date().toISOString(),
     };
   }
 

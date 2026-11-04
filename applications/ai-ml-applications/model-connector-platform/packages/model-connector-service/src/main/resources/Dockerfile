@@ -104,8 +104,14 @@ COPY packages/model-connector-client/src/main/resources/application.yml ./packag
 COPY packages/model-connector-service/src/main/resources/application.yml ./packages/model-connector-service/src/main/resources/application.yml
 COPY config/database ./config/database
 
-USER node
+COPY config/scripts ./config/scripts
+COPY config/docker/entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh config/scripts/*.sh 2>/dev/null || true
+
+USER root
 
 EXPOSE 8095 8085 11436
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 CMD ["node", "packages/model-connector-service/dist/index.js"]

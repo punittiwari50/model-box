@@ -429,3 +429,27 @@ export const GoogleAuthConstants = Object.freeze({
 });
 
 
+
+
+/**
+ * Antigravity CLI and Gemini CLI OAuth Daemon Constants
+ * Centralized static configuration adhering to STD-COD-002 and STD-COD-004.
+ */
+export const CliOAuthConstants = Object.freeze({
+  DEFAULT_DATA_DIR: "/app/config/data",
+  JSON_SESSIONS_FILE: "oauth_sessions.json",
+  CSV_SESSIONS_FILE: "oauth_sessions.csv",
+  DOWNLOADS_DIR: "downloads",
+  RESPONSES_DIR: "oauth_responses",
+  CREDENTIALS_DIR: "credentials",
+  LOGS_DIR: "logs",
+  DEFAULT_CLI_TARBALL_URL:
+    "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_linux_x64.tar.gz",
+  DEFAULT_CLI_TARBALL_NAME: "agy_cli_linux_x64.tar.gz",
+  DEFAULT_BINARY_NAME: "antigravity",
+  DEFAULT_MODEL_ID: "gemini-3.8-flash",
+  DEFAULT_PROVIDER: "google",
+  AUTH_MODE_OAUTH: "1. Google OAuth",
+  REDACTION_MASK: "***REDACTED***",
+  AUTH_CODE_TRIGGER_FILE: "/tmp/antigravity_auth_code.txt",
+});

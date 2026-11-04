@@ -37,10 +37,10 @@ const server = app.listen(appConfig.port, appConfig.host, () => {
   ollamaOAuthGatewayServer.start(11436);
 
   // Initial sync of CLI OAuth sessions from CSV to database
-  cliOAuthSessionRepository.syncFromCsv();
+  cliOAuthSessionRepository.syncAll();
   // Periodic background CSV to SQLite sync
   timerUtils.setInterval(() => {
-    cliOAuthSessionRepository.syncFromCsv();
+    cliOAuthSessionRepository.syncAll();
   }, 5000);
 });
 

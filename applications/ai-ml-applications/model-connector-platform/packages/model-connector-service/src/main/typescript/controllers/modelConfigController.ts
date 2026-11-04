@@ -399,7 +399,7 @@ export class ModelConfigController {
 
   public getLatestCliSession(req: Request, res: Response): void {
     const { modelId } = req.query as { modelId?: string };
-    cliOAuthSessionRepository.syncFromCsv();
+    cliOAuthSessionRepository.syncAll();
     const session = cliOAuthSessionRepository.getLatestPendingSession(modelId);
     res.status(HttpStatus.OK).json({
       success: true,
@@ -470,7 +470,7 @@ export class ModelConfigController {
   }
 
   public listCliSessions(req: Request, res: Response): void {
-    cliOAuthSessionRepository.syncFromCsv();
+    cliOAuthSessionRepository.syncAll();
     const sessions = cliOAuthSessionRepository.listSessions(50);
     res.status(HttpStatus.OK).json({
       success: true,
