@@ -97,6 +97,15 @@ apiRouter.post("/models/:modelId/cli-login", (req, res) =>
 apiRouter.post("/models/:modelId/cli-auth-complete", (req, res) =>
   modelConfigController.completeCliAuth(req, res),
 );
+apiRouter.get("/auth/cli-session/latest", (req, res) =>
+  modelConfigController.getLatestCliSession(req, res),
+);
+apiRouter.post("/auth/cli-session/submit-code", (req, res) =>
+  modelConfigController.submitCliAuthCode(req, res),
+);
+apiRouter.get("/auth/cli-sessions", (req, res) =>
+  modelConfigController.listCliSessions(req, res),
+);
 apiRouter.get("/models/:modelId/bidirectional-credentials", (req, res) =>
   modelConfigController.getBidirectionalCredentials(req, res),
 );
