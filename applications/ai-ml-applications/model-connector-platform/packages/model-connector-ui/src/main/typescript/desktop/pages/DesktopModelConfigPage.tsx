@@ -101,6 +101,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [testPrompt, setTestPrompt] = useState<string>("Hi , whats date time now ?");
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [cliScriptError, setCliScriptError] = useState<{ message: string; code?: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [testingAccountId, setTestingAccountId] = useState<string | null>(null);
@@ -308,6 +309,16 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         return;
       }
       try {
+        const cliSessionRes = await ApiService.fetchLatestCliSession(targetModelId).catch(() => null);
+        if (cliSessionRes?.session?.status === "FAILED" && cliSessionRes.session.errorMessage) {
+          const errMsg = cliSessionRes.session.errorMessage;
+          setCliScriptError({ message: errMsg, code: cliSessionRes.session.errorCode });
+          setActionError(`CLI Script Error [${cliSessionRes.session.errorCode || "FAILURE"}]: ${errMsg}`);
+          setIsWaitingForCallback(false);
+          clearInterval(interval);
+          return;
+        }
+
         const res = await ApiService.fetchLatestOAuthCallback(targetModelId);
         const session = res?.accessToken ? res : (res?.session || res?.callback);
         if (session?.accessToken && session.email) {
@@ -447,6 +458,16 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         userEmail,
         accountCategory,
       });
+
+      if (!cliResponse.success || cliResponse.session?.status === "FAILED") {
+        const errMsg = cliResponse.session?.errorMessage || cliResponse.message || "CLI script execution failed";
+        setCliScriptError({ message: errMsg, code: cliResponse.session?.errorCode });
+        setActionError(`CLI Script Error [${cliResponse.session?.errorCode || "EXEC_ERROR"}]: ${errMsg}`);
+        setIsWaitingForCallback(false);
+        return;
+      }
+      setCliScriptError(null);
+
       const fallbackConfig = refreshedConfig || (await ApiService.fetchModelOAuthConfig(targetModelId));
       const launchUrl =
         cliResponse.loginResult?.config?.authorizationUrl ||
@@ -1238,6 +1259,17 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                               : `Launch Browser Sign-In (${selectedStrategy.cliCommand})`}
                           </span>
                         </button>
+
+                        {cliScriptError && (
+                          <div className="alert-banner error" data-testid="cli-script-error-banner" style={{ marginTop: "0.5rem" }}>
+                            <span className="alert-icon">⚠️</span>
+                            <div className="alert-text">
+                              <strong>CLI Script Error ({cliScriptError.code || "FAILURE"}):</strong>
+                              <div style={{ fontSize: "0.85rem", marginTop: "0.2rem", fontFamily: "monospace" }}>{cliScriptError.message}</div>
+                            </div>
+                            <button className="alert-close" onClick={() => setCliScriptError(null)}>×</button>
+                          </div>
+                        )}
 
                         {isWaitingForCallback && (
                           <div className="oauth-waiting-banner" data-testid="oauth-waiting-indicator">

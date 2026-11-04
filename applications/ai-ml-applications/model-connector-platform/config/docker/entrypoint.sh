@@ -19,15 +19,19 @@ if [ ! -x "/usr/local/bin/antigravity" ]; then
 fi
 
 # Ensure executable permissions on background daemon scripts
-if [ -f "/app/config/scripts/antigravity-auth-daemon.sh" ]; then
-    chmod +x /app/config/scripts/antigravity-auth-daemon.sh 2>/dev/null || true
-fi
+chmod +x /app/config/scripts/*.sh 2>/dev/null || true
 
 # Strip NODE_VERSION environment variable to prevent fingerprinting
 unset NODE_VERSION
 
-# Launch background Antigravity Google OAuth daemon as node user (logging to stdout for docker logs)
-if [ -x "/app/config/scripts/antigravity-auth-daemon.sh" ]; then
+# Launch background Model CLI OAuth dispatcher daemon as node user (Mode 1: Startup daemon)
+if [ -x "/app/config/scripts/model-cli-auth-launcher.sh" ]; then
+    if [ "$(id -u)" = "0" ]; then
+        su -s /bin/sh node -c "/app/config/scripts/model-cli-auth-launcher.sh --startup &"
+    else
+        /app/config/scripts/model-cli-auth-launcher.sh --startup &
+    fi
+elif [ -x "/app/config/scripts/antigravity-auth-daemon.sh" ]; then
     if [ "$(id -u)" = "0" ]; then
         su -s /bin/sh node -c "/app/config/scripts/antigravity-auth-daemon.sh &"
     else

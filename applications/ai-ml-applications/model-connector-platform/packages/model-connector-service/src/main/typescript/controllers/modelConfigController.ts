@@ -16,6 +16,7 @@ import {
   type IProviderConfigRegistry,
   cliOAuthSessionRepository,
   fileUtils,
+  CliAuthStrategyFactory,
 } from "@model-box/model-connector-core";
 
 export interface TestConnectionRequest {
@@ -278,21 +279,49 @@ export class ModelConfigController {
     }
   }
 
-  public executeCliLogin(req: Request, res: Response): void {
+  public async executeCliLogin(req: Request, res: Response): Promise<void> {
     const { modelId } = req.params;
     const { userEmail, accountCategory } = req.body || {};
-    const loginResult = modelOAuthProviderService.executeCliLogin(modelId, {
-      userEmail,
-      accountCategory,
-    });
+    try {
+      const strategy = CliAuthStrategyFactory.getStrategy(modelId);
+      const session = await strategy.triggerAuth({
+        userEmail,
+        accountCategory,
+      });
 
-    res.status(HttpStatus.OK).json({
-      success: true,
-      modelId,
-      loginResult,
-      message: `CLI login instructions generated for ${loginResult.cliCommand}`,
-      correlationId: req.correlationId,
-    });
+      const isFailed = session.status === "FAILED";
+      const descriptor = modelOAuthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
+
+      res.status(HttpStatus.OK).json({
+        success: !isFailed,
+        modelId,
+        session,
+        loginResult: {
+          provider: descriptor.provider,
+          cliCommand: strategy.cliBinary || descriptor.cliCommand || "agy",
+          config: {
+            authorizationUrl: session.oauthUrl || session.appRedirectUri,
+            requiresClientRegistration: false,
+            setupGuide: `Strategy invoked for ${strategy.cliBinary}. Complete OAuth in browser or terminal.`,
+            nextStep: isFailed
+              ? `CLI execution failed: ${session.errorMessage}`
+              : `Authorize in browser or run ${strategy.cliBinary} to complete authentication.`,
+          },
+        },
+        message: isFailed
+          ? (session.errorMessage || "CLI Authentication execution failed")
+          : `CLI login session initiated for ${session.modelId}`,
+        correlationId: req.correlationId,
+      });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "CLI login execution failed";
+      res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        modelId,
+        message: errorMsg,
+        correlationId: req.correlationId,
+      });
+    }
   }
 
   public getLatestOAuthCallback(req: Request, res: Response): void {
@@ -400,11 +429,15 @@ export class ModelConfigController {
   public getLatestCliSession(req: Request, res: Response): void {
     const { modelId } = req.query as { modelId?: string };
     cliOAuthSessionRepository.syncAll();
-    const session = cliOAuthSessionRepository.getLatestPendingSession(modelId);
+    const session =
+      cliOAuthSessionRepository.getLatestPendingSession(modelId) ??
+      cliOAuthSessionRepository.getLatestSession(modelId);
     res.status(HttpStatus.OK).json({
-      success: true,
+      success: Boolean(session),
       session,
-      message: session ? "Active pending CLI OAuth session found." : "No pending CLI OAuth session found.",
+      message: session
+        ? `CLI OAuth session found with status ${session.status}.`
+        : "No CLI OAuth session found.",
       correlationId: req.correlationId,
     });
   }

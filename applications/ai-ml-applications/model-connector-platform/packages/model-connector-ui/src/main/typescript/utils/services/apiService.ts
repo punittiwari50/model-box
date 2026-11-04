@@ -397,6 +397,32 @@ export class ApiService {
     return data.result;
   }
 
+  public static async fetchLatestCliSession(modelId?: string): Promise<{
+    success: boolean;
+    session: {
+      sessionId: string;
+      provider: string;
+      modelId: string;
+      authMode: string;
+      oauthUrl?: string;
+      cliRedirectUri?: string;
+      appRedirectUri?: string;
+      authCode?: string;
+      status: "PENDING" | "COMPLETED" | "FAILED";
+      errorMessage?: string;
+      errorCode?: string;
+      createdAt: string;
+      updatedAt: string;
+    } | null;
+    message: string;
+  }> {
+    const params = new URLSearchParams();
+    if (modelId) params.append("modelId", modelId);
+    const res = await fetch(`${API_BASE}/models/cli-sessions/latest?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to fetch latest CLI OAuth session");
+    return await res.json();
+  }
+
   public static async executeCliLogin(
     modelId: string,
     payload: {
@@ -408,7 +434,20 @@ export class ApiService {
     success: boolean;
     modelId: string;
     message: string;
-    loginResult: {
+    session?: {
+      sessionId: string;
+      provider: string;
+      modelId: string;
+      authMode: string;
+      oauthUrl?: string;
+      cliRedirectUri?: string;
+      appRedirectUri?: string;
+      authCode?: string;
+      status: "PENDING" | "COMPLETED" | "FAILED";
+      errorMessage?: string;
+      errorCode?: string;
+    };
+    loginResult?: {
       provider: string;
       cliCommand: string;
       config?: {

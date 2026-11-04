@@ -396,6 +396,8 @@ run_oauth_daemon() {
         state: u.searchParams.get('state') || '',
         codeChallenge: u.searchParams.get('code_challenge') || '',
         redirectUri: u.searchParams.get('redirect_uri') || '',
+        cliRedirectUri: u.searchParams.get('redirect_uri') || 'https://antigravity.google/oauth-callback',
+        appRedirectUri: 'http://localhost:8085/oauth2callback',
         authCode: '',
         status: 'PENDING',
         createdAt: process.argv[3],

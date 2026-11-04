@@ -1,5 +1,12 @@
 import express, { type Request, type Response } from "express";
-import { GoogleAuthConstants, ModelCatalog, ProviderId } from "@model-box/model-connector-core";
+import {
+  GoogleAuthConstants,
+  ModelCatalog,
+  ProviderId,
+  cliOAuthSessionRepository,
+  CliOAuthConstants,
+  fileUtils,
+} from "@model-box/model-connector-core";
 import { bidirectionalCredentialVault } from "@model-box/model-connector-client";
 import { accountRepository } from "@/repositories/accountRepository";
 import { OAuthConstants } from "@/constants/index";
@@ -370,7 +377,30 @@ export class OAuthCallbackServer {
         provider: providerId,
       },
     });
+    this.deliverCodeToCliTriggers(ctx.modelId, providerId, ctx.code);
     return session;
+  }
+
+  private deliverCodeToCliTriggers(modelId: string, providerId: string, code: string): void {
+    cliOAuthSessionRepository.syncAll();
+    const pendingSession =
+      cliOAuthSessionRepository.getLatestPendingSession(modelId) ??
+      cliOAuthSessionRepository.getLatestPendingSession();
+    if (pendingSession) {
+      cliOAuthSessionRepository.updateAuthCode(pendingSession.sessionId, code);
+    }
+    const triggerFiles = [
+      CliOAuthConstants.AUTH_CODE_TRIGGER_FILE,
+      `/tmp/${providerId}_auth_code.txt`,
+      `/tmp/${modelId}_auth_code.txt`,
+    ];
+    for (const tf of triggerFiles) {
+      try {
+        fileUtils.writeFileSync(tf, code.trim());
+      } catch {
+        // Best effort
+      }
+    }
   }
 
   private resolveReturnUrl(returnUrl: string | undefined, modelId: string, email: string): string {
