@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 import { AbstractUsecaseTest } from "@/usecases/impl/AbstractUsecaseTest.js";
-import { ModelConfigSelectors } from "@/constants/selectors.js";
+import { ModelConfigSelectors, OdooSelectors } from "@/constants/selectors.js";
 import { SanityTimeouts } from "@/constants/sanityConstants.js";
 
 /**
@@ -12,16 +12,66 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
       "UC-03",
       "Multi-Protocol Authentication & Credential Onboarding",
       "Security & Configuration",
-      "Verifies configuration views for REST API, OAuth 2.0 PKCE redirect, CLI binary, and Cookie vault",
+      "Verifies Odoo List/Card views, Create/Save view transitions, and configuration views for REST API, OAuth 2.0 PKCE redirect, CLI binary, and Cookie vault",
     );
   }
 
   public async runSteps(page: Page, recordStep: (name: string, fn: () => Promise<string>) => Promise<void>): Promise<void> {
-    await recordStep("Navigate to Model Config Studio", async () => {
+    await recordStep("Navigate to Model Config Studio and Verify Odoo Control Panel", async () => {
       await this.navigateToRoute(page, "model-config", "Model Config Studio");
       const container = page.locator(ModelConfigSelectors.CONTAINER).first();
       await container.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      return "Model Config Studio mounted";
+      const controlPanel = page.locator(OdooSelectors.CONTROL_PANEL).first();
+      await controlPanel.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+      return "Model Config Studio and Odoo Control Panel mounted";
+    });
+
+    await recordStep("Verify Odoo View Mode Switching (Card & List)", async () => {
+      const cardViewBtn = page.locator(OdooSelectors.VIEW_CARD).first();
+      if (await cardViewBtn.isVisible()) {
+        await cardViewBtn.click();
+        await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
+        const cardGrid = page.locator(OdooSelectors.CARD_GRID).first();
+        await cardGrid.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+      }
+
+      const listViewBtn = page.locator(OdooSelectors.VIEW_LIST).first();
+      if (await listViewBtn.isVisible()) {
+        await listViewBtn.click();
+        await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
+      }
+      return "Successfully switched between Odoo List view and Card view";
+    });
+
+    await recordStep("Verify Odoo Create View and Discard Navigation", async () => {
+      const createBtn = page.locator(OdooSelectors.BTN_CREATE).first();
+      await createBtn.click();
+      await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+
+      const formView = page.locator(OdooSelectors.FORM_VIEW).first();
+      await formView.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+      const createBanner = page.locator(OdooSelectors.CREATE_BANNER).first();
+      await createBanner.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+
+      const discardBtn = page.locator(OdooSelectors.BTN_DISCARD).first();
+      await discardBtn.click();
+      await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+      return "Create View opened, verified, and successfully discarded back to list";
+    });
+
+    await recordStep("Open Odoo Save View for Model Configuration", async () => {
+      const geminiRow = page.locator(".odoo-list-row").filter({ hasText: /gemini/i }).first();
+      if (await geminiRow.isVisible()) {
+        await geminiRow.click();
+      } else {
+        const modelItem = page.locator(".odoo-list-row, .model-item-row, .odoo-model-card").first();
+        await modelItem.click();
+      }
+      await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+
+      const formView = page.locator(OdooSelectors.FORM_VIEW).first();
+      await formView.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+      return "Save View opened for target model configuration";
     });
 
     const protocols = ["REST API", "OAuth 2.0 Redirect", "CLI Binary", "Cookie Vault"];
@@ -86,7 +136,10 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
       if (!isEnabled) throw new Error("OAuth Launch Browser button is unexpectedly disabled");
 
       await launchBtn.click();
-      await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+      await page.waitForFunction(
+        () => Boolean((window as any).__lastOpenedOAuthUrl),
+        { timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS },
+      );
 
       const launchedUrl = await page.evaluate(() => (window as any).__lastOpenedOAuthUrl);
       if (!launchedUrl || !launchedUrl.includes("accounts.google.com")) {
@@ -99,10 +152,15 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
       return `Launch Browser verified with URL: ${launchedUrl.substring(0, 60)}... and responsive waiting indicator active`;
     });
 
-    await recordStep("Restore REST API Default Tab", async () => {
+    await recordStep("Restore REST API Default Tab & Return via Breadcrumb", async () => {
       const defaultTab = page.locator(ModelConfigSelectors.PROTOCOL_TAB_BTN).filter({ hasText: /REST API/i }).first();
       await defaultTab.click();
-      return "REST API selected as baseline protocol";
+      const breadcrumbLink = page.locator(".breadcrumb-link").first();
+      if (await breadcrumbLink.isVisible()) {
+        await breadcrumbLink.click();
+        await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
+      }
+      return "REST API selected and returned to List View via breadcrumb";
     });
   }
 }

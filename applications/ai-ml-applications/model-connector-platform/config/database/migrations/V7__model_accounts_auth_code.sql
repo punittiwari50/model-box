@@ -5,3 +5,4 @@
 -- ==============================================================================
 
 ALTER TABLE MODEL_ACCOUNTS ADD COLUMN AUTH_CODE TEXT;
+

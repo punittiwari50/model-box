@@ -7,6 +7,7 @@ import {
   CategoryMapper,
   modelFilterStrategy,
 } from "@/utils";
+import { OdooControlPanel, OdooModelCardGrid, type OdooViewType } from "@/components/odoo";
 
 interface DesktopModelPageProps {
   readonly state: ModelConnectorState;
@@ -18,6 +19,10 @@ export const DesktopModelPage: React.FC<DesktopModelPageProps> = ({ state }) => 
   const [categoryPage, setCategoryPage] = useState(1);
   const [categoryModelPages, setCategoryModelPages] = useState<Record<string, number>>({});
   const categoryPageSize = PaginationConstants.DEFAULT_CATEGORY_PAGE_SIZE;
+
+  // Odoo View Mode: "list" vs "card"
+  const [viewMode, setViewMode] = useState<OdooViewType>("list");
+  const [groupBy, setGroupBy] = useState<"family" | "none">("family");
 
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [selectedModelForAccounts, setSelectedModelForAccounts] = useState<{
@@ -84,243 +89,382 @@ export const DesktopModelPage: React.FC<DesktopModelPageProps> = ({ state }) => 
     }));
   };
 
+  const handleOpenModelSaveView = (modelId: string) => {
+    state.setSelectedModel(modelId);
+    state.setActiveTab("model-config");
+  };
+
+  const handleCreateNewConfiguration = () => {
+    state.setSelectedModel("");
+    state.setActiveTab("model-config");
+  };
+
   return (
-    <div className="desktop-model-catalog">
-      <div className="catalog-toolbar">
-        <input
-          type="text"
-          className="desktop-search-input"
-          placeholder="Filter models by name, family, or ID..."
-          value={modelSearch}
-          onChange={(e) => {
-            setModelSearch(e.target.value);
-            setCategoryPage(1);
+    <div className="desktop-model-catalog" data-testid="desktop-model-catalog">
+      {/* 1. Odoo Unified Control Panel with Create, Search, Filter, Group By & View Switcher */}
+      <OdooControlPanel
+        viewType={viewMode}
+        title="AI Model Catalog"
+        onCreateClick={handleCreateNewConfiguration}
+        onViewTypeChange={(type) => setViewMode(type)}
+        searchQuery={modelSearch}
+        onSearchChange={(q) => {
+          setModelSearch(q);
+          setCategoryPage(1);
+        }}
+        searchPlaceholder="Filter models by name, family, or ID..."
+        activeFilter={familyFilter}
+        onFilterChange={(f) => {
+          setFamilyFilter(f);
+          setCategoryPage(1);
+        }}
+        filterOptions={categories}
+        activeGroupBy={groupBy}
+        onGroupByChange={(g) => setGroupBy(g as any)}
+        groupByOptions={[
+          { value: "family", label: "Provider / Family" },
+          { value: "none", label: "None (Flat List)" },
+        ]}
+        currentRange={filteredModels.length > 0 ? `1-${filteredModels.length} / ${filteredModels.length}` : undefined}
+      />
+
+      {/* 2. Card View (Kanban) */}
+      {viewMode === "card" && (
+        <OdooModelCardGrid
+          models={filteredModels}
+          modelAccounts={state.modelAccounts}
+          selectedModelId={state.selectedModel}
+          onModelClick={handleOpenModelSaveView}
+          onChatSelect={(id) => {
+            state.setSelectedModel(id);
+            state.setActiveTab("chat");
           }}
         />
+      )}
 
-        <div className="family-filter-pills">
-          {categories.map((fam) => (
-            <button
-              key={fam}
-              className={`filter-pill ${fam} ${familyFilter === fam ? "active" : ""}`}
-              onClick={() => {
-                setFamilyFilter(fam);
-                setCategoryPage(1);
-              }}
-            >
-              {fam.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* 3. List View with Group By Accordions (Exact Layout from Screenshot) */}
+      {viewMode === "list" && groupBy === "family" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }} data-testid="catalog-list-view">
+          {paginatedFamilies.map((fam) => {
+            const meta = categoryMap[fam] || {
+              label: fam.toUpperCase(),
+              icon: "◈",
+              accentColor: "#6366f1",
+            };
+            const categoryModels = categoryGroups.get(fam) || [];
+            const stats = CategoryMetricsCalculator.calculateStats(categoryModels, state.auditLogs, state.sessions);
+            const isCollapsed = collapsedCategories[fam] !== false;
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        {paginatedFamilies.map((fam) => {
-          const meta = categoryMap[fam] || {
-            label: fam.toUpperCase(),
-            icon: "◈",
-            accentColor: "#6366f1",
-          };
-          const categoryModels = categoryGroups.get(fam) || [];
-          const stats = CategoryMetricsCalculator.calculateStats(categoryModels, state.auditLogs, state.sessions);
-          const isCollapsed = collapsedCategories[fam] !== false;
+            const exceedsThreshold = categoryModels.length > PaginationConstants.CATEGORY_MODEL_PAGINATION_THRESHOLD;
+            const currentCategoryPage = categoryModelPages[fam] || 1;
+            const totalCategoryModelPages = Math.max(1, Math.ceil(categoryModels.length / PaginationConstants.DEFAULT_CATEGORY_MODEL_PAGE_SIZE));
+            const safeCategoryModelPage = Math.min(Math.max(1, currentCategoryPage), totalCategoryModelPages);
 
-          const exceedsThreshold = categoryModels.length > PaginationConstants.CATEGORY_MODEL_PAGINATION_THRESHOLD;
-          const currentCategoryPage = categoryModelPages[fam] || 1;
-          const totalCategoryModelPages = Math.max(1, Math.ceil(categoryModels.length / PaginationConstants.DEFAULT_CATEGORY_MODEL_PAGE_SIZE));
-          const safeCategoryModelPage = Math.min(Math.max(1, currentCategoryPage), totalCategoryModelPages);
+            const displayedCategoryModels = exceedsThreshold
+              ? categoryModels.slice(
+                  (safeCategoryModelPage - 1) * PaginationConstants.DEFAULT_CATEGORY_MODEL_PAGE_SIZE,
+                  safeCategoryModelPage * PaginationConstants.DEFAULT_CATEGORY_MODEL_PAGE_SIZE
+                )
+              : categoryModels;
 
-          const displayedCategoryModels = exceedsThreshold
-            ? categoryModels.slice(
-                (safeCategoryModelPage - 1) * PaginationConstants.DEFAULT_CATEGORY_MODEL_PAGE_SIZE,
-                safeCategoryModelPage * PaginationConstants.DEFAULT_CATEGORY_MODEL_PAGE_SIZE
-              )
-            : categoryModels;
-
-          return (
-            <div key={fam} className={`model-category-group group-${fam}`}>
-              <div
-                className="category-banner collapsible"
-                onClick={() => toggleCategoryCollapse(fam)}
-                title="Click to collapse / expand category"
-              >
-                <div className="banner-left">
-                  <span className="cat-icon">{meta.icon}</span>
-                  <h3 className="cat-name">{meta.label}</h3>
-                  <span className={`family-badge ${fam}`}>{categoryModels.length} MODELS</span>
-                </div>
-
-                <div className="banner-right">
-                  <div className="stat-pill" title="Token consumption in %">
-                    <span>⚡ Consumption:</span>
-                    <span className="stat-value">{stats.tokenConsumptionPct}%</span>
-                  </div>
-                  <div className="stat-pill" title="Last used timestamp">
-                    <span>🕒 Last Used:</span>
-                    <span className="stat-value">{stats.lastUsed}</span>
-                  </div>
-                  <span className="collapse-toggle">
-                    {isCollapsed ? "Expand ▼" : "Collapse ▲"}
-                  </span>
-                </div>
-              </div>
-
-              {!isCollapsed && (
+            return (
+              <div key={fam} className={`model-category-group group-${fam}`}>
                 <div
-                  className="catalog-table-wrapper"
-                  style={{ margin: 0, border: "none", borderRadius: 0 }}
+                  className="category-banner collapsible"
+                  onClick={() => toggleCategoryCollapse(fam)}
+                  title="Click to collapse / expand category"
                 >
-                  <table className="desktop-table">
-                    <thead>
-                      <tr>
-                        <th>Model Name & Identifier</th>
-                        <th>Category</th>
-                        <th>Tier</th>
-                        <th>Supported Strategies</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayedCategoryModels.map((m) => {
-                        const modelAccounts = state.modelAccounts.filter((a) => a.modelId === m.id);
-                        const activeAccount = modelAccounts.find((a) => a.isActive);
-                        const hasActiveAccount = Boolean(activeAccount);
+                  <div className="banner-left">
+                    <span className="cat-icon">{meta.icon}</span>
+                    <h3 className="cat-name">{meta.label}</h3>
+                    <span className={`family-badge ${fam}`}>{categoryModels.length} MODELS</span>
+                  </div>
 
-                        return (
-                          <tr
-                            key={m.id}
-                            className={state.selectedModel === m.id ? "selected-row" : ""}
-                          >
-                            <td>
-                              <div className="model-cell-name">
-                                <span style={{ marginRight: "6px" }}>{meta.icon}</span>
-                                {m.name}
-                              </div>
-                              <div className="model-cell-id">{m.id}</div>
-                            </td>
-                            <td>
-                              <span className={`family-badge ${m.family.toLowerCase()}`}>
-                                {m.family.toUpperCase()}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`tier-badge ${m.tier}`}>{m.tier.toUpperCase()}</span>
-                            </td>
-                            <td>
-                              <div className="strategy-tags">
-                                {m.supportedStrategies.map((s) => (
-                                  <span key={s} className="strategy-tag">
-                                    {s.toUpperCase()}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td>
-                              {hasActiveAccount ? (
-                                <span
-                                  className="status-pill active"
-                                  title={`Active Account: ${activeAccount?.accountName} (${activeAccount?.userEmail})`}
-                                >
-                                  ACTIVE
-                                </span>
-                              ) : modelAccounts.length > 0 ? (
-                                <span
-                                  className="status-pill"
-                                  style={{
-                                    background: "rgba(245, 158, 11, 0.15)",
-                                    color: "#fbbf24",
-                                    border: "1px solid rgba(245, 158, 11, 0.35)",
-                                    padding: "4px 8px",
-                                    borderRadius: "100px",
-                                    fontSize: "0.75rem",
-                                    fontWeight: 600,
-                                  }}
-                                  title="Accounts configured but currently inactive (requires activation)"
-                                >
-                                  INACTIVE
-                                </span>
-                              ) : (
-                                <span
-                                  className="status-pill"
-                                  style={{
-                                    background: "rgba(148, 163, 184, 0.12)",
-                                    color: "#94a3b8",
-                                    border: "1px solid rgba(148, 163, 184, 0.25)",
-                                    padding: "4px 8px",
-                                    borderRadius: "100px",
-                                    fontSize: "0.75rem",
-                                    fontWeight: 600,
-                                  }}
-                                  title="No accounts or credentials configured for this model"
-                                >
-                                  NO ACCOUNT
-                                </span>
-                              )}
-                            </td>
-                            <td>
-                              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                <button
-                                  className="select-model-btn"
-                                  onClick={() => {
-                                    state.setSelectedModel(m.id);
-                                    state.setActiveTab("chat");
-                                  }}
-                                >
-                                  {state.selectedModel === m.id ? "Selected 💬" : "Select & Chat"}
-                                </button>
-                                <button
-                                  className="manage-accounts-btn"
-                                  onClick={() =>
-                                    setSelectedModelForAccounts({ id: m.id, name: m.name })
-                                  }
-                                  title="Manage API tokens, cookies, and CLI OAuth credentials"
-                                >
-                                  🔑 Accounts {modelAccounts.length > 0 ? `(${modelAccounts.length})` : ""}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-
-                  {exceedsThreshold && (
-                    <Pagination
-                      currentPage={safeCategoryModelPage}
-                      totalPages={totalCategoryModelPages}
-                      totalItems={categoryModels.length}
-                      pageSize={PaginationConstants.DEFAULT_CATEGORY_MODEL_PAGE_SIZE}
-                      onPageChange={(p) => handleCategoryModelPageChange(fam, p)}
-                      itemName="models"
-                      className="category-inner-pagination"
-                      ariaLabel={`${meta.label} Models Pagination`}
-                    />
-                  )}
+                  <div className="banner-right">
+                    <div className="stat-pill" title="Token consumption in %">
+                      <span>⚡ Consumption:</span>
+                      <span className="stat-value">{stats.tokenConsumptionPct}%</span>
+                    </div>
+                    <div className="stat-pill" title="Last used timestamp">
+                      <span>🕒 Last Used:</span>
+                      <span className="stat-value">{stats.lastUsed}</span>
+                    </div>
+                    <span className="collapse-toggle">
+                      {isCollapsed ? "Expand ▼" : "Collapse ▲"}
+                    </span>
+                  </div>
                 </div>
-              )}
+
+                {!isCollapsed && (
+                  <div
+                    className="catalog-table-wrapper"
+                    style={{ margin: 0, border: "none", borderRadius: 0 }}
+                  >
+                    <table className="desktop-table">
+                      <thead>
+                        <tr>
+                          <th>Model Name & Identifier</th>
+                          <th>Category</th>
+                          <th>Tier</th>
+                          <th>Supported Strategies</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayedCategoryModels.map((m) => {
+                          const modelAccounts = state.modelAccounts.filter((a) => a.modelId === m.id);
+                          const activeAccount = modelAccounts.find((a) => a.isActive);
+                          const hasActiveAccount = Boolean(activeAccount);
+
+                          return (
+                            <tr
+                              key={m.id}
+                              className={`odoo-list-row ${state.selectedModel === m.id ? "selected-row" : ""}`}
+                              onClick={() => handleOpenModelSaveView(m.id)}
+                              title={`Click to open Save View for ${m.name}`}
+                              data-testid={`catalog-row-${m.id}`}
+                            >
+                              <td>
+                                <div className="model-cell-name">
+                                  <span style={{ marginRight: "6px" }}>{meta.icon}</span>
+                                  {m.name}
+                                </div>
+                                <div className="model-cell-id">{m.id}</div>
+                              </td>
+                              <td>
+                                <span className={`family-badge ${m.family.toLowerCase()}`}>
+                                  {m.family.toUpperCase()}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`tier-badge ${m.tier}`}>{m.tier.toUpperCase()}</span>
+                              </td>
+                              <td>
+                                <div className="strategy-tags">
+                                  {m.supportedStrategies.map((s) => (
+                                    <span key={s} className="strategy-tag">
+                                      {s.toUpperCase()}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td>
+                                {hasActiveAccount ? (
+                                  <span
+                                    className="status-pill active"
+                                    title={`Active Account: ${activeAccount?.accountName} (${activeAccount?.userEmail})`}
+                                  >
+                                    ACTIVE
+                                  </span>
+                                ) : modelAccounts.length > 0 ? (
+                                  <span
+                                    className="status-pill"
+                                    style={{
+                                      background: "rgba(245, 158, 11, 0.15)",
+                                      color: "#fbbf24",
+                                      border: "1px solid rgba(245, 158, 11, 0.35)",
+                                      padding: "4px 8px",
+                                      borderRadius: "100px",
+                                      fontSize: "0.75rem",
+                                      fontWeight: 600,
+                                    }}
+                                    title="Accounts configured but currently inactive (requires activation)"
+                                  >
+                                    INACTIVE
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="status-pill"
+                                    style={{
+                                      background: "rgba(148, 163, 184, 0.12)",
+                                      color: "#94a3b8",
+                                      border: "1px solid rgba(148, 163, 184, 0.25)",
+                                      padding: "4px 8px",
+                                      borderRadius: "100px",
+                                      fontSize: "0.75rem",
+                                      fontWeight: 600,
+                                    }}
+                                    title="No accounts or credentials configured for this model"
+                                  >
+                                    NO ACCOUNT
+                                  </span>
+                                )}
+                              </td>
+                              <td onClick={(e) => e.stopPropagation()}>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                  <button
+                                    type="button"
+                                    className="btn-configure-action"
+                                    onClick={() => handleOpenModelSaveView(m.id)}
+                                    title="Open Save View (Configure Credentials)"
+                                  >
+                                    ⚙️ Configure
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="select-model-btn"
+                                    onClick={() => {
+                                      state.setSelectedModel(m.id);
+                                      state.setActiveTab("chat");
+                                    }}
+                                  >
+                                    {state.selectedModel === m.id ? "Selected 💬" : "Select & Chat"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="manage-accounts-btn"
+                                    onClick={() =>
+                                      setSelectedModelForAccounts({ id: m.id, name: m.name })
+                                    }
+                                    title="Manage API tokens, cookies, and CLI OAuth credentials"
+                                  >
+                                    🔑 Accounts {modelAccounts.length > 0 ? `(${modelAccounts.length})` : ""}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {exceedsThreshold && (
+                      <Pagination
+                        currentPage={safeCategoryModelPage}
+                        totalPages={totalCategoryModelPages}
+                        totalItems={categoryModels.length}
+                        pageSize={PaginationConstants.DEFAULT_CATEGORY_MODEL_PAGE_SIZE}
+                        onPageChange={(p) => handleCategoryModelPageChange(fam, p)}
+                        itemName="models"
+                        className="category-inner-pagination"
+                        ariaLabel={`${meta.label} Models Pagination`}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {paginatedFamilies.length === 0 && (
+            <div style={{ textAlign: "center", padding: "50px", color: "var(--text-muted)" }}>
+              No models found matching criteria.
             </div>
-          );
-        })}
+          )}
+        </div>
+      )}
 
-        {paginatedFamilies.length === 0 && (
-          <div style={{ textAlign: "center", padding: "50px", color: "var(--text-muted)" }}>
-            No models found matching criteria.
-          </div>
-        )}
-      </div>
+      {/* 4. Flat Table View (when Group By is set to none) */}
+      {viewMode === "list" && groupBy === "none" && (
+        <div className="catalog-table-wrapper" data-testid="catalog-flat-table">
+          <table className="desktop-table">
+            <thead>
+              <tr>
+                <th>Model Name & Identifier</th>
+                <th>Category</th>
+                <th>Tier</th>
+                <th>Supported Strategies</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredModels.map((m) => {
+                const modelAccounts = state.modelAccounts.filter((a) => a.modelId === m.id);
+                const activeAccount = modelAccounts.find((a) => a.isActive);
+                const icon = categoryMap[m.family.toLowerCase()]?.icon || "◈";
 
-      <Pagination
-        currentPage={safeCategoryPage}
-        totalPages={totalCategoryPages}
-        totalItems={activeFamilies.length}
-        pageSize={categoryPageSize}
-        onPageChange={setCategoryPage}
-        itemName="categories"
-        className="model-pagination"
-        ariaLabel="Category Catalog Navigation"
-      />
+                return (
+                  <tr
+                    key={m.id}
+                    className={`odoo-list-row ${state.selectedModel === m.id ? "selected-row" : ""}`}
+                    onClick={() => handleOpenModelSaveView(m.id)}
+                    title={`Click to open Save View for ${m.name}`}
+                  >
+                    <td>
+                      <div className="model-cell-name">
+                        <span style={{ marginRight: "6px" }}>{icon}</span>
+                        {m.name}
+                      </div>
+                      <div className="model-cell-id">{m.id}</div>
+                    </td>
+                    <td>
+                      <span className={`family-badge ${m.family.toLowerCase()}`}>
+                        {m.family.toUpperCase()}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`tier-badge ${m.tier}`}>{m.tier.toUpperCase()}</span>
+                    </td>
+                    <td>
+                      <div className="strategy-tags">
+                        {m.supportedStrategies.map((s) => (
+                          <span key={s} className="strategy-tag">
+                            {s.toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      {activeAccount ? (
+                        <span className="status-pill active">ACTIVE</span>
+                      ) : modelAccounts.length > 0 ? (
+                        <span className="status-pill inactive">INACTIVE</span>
+                      ) : (
+                        <span className="status-pill no-account">NO ACCOUNT</span>
+                      )}
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="btn-configure-action"
+                          onClick={() => handleOpenModelSaveView(m.id)}
+                        >
+                          ⚙️ Configure
+                        </button>
+                        <button
+                          type="button"
+                          className="select-model-btn"
+                          onClick={() => {
+                            state.setSelectedModel(m.id);
+                            state.setActiveTab("chat");
+                          }}
+                        >
+                          {state.selectedModel === m.id ? "Selected 💬" : "Select & Chat"}
+                        </button>
+                        <button
+                          type="button"
+                          className="manage-accounts-btn"
+                          onClick={() =>
+                            setSelectedModelForAccounts({ id: m.id, name: m.name })
+                          }
+                        >
+                          🔑 Accounts {modelAccounts.length > 0 ? `(${modelAccounts.length})` : ""}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {viewMode === "list" && groupBy === "family" && (
+        <Pagination
+          currentPage={safeCategoryPage}
+          totalPages={totalCategoryPages}
+          totalItems={activeFamilies.length}
+          pageSize={categoryPageSize}
+          onPageChange={setCategoryPage}
+          itemName="categories"
+          className="model-pagination"
+          ariaLabel="Category Catalog Navigation"
+        />
+      )}
 
       {selectedModelForAccounts && (
         <ModelAccountsModal

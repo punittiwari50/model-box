@@ -71,3 +71,19 @@ export const MobileLayoutSelectors = Object.freeze({
   SWITCH_TO_DESKTOP_BTN: "button:has-text('Switch to Desktop')",
 });
 
+export const OdooSelectors = Object.freeze({
+  CONTROL_PANEL: '[data-testid="odoo-control-panel"], .odoo-control-panel',
+  BTN_CREATE: '[data-testid="odoo-btn-create"], .btn-create-primary',
+  BTN_SAVE: '[data-testid="odoo-btn-save"], .btn-save-primary',
+  BTN_DISCARD: '[data-testid="odoo-btn-discard"], .btn-discard-secondary',
+  BTN_DELETE: '[data-testid="odoo-btn-delete"], .btn-delete-danger',
+  VIEW_CARD: '[data-testid="odoo-view-card"], .view-mode-btn[title*="Card" i]',
+  VIEW_LIST: '[data-testid="odoo-view-list"], .view-mode-btn[title*="List" i]',
+  CARD_GRID: '[data-testid="odoo-card-grid"], .odoo-card-grid',
+  GROUPED_LIST: '[data-testid="odoo-grouped-list"], .odoo-grouped-list-view',
+  FORM_VIEW: '[data-testid="odoo-form-view"], .odoo-form-view-container',
+  CREATE_BANNER: '[data-testid="odoo-create-banner"], .odoo-form-create-banner',
+  SELECT_TARGET_MODEL: '[data-testid="odoo-select-target-model"], .model-select-dropdown',
+});
+
+

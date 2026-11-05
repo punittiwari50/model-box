@@ -3,6 +3,17 @@ import type { ModelConnectorState } from "@/utils/hooks/useModelConnectorState";
 import type { UiModelAccount, TestConnectionResult, UiModelOAuthConfig } from "@/types/ui.types";
 import { ApiService } from "@/utils/services/apiService";
 import {
+  CategoryMapper,
+  modelFilterStrategy,
+} from "@/utils";
+import {
+  OdooControlPanel,
+  OdooModelCardGrid,
+  OdooModelListView,
+  type OdooViewType,
+  type OdooFormMode,
+} from "@/components/odoo";
+import {
   oauthProviderRegistry,
   DynamicOnboardedOAuthStrategy,
   type IOAuthProviderStrategy,
@@ -120,6 +131,89 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [isCliLoggingIn, setIsCliLoggingIn] = useState<boolean>(false);
   const [isApplyingOAuthClientConfig, setIsApplyingOAuthClientConfig] = useState<boolean>(false);
   const [activeOAuthStep, setActiveOAuthStep] = useState<1 | 2 | 3 | null>(null);
+
+  // Odoo View Mode: "list" | "card" | "form" (Defaults to "list")
+  const [viewMode, setViewMode] = useState<OdooViewType>("list");
+  const [formMode, setFormMode] = useState<OdooFormMode>("save");
+  const [modelFilterSearch, setModelFilterSearch] = useState<string>("");
+  const [modelFamilyFilter, setModelFamilyFilter] = useState<string>("all");
+  const [modelGroupBy, setModelGroupBy] = useState<"family" | "none">("family");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("oauth_success") === "true" || params.get("edit") === "true") {
+        setViewMode("form");
+        setFormMode("save");
+      }
+    }
+  }, []);
+
+  const openModelSaveView = (modelId: string) => {
+    setTargetModelId(modelId);
+    state.setSelectedModel(modelId);
+    setFormMode("save");
+    setViewMode("form");
+    setActionSuccess(null);
+    setActionError(null);
+  };
+
+  const openModelCreateView = () => {
+    setFormMode("create");
+    setViewMode("form");
+    setEditingAccountId(null);
+    setAccountName("");
+    setApiKey("");
+    setCookieString("");
+    setRedirectAuthCode("");
+    setOauthSession(null);
+    setTestResult(null);
+    setActionSuccess(null);
+    setActionError(null);
+  };
+
+  const handleDiscard = () => {
+    setViewMode("list");
+    setActionError(null);
+  };
+
+  const handleDeleteActiveAccount = async () => {
+    const activeAcc =
+      (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive) ||
+      (state.modelAccounts || []).find((a) => a.modelId === targetModelId);
+    if (!activeAcc) {
+      setActionError("No configuration found to delete for this model.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Are you sure you want to delete and revoke credentials for '${activeAcc.accountName}'?`,
+    );
+    if (!confirmed) return;
+
+    try {
+      await ApiService.deleteModelAccount(targetModelId, activeAcc.accountId);
+      setActionSuccess(`Successfully deleted configuration for '${targetModelId}'.`);
+      setOauthSession(null);
+      await state.refreshModelAccounts();
+      setViewMode("list");
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete account");
+    }
+  };
+
+  const categoriesList = useMemo(() => {
+    return CategoryMapper.extractFilterList(state.categories);
+  }, [state.categories]);
+
+  const filteredModelsForView = useMemo(() => {
+    return modelFilterStrategy.filter(state.models, {
+      searchQuery: modelFilterSearch,
+      family: modelFamilyFilter,
+    });
+  }, [state.models, modelFilterSearch, modelFamilyFilter]);
+
+  const currentModelObj = state.models.find((m) => m.id === targetModelId);
+  const currentModelTitle = currentModelObj?.name || targetModelId;
 
   // Local In-Container VCS & Credentials Directory Audit State (Enabled by default)
   const [vcsAudit, setVcsAudit] = useState<{
@@ -843,8 +937,10 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     }
   };
 
-  const handleSaveConfiguration = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveConfiguration = async (e?: React.FormEvent) => {
+    if (e?.preventDefault) {
+      e.preventDefault();
+    }
     if (!accountName.trim()) {
       setActionError("Please provide an Account Configuration Label.");
       return;
@@ -972,21 +1068,46 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   };
 
   return (
-    <div className="desktop-model-config-page">
-      <div className="config-page-header">
-        <div className="header-badge-row">
-          <span className="default-menu-pill">⚙️ System Configuration</span>
-          <span className="rbac-role-pill">Protocol: {selectedProtocol.toUpperCase()}</span>
-          <span className="company-pill">Organization: {state.currentUser?.companyName || "Acme Global Technologies"}</span>
-          <span className="count-badge" style={{ marginLeft: "auto", fontSize: "0.75rem", background: "rgba(255, 255, 255, 0.08)", padding: "4px 12px", borderRadius: "100px", color: "#94a3b8" }}>
-            Total Configured: {state.modelAccounts.length}
-          </span>
-        </div>
-        <h2>Model Configuration Studio</h2>
-        <p className="config-header-desc">
-          Configure model access credentials across REST API, CLI Binary, Cookie Vault, and Interactive OAuth 2.0 Web Redirect for 100+ AI providers.
-        </p>
-      </div>
+    <div className="desktop-model-config-page" data-testid="desktop-model-config-page">
+      {/* 1. Odoo Unified Control Panel */}
+      <OdooControlPanel
+        viewType={viewMode}
+        formMode={formMode}
+        title={viewMode === "form" ? currentModelTitle : "Model Configuration Studio"}
+        breadcrumbParent={viewMode === "form" ? "Model Configurations" : undefined}
+        onBreadcrumbParentClick={() => setViewMode("list")}
+        onCreateClick={openModelCreateView}
+        onSaveClick={viewMode === "form" ? () => void handleSaveConfiguration() : undefined}
+        onDiscardClick={viewMode === "form" ? handleDiscard : undefined}
+        onDeleteClick={viewMode === "form" && formMode === "save" ? handleDeleteActiveAccount : undefined}
+        onChatClick={
+          viewMode === "form"
+            ? () => {
+                state.setSelectedModel(targetModelId);
+                state.setActiveTab("chat");
+              }
+            : undefined
+        }
+        isSaving={isSaving}
+        onViewTypeChange={(type) => setViewMode(type)}
+        searchQuery={modelFilterSearch}
+        onSearchChange={setModelFilterSearch}
+        searchPlaceholder="Filter models by name, family, or ID..."
+        activeFilter={modelFamilyFilter}
+        onFilterChange={setModelFamilyFilter}
+        filterOptions={categoriesList}
+        activeGroupBy={modelGroupBy}
+        onGroupByChange={(g) => setModelGroupBy(g as any)}
+        groupByOptions={[
+          { value: "family", label: "Provider / Family" },
+          { value: "none", label: "None (Flat List)" },
+        ]}
+        currentRange={
+          viewMode !== "form" && filteredModelsForView.length > 0
+            ? `1-${filteredModelsForView.length} / ${filteredModelsForView.length}`
+            : undefined
+        }
+      />
 
       {actionSuccess && (
         <div className="alert-banner success">
@@ -1004,7 +1125,74 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         </div>
       )}
 
-      <div className="config-studio-grid">
+      {/* 2. List View (Odoo List View with Group By & Metrics) */}
+      {viewMode === "list" && (
+        <OdooModelListView
+          models={filteredModelsForView}
+          modelAccounts={state.modelAccounts}
+          auditLogs={state.auditLogs}
+          sessions={state.sessions}
+          selectedModelId={targetModelId}
+          groupBy={modelGroupBy}
+          onModelClick={openModelSaveView}
+          onChatSelect={(mId) => {
+            state.setSelectedModel(mId);
+            state.setActiveTab("chat");
+          }}
+          onManageAccountsClick={(mId) => {
+            openModelSaveView(mId);
+          }}
+        />
+      )}
+
+      {/* 3. Card View (Odoo Kanban Card Grid) */}
+      {viewMode === "card" && (
+        <OdooModelCardGrid
+          models={filteredModelsForView}
+          modelAccounts={state.modelAccounts}
+          selectedModelId={targetModelId}
+          onModelClick={openModelSaveView}
+          onChatSelect={(mId) => {
+            state.setSelectedModel(mId);
+            state.setActiveTab("chat");
+          }}
+        />
+      )}
+
+      {/* 4. Form View (Odoo Create / Save View) */}
+      {viewMode === "form" && (
+        <div className="odoo-form-view-container" data-testid="odoo-form-view">
+          {formMode === "create" && (
+            <div className="odoo-form-create-banner" data-testid="odoo-create-banner">
+              <div className="create-banner-info">
+                <span className="banner-icon">✨</span>
+                <div className="banner-text">
+                  <h4>New Model Configuration</h4>
+                  <p>Select target model below to bind credentials and authentication strategies.</p>
+                </div>
+              </div>
+              <div className="create-model-selector-row">
+                <label className="selector-label">Target Model:</label>
+                <select
+                  className="model-select-dropdown"
+                  value={targetModelId}
+                  onChange={(e) => {
+                    setTargetModelId(e.target.value);
+                    state.setSelectedModel(e.target.value);
+                  }}
+                  data-testid="odoo-select-target-model"
+                >
+                  {state.models.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.family})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div className="config-studio-grid">
         {/* Left Column: Interactive Protocol Configuration Form */}
         <div className="config-builder-card">
           <div className="card-header">
@@ -2183,6 +2371,8 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
           </div>
         </div>
       </div>
+        </div>
+      )}
 
       {/* ============================================================= */}
       {/* 5. ONBOARD NEW MODEL PROVIDER MODAL                           */}

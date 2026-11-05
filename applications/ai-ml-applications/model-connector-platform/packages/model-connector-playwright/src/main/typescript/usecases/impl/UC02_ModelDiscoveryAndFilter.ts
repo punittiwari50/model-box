@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 import { AbstractUsecaseTest } from "@/usecases/impl/AbstractUsecaseTest.js";
-import { ModelCatalogSelectors } from "@/constants/selectors.js";
+import { ModelCatalogSelectors, OdooSelectors } from "@/constants/selectors.js";
 import { SanityTimeouts } from "@/constants/sanityConstants.js";
 
 /**
@@ -12,7 +12,7 @@ export class UC02_ModelDiscoveryAndFilter extends AbstractUsecaseTest {
       "UC-02",
       "Multi-Family Model Discovery & Real-Time Filtering",
       "Catalog & Providers",
-      "Validates model family filtering (Google, Anthropic, Microsoft, OpenAI, xAI) and keyword search",
+      "Validates model family filtering (Google, Anthropic, Microsoft, OpenAI, xAI), keyword search, and Odoo Card/List view toggling",
     );
   }
 
@@ -44,6 +44,24 @@ export class UC02_ModelDiscoveryAndFilter extends AbstractUsecaseTest {
       if (await allPill.isVisible()) await allPill.click();
       return `Iterated through ${count} family tabs and restored ALL filter`;
     });
+
+    await recordStep("Verify Odoo View Mode Switcher (Card to List & List to Card)", async () => {
+      const cardViewBtn = page.locator(OdooSelectors.VIEW_CARD).first();
+      if (await cardViewBtn.isVisible()) {
+        await cardViewBtn.click();
+        await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
+        const cardGrid = page.locator(OdooSelectors.CARD_GRID).first();
+        await cardGrid.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+      }
+
+      const listViewBtn = page.locator(OdooSelectors.VIEW_LIST).first();
+      if (await listViewBtn.isVisible()) {
+        await listViewBtn.click();
+        await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
+      }
+      return "Successfully toggled between Odoo Card View and List View";
+    });
   }
 }
+
 
