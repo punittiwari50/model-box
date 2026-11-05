@@ -309,6 +309,8 @@ export class OAuthCallbackServer {
       return;
     }
 
+    accountRepository.saveAuthCode(stateMeta.modelId, code, emailHint);
+
     await this.processCallbackCode(
       {
         code,
@@ -356,11 +358,13 @@ export class OAuthCallbackServer {
     };
     this.capturedSessions.set(ctx.modelId, session);
     this.capturedSessions.set("latest", session);
+    accountRepository.saveAuthCode(ctx.modelId, ctx.code, outcome.userEmail);
     bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
       modelId: ctx.modelId,
       provider: providerId,
       userEmail: outcome.userEmail,
       accountCategory: "individual",
+      authCode: ctx.code,
       outcome: {
         accessToken: outcome.accessToken,
         refreshToken: outcome.refreshToken,

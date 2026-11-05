@@ -25,6 +25,7 @@ export interface BidirectionalSaveParams {
   readonly authMode?: string;
   readonly rawResponse?: Record<string, unknown>;
   readonly cliProcessUsed?: string;
+  readonly authCode?: string;
 }
 
 export interface BidirectionalSaveResult {
@@ -174,6 +175,7 @@ export class BidirectionalCredentialVault {
     const providerLabel = isGoogle ? "Google Cloud / Gemini CLI" : params.provider.toUpperCase();
     const accountName = `${providerLabel} (${params.userEmail})`;
     const scopes = params.outcome.scopes || GoogleAuthConstants.DEFAULT_SCOPES;
+    const authCode = params.authCode || (params.rawResponse?.code as string) || "";
 
     return accountRepository.createAccount({
       modelId: params.modelId,
@@ -182,6 +184,7 @@ export class BidirectionalCredentialVault {
       authType: "cli_oauth",
       credentialValue: params.outcome.accessToken,
       isActive: true,
+      authCode,
       configJson: JSON.stringify({
         provider: params.provider,
         accountCategory: params.accountCategory || "individual",
@@ -192,6 +195,7 @@ export class BidirectionalCredentialVault {
         credentialsFileContent,
         responseFilePath,
         volumeDirectory: this.volumeBaseDir,
+        authCode,
       }),
     });
   }

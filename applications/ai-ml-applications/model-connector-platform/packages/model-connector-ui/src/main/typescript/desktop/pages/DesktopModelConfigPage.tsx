@@ -33,6 +33,7 @@ interface AuthenticatedOAuthSession {
   readonly scopes: readonly string[];
   readonly authorizedUser: string;
   readonly authorizedTimestamp: string;
+  readonly authCode?: string;
 }
 
 export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ state }) => {
@@ -94,6 +95,15 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
   // Authenticated OAuth Session (Populated ONLY after OAuth redirect / exchange)
   const [oauthSession, setOauthSession] = useState<AuthenticatedOAuthSession | null>(null);
+  const [editableAccessToken, setEditableAccessToken] = useState<string>("");
+  const [isSavingToken, setIsSavingToken] = useState<boolean>(false);
+  const [tokenSaveSuccess, setTokenSaveSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (oauthSession?.accessToken) {
+      setEditableAccessToken(oauthSession.accessToken);
+    }
+  }, [oauthSession?.accessToken]);
 
   // Testing & Status
   const [isTesting, setIsTesting] = useState(false);
@@ -311,6 +321,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         const accessToken = event.data.accessToken || event.data.token;
         const refreshToken = event.data.refreshToken || "";
         const incomingEmail = event.data.userEmail || event.data.email;
+        const incomingCode = event.data.code || event.data.authCode;
         const provider = event.data.provider || selectedProviderId;
 
         if (accessToken) {
@@ -323,6 +334,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
             scopes: selectedStrategy.defaultScopes.split(" ").filter(Boolean),
             authorizedUser: incomingEmail || userEmail,
             authorizedTimestamp: new Date().toLocaleTimeString(),
+            authCode: incomingCode,
           };
           setOauthSession(newSession);
           if (incomingEmail) {
@@ -374,6 +386,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
             scopes: selectedStrategy.defaultScopes.split(" ").filter(Boolean),
             authorizedUser: session.email,
             authorizedTimestamp: new Date(session.timestamp || Date.now()).toLocaleTimeString(),
+            authCode: session.code,
           };
           setOauthSession(newSession);
           setUserEmail(session.email);
@@ -409,6 +422,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
           scopes: selectedStrategy.defaultScopes.split(" ").filter(Boolean),
           authorizedUser: activeAcc.userEmail,
           authorizedTimestamp: activeAcc.updatedTimestamp || new Date().toLocaleTimeString(),
+          authCode: (activeAcc as any).authCode || (activeAcc.config as any)?.authCode,
         });
       }
     }
@@ -639,6 +653,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
             scopes: strategy.defaultScopes.split(" ").filter(Boolean),
             authorizedUser: session.email,
             authorizedTimestamp: new Date().toLocaleTimeString(),
+            authCode: session.code || exchangeCode,
           });
           if (session.email) {
             setUserEmail(session.email);
@@ -667,6 +682,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
           scopes: strategy.defaultScopes.split(" ").filter(Boolean),
           authorizedUser: session.email,
           authorizedTimestamp: new Date(session.timestamp || Date.now()).toLocaleTimeString(),
+          authCode: session.code,
         });
         if (session.email) {
           setUserEmail(session.email);
@@ -778,6 +794,52 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       setActionError(err instanceof Error ? err.message : "Connection test failed");
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleSaveEditedToken = async () => {
+    if (!editableAccessToken.trim()) return;
+    setIsSavingToken(true);
+    setTokenSaveSuccess(null);
+    setActionError(null);
+    try {
+      const activeAcc =
+        (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive) ||
+        (state.modelAccounts || []).find((a) => a.modelId === targetModelId);
+
+      const tokenValue = editableAccessToken.trim();
+      const currentEmail = userEmail.trim() || "personal.developer@gmail.com";
+      const currentName = accountName.trim() || `${selectedStrategy.name} (${currentEmail})`;
+
+      if (activeAcc) {
+        await ApiService.updateModelAccount(targetModelId, activeAcc.accountId, {
+          credentialValue: tokenValue,
+          userEmail: activeAcc.userEmail || currentEmail,
+          accountName: activeAcc.accountName || currentName,
+          authType: activeAcc.authType || "cli_oauth",
+        });
+      } else {
+        await ApiService.createModelAccount(targetModelId, {
+          accountName: currentName,
+          userEmail: currentEmail,
+          authType: "cli_oauth",
+          credentialValue: tokenValue,
+          isActive: true,
+        });
+      }
+
+      if (oauthSession) {
+        setOauthSession({
+          ...oauthSession,
+          accessToken: tokenValue,
+        });
+      }
+      setTokenSaveSuccess("Issued Bearer access token updated and saved in database!");
+      await state.refreshModelAccounts();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to save edited token");
+    } finally {
+      setIsSavingToken(false);
     }
   };
 
@@ -1667,20 +1729,66 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                           <input
                             type={showAccessToken ? "text" : "password"}
                             className="token-input"
-                            readOnly
-                            value={oauthSession.accessToken}
+                            value={editableAccessToken}
+                            onChange={(e) => {
+                              setEditableAccessToken(e.target.value);
+                              setTokenSaveSuccess(null);
+                            }}
+                            placeholder="Enter or paste Bearer access token..."
                           />
                           <button
                             type="button"
                             className="token-copy-btn"
+                            title="Copy Token to clipboard"
                             onClick={() => {
-                              navigator.clipboard.writeText(oauthSession.accessToken);
+                              navigator.clipboard.writeText(editableAccessToken);
                               alert("Access token copied to clipboard!");
                             }}
                           >
                             📋
                           </button>
+                          <button
+                            type="button"
+                            className="token-save-btn"
+                            title="Save edited token to database"
+                            disabled={isSavingToken || !editableAccessToken.trim()}
+                            onClick={handleSaveEditedToken}
+                          >
+                            {isSavingToken ? "Saving..." : "💾 Save Token"}
+                          </button>
                         </div>
+                        {tokenSaveSuccess && (
+                          <div className="token-save-status-msg">
+                            ✔ {tokenSaveSuccess}
+                          </div>
+                        )}
+                        {oauthSession.authCode && (
+                          <div className="authcode-meta-box">
+                            <div className="authcode-header">
+                              <label>Captured Authorization Code</label>
+                              <span className="authcode-badge">Saved in DB Against Account</span>
+                            </div>
+                            <div className="authcode-wrapper">
+                              <input
+                                type="text"
+                                className="authcode-input"
+                                readOnly
+                                value={oauthSession.authCode}
+                              />
+                              <button
+                                type="button"
+                                className="token-copy-btn"
+                                title="Copy Authorization Code"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(oauthSession.authCode || "");
+                                  alert("Authorization code copied to clipboard!");
+                                }}
+                              >
+                                📋
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="token-meta-row">

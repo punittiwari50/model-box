@@ -13,6 +13,7 @@ export interface ModelAccount {
   credentialValue: string;
   isActive: boolean;
   configJson?: string;
+  authCode?: string;
   customLocation?: string;
   credentialsFileContent?: string;
   authMethod?: string;
@@ -50,6 +51,7 @@ export class AccountRepository {
                 CREDENTIAL_VALUE as credentialValue,
                 IS_ACTIVE as isActive,
                 CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
                 CREATED_TIMESTAMP as createdTimestamp,
                 UPDATED_TIMESTAMP as updatedTimestamp
          FROM MODEL_ACCOUNTS
@@ -73,6 +75,7 @@ export class AccountRepository {
                 CREDENTIAL_VALUE as credentialValue,
                 IS_ACTIVE as isActive,
                 CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
                 CREATED_TIMESTAMP as createdTimestamp,
                 UPDATED_TIMESTAMP as updatedTimestamp
          FROM MODEL_ACCOUNTS
@@ -95,6 +98,7 @@ export class AccountRepository {
                 CREDENTIAL_VALUE as credentialValue,
                 IS_ACTIVE as isActive,
                 CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
                 CREATED_TIMESTAMP as createdTimestamp,
                 UPDATED_TIMESTAMP as updatedTimestamp
          FROM MODEL_ACCOUNTS
@@ -116,6 +120,7 @@ export class AccountRepository {
                 CREDENTIAL_VALUE as credentialValue,
                 IS_ACTIVE as isActive,
                 CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
                 CREATED_TIMESTAMP as createdTimestamp,
                 UPDATED_TIMESTAMP as updatedTimestamp
          FROM MODEL_ACCOUNTS
@@ -136,6 +141,7 @@ export class AccountRepository {
     credentialValue: string;
     isActive?: boolean;
     configJson?: string;
+    authCode?: string;
   }): ModelAccount {
     const existing = this.findMatchingAccount(data.modelId, data.accountName, data.userEmail, data.accountId);
     if (existing) {
@@ -146,6 +152,7 @@ export class AccountRepository {
         credentialValue: data.credentialValue,
         isActive: data.isActive,
         configJson: data.configJson,
+        authCode: data.authCode,
       });
       if (updated) {
         return updated;
@@ -162,8 +169,8 @@ export class AccountRepository {
     db.prepare(
       `INSERT INTO MODEL_ACCOUNTS (
          ACCOUNT_ID, MODEL_ID, ACCOUNT_NAME, USER_EMAIL,
-         AUTH_TYPE, CREDENTIAL_VALUE, IS_ACTIVE, CONFIG_JSON, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         AUTH_TYPE, CREDENTIAL_VALUE, IS_ACTIVE, CONFIG_JSON, AUTH_CODE, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       accountId,
       data.modelId,
@@ -173,6 +180,7 @@ export class AccountRepository {
       data.credentialValue,
       active,
       data.configJson || null,
+      data.authCode || null,
       now,
       now,
     );
@@ -222,6 +230,7 @@ export class AccountRepository {
       credentialValue?: string;
       isActive?: boolean;
       configJson?: string;
+      authCode?: string;
     },
   ): ModelAccount | undefined {
     const existing = this.getAccount(accountId);
@@ -240,6 +249,7 @@ export class AccountRepository {
            CREDENTIAL_VALUE = ?,
            IS_ACTIVE = ?,
            CONFIG_JSON = ?,
+           AUTH_CODE = ?,
            UPDATED_TIMESTAMP = ?
        WHERE ACCOUNT_ID = ?`,
     ).run(
@@ -249,6 +259,7 @@ export class AccountRepository {
       data.credentialValue ?? existing.credentialValue,
       nextActive,
       data.configJson !== undefined ? data.configJson : existing.configJson || null,
+      data.authCode !== undefined ? data.authCode : existing.authCode || null,
       now,
       accountId,
     );
@@ -325,7 +336,7 @@ export class AccountRepository {
         .prepare(
           `SELECT ACCOUNT_ID as accountId, MODEL_ID as modelId, ACCOUNT_NAME as accountName,
                   USER_EMAIL as userEmail, AUTH_TYPE as authType, CREDENTIAL_VALUE as credentialValue,
-                  IS_ACTIVE as isActive, CONFIG_JSON as configJson, CREATED_TIMESTAMP as createdTimestamp,
+                  IS_ACTIVE as isActive, CONFIG_JSON as configJson, AUTH_CODE as authCode, CREATED_TIMESTAMP as createdTimestamp,
                   UPDATED_TIMESTAMP as updatedTimestamp
            FROM MODEL_ACCOUNTS
            WHERE MODEL_ID = ? AND LOWER(USER_EMAIL) = LOWER(?)
@@ -335,6 +346,29 @@ export class AccountRepository {
       if (row) return this.mapRowToAccount(row);
     }
     return this.getActiveAccount(modelId);
+  }
+
+  public saveAuthCode(modelId: string, authCode: string, userEmail?: string): ModelAccount {
+    const existing = this.findMatchingAccount(modelId, undefined, userEmail);
+    if (existing) {
+      const cfg = this.parseJsonSafe(existing.configJson);
+      cfg.authCode = authCode;
+      return this.updateAccount(existing.accountId, {
+        authCode,
+        configJson: JSON.stringify(cfg),
+      })!;
+    }
+    const defaultEmail = userEmail || "personal.developer@gmail.com";
+    return this.createAccount({
+      modelId,
+      accountName: `Google Cloud / Gemini CLI (${defaultEmail})`,
+      userEmail: defaultEmail,
+      authType: "cli_oauth",
+      credentialValue: "",
+      isActive: true,
+      authCode,
+      configJson: JSON.stringify({ authCode, provider: "google" }),
+    });
   }
 
   public setActiveAccount(modelId: string, accountId: string): boolean {
@@ -382,6 +416,11 @@ export class AccountRepository {
 
   private mapRowToAccount(row: any): ModelAccount {
     const parsedCfg = this.parseJsonSafe(row.configJson);
+    const authCode = row.authCode
+      ? String(row.authCode)
+      : parsedCfg.authCode
+        ? String(parsedCfg.authCode)
+        : undefined;
     return {
       accountId: String(row.accountId),
       modelId: String(row.modelId),
@@ -391,6 +430,7 @@ export class AccountRepository {
       credentialValue: String(row.credentialValue || ""),
       isActive: Boolean(row.isActive),
       configJson: row.configJson ? String(row.configJson) : undefined,
+      authCode,
       customLocation: parsedCfg.customLocation ? String(parsedCfg.customLocation) : undefined,
       credentialsFileContent: parsedCfg.credentialsFileContent ? String(parsedCfg.credentialsFileContent) : undefined,
       authMethod: parsedCfg.authMethod ? String(parsedCfg.authMethod) : undefined,

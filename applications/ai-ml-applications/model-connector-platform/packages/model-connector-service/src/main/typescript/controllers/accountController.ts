@@ -31,7 +31,7 @@ export class AccountController {
 
   public createAccount(req: Request, res: Response): void {
     const { modelId } = req.params;
-    const { accountName, userEmail, authType, credentialValue, isActive } = req.body || {};
+    const { accountName, userEmail, authType, credentialValue, isActive, authCode } = req.body || {};
 
     if (!accountName || !userEmail || !authType || !credentialValue) {
       res.status(HttpStatus.BAD_REQUEST).json({
@@ -51,6 +51,7 @@ export class AccountController {
       authType: authType as AuthType,
       credentialValue,
       isActive: Boolean(isActive ?? true),
+      authCode,
       configJson: resolvedConfigJson,
     });
 
@@ -63,7 +64,7 @@ export class AccountController {
 
   public updateAccount(req: Request, res: Response): void {
     const { accountId } = req.params;
-    const { accountName, userEmail, authType, credentialValue, isActive } = req.body || {};
+    const { accountName, userEmail, authType, credentialValue, isActive, authCode } = req.body || {};
 
     const resolvedConfigJson = this.resolveConfigPayload(req.body);
 
@@ -73,6 +74,7 @@ export class AccountController {
       authType,
       credentialValue,
       isActive,
+      authCode,
       configJson: resolvedConfigJson,
     });
 
