@@ -111,6 +111,49 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [isApplyingOAuthClientConfig, setIsApplyingOAuthClientConfig] = useState<boolean>(false);
   const [activeOAuthStep, setActiveOAuthStep] = useState<1 | 2 | 3 | null>(null);
 
+  // Local In-Container VCS & Credentials Directory Audit State (Enabled by default)
+  const [vcsAudit, setVcsAudit] = useState<{
+    readonly isTracking: boolean;
+    readonly isGitRepo: boolean;
+    readonly directoryPath: string;
+    readonly currentCommitHash?: string;
+    readonly totalTrackedFiles: number;
+    readonly changedFiles: readonly string[];
+    readonly lastVerifiedAt?: string;
+  }>({
+    isTracking: true,
+    isGitRepo: true,
+    directoryPath: "/app/config/data/credentials",
+    totalTrackedFiles: 0,
+    changedFiles: [],
+    lastVerifiedAt: undefined,
+  });
+
+  const triggerDirectoryVerification = async (_reason?: string) => {
+    try {
+      const res = await ApiService.verifyCredentialsDirectory(targetModelId, userEmail);
+      if (res?.success && res?.vcs) {
+        setVcsAudit({
+          isTracking: true,
+          isGitRepo: res.vcs.isGitRepo,
+          directoryPath: res.vcs.directoryPath,
+          currentCommitHash: res.vcs.currentCommitHash || res.diffReport?.gitCommitHash,
+          totalTrackedFiles: res.vcs.totalTrackedFiles,
+          changedFiles: res.diffReport?.changedFiles || [],
+          lastVerifiedAt: new Date().toLocaleTimeString(),
+        });
+        if (res.syncedAccounts && res.syncedAccounts.length > 0) {
+          const primary = res.syncedAccounts[0];
+          setUserEmail(primary.userEmail);
+          setAccountName(primary.accountName);
+          await state.refreshModelAccounts();
+        }
+      }
+    } catch {
+      // Best-effort background tracking
+    }
+  };
+
   // Determine current effective OAuth step (1: Provider, 2: Redirect & Consent, 3: Token Vault)
   const effectiveOAuthStep: 1 | 2 | 3 = useMemo(() => {
     if (activeOAuthStep !== null) return activeOAuthStep;
@@ -468,6 +511,23 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       }
       setCliScriptError(null);
 
+      if (cliResponse.vcs) {
+        setVcsAudit({
+          isTracking: true,
+          isGitRepo: true,
+          directoryPath: "/app/config/data/credentials",
+          currentCommitHash: cliResponse.vcs.gitCommitHash,
+          totalTrackedFiles: cliResponse.vcs.changedFiles?.length || 0,
+          changedFiles: cliResponse.vcs.changedFiles || [],
+          lastVerifiedAt: new Date().toLocaleTimeString(),
+        });
+      }
+      if (cliResponse.account) {
+        setUserEmail(cliResponse.account.userEmail);
+        setAccountName(cliResponse.account.accountName);
+        await state.refreshModelAccounts();
+      }
+
       const fallbackConfig = refreshedConfig || (await ApiService.fetchModelOAuthConfig(targetModelId));
       const launchUrl =
         cliResponse.loginResult?.config?.authorizationUrl ||
@@ -517,6 +577,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     setIsRedirecting(true);
     setIsWaitingForCallback(true);
     setActionError(null);
+    void triggerDirectoryVerification("pre-browser-redirect");
     setActionSuccess(`Redirecting to ${selectedStrategy.name} Authorization Portal in a new window...`);
     try {
       const refreshedConfig = await ensureAppliedOAuthClientConfiguration();
@@ -558,6 +619,17 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         const res = await ApiService.verifyOAuthManual(targetModelId, exchangeCode, userEmail);
         if (res?.session) {
           const session = res.session;
+          if (res.vcs) {
+            setVcsAudit({
+              isTracking: true,
+              isGitRepo: true,
+              directoryPath: "/app/config/data/credentials",
+              currentCommitHash: res.vcs.gitCommitHash,
+              totalTrackedFiles: res.vcs.changedFiles?.length || 0,
+              changedFiles: res.vcs.changedFiles || [],
+              lastVerifiedAt: new Date().toLocaleTimeString(),
+            });
+          }
           setOauthSession({
             providerId: session.provider || strategy.id,
             providerName: strategy.name,
@@ -1243,6 +1315,41 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                         </div>
                       </div>
 
+                      {/* Local Container VCS & Credentials Directory Verification (Enabled by default) */}
+                      <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card">
+                        <div className="vcs-audit-header">
+                          <div className="vcs-badge-group">
+                            <span className="vcs-icon">📁</span>
+                            <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
+                            <span className="vcs-status-tag">
+                              {vcsAudit.isGitRepo ? "Git Tracking Active (In-Container)" : "Snapshot VCS Active"}
+                            </span>
+                            {vcsAudit.currentCommitHash && (
+                              <span className="vcs-commit-tag">
+                                commit: {vcsAudit.currentCommitHash.slice(0, 7)}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-vcs-reverify"
+                            onClick={() => triggerDirectoryVerification("manual-reverify")}
+                            title="Verify directory state and check changed files locally"
+                          >
+                            🔄 Verify Directory & Diff
+                          </button>
+                        </div>
+                        {vcsAudit.changedFiles.length > 0 && (
+                          <div className="vcs-changed-files-row">
+                            <span className="changed-label">Detected Changed File(s):</span>
+                            {vcsAudit.changedFiles.map((f) => (
+                              <code key={f} className="changed-file-pill">{f}</code>
+                            ))}
+                            <span className="vcs-sync-note">Synced to database for multi-account interaction</span>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Section 4: Action Buttons Toolbar */}
                       <div className="oauth-action-toolbar">
                         <button
@@ -1471,6 +1578,41 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                           <span className="identity-email">{oauthSession.authorizedUser}</span>
                           <span className="identity-sub">Authenticated Principal • Handshake at {oauthSession.authorizedTimestamp}</span>
                         </div>
+                      </div>
+
+                      {/* Local Container VCS & Credentials Directory Verification (Enabled by default) */}
+                      <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card-step3">
+                        <div className="vcs-audit-header">
+                          <div className="vcs-badge-group">
+                            <span className="vcs-icon">📁</span>
+                            <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
+                            <span className="vcs-status-tag">
+                              {vcsAudit.isGitRepo ? "Git Tracking Active (In-Container)" : "Snapshot VCS Active"}
+                            </span>
+                            {vcsAudit.currentCommitHash && (
+                              <span className="vcs-commit-tag">
+                                commit: {vcsAudit.currentCommitHash.slice(0, 7)}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-vcs-reverify"
+                            onClick={() => triggerDirectoryVerification("manual-reverify")}
+                            title="Verify directory state and check changed files locally"
+                          >
+                            🔄 Verify Directory & Diff
+                          </button>
+                        </div>
+                        {vcsAudit.changedFiles.length > 0 && (
+                          <div className="vcs-changed-files-row">
+                            <span className="changed-label">Detected Changed File(s):</span>
+                            {vcsAudit.changedFiles.map((f) => (
+                              <code key={f} className="changed-file-pill">{f}</code>
+                            ))}
+                            <span className="vcs-sync-note">Synced to database for multi-account interaction</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Session Action Toolbar for On-Demand Browser Re-Authentication */}

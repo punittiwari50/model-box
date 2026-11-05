@@ -137,7 +137,18 @@ export class ApiService {
     modelId: string,
     input: string,
     userEmail?: string,
-  ): Promise<{ success: boolean; session: any; message: string }> {
+  ): Promise<{
+    success: boolean;
+    session: any;
+    message: string;
+    account?: any;
+    syncedAccounts?: any[];
+    vcs?: {
+      hasChanges: boolean;
+      changedFiles: string[];
+      gitCommitHash?: string;
+    };
+  }> {
     const res = await fetch(`${API_BASE}/models/${encodeURIComponent(modelId)}/verify-oauth-manual`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -447,6 +458,21 @@ export class ApiService {
       errorMessage?: string;
       errorCode?: string;
     };
+    account?: {
+      accountId: string;
+      modelId: string;
+      userEmail: string;
+      accountName: string;
+      authType: string;
+      isNewAccount?: boolean;
+    };
+    syncedAccounts?: any[];
+    vcs?: {
+      hasChanges: boolean;
+      changedFiles: string[];
+      gitCommitHash?: string;
+      snapshotId?: string;
+    };
     loginResult?: {
       provider: string;
       cliCommand: string;
@@ -465,6 +491,64 @@ export class ApiService {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || "Failed to execute CLI login");
+    return data;
+  }
+
+  public static async verifyCredentialsDirectory(
+    modelId: string,
+    userEmail?: string,
+  ): Promise<{
+    success: boolean;
+    modelId: string;
+    vcs: {
+      directoryPath: string;
+      exists: boolean;
+      isGitRepo: boolean;
+      currentCommitHash?: string;
+      totalTrackedFiles: number;
+      recentChangedFiles: string[];
+    };
+    diffReport?: {
+      hasChanges: boolean;
+      changedFiles: string[];
+      gitCommitHash?: string;
+    };
+    syncedAccounts?: Array<{
+      accountId: string;
+      modelId: string;
+      userEmail: string;
+      accountName: string;
+      authType: string;
+      sourceFile: string;
+      isNewAccount: boolean;
+    }>;
+    message: string;
+  }> {
+    const res = await fetch(`${API_BASE}/models/${encodeURIComponent(modelId)}/vcs/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userEmail }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || "Failed to verify credentials directory");
+    return data;
+  }
+
+  public static async fetchVcsStatus(modelId: string): Promise<{
+    success: boolean;
+    modelId: string;
+    vcs: {
+      directoryPath: string;
+      exists: boolean;
+      isGitRepo: boolean;
+      currentCommitHash?: string;
+      totalTrackedFiles: number;
+      recentChangedFiles: string[];
+    };
+  }> {
+    const res = await fetch(`${API_BASE}/models/${encodeURIComponent(modelId)}/vcs/status`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || "Failed to fetch VCS status");
     return data;
   }
 

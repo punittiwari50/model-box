@@ -447,6 +447,10 @@ run_oauth_daemon() {
           cp -rf "$HOME/.config/antigravity"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
           logger_info "Copied Antigravity credentials to bidirectional volume at ${CREDENTIALS_DIR}"
         fi
+        if [ -d "$HOME/.gemini" ]; then
+          cp -rf "$HOME/.gemini"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
+          logger_info "Copied Gemini credentials to bidirectional volume at ${CREDENTIALS_DIR}"
+        fi
         break
       fi
     fi

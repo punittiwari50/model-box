@@ -98,13 +98,12 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
 
     try {
       const parsed = new URL(session.oauthUrl);
-      const originalCliRedirect = parsed.searchParams.get("redirect_uri") || "";
-      parsed.searchParams.set("redirect_uri", appCallbackUrl);
+      const originalCliRedirect = parsed.searchParams.get("redirect_uri") || session.cliRedirectUri || "";
 
       const adapted: CliOAuthSession = {
         ...session,
-        oauthUrl: parsed.href,
-        cliRedirectUri: session.cliRedirectUri || originalCliRedirect,
+        oauthUrl: session.oauthUrl,
+        cliRedirectUri: originalCliRedirect,
         appRedirectUri: appCallbackUrl,
       };
       cliOAuthSessionRepository.upsertSession(adapted);

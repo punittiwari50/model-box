@@ -71,7 +71,7 @@ ENV FALLBACK_CLI_COMMAND=ollama
 
 # Install curl, ca-certificates, and create well-organized custom CLI directories
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
+    apt-get install -y --no-install-recommends curl ca-certificates git && \
     mkdir -p ${CLI_BIN_DIR} ${CLI_CACHE_DIR}/npm ${CLI_CACHE_DIR}/downloads ${CLI_NPM_PREFIX} ${CLI_MODELS_DIR} /app/config/data && \
     chown -R node:node ${CLI_BASE_DIR} /app && \
     rm -rf /var/lib/apt/lists/*

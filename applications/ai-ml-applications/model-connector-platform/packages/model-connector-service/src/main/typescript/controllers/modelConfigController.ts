@@ -17,6 +17,8 @@ import {
   cliOAuthSessionRepository,
   fileUtils,
   CliAuthStrategyFactory,
+  directoryAccountSyncService,
+  localDirectoryVcsService,
 } from "@model-box/model-connector-core";
 
 export interface TestConnectionRequest {
@@ -283,19 +285,35 @@ export class ModelConfigController {
     const { modelId } = req.params;
     const { userEmail, accountCategory } = req.body || {};
     try {
-      const strategy = CliAuthStrategyFactory.getStrategy(modelId);
-      const session = await strategy.triggerAuth({
+      const vcsResult = await directoryAccountSyncService.executeWithVcsTracking(
+        modelId,
+        "cli-login",
+        async () => {
+          const strategy = CliAuthStrategyFactory.getStrategy(modelId);
+          return strategy.triggerAuth({ userEmail, accountCategory });
+        },
+        undefined,
         userEmail,
-        accountCategory,
-      });
+      );
 
+      const session = vcsResult.result;
       const isFailed = session.status === "FAILED";
       const descriptor = modelOAuthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
+      const strategy = CliAuthStrategyFactory.getStrategy(modelId);
+      const syncedAccount = vcsResult.syncedAccounts[0] || null;
 
       res.status(HttpStatus.OK).json({
         success: !isFailed,
         modelId,
         session,
+        account: syncedAccount,
+        syncedAccounts: vcsResult.syncedAccounts,
+        vcs: {
+          hasChanges: vcsResult.diffReport.hasChanges,
+          changedFiles: vcsResult.diffReport.changedFiles.map((c) => c.relativePath),
+          gitCommitHash: vcsResult.diffReport.gitCommitHash,
+          snapshotId: vcsResult.diffReport.snapshotId,
+        },
         loginResult: {
           provider: descriptor.provider,
           cliCommand: strategy.cliBinary || descriptor.cliCommand || "agy",
@@ -348,10 +366,24 @@ export class ModelConfigController {
     }
 
     try {
-      const session = await oauthCallbackServer.registerManualAuthorization(modelId, String(input), userEmail);
+      const vcsResult = await directoryAccountSyncService.executeWithVcsTracking(
+        modelId,
+        "manual-verify",
+        async () => oauthCallbackServer.registerManualAuthorization(modelId, String(input), userEmail),
+        undefined,
+        userEmail,
+      );
+      const session = vcsResult.result;
       res.status(HttpStatus.OK).json({
         success: true,
         session,
+        account: vcsResult.syncedAccounts[0] || null,
+        syncedAccounts: vcsResult.syncedAccounts,
+        vcs: {
+          hasChanges: vcsResult.diffReport.hasChanges,
+          changedFiles: vcsResult.diffReport.changedFiles.map((c) => c.relativePath),
+          gitCommitHash: vcsResult.diffReport.gitCommitHash,
+        },
         message: `Successfully verified and registered account for ${session.email}`,
         correlationId: req.correlationId,
       });
@@ -359,6 +391,65 @@ export class ModelConfigController {
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: err instanceof Error ? err.message : "Manual verification failed",
+        correlationId: req.correlationId,
+      });
+    }
+  }
+
+  public async getVcsStatus(req: Request, res: Response): Promise<void> {
+    const { modelId } = req.params;
+    try {
+      const status = await directoryAccountSyncService.getVcsStatus();
+      res.status(HttpStatus.OK).json({
+        success: true,
+        modelId,
+        vcs: status,
+        correlationId: req.correlationId,
+      });
+    } catch (err: unknown) {
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        modelId,
+        message: err instanceof Error ? err.message : "Failed to retrieve VCS status",
+        correlationId: req.correlationId,
+      });
+    }
+  }
+
+  public async verifyCredentialsDirectory(req: Request, res: Response): Promise<void> {
+    const { modelId } = req.params;
+    const { userEmail } = req.body || {};
+    try {
+      const vcsStatus = await directoryAccountSyncService.getVcsStatus();
+      const baseline = await localDirectoryVcsService.captureSnapshot("/app/config/data/credentials", "verify-check");
+      const diffReport = await localDirectoryVcsService.detectDiffAndCommit(
+        baseline,
+        `chore(verify): directory verification for ${modelId} at ${new Date().toISOString()}`,
+      );
+      const syncedAccounts = await directoryAccountSyncService.syncChangedFilesToDatabase(
+        diffReport,
+        modelId,
+        userEmail,
+      );
+
+      res.status(HttpStatus.OK).json({
+        success: true,
+        modelId,
+        vcs: vcsStatus,
+        diffReport: {
+          hasChanges: diffReport.hasChanges,
+          changedFiles: diffReport.changedFiles.map((c) => c.relativePath),
+          gitCommitHash: diffReport.gitCommitHash,
+        },
+        syncedAccounts,
+        message: `Credentials directory verified. Tracked ${vcsStatus.totalTrackedFiles} files.`,
+        correlationId: req.correlationId,
+      });
+    } catch (err: unknown) {
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        modelId,
+        message: err instanceof Error ? err.message : "Directory verification failed",
         correlationId: req.correlationId,
       });
     }

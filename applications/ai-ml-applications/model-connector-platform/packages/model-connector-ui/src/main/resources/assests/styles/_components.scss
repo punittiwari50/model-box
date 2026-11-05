@@ -454,3 +454,112 @@
     box-shadow: none !important;
   }
 }
+
+// ==============================================================================
+// Local Container VCS & Directory Audit Card
+// ==============================================================================
+.vcs-container-audit-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 10px 0;
+  box-sizing: border-box;
+
+  .vcs-audit-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .vcs-badge-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.78rem;
+
+    .vcs-icon {
+      font-size: 1rem;
+    }
+
+    .vcs-dir-label {
+      font-family: monospace;
+      color: #93c5fd;
+      font-weight: 600;
+    }
+
+    .vcs-status-tag {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .vcs-commit-tag {
+      background: rgba(147, 51, 234, 0.18);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #c084fc;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 0.72rem;
+    }
+  }
+
+  .btn-vcs-reverify {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e2e8f0 !important;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.4);
+      color: #ffffff !important;
+    }
+  }
+
+  .vcs-changed-files-row {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.75rem;
+
+    .changed-label {
+      color: #f59e0b;
+      font-weight: 600;
+    }
+
+    .changed-file-pill {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.72rem;
+    }
+
+    .vcs-sync-note {
+      color: #94a3b8;
+      font-style: italic;
+      font-size: 0.72rem;
+      margin-left: 4px;
+    }
+  }
+}

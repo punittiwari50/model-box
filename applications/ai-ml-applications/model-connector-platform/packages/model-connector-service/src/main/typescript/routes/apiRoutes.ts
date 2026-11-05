@@ -115,6 +115,12 @@ apiRouter.get("/models/:modelId/latest-oauth-callback", (req, res) =>
 apiRouter.post("/models/:modelId/verify-oauth-manual", (req, res) =>
   modelConfigController.verifyOAuthManual(req, res),
 );
+apiRouter.get("/models/:modelId/vcs/status", (req, res) =>
+  modelConfigController.getVcsStatus(req, res),
+);
+apiRouter.post("/models/:modelId/vcs/verify", (req, res) =>
+  modelConfigController.verifyCredentialsDirectory(req, res),
+);
 apiRouter.get("/oauth2callback", (req, res) =>
   oauthCallbackServer.handleCallback(req, res),
 );

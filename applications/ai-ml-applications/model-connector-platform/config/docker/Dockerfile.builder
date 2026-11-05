@@ -25,9 +25,9 @@ ENV IS_BUILDER=true
 ENV ENABLE_SIMULATION_FALLBACK=true
 ENV ALLOW_MOCK_FALLBACK=true
 
-# Install Python 3 and curl for architectural verification & CLI tool management
+# Install Python 3, git, and curl for architectural verification & CLI tool management
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 curl ca-certificates && \
+    apt-get install -y --no-install-recommends python3 curl ca-certificates git && \
     mkdir -p ${CLI_BIN_DIR} ${CLI_CACHE_DIR}/npm ${CLI_CACHE_DIR}/downloads ${CLI_NPM_PREFIX} && \
     npm config set prefix ${CLI_NPM_PREFIX} --global && \
     npm config set cache ${CLI_CACHE_DIR}/npm --global && \
