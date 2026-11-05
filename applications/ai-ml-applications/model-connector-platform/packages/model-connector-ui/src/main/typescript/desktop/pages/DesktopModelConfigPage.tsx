@@ -1480,6 +1480,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                           className="btn-oauth-action btn-browser-auth"
                           onClick={handleInitiateBrowserRedirect}
                           disabled={isRedirecting}
+                          title="Open browser to acquire a fresh OAuth 2.0 token"
                         >
                           <span className="btn-icon">🌐</span>
                           <span>
@@ -1493,14 +1494,16 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                           className="btn-oauth-action btn-cli-auth"
                           onClick={handleExecuteCliLogin}
                           disabled={isCliLoggingIn}
+                          title="Trigger CLI process to generate OAuth token"
                         >
                           <span className="btn-icon">⚡</span>
-                          <span>Run CLI Auth</span>
+                          <span>{isCliLoggingIn ? "Running CLI Auth..." : "Run CLI Auth"}</span>
                         </button>
                         <button
                           type="button"
                           className="btn-oauth-action btn-step2-redirect"
                           onClick={() => setActiveOAuthStep(2)}
+                          title="View redirect URL, OAuth parameters, and consent step"
                         >
                           <span className="btn-icon">📋</span>
                           <span>Redirect & Consent Step</span>
