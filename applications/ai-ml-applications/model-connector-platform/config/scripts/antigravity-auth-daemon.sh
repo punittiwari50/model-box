@@ -319,6 +319,162 @@ update_csv_store() {
 }
 
 # ==============================================================================
+# Module: LocalVcsCommitService & DatabaseRecordSync (Purely Shell Script)
+# ==============================================================================
+commit_auth_result() {
+  local status="$1"        # "SUCCESS" or "FAILED"
+  local email="$2"         # User email used for authentication
+  local session_id="$3"    # Session ID
+  local error_msg="${4:-}" # Error reason if failed
+
+  git config --global --add safe.directory "$CREDENTIALS_DIR" 2>/dev/null || true
+
+  # Ensure git is initialized in CREDENTIALS_DIR for purely in-container tracking
+  if [ ! -d "${CREDENTIALS_DIR}/.git" ]; then
+    git -C "$CREDENTIALS_DIR" init -q 2>/dev/null || true
+    git -C "$CREDENTIALS_DIR" config user.name "ModelBox Bot" 2>/dev/null || true
+    git -C "$CREDENTIALS_DIR" config user.email "bot@modelbox.local" 2>/dev/null || true
+  fi
+
+  # Construct required commit message stating success/failure status and email
+  local commit_msg
+  if [ "$status" = "SUCCESS" ]; then
+    commit_msg="auth(success): user=${email} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} status=SUCCESS session=${session_id}"
+  else
+    commit_msg="auth(failure): user=${email} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} status=FAILED error=${error_msg} session=${session_id}"
+  fi
+
+  # Stage ONLY authentication folder files (strictly inside CREDENTIALS_DIR, NEVER conversation folder/files)
+  git -C "$CREDENTIALS_DIR" add -A 2>/dev/null || true
+  git -C "$CREDENTIALS_DIR" commit --allow-empty -q -m "$commit_msg" 2>/dev/null || true
+
+  local commit_id
+  commit_id=$(git -C "$CREDENTIALS_DIR" rev-parse HEAD 2>/dev/null || echo "")
+
+  logger_info "Git commit created in credentials directory: [${commit_id:0:7}] ${commit_msg}"
+
+  # Approach 1: Use commit ID to move/archive authentication session files into dedicated commit folder
+  # (Strictly authentication files, conversation files remain untouched)
+  if [ -n "$commit_id" ] && [ -d "$RESPONSES_DIR" ]; then
+    local auth_archive_dir="${RESPONSES_DIR}/auth_${commit_id:0:8}"
+    mkdir -p "$auth_archive_dir" 2>/dev/null || true
+    if [ -f "${RESPONSES_DIR}/session_${session_id}.json" ]; then
+      cp -f "${RESPONSES_DIR}/session_${session_id}.json" "$auth_archive_dir/" 2>/dev/null || true
+    fi
+    if [ -f "${RESPONSES_DIR}/oauth_session_${session_id}.json" ]; then
+      cp -f "${RESPONSES_DIR}/oauth_session_${session_id}.json" "$auth_archive_dir/" 2>/dev/null || true
+    fi
+    logger_info "Approach 1: Archived authentication files under ${auth_archive_dir} (conversation files untouched)."
+  fi
+
+  # Approach 2: Update conversation and authentication from database
+  update_database_records "$status" "$email" "$session_id" "$commit_id" "$error_msg"
+
+  echo "$commit_id"
+}
+
+update_database_records() {
+  local status="$1"
+  local email="$2"
+  local session_id="$3"
+  local commit_id="$4"
+  local error_msg="$5"
+  local db_path="${DATA_DIR}/platform.db"
+
+  if [ ! -f "$db_path" ]; then
+    logger_warn "Database not found at ${db_path}, skipping database record update."
+    return 0
+  fi
+
+  node -e "
+    const { DatabaseSync } = require('node:sqlite');
+    const dbPath = process.argv[1];
+    const status = process.argv[2];
+    const email = process.argv[3];
+    const sessionId = process.argv[4];
+    const commitId = process.argv[5];
+    const errorMsg = process.argv[6] || '';
+    const modelId = '${DEFAULT_MODEL_ID}';
+    const provider = '${DEFAULT_PROVIDER}';
+    const now = new Date().toISOString();
+
+    try {
+      const db = new DatabaseSync(dbPath);
+
+      // 1. Update authentication record in CLI_OAUTH_SESSIONS
+      try {
+        db.prepare(\`
+          UPDATE CLI_OAUTH_SESSIONS
+          SET STATUS = ?,
+              COMMIT_ID = ?,
+              USER_EMAIL = ?,
+              ERROR_MESSAGE = ?,
+              UPDATED_AT = ?
+          WHERE SESSION_ID = ?
+        \`).run(status === 'SUCCESS' ? 'COMPLETED' : 'FAILED', commitId, email, errorMsg, now, sessionId);
+      } catch (err) {
+        console.error('CLI_OAUTH_SESSIONS update:', err.message);
+      }
+
+      // 2. Update MODEL_ACCOUNTS if authentication succeeded
+      if (status === 'SUCCESS') {
+        try {
+          db.prepare(\`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0 WHERE MODEL_ID = ?\`).run(modelId);
+          const existing = db.prepare(\`SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS WHERE MODEL_ID = ? AND LOWER(USER_EMAIL) = LOWER(?)\`).get(modelId, email);
+          if (existing?.accountId) {
+            db.prepare(\`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 1, UPDATED_TIMESTAMP = ? WHERE ACCOUNT_ID = ?\`).run(now, existing.accountId);
+          } else {
+            const accId = 'acc-' + Math.random().toString(36).slice(2, 10);
+            db.prepare(\`
+              INSERT INTO MODEL_ACCOUNTS (
+                ACCOUNT_ID, MODEL_ID, ACCOUNT_NAME, USER_EMAIL,
+                AUTH_TYPE, CREDENTIAL_VALUE, IS_ACTIVE, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
+              ) VALUES (?, ?, ?, ?, 'cli_oauth', ?, 1, ?, ?)
+            \`).run(accId, modelId, provider.toUpperCase() + ' (' + email + ')', email, 'token_' + commitId, now, now);
+          }
+        } catch (err) {
+          console.error('MODEL_ACCOUNTS update:', err.message);
+        }
+      }
+
+      // 3. Update conversation session in SESSIONS table with authentication metadata
+      try {
+        const sessionMeta = JSON.stringify({
+          authCommitId: commitId,
+          authUserEmail: email,
+          authStatus: status,
+          authProvider: provider,
+          verifiedTimestamp: now
+        });
+        const res = db.prepare(\`
+          UPDATE SESSIONS
+          SET SESSION_METADATA_JSON = ?,
+              UPDATED_TIMESTAMP = ?
+          WHERE ACTIVE_MODEL_ID = ?
+        \`).run(sessionMeta, now, modelId);
+        if (res.changes === 0) {
+          const defaultSessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
+          db.prepare(\`
+            INSERT INTO SESSIONS (
+              SESSION_ID, SESSION_TITLE, ACTIVE_MODEL_ID, STRATEGY_MODE,
+              TURN_COUNT, SESSION_METADATA_JSON, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
+            ) VALUES (?, ?, ?, 'cli_oauth', 0, ?, ?, ?)
+          \`).run(defaultSessionId, provider.toUpperCase() + ' Default Session', modelId, sessionMeta, now, now);
+        }
+      } catch (err) {
+        console.error('SESSIONS conversation update:', err.message);
+      }
+
+      console.log('Approach 2: Database successfully updated for session ' + sessionId);
+    } catch (err) {
+      console.error('Database connection error:', err.message);
+    }
+  " "$db_path" "$status" "$email" "$session_id" "$commit_id" "$error_msg" 2>/dev/null || true
+
+  logger_info "Approach 2: Pure database synchronization executed for authentication and conversation."
+}
+
+# ==============================================================================
 # Module: PtyProcessManager & DaemonEngine (Orchestration Loop)
 # ==============================================================================
 run_oauth_daemon() {
@@ -371,6 +527,7 @@ run_oauth_daemon() {
 
   if [ -z "$oauth_url" ]; then
     logger_warn "No Google OAuth authorization URL captured within timeout."
+    commit_auth_result "FAILED" "${USER_EMAIL:-personal.developer@gmail.com}" "session-init" "URL_DISCOVERY_TIMEOUT"
     return 0
   fi
 
@@ -410,6 +567,9 @@ run_oauth_daemon() {
   " "$oauth_url" "$session_id" "$now")
 
   save_session_record "$session_json"
+
+  local auth_succeeded=false
+  local auth_email="${USER_EMAIL:-personal.developer@gmail.com}"
 
   # Wait for Auth Code delivery or timeout
   logger_info "Waiting for user authorization code input (timeout: ${AUTH_TIMEOUT_SECONDS}s)..."
@@ -451,11 +611,38 @@ run_oauth_daemon() {
           cp -rf "$HOME/.gemini"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
           logger_info "Copied Gemini credentials to bidirectional volume at ${CREDENTIALS_DIR}"
         fi
+
+        # Attempt to dynamically extract user email from captured credentials
+        local cred_email
+        cred_email=$(node -e "
+          const fs = require('fs');
+          const paths = ['${CREDENTIALS_DIR}/credentials.json', '${CREDENTIALS_DIR}/tokens.json', '${CREDENTIALS_DIR}/oauth.json'];
+          for (const p of paths) {
+            try {
+              if (fs.existsSync(p)) {
+                const c = JSON.parse(fs.readFileSync(p, 'utf8'));
+                const em = c.email || c.user_email || c.user || (c.profile && c.profile.email);
+                if (em) { console.log(em); process.exit(0); }
+              }
+            } catch {}
+          }
+        " 2>/dev/null || true)
+        if [ -n "$cred_email" ]; then
+          auth_email="$cred_email"
+        fi
+
+        auth_succeeded=true
+        commit_auth_result "SUCCESS" "$auth_email" "$session_id" ""
         break
       fi
     fi
     sleep 2
   done
+
+  if [ "$auth_succeeded" = false ]; then
+    logger_warn "Authorization code was not provided within timeout (${AUTH_TIMEOUT_SECONDS}s)."
+    commit_auth_result "FAILED" "$auth_email" "$session_id" "AUTH_CODE_TIMEOUT"
+  fi
 
   logger_info "Antigravity OAuth daemon session closed."
 }
@@ -474,4 +661,6 @@ main() {
   run_oauth_daemon "$RESOLVED_CLI_BIN"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

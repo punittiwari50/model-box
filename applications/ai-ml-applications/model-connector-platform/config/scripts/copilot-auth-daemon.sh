@@ -108,6 +108,136 @@ save_session() {
   " "$JSON_SESSIONS_FILE" "$session_json"
 }
 
+commit_auth_result() {
+  local status="$1"
+  local email="$2"
+  local session_id="$3"
+  local error_msg="${4:-}"
+
+  git config --global --add safe.directory "$CREDENTIALS_DIR" 2>/dev/null || true
+
+  if [ ! -d "${CREDENTIALS_DIR}/.git" ]; then
+    git -C "$CREDENTIALS_DIR" init -q 2>/dev/null || true
+    git -C "$CREDENTIALS_DIR" config user.name "ModelBox Bot" 2>/dev/null || true
+    git -C "$CREDENTIALS_DIR" config user.email "bot@modelbox.local" 2>/dev/null || true
+  fi
+
+  local commit_msg
+  if [ "$status" = "SUCCESS" ]; then
+    commit_msg="auth(success): user=${email} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} status=SUCCESS session=${session_id}"
+  else
+    commit_msg="auth(failure): user=${email} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} status=FAILED error=${error_msg} session=${session_id}"
+  fi
+
+  git -C "$CREDENTIALS_DIR" add -A 2>/dev/null || true
+  git -C "$CREDENTIALS_DIR" commit --allow-empty -q -m "$commit_msg" 2>/dev/null || true
+
+  local commit_id
+  commit_id=$(git -C "$CREDENTIALS_DIR" rev-parse HEAD 2>/dev/null || echo "")
+
+  logger_info "Git commit created in credentials directory: [${commit_id:0:7}] ${commit_msg}"
+
+  # Approach 1: Use commit ID to move/archive authentication session files into dedicated commit folder
+  if [ -n "$commit_id" ] && [ -d "$RESPONSES_DIR" ]; then
+    local auth_archive_dir="${RESPONSES_DIR}/auth_${commit_id:0:8}"
+    mkdir -p "$auth_archive_dir" 2>/dev/null || true
+    if [ -f "${RESPONSES_DIR}/oauth_session_${session_id}.json" ]; then
+      cp -f "${RESPONSES_DIR}/oauth_session_${session_id}.json" "$auth_archive_dir/" 2>/dev/null || true
+    fi
+    logger_info "Approach 1: Archived authentication files under ${auth_archive_dir} (conversation files untouched)."
+  fi
+
+  # Approach 2: Update conversation and authentication from database
+  update_database_records "$status" "$email" "$session_id" "$commit_id" "$error_msg"
+
+  echo "$commit_id"
+}
+
+update_database_records() {
+  local status="$1"
+  local email="$2"
+  local session_id="$3"
+  local commit_id="$4"
+  local error_msg="$5"
+  local db_path="${DATA_DIR}/platform.db"
+
+  if [ ! -f "$db_path" ]; then
+    return 0
+  fi
+
+  node -e "
+    const { DatabaseSync } = require('node:sqlite');
+    const dbPath = process.argv[1];
+    const status = process.argv[2];
+    const email = process.argv[3];
+    const sessionId = process.argv[4];
+    const commitId = process.argv[5];
+    const errorMsg = process.argv[6] || '';
+    const modelId = '${DEFAULT_MODEL_ID}';
+    const provider = '${DEFAULT_PROVIDER}';
+    const now = new Date().toISOString();
+
+    try {
+      const db = new DatabaseSync(dbPath);
+
+      try {
+        db.prepare(\`
+          UPDATE CLI_OAUTH_SESSIONS
+          SET STATUS = ?,
+              COMMIT_ID = ?,
+              USER_EMAIL = ?,
+              ERROR_MESSAGE = ?,
+              UPDATED_AT = ?
+          WHERE SESSION_ID = ?
+        \`).run(status === 'SUCCESS' ? 'COMPLETED' : 'FAILED', commitId, email, errorMsg, now, sessionId);
+      } catch {}
+
+      if (status === 'SUCCESS') {
+        try {
+          db.prepare(\`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0 WHERE MODEL_ID = ?\`).run(modelId);
+          const existing = db.prepare(\`SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS WHERE MODEL_ID = ? AND LOWER(USER_EMAIL) = LOWER(?)\`).get(modelId, email);
+          if (existing?.accountId) {
+            db.prepare(\`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 1, UPDATED_TIMESTAMP = ? WHERE ACCOUNT_ID = ?\`).run(now, existing.accountId);
+          } else {
+            const accId = 'acc-' + Math.random().toString(36).slice(2, 10);
+            db.prepare(\`
+              INSERT INTO MODEL_ACCOUNTS (
+                ACCOUNT_ID, MODEL_ID, ACCOUNT_NAME, USER_EMAIL,
+                AUTH_TYPE, CREDENTIAL_VALUE, IS_ACTIVE, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
+              ) VALUES (?, ?, ?, ?, 'cli_oauth', ?, 1, ?, ?)
+            \`).run(accId, modelId, provider.toUpperCase() + ' (' + email + ')', email, 'token_' + commitId, now, now);
+          }
+        } catch {}
+      }
+
+      try {
+        const sessionMeta = JSON.stringify({
+          authCommitId: commitId,
+          authUserEmail: email,
+          authStatus: status,
+          authProvider: provider,
+          verifiedTimestamp: now
+        });
+        const res = db.prepare(\`
+          UPDATE SESSIONS
+          SET SESSION_METADATA_JSON = ?,
+              UPDATED_TIMESTAMP = ?
+          WHERE ACTIVE_MODEL_ID = ?
+        \`).run(sessionMeta, now, modelId);
+        if (res.changes === 0) {
+          const defaultSessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
+          db.prepare(\`
+            INSERT INTO SESSIONS (
+              SESSION_ID, SESSION_TITLE, ACTIVE_MODEL_ID, STRATEGY_MODE,
+              TURN_COUNT, SESSION_METADATA_JSON, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
+            ) VALUES (?, ?, ?, 'cli_oauth', 0, ?, ?, ?)
+          \`).run(defaultSessionId, provider.toUpperCase() + ' Default Session', modelId, sessionMeta, now, now);
+        }
+      } catch {}
+    } catch {}
+  " "$db_path" "$status" "$email" "$session_id" "$commit_id" "$error_msg" 2>/dev/null || true
+}
+
 main() {
   pre_validate
   logger_info "Initiating GitHub Copilot CLI Authentication..."
@@ -130,6 +260,9 @@ main() {
   mkfifo "$FIFO_IN"
   exec 3<> "$FIFO_IN"
 
+  local auth_succeeded=false
+  local auth_email="${USER_EMAIL:-personal.developer@gmail.com}"
+
   for ((s=0; s<AUTH_TIMEOUT_SECONDS; s+=2)); do
     if [ -f "$CODE_FILE" ]; then
       local code
@@ -140,12 +273,21 @@ main() {
         completed_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
         local comp_json="{\"sessionId\":\"${session_id}\",\"provider\":\"${DEFAULT_PROVIDER}\",\"modelId\":\"${DEFAULT_MODEL_ID}\",\"authMode\":\"${AUTH_MODE_LABEL}\",\"oauthUrl\":\"${oauth_url}\",\"clientId\":\"github-copilot-cli\",\"state\":\"${state}\",\"redirectUri\":\"${APP_REDIRECT_URI}\",\"cliRedirectUri\":\"http://127.0.0.1:8085/oauth/callback\",\"appRedirectUri\":\"${APP_REDIRECT_URI}\",\"authCode\":\"${code}\",\"status\":\"COMPLETED\",\"createdAt\":\"${now}\",\"updatedAt\":\"${completed_ts}\"}"
         save_session "$comp_json"
+
+        auth_succeeded=true
+        commit_auth_result "SUCCESS" "$auth_email" "$session_id" ""
         break
       fi
     fi
     sleep 2
   done
+
+  if [ "$auth_succeeded" = false ]; then
+    commit_auth_result "FAILED" "$auth_email" "$session_id" "AUTH_CODE_TIMEOUT"
+  fi
   logger_info "Copilot auth daemon finished."
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

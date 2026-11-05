@@ -18,6 +18,8 @@ export interface CliOAuthSession {
   readonly cliRedirectUri?: string;
   readonly appRedirectUri?: string;
   readonly authCode?: string;
+  readonly commitId?: string;
+  readonly userEmail?: string;
   readonly status: "PENDING" | "COMPLETED" | "EXPIRED" | "FAILED";
   readonly errorMessage?: string;
   readonly errorCode?: string;
@@ -78,6 +80,8 @@ export class CliOAuthSessionRepository {
       "ALTER TABLE CLI_OAUTH_SESSIONS ADD COLUMN APP_REDIRECT_URI TEXT;",
       "ALTER TABLE CLI_OAUTH_SESSIONS ADD COLUMN ERROR_MESSAGE TEXT;",
       "ALTER TABLE CLI_OAUTH_SESSIONS ADD COLUMN ERROR_CODE TEXT;",
+      "ALTER TABLE CLI_OAUTH_SESSIONS ADD COLUMN COMMIT_ID TEXT;",
+      "ALTER TABLE CLI_OAUTH_SESSIONS ADD COLUMN USER_EMAIL TEXT;",
     ];
     for (const sql of columns) {
       try {
@@ -112,6 +116,8 @@ export class CliOAuthSessionRepository {
           ERROR_CODE = COALESCE(?, ERROR_CODE),
           CLI_REDIRECT_URI = COALESCE(?, CLI_REDIRECT_URI),
           APP_REDIRECT_URI = COALESCE(?, APP_REDIRECT_URI),
+          COMMIT_ID = COALESCE(?, COMMIT_ID),
+          USER_EMAIL = COALESCE(?, USER_EMAIL),
           UPDATED_AT = ?
       WHERE SESSION_ID = ?
     `).run(
@@ -121,6 +127,8 @@ export class CliOAuthSessionRepository {
       session.errorCode ?? null,
       session.cliRedirectUri ?? null,
       session.appRedirectUri ?? null,
+      session.commitId ?? null,
+      session.userEmail ?? null,
       session.updatedAt,
       session.sessionId,
     );
@@ -133,8 +141,8 @@ export class CliOAuthSessionRepository {
         SESSION_ID, PROVIDER, MODEL_ID, AUTH_MODE, OAUTH_URL,
         CLIENT_ID, STATE, CODE_CHALLENGE, REDIRECT_URI,
         CLI_REDIRECT_URI, APP_REDIRECT_URI, AUTH_CODE, STATUS,
-        ERROR_MESSAGE, ERROR_CODE, CREATED_AT, UPDATED_AT
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ERROR_MESSAGE, ERROR_CODE, COMMIT_ID, USER_EMAIL, CREATED_AT, UPDATED_AT
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       session.sessionId,
       session.provider,
@@ -151,6 +159,8 @@ export class CliOAuthSessionRepository {
       session.status,
       session.errorMessage ?? null,
       session.errorCode ?? null,
+      session.commitId ?? null,
+      session.userEmail ?? null,
       session.createdAt,
       session.updatedAt,
     );
@@ -421,6 +431,8 @@ export class CliOAuthSessionRepository {
       status: (row.STATUS as any) || "PENDING",
       errorMessage: row.ERROR_MESSAGE ? String(row.ERROR_MESSAGE) : undefined,
       errorCode: row.ERROR_CODE ? String(row.ERROR_CODE) : undefined,
+      commitId: row.COMMIT_ID ? String(row.COMMIT_ID) : undefined,
+      userEmail: row.USER_EMAIL ? String(row.USER_EMAIL) : undefined,
       createdAt: String(row.CREATED_AT ?? ""),
       updatedAt: String(row.UPDATED_AT ?? ""),
     };
