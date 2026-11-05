@@ -1,0 +1,29 @@
+# ==============================================================================
+# ModelBox CLI Authentication Daemon - Centralized Static Configuration
+# Conforms to STD-COD-002: Zero Hardcoded Magic Literals
+# ==============================================================================
+oauth:
+  google_base_url: "https://accounts.google.com/o/oauth2/v2/auth"
+  anthropic_base_url: "https://console.anthropic.com/oauth/authorize"
+  openai_base_url: "https://auth0.openai.com/authorize"
+  copilot_base_url: "https://github.com/login/oauth/authorize"
+
+patterns:
+  datetime_pattern: "%Y-%m-%dT%H:%M:%SZ"
+  google_oauth_url_regex: "https://accounts\\.google\\.com/o/oauth2/[^[:space:]\\r\\n]+"
+  claude_oauth_url_regex: "https://[a-zA-Z0-9.-]*anthropic\\.com/[^[:space:]\\r\\n]+"
+  chatgpt_oauth_url_regex: "https://[a-zA-Z0-9.-]*openai\\.com/[^[:space:]\\r\\n]+"
+  copilot_oauth_url_regex: "https://github\\.com/login/oauth/[^[:space:]\\r\\n]+"
+  auth_code_regex: "[a-zA-Z0-9_.-]+"
+
+paths:
+  default_model_dir: "/opt/model-connector/models"
+  default_data_dir: "/app/config/data"
+  default_logs_dir: "/app/config/data/logs"
+  default_credentials_dir: "/app/config/data/credentials"
+  default_responses_dir: "/app/config/data/oauth_responses"
+  system_bin_dir: "/opt/model-connector/bin"
+
+services:
+  backend_api_url: "http://localhost:8095/api/v1"
+

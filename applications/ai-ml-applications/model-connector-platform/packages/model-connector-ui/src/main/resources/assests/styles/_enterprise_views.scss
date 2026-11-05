@@ -1,12 +1,13 @@
 // ==============================================================================
-// Odoo Enterprise Views SCSS (List, Card, Create, Save, Delete Views)
-// Path: src/main/resources/assests/styles/_odoo_views.scss
-// Conforms to: Enterprise Dark Theme & Odoo UX Design Standard
+// Enterprise Views SCSS (List, Card, Create, Save, Delete Views)
+// Path: src/main/resources/assests/styles/_enterprise_views.scss
+// Conforms to: Enterprise Dark Theme & Clean UI Design Standard
 // ==============================================================================
 @use "@/styles/variables" as *;
 @use "@/styles/mixins" as *;
 
-// 1. Odoo Unified Control Panel
+// 1. Unified Control Panel
+.control-panel,
 .odoo-control-panel {
   display: flex;
   flex-wrap: wrap;
@@ -87,7 +88,7 @@
     }
   }
 
-  // Odoo Action Buttons
+  // Action Buttons
   .btn-create-primary {
     display: inline-flex;
     align-items: center;
@@ -98,19 +99,15 @@
     border-radius: 8px;
     color: #ffffff;
     font-size: 0.82rem;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 
     &:hover {
       background: linear-gradient(135deg, #1d4ed8, #1e40af);
-      transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
-    }
-
-    .btn-icon {
-      font-size: 0.95rem;
+      transform: translateY(-1px);
     }
   }
 
@@ -118,25 +115,24 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px;
-    background: linear-gradient(135deg, #059669, #047857);
+    padding: 7px 14px;
+    background: linear-gradient(135deg, #10b981, #059669);
     border: 1px solid rgba(16, 185, 129, 0.5);
     border-radius: 8px;
     color: #ffffff;
     font-size: 0.82rem;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
-    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+    transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #047857, #065f46);
+      background: linear-gradient(135deg, #059669, #047857);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
     }
 
     &:disabled {
-      opacity: 0.5;
+      opacity: 0.6;
       cursor: not-allowed;
     }
   }
@@ -145,24 +141,19 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 7px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
     color: #cbd5e1;
     font-size: 0.82rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.14);
-      color: #ffffff;
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+      background: rgba(255, 255, 255, 0.12);
+      color: #f8fafc;
     }
   }
 
@@ -170,25 +161,19 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.35);
+    padding: 7px 14px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
     border-radius: 8px;
-    color: #f87171;
+    color: #fca5a5;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      background: rgba(239, 68, 68, 0.25);
-      border-color: rgba(239, 68, 68, 0.6);
+      background: rgba(239, 68, 68, 0.3);
       color: #ffffff;
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
     }
   }
 
@@ -196,59 +181,63 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
-    background: rgba(99, 102, 241, 0.15);
-    border: 1px solid rgba(99, 102, 241, 0.35);
+    padding: 7px 14px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
     border-radius: 8px;
-    color: #a5b4fc;
+    color: #7dd3fc;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 
     &:hover {
-      background: rgba(99, 102, 241, 0.25);
+      background: rgba(56, 189, 248, 0.25);
       color: #ffffff;
     }
   }
 
-  // 2. Center Search & Filters
+  // Center Search & Filters
   .control-center-section {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     flex: 2 1 auto;
+    flex-wrap: wrap;
 
     .search-input-wrapper {
       position: relative;
-      display: flex;
-      align-items: center;
-      min-width: 220px;
-      max-width: 340px;
-      flex: 1;
+      flex: 1 1 200px;
+      min-width: 180px;
 
       .search-icon {
         position: absolute;
         left: 10px;
-        font-size: 0.85rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.8rem;
         color: #64748b;
         pointer-events: none;
       }
 
       .control-search-input {
         width: 100%;
-        background: #030712;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 7px 28px 7px 30px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 8px;
-        padding: 7px 28px 7px 32px;
-        color: #f1f5f9;
+        color: #f8fafc;
         font-size: 0.82rem;
-        transition: all 0.2s ease;
+        outline: none;
+        transition: all 0.15s ease;
+
+        &::placeholder {
+          color: #64748b;
+        }
 
         &:focus {
-          outline: none;
           border-color: #38bdf8;
+          background: rgba(255, 255, 255, 0.08);
           box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
         }
       }
@@ -256,15 +245,17 @@
       .clear-search-btn {
         position: absolute;
         right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
         background: transparent;
         border: none;
         color: #94a3b8;
         cursor: pointer;
-        font-size: 0.8rem;
-        padding: 0 4px;
+        font-size: 0.75rem;
+        padding: 2px 4px;
 
         &:hover {
-          color: #f1f5f9;
+          color: #f8fafc;
         }
       }
     }
@@ -272,30 +263,31 @@
     .filter-pills-bar {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       flex-wrap: wrap;
 
+      .filter-pill,
       .odoo-filter-pill {
-        padding: 4px 10px;
+        padding: 5px 11px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 100px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
         color: #94a3b8;
-        font-size: 0.72rem;
-        font-weight: 700;
+        font-size: 0.74rem;
+        font-weight: 600;
         cursor: pointer;
         transition: all 0.15s ease;
 
         &:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: #ffffff;
+          background: rgba(255, 255, 255, 0.09);
+          color: #e2e8f0;
         }
 
         &.active {
-          background: rgba(56, 189, 248, 0.2);
-          border-color: rgba(56, 189, 248, 0.5);
-          color: #38bdf8;
-          box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+          border-color: #3b82f6;
+          color: #ffffff;
+          box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
         }
       }
     }
@@ -304,32 +296,32 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-left: auto;
 
       .groupby-label {
         font-size: 0.75rem;
-        color: #94a3b8;
         font-weight: 600;
+        color: #64748b;
+        white-space: nowrap;
       }
 
       .groupby-select {
-        background: #030712;
+        background: #0f172a;
+        color: #cbd5e1;
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 6px;
         padding: 5px 8px;
-        color: #cbd5e1;
         font-size: 0.76rem;
+        outline: none;
         cursor: pointer;
 
         &:focus {
-          outline: none;
           border-color: #38bdf8;
         }
       }
     }
   }
 
-  // 3. Right View Switcher & Pager
+  // Right Pager & View Switcher
   .control-right-section {
     display: flex;
     align-items: center;
@@ -338,34 +330,32 @@
     .pager-indicator {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      font-size: 0.76rem;
+      color: #94a3b8;
 
-      .pager-text {
-        font-size: 0.76rem;
-        color: #94a3b8;
+      .pager-range {
         font-family: monospace;
       }
 
-      .pager-buttons {
+      .pager-nav-btns {
         display: flex;
-        gap: 3px;
+        gap: 2px;
 
         .pager-btn {
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #f1f5f9;
           border-radius: 4px;
-          padding: 4px 7px;
-          color: #cbd5e1;
-          font-size: 0.7rem;
+          padding: 2px 7px;
           cursor: pointer;
 
           &:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
           }
 
           &:disabled {
-            opacity: 0.35;
+            opacity: 0.3;
             cursor: not-allowed;
           }
         }
@@ -374,20 +364,21 @@
 
     .view-mode-switcher {
       display: flex;
-      background: #030712;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      align-items: center;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 8px;
-      padding: 3px;
+      padding: 2px;
       gap: 2px;
 
-      .switcher-btn {
+      .view-mode-btn {
         display: inline-flex;
         align-items: center;
         gap: 5px;
         padding: 5px 10px;
+        background: transparent;
         border: none;
         border-radius: 6px;
-        background: transparent;
         color: #94a3b8;
         font-size: 0.76rem;
         font-weight: 600;
@@ -395,85 +386,65 @@
         transition: all 0.15s ease;
 
         &:hover {
-          color: #f1f5f9;
+          color: #f8fafc;
         }
 
         &.active {
           background: rgba(56, 189, 248, 0.18);
           color: #38bdf8;
-          box-shadow: 0 0 6px rgba(56, 189, 248, 0.25);
-        }
-
-        .switcher-icon {
-          font-size: 0.85rem;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
         }
       }
     }
   }
 }
 
-// 2. Odoo Card Grid (Kanban View)
+// 2. Card View (Kanban Card Grid)
+.model-card-grid,
 .odoo-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 
+  .model-card-item,
   .odoo-model-card {
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(12px);
+    background: rgba(15, 23, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 4px solid #3b82f6;
     border-radius: 12px;
     padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
     gap: 12px;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &.group-gemini { border-left-color: #38bdf8; }
+    &.group-grok { border-left-color: #ef4444; }
+    &.group-claude { border-left-color: #f59e0b; }
+    &.group-chatgpt,
+    &.group-openai { border-left-color: #10b981; }
+    &.group-copilot { border-left-color: #8b5cf6; }
+    &.group-ollama { border-left-color: #06b6d4; }
 
     &:hover {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: rgba(56, 189, 248, 0.4);
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-      border-color: rgba(56, 189, 248, 0.4);
     }
 
     &.selected {
-      border-color: #10b981;
-      box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
-    }
-
-    // Provider Left Accent Borders
-    &.group-gemini {
-      border-left: 4px solid #1a73e8;
-    }
-
-    &.group-grok {
-      border-left: 4px solid #ff0055;
-    }
-
-    &.group-copilot {
-      border-left: 4px solid #8b5cf6;
-    }
-
-    &.group-chatgpt,
-    &.group-openai {
-      border-left: 4px solid #10a37f;
-    }
-
-    &.group-claude {
-      border-left: 4px solid #e06c4b;
-    }
-
-    &.group-ollama,
-    &.group-fallback {
-      border-left: 4px solid #f59e0b;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
     }
 
     .card-top-row {
       display: flex;
-      justify-content: space-between;
       align-items: flex-start;
+      justify-content: space-between;
       gap: 10px;
 
       .card-identity {
@@ -486,57 +457,43 @@
         }
 
         .name-wrapper {
-          display: flex;
-          flex-direction: column;
-
           .model-name {
-            font-size: 0.96rem;
-            font-weight: 700;
-            color: #f1f5f9;
             margin: 0;
-            line-height: 1.25;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #f8fafc;
           }
 
-          .model-id {
+          .model-slug {
             font-size: 0.72rem;
-            color: #64748b;
             font-family: monospace;
+            color: #64748b;
           }
         }
       }
 
-      .status-pill {
-        padding: 3px 8px;
-        border-radius: 100px;
+      .family-badge {
         font-size: 0.68rem;
         font-weight: 700;
-        letter-spacing: 0.02em;
+        padding: 3px 8px;
+        border-radius: 100px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #94a3b8;
 
-        &.active {
-          background: rgba(16, 185, 129, 0.15);
-          color: #34d399;
-          border: 1px solid rgba(16, 185, 129, 0.35);
-        }
-
-        &.inactive {
-          background: rgba(245, 158, 11, 0.15);
-          color: #fbbf24;
-          border: 1px solid rgba(245, 158, 11, 0.35);
-        }
-
-        &.no-account {
-          background: rgba(148, 163, 184, 0.12);
-          color: #94a3b8;
-          border: 1px solid rgba(148, 163, 184, 0.25);
-        }
+        &.badge-gemini { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; }
+        &.badge-grok { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+        &.badge-claude { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+        &.badge-chatgpt,
+        &.badge-openai { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+        &.badge-copilot { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; }
       }
     }
 
     .card-description {
       font-size: 0.78rem;
       color: #94a3b8;
-      line-height: 1.45;
       margin: 0;
+      line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -546,88 +503,103 @@
     .card-meta-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
-      flex-wrap: wrap;
+      padding-top: 4px;
 
-      .accounts-badge {
-        font-size: 0.7rem;
-        color: #facc15;
-        background: rgba(250, 204, 21, 0.1);
-        border: 1px solid rgba(250, 204, 21, 0.25);
+      .tier-pill {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2px 8px;
         border-radius: 4px;
-        padding: 2px 6px;
-        font-weight: 600;
+        background: rgba(16, 185, 129, 0.12);
+        color: #34d399;
+      }
+
+      .strategies-badges {
+        display: flex;
+        gap: 4px;
+
+        .strategy-tag {
+          font-size: 0.65rem;
+          font-weight: 600;
+          padding: 2px 6px;
+          border-radius: 4px;
+          background: rgba(255, 255, 255, 0.05);
+          color: #cbd5e1;
+          font-family: monospace;
+        }
       }
     }
 
-    .card-strategies-row {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-
-      .strategy-tag {
-        font-size: 0.65rem;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        padding: 2px 5px;
-        color: #cbd5e1;
-        font-family: monospace;
-      }
-    }
-
-    .card-footer-actions {
-      margin-top: auto;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    .card-footer-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 10px;
+      margin-top: auto;
 
-      .btn-card-configure {
-        flex: 1;
-        padding: 6px 10px;
-        background: rgba(56, 189, 248, 0.12);
-        border: 1px solid rgba(56, 189, 248, 0.35);
-        border-radius: 6px;
-        color: #7dd3fc;
-        font-size: 0.76rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.15s ease;
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
 
-        &:hover {
-          background: rgba(56, 189, 248, 0.25);
-          color: #ffffff;
+        .status-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #64748b;
+
+          &.active {
+            background: #10b981;
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+          }
+        }
+
+        .status-text {
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: #94a3b8;
         }
       }
 
-      .btn-card-chat {
-        padding: 6px 12px;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 6px;
-        color: #f1f5f9;
-        font-size: 0.76rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.15s ease;
+      .card-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
 
-        &:hover {
-          background: rgba(255, 255, 255, 0.15);
+        .accounts-count-badge {
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: #fbbf24;
+          background: rgba(251, 191, 36, 0.1);
+          padding: 2px 6px;
+          border-radius: 4px;
         }
 
-        &.active {
-          background: linear-gradient(135deg, #10b981, #06b6d4);
-          border-color: transparent;
-          color: #ffffff;
+        .btn-card-chat {
+          padding: 4px 8px;
+          background: rgba(56, 189, 248, 0.12);
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          border-radius: 6px;
+          color: #7dd3fc;
+          font-size: 0.72rem;
+          font-weight: 600;
+          cursor: pointer;
+
+          &:hover {
+            background: rgba(56, 189, 248, 0.25);
+            color: #ffffff;
+          }
         }
       }
     }
   }
 }
 
-// 3. Odoo List View Actions & Table Enhancements
+// 3. List View Actions & Table Enhancements
+.model-list-row,
 .odoo-list-row {
   cursor: pointer;
   transition: background 0.15s ease;
@@ -658,7 +630,8 @@
   }
 }
 
-// 4. Odoo Empty State
+// 4. Empty State
+.view-empty-state,
 .odoo-empty-state {
   text-align: center;
   padding: 48px 24px;
@@ -686,12 +659,14 @@
   }
 }
 
-// 5. Odoo Form View Container & Create Banner
+// 5. Form View Container & Create Banner
+.form-view-container,
 .odoo-form-view-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
 
+  .form-create-banner,
   .odoo-form-create-banner {
     display: flex;
     flex-wrap: wrap;
@@ -759,3 +734,4 @@
     }
   }
 }
+

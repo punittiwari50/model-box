@@ -1,11 +1,11 @@
 import React from "react";
 
-export type OdooViewType = "list" | "card" | "form";
-export type OdooFormMode = "create" | "save";
+export type ViewType = "list" | "card" | "form";
+export type FormMode = "create" | "save";
 
-export interface OdooControlPanelProps {
-  readonly viewType: OdooViewType;
-  readonly formMode?: OdooFormMode;
+export interface ControlPanelProps {
+  readonly viewType: ViewType;
+  readonly formMode?: FormMode;
   readonly title: string;
   readonly breadcrumbParent?: string;
   readonly onBreadcrumbParentClick?: () => void;
@@ -34,7 +34,7 @@ export interface OdooControlPanelProps {
   readonly hasNextPage?: boolean;
 }
 
-export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
+export const ControlPanel: React.FC<ControlPanelProps> = ({
   viewType,
   formMode = "save",
   title,
@@ -67,7 +67,7 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
   const isFormView = viewType === "form";
 
   return (
-    <div className="odoo-control-panel" data-testid="odoo-control-panel">
+    <div className="control-panel" data-testid="control-panel">
       {/* 1. Left Action Toolbar / Breadcrumbs */}
       <div className="control-left-section">
         {!isFormView ? (
@@ -78,7 +78,7 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
                 className="btn-create-primary"
                 onClick={onCreateClick}
                 title="Create a new model configuration (Create View)"
-                data-testid="odoo-btn-create"
+                data-testid="btn-create"
               >
                 <span className="btn-icon">➕</span>
                 <span className="btn-label">Create</span>
@@ -115,7 +115,7 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
                   onClick={onSaveClick}
                   disabled={isSaving}
                   title="Save configuration (Save View)"
-                  data-testid="odoo-btn-save"
+                  data-testid="btn-save"
                 >
                   <span className="btn-icon">💾</span>
                   <span className="btn-label">{isSaving ? "Saving..." : formMode === "create" ? "Save Configuration" : "Save Changes"}</span>
@@ -129,7 +129,7 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
                   onClick={onDiscardClick}
                   disabled={isSaving}
                   title="Discard unsaved changes and return to list"
-                  data-testid="odoo-btn-discard"
+                  data-testid="btn-discard"
                 >
                   <span className="btn-icon">✕</span>
                   <span className="btn-label">Discard</span>
@@ -143,7 +143,7 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
                   onClick={onDeleteClick}
                   disabled={isDeleting || isSaving}
                   title="Delete or revoke active account (Delete View)"
-                  data-testid="odoo-btn-delete"
+                  data-testid="btn-delete"
                 >
                   <span className="btn-icon">🗑</span>
                   <span className="btn-label">{isDeleting ? "Deleting..." : "Delete / Revoke"}</span>
@@ -178,7 +178,7 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
                 placeholder={searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                data-testid="odoo-search-input"
+                data-testid="search-input"
               />
               {searchQuery && (
                 <button
@@ -199,8 +199,9 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
                 <button
                   key={opt}
                   type="button"
-                  className={`odoo-filter-pill filter-pill ${activeFilter === opt ? "active" : ""}`}
+                  className={`filter-pill ${activeFilter === opt ? "active" : ""}`}
                   data-family={opt.toUpperCase()}
+                  data-testid={`filter-${opt.toLowerCase()}`}
                   onClick={() => onFilterChange(opt)}
                 >
                   {opt.toUpperCase()}
@@ -216,7 +217,7 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
                 className="groupby-select"
                 value={activeGroupBy || groupByOptions[0]?.value}
                 onChange={(e) => onGroupByChange(e.target.value)}
-                data-testid="odoo-groupby-select"
+                data-testid="groupby-select"
               >
                 {groupByOptions.map((g) => (
                   <option key={g.value} value={g.value}>
@@ -229,61 +230,64 @@ export const OdooControlPanel: React.FC<OdooControlPanelProps> = ({
         </div>
       )}
 
-      {/* 3. Right View Switcher (Card vs List) & Pager */}
-      <div className="control-right-section">
-        {currentRange && (
-          <div className="pager-indicator">
-            <span className="pager-text">{currentRange}</span>
-            {onPrevPage && onNextPage && (
-              <div className="pager-buttons">
-                <button
-                  type="button"
-                  className="pager-btn"
-                  onClick={onPrevPage}
-                  disabled={!hasPrevPage}
-                  title="Previous page"
-                >
-                  ◀
-                </button>
-                <button
-                  type="button"
-                  className="pager-btn"
-                  onClick={onNextPage}
-                  disabled={!hasNextPage}
-                  title="Next page"
-                >
-                  ▶
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+      {/* 3. Right Section: Card/List View Switcher & Pager */}
+      {!isFormView && (
+        <div className="control-right-section">
+          {currentRange && (
+            <div className="pager-indicator" data-testid="pager-indicator">
+              <span className="pager-range">{currentRange}</span>
+              {(onPrevPage || onNextPage) && (
+                <div className="pager-nav-btns">
+                  <button
+                    type="button"
+                    className="pager-btn"
+                    onClick={onPrevPage}
+                    disabled={!hasPrevPage}
+                    title="Previous page"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    className="pager-btn"
+                    onClick={onNextPage}
+                    disabled={!hasNextPage}
+                    title="Next page"
+                  >
+                    ›
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
-        {onViewTypeChange && (
-          <div className="view-mode-switcher" data-testid="odoo-view-switcher">
-            <button
-              type="button"
-              className={`switcher-btn ${viewType === "card" ? "active" : ""}`}
-              onClick={() => onViewTypeChange("card")}
-              title="Card View (Kanban)"
-              data-testid="odoo-view-card"
-            >
-              <span className="switcher-icon">▦</span>
-              <span className="switcher-label">Cards</span>
-            </button>
-            <button
-              type="button"
-              className={`switcher-btn ${viewType === "list" ? "active" : ""}`}
-              onClick={() => onViewTypeChange("list")}
-              title="List View (Table / Group By)"
-              data-testid="odoo-view-list"
-            >
-              <span className="switcher-icon">☰</span>
-              <span className="switcher-label">List</span>
-            </button>
-          </div>
-        )}
-      </div>
+          {onViewTypeChange && (
+            <div className="view-mode-switcher" data-testid="view-switcher">
+              <button
+                type="button"
+                className={`view-mode-btn ${viewType === "card" ? "active" : ""}`}
+                onClick={() => onViewTypeChange("card")}
+                title="Switch to Card View (Kanban)"
+                data-testid="view-card"
+              >
+                <span className="mode-icon">▦</span>
+                <span className="mode-text">Cards</span>
+              </button>
+              <button
+                type="button"
+                className={`view-mode-btn ${viewType === "list" ? "active" : ""}`}
+                onClick={() => onViewTypeChange("list")}
+                title="Switch to List View (Table / Grouped)"
+                data-testid="view-list"
+              >
+                <span className="mode-icon">☰</span>
+                <span className="mode-text">List</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+

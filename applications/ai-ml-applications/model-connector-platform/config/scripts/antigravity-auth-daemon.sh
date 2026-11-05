@@ -1,30 +1,63 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Antigravity CLI Google OAuth Automation Daemon
-# Architecture: OOP Modular Structure, DI, SOLID Principles, Strict Sanitization
-# Standards: STD-COD-001, STD-COD-002, STD-COD-004, STD-COD-007, STD-COD-010
+# Architecture: OOP Shell Modules, DI, Strict Sanitization, Pure CLI/Shell
+# Constraints: Zero Node/Python/Java, YAML Config Driven, No Default Email
 # ==============================================================================
 set -euo pipefail
 
 # ==============================================================================
-# Module: ConfigService (Centralized Static Constants)
+# Module: YamlConfigReader (Pure Shell / AWK YAML Parser)
 # ==============================================================================
-readonly DEFAULT_DATA_DIR="/app/config/data"
-readonly DATA_DIR="${DATA_DIR:-$DEFAULT_DATA_DIR}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/auth-config.yml"
+
+read_yaml_value() {
+  local key="$1"
+  local default_val="${2:-}"
+  if [ -f "$CONFIG_FILE" ]; then
+    local parsed
+    parsed=$(awk -F': *' -v target="$key" '
+      $1 ~ ("(^|[[:space:]]+)" target "$") {
+        val = $2;
+        sub(/^["'\''[:space:]]+/, "", val);
+        sub(/["'\''[:space:]]+$/, "", val);
+        print val;
+        exit;
+      }
+    ' "$CONFIG_FILE" 2>/dev/null || true)
+    if [ -n "$parsed" ]; then
+      echo "$parsed"
+      return 0
+    fi
+  fi
+  echo "$default_val"
+}
+
+# ==============================================================================
+# Module: ConfigService (Centralized Static Constants Loaded from YAML)
+# ==============================================================================
+readonly DATA_DIR="$(read_yaml_value "default_data_dir" "/app/config/data")"
 readonly DOWNLOADS_DIR="${DATA_DIR}/downloads"
-readonly LOGS_DIR="${DATA_DIR}/logs"
-readonly CREDENTIALS_DIR="${DATA_DIR}/credentials"
-readonly RESPONSES_DIR="${DATA_DIR}/oauth_responses"
+readonly LOGS_DIR="$(read_yaml_value "default_logs_dir" "${DATA_DIR}/logs")"
+readonly CREDENTIALS_DIR="$(read_yaml_value "default_credentials_dir" "${DATA_DIR}/credentials")"
+readonly RESPONSES_DIR="$(read_yaml_value "default_responses_dir" "${DATA_DIR}/oauth_responses")"
+readonly SYSTEM_BIN_DIR="$(read_yaml_value "system_bin_dir" "/opt/model-connector/bin")"
+readonly MODEL_DIR="$(read_yaml_value "default_model_dir" "/opt/model-connector/models")"
 
 readonly JSON_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.json"
 readonly CSV_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.csv"
 readonly DAEMON_LOG_FILE="${LOGS_DIR}/antigravity_auth_daemon.log"
 
+readonly OAUTH_BASE_URL="$(read_yaml_value "google_base_url" "https://accounts.google.com/o/oauth2/v2/auth")"
+readonly OAUTH_URL_REGEX="$(read_yaml_value "google_oauth_url_regex" "https://accounts\.google\.com/o/oauth2/[^[:space:]\r\n]+")"
+readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
+readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
+
 readonly DOWNLOAD_URL="https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_linux_x64.tar.gz"
 readonly ARCHIVE_FILENAME="agy_cli_linux_x64.tar.gz"
 readonly ARCHIVE_LOCAL_PATH="${DOWNLOADS_DIR}/${ARCHIVE_FILENAME}"
 readonly BINARY_NAME="antigravity"
-readonly SYSTEM_BIN_DIR="${CLI_BIN_DIR:-/opt/model-connector/bin}"
 readonly TARGET_BINARY_PATH="${SYSTEM_BIN_DIR}/${BINARY_NAME}"
 readonly TARGET_SYMLINK_PATH="${SYSTEM_BIN_DIR}/agy"
 
@@ -42,12 +75,13 @@ readonly REDACTION_MASK="***REDACTED***"
 readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-300}"
 readonly MENU_WAIT_TIMEOUT=20
 readonly URL_DISCOVERY_TIMEOUT=40
-readonly BACKEND_API_URL="${BACKEND_API_URL:-http://localhost:8095/api/v1}"
 
 RESOLVED_CLI_BIN=""
+USER_EMAIL=""
+IS_STARTUP=false
 
 # ==============================================================================
-# Module: LoggerService (Dual Stream + Sensitive Leak Prevention)
+# Module: LoggerService (Pure Shell Dual Stream & Sensitive Leak Prevention)
 # ==============================================================================
 sanitize_log_message() {
   local raw="$1"
@@ -68,11 +102,9 @@ log_message() {
   local sanitized
   sanitized=$(sanitize_log_message "$msg")
   local ts
-  ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+  ts=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
   local json_line="{\"timestamp\":\"$ts\",\"level\":\"$level\",\"service\":\"antigravity-auth-daemon\",\"pid\":$$,\"message\":\"$sanitized\"}"
-  # Output to stderr (captured by Docker logs directly)
   echo "$json_line" >&2
-  # Output to persistent log file (in bidirectional volume)
   if [ -d "$LOGS_DIR" ]; then
     echo "$json_line" >> "$DAEMON_LOG_FILE" 2>/dev/null || true
   fi
@@ -83,7 +115,7 @@ logger_warn() { log_message "WARN" "$@"; }
 logger_error() { log_message "ERROR" "$@"; }
 
 # ==============================================================================
-# Module: CleanupService (Resource Disposal & Process Management)
+# Module: CleanupService (Resource Disposal)
 # ==============================================================================
 cleanup() {
   logger_info "Initiating daemon shutdown and resource cleanup..."
@@ -104,13 +136,23 @@ cleanup() {
 trap cleanup EXIT INT TERM HUP
 
 # ==============================================================================
-# Module: PreValidationService (Fail-Fast Verification Before Execution)
+# Module: PreValidationService (Fail-Fast Verification & Strict Email Check)
 # ==============================================================================
 pre_validate_environment() {
   logger_info "Running pre-flight environment validations..."
 
-  # 1. Validate required system utilities
-  local required_tools=("node" "tar" "curl" "script" "mkfifo")
+  # 1. Require user email strictly from argument - Zero default fallback!
+  if [ -z "$USER_EMAIL" ]; then
+    logger_error "Pre-validation failed: User email must be provided via argument (--email <user@domain.com>). Default fallback prohibited."
+    return 1
+  fi
+  if ! echo "$USER_EMAIL" | grep -Eq '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
+    logger_error "Pre-validation failed: Invalid user email format '${USER_EMAIL}'."
+    return 1
+  fi
+
+  # 2. Validate required system utilities (Pure shell tools, no node/python)
+  local required_tools=("tar" "curl" "script" "mkfifo" "sed" "awk" "grep")
   for tool in "${required_tools[@]}"; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       logger_error "Pre-validation failed: Required utility '${tool}' is not available."
@@ -118,8 +160,8 @@ pre_validate_environment() {
     fi
   done
 
-  # 2. Validate / create directory structure in bidirectional volume
-  local required_dirs=("$DATA_DIR" "$DOWNLOADS_DIR" "$LOGS_DIR" "$CREDENTIALS_DIR" "$RESPONSES_DIR" "$SYSTEM_BIN_DIR")
+  # 3. Validate / create directory structure in bidirectional volume
+  local required_dirs=("$DATA_DIR" "$DOWNLOADS_DIR" "$LOGS_DIR" "$CREDENTIALS_DIR" "$RESPONSES_DIR" "$SYSTEM_BIN_DIR" "$MODEL_DIR")
   for dir in "${required_dirs[@]}"; do
     if [ ! -d "$dir" ]; then
       mkdir -p "$dir" || {
@@ -133,7 +175,7 @@ pre_validate_environment() {
     fi
   done
 
-  # 3. Check single daemon instance concurrency
+  # 4. Check single daemon instance concurrency
   if [ -f "$LOCK_FILE" ]; then
     local old_pid
     old_pid=$(cat "$LOCK_FILE" 2>/dev/null || true)
@@ -145,7 +187,7 @@ pre_validate_environment() {
   echo $$ > "$LOCK_FILE"
   echo $$ > "$DAEMON_PID_FILE"
 
-  logger_info "Pre-flight validations succeeded."
+  logger_info "Pre-flight validations succeeded for user principal: ${USER_EMAIL}"
   return 0
 }
 
@@ -153,7 +195,6 @@ pre_validate_environment() {
 # Module: BinaryDownloadService (Bidirectional Volume Download & Extraction)
 # ==============================================================================
 resolve_binary() {
-  # 1. Check existing executable paths
   if [ -x "$TARGET_BINARY_PATH" ]; then
     RESOLVED_CLI_BIN="$TARGET_BINARY_PATH"
     return 0
@@ -167,7 +208,6 @@ resolve_binary() {
     return 0
   fi
 
-  # 2. Check or download tarball into bidirectional volume
   if [ ! -f "$ARCHIVE_LOCAL_PATH" ]; then
     logger_info "Downloading Antigravity CLI archive into bidirectional volume: ${ARCHIVE_LOCAL_PATH}..."
     if ! curl -fsSL "$DOWNLOAD_URL" -o "$ARCHIVE_LOCAL_PATH"; then
@@ -176,11 +216,8 @@ resolve_binary() {
     fi
     chmod 666 "$ARCHIVE_LOCAL_PATH" 2>/dev/null || true
     logger_info "Download complete and preserved in bidirectional volume at: ${ARCHIVE_LOCAL_PATH}"
-  else
-    logger_info "Discovered existing CLI archive in bidirectional volume: ${ARCHIVE_LOCAL_PATH}"
   fi
 
-  # 3. Extract binary to SYSTEM_BIN_DIR
   logger_info "Extracting ${ARCHIVE_LOCAL_PATH} to ${SYSTEM_BIN_DIR}..."
   tar -zxvf "$ARCHIVE_LOCAL_PATH" -C "$SYSTEM_BIN_DIR" >/dev/null 2>&1 || true
   chmod +x "$TARGET_BINARY_PATH" 2>/dev/null || true
@@ -194,203 +231,119 @@ resolve_binary() {
 }
 
 # ==============================================================================
-# Module: JsonValidatorService (Strict Schema & Syntax Validation)
+# Module: PureShellJsonService (Strict Shell Regex & Syntax Validation)
 # ==============================================================================
-validate_session_json() {
+extract_url_param() {
+  local url="$1"
+  local param="$2"
+  echo "$url" | sed -n 's/.*[?&]'"$param"'=\([^&#]*\).*/\1/p' | head -n 1
+}
+
+validate_json_syntax() {
   local json_payload="$1"
-  node -e "
-    try {
-      const data = JSON.parse(process.argv[1]);
-      if (!data || typeof data !== 'object') process.exit(1);
-      const req = ['sessionId', 'provider', 'modelId', 'authMode', 'oauthUrl', 'status', 'createdAt', 'updatedAt'];
-      for (const field of req) {
-        if (!data[field] || typeof data[field] !== 'string') process.exit(2);
-      }
-      process.exit(0);
-    } catch {
-      process.exit(3);
-    }
-  " "$json_payload" >/dev/null 2>&1
+  if command -v jq >/dev/null 2>&1; then
+    echo "$json_payload" | jq empty >/dev/null 2>&1
+    return $?
+  fi
+  [ -n "$json_payload" ] && [[ "$json_payload" =~ ^[[:space:]]*\{.*\} ]]
 }
 
-validate_sessions_file() {
-  local file_path="$1"
-  if [ ! -f "$file_path" ]; then return 1; fi
-  node -e "
-    try {
-      const fs = require('fs');
-      const data = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
-      if (!data || !Array.isArray(data.sessions)) process.exit(1);
-      process.exit(0);
-    } catch {
-      process.exit(2);
-    }
-  " "$file_path" >/dev/null 2>&1
-}
-
-# ==============================================================================
-# Module: SessionPersistenceService (Atomic JSON & CSV Persistence)
-# ==============================================================================
 save_session_record() {
   local session_json="$1"
+  local session_id="$2"
 
-  # 1. Validate session JSON schema before writing
-  if ! validate_session_json "$session_json"; then
-    logger_error "JSON validation failed for session payload. Rejecting write."
+  if ! validate_json_syntax "$session_json"; then
+    logger_error "JSON syntax validation failed for session payload. Rejecting write."
     return 1
   fi
 
-  local session_id
-  session_id=$(echo "$session_json" | node -e "const stdin = require('fs').readFileSync(0, 'utf8'); console.log(JSON.parse(stdin).sessionId);")
-
-  # 2. Persist single-session JSON file into bidirectional responses directory
   local single_session_file="${RESPONSES_DIR}/oauth_session_${session_id}.json"
   echo "$session_json" > "$single_session_file"
 
-  # 3. Atomically upsert into master oauth_sessions.json in bidirectional volume
-  node -e "
-    const fs = require('fs');
-    const masterPath = process.argv[1];
-    const newSession = JSON.parse(process.argv[2]);
-    let master = { version: '1.0', updatedAt: new Date().toISOString(), latestSessionId: newSession.sessionId, sessions: [] };
-    if (fs.existsSync(masterPath)) {
-      try {
-        const existing = JSON.parse(fs.readFileSync(masterPath, 'utf8'));
-        if (existing && Array.isArray(existing.sessions)) {
-          master = existing;
-        }
-      } catch {}
-    }
-    const idx = master.sessions.findIndex(s => s.sessionId === newSession.sessionId);
-    if (idx >= 0) {
-      master.sessions[idx] = newSession;
-    } else {
-      master.sessions.unshift(newSession);
-    }
-    master.updatedAt = new Date().toISOString();
-    master.latestSessionId = newSession.sessionId;
-    const tmp = masterPath + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(master, null, 2), 'utf8');
-    fs.renameSync(tmp, masterPath);
-  " "$JSON_SESSIONS_FILE" "$session_json"
-
-  # Validate master JSON after atomic write
-  if ! validate_sessions_file "$JSON_SESSIONS_FILE"; then
-    logger_error "Master sessions JSON file validation failed after write!"
-    return 1
+  # Upsert into master oauth_sessions.json in pure shell/awk
+  if [ ! -f "$JSON_SESSIONS_FILE" ]; then
+    echo "{\"version\":\"1.0\",\"updatedAt\":\"$(date -u +"${DATETIME_PATTERN}")\",\"latestSessionId\":\"${session_id}\",\"sessions\":[${session_json}]}" > "$JSON_SESSIONS_FILE"
+  else
+    if command -v jq >/dev/null 2>&1; then
+      local tmp="${JSON_SESSIONS_FILE}.tmp"
+      jq --argjson newS "$session_json" \
+         --arg sid "$session_id" \
+         --arg ts "$(date -u +"${DATETIME_PATTERN}")" \
+         '.updatedAt = $ts | .latestSessionId = $sid | .sessions = [$newS] + [.sessions[] | select(.sessionId != $sid)]' \
+         "$JSON_SESSIONS_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$JSON_SESSIONS_FILE" || true
+    fi
   fi
 
-  # 4. Also update CSV for backward compatibility
-  update_csv_store "$session_json"
+  # CSV append for tabular review
+  if [ ! -f "$CSV_SESSIONS_FILE" ]; then
+    echo "SESSION_ID,PROVIDER,MODEL_ID,USER_EMAIL,STATUS,UPDATED_AT" > "$CSV_SESSIONS_FILE"
+  fi
+  echo "\"${session_id}\",\"${DEFAULT_PROVIDER}\",\"${DEFAULT_MODEL_ID}\",\"${USER_EMAIL}\",\"PENDING\",\"$(date -u +"${DATETIME_PATTERN}")\"" >> "$CSV_SESSIONS_FILE"
 
-  logger_info "Validated and persisted OAuth session [${session_id}] to JSON."
+  logger_info "Saved OAuth session [${session_id}] for user [${USER_EMAIL}] to bidirectional volume."
   return 0
 }
 
-update_csv_store() {
-  local session_json="$1"
-  if [ ! -f "$CSV_SESSIONS_FILE" ]; then
-    echo "SESSION_ID,PROVIDER,MODEL_ID,AUTH_MODE,OAUTH_URL,CLIENT_ID,STATE,CODE_CHALLENGE,REDIRECT_URI,AUTH_CODE,STATUS,CREATED_AT,UPDATED_AT" > "$CSV_SESSIONS_FILE"
-    chmod 666 "$CSV_SESSIONS_FILE" 2>/dev/null || true
-  fi
-
-  node -e "
-    const fs = require('fs');
-    const csvPath = process.argv[1];
-    const s = JSON.parse(process.argv[2]);
-    const row = [
-      s.sessionId, s.provider, s.modelId, s.authMode, s.oauthUrl,
-      s.clientId || '', s.state || '', s.codeChallenge || '', s.redirectUri || '',
-      s.authCode || '', s.status, s.createdAt, s.updatedAt
-    ].map(v => '\"' + String(v).replace(/\"/g, '\"\"') + '\"').join(',');
-    
-    let content = fs.existsSync(csvPath) ? fs.readFileSync(csvPath, 'utf8') : '';
-    const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
-    const header = lines[0] || 'SESSION_ID,PROVIDER,MODEL_ID,AUTH_MODE,OAUTH_URL,CLIENT_ID,STATE,CODE_CHALLENGE,REDIRECT_URI,AUTH_CODE,STATUS,CREATED_AT,UPDATED_AT';
-    const dataLines = lines.slice(1);
-    const sidQuoted = '\"' + s.sessionId + '\"';
-    const existingIdx = dataLines.findIndex(l => l.startsWith(sidQuoted));
-    if (existingIdx >= 0) {
-      dataLines[existingIdx] = row;
-    } else {
-      dataLines.unshift(row);
-    }
-    fs.writeFileSync(csvPath, [header, ...dataLines].join('\n') + '\n', 'utf8');
-  " "$CSV_SESSIONS_FILE" "$session_json"
-}
-
 # ==============================================================================
-# Module: LocalVcsCommitService & DatabaseRecordSync (Purely Shell Script)
+# Module: LocalVcsCommitService & DatabaseRecordSync (Pure Shell via REST API)
 # ==============================================================================
-commit_auth_result() {
-  local status="$1"        # "SUCCESS" or "FAILED"
-  local email="$2"         # User email used for authentication
-  local session_id="$3"    # Session ID
-  local error_msg="${4:-}" # Error reason if failed
+commit_and_push_to_database() {
+  local status="$1"
+  local session_id="$2"
+  local error_msg="${3:-}"
 
-  # Ensure git is initialized in CREDENTIALS_DIR for purely in-container tracking
+  # 1. Pure in-container Git commit in CREDENTIALS_DIR
   if [ ! -d "${CREDENTIALS_DIR}/.git" ]; then
     git -C "$CREDENTIALS_DIR" init -q 2>/dev/null || true
-    git -C "$CREDENTIALS_DIR" config user.name "ModelBox Bot" 2>/dev/null || true
-    git -C "$CREDENTIALS_DIR" config user.email "bot@modelbox.local" 2>/dev/null || true
+    git -C "$CREDENTIALS_DIR" config user.name "ModelBox Platform" 2>/dev/null || true
+    git -C "$CREDENTIALS_DIR" config user.email "daemon@modelbox.internal" 2>/dev/null || true
   fi
 
-  # Construct required commit message stating success/failure status and email
-  local commit_msg
-  if [ "$status" = "SUCCESS" ]; then
-    commit_msg="auth(success): user=${email} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} status=SUCCESS session=${session_id}"
-  else
-    commit_msg="auth(failure): user=${email} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} status=FAILED error=${error_msg} session=${session_id}"
+  local commit_msg="auth(${status,,}): user=${USER_EMAIL} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} session=${session_id}"
+  if [ -n "$error_msg" ]; then
+    commit_msg="${commit_msg} error=${error_msg}"
   fi
 
-  # Stage ONLY authentication folder files (strictly inside CREDENTIALS_DIR, NEVER conversation folder/files)
   git -C "$CREDENTIALS_DIR" add -A 2>/dev/null || true
   git -C "$CREDENTIALS_DIR" commit --allow-empty -q -m "$commit_msg" 2>/dev/null || true
-
   local commit_id
-  commit_id=$(git -C "$CREDENTIALS_DIR" rev-parse HEAD 2>/dev/null || echo "")
+  commit_id=$(git -C "$CREDENTIALS_DIR" rev-parse HEAD 2>/dev/null || echo "commit-local")
 
   logger_info "Git commit created in credentials directory: [${commit_id:0:7}] ${commit_msg}"
 
-  # Approach 1: Use commit ID to move/archive authentication session files into dedicated commit folder
-  # (Strictly authentication files, conversation files remain untouched)
-  if [ -n "$commit_id" ] && [ -d "$RESPONSES_DIR" ]; then
-    local auth_archive_dir="${RESPONSES_DIR}/auth_${commit_id:0:8}"
-    mkdir -p "$auth_archive_dir" 2>/dev/null || true
-    if [ -f "${RESPONSES_DIR}/session_${session_id}.json" ]; then
-      cp -f "${RESPONSES_DIR}/session_${session_id}.json" "$auth_archive_dir/" 2>/dev/null || true
-    fi
-    logger_info "Approach 1: Archived authentication files under ${auth_archive_dir} (conversation files untouched)."
-  fi
-
-  # Approach 2: Trigger REST API via curl to persist authentication, multi-account mapping, and conversation sync
-  notify_backend_api_sync "$status" "$email" "$session_id" "$commit_id" "$error_msg"
-
-  echo "$commit_id"
+  # 2. Push both authentication and conversation files to database via REST API
+  push_session_to_database "$status" "$session_id" "$commit_id" "$error_msg"
 }
 
-notify_backend_api_sync() {
+push_session_to_database() {
   local status="$1"
-  local email="$2"
-  local session_id="$3"
-  local commit_id="$4"
-  local error_msg="${5:-}"
+  local session_id="$2"
+  local commit_id="$3"
+  local error_msg="${4:-}"
   local api_url="${BACKEND_API_URL}/auth/cli-session/sync"
 
-  logger_info "Transmitting authentication payload to backend REST API via curl..."
+  logger_info "Pushing authentication and conversation details to database via REST API..."
+
+  local auth_file="${RESPONSES_DIR}/oauth_session_${session_id}.json"
+  local auth_content=""
+  if [ -f "$auth_file" ]; then
+    auth_content=$(cat "$auth_file" 2>/dev/null | tr -d '\r\n' | sed 's/"/\\"/g' || true)
+  fi
 
   local payload
-  payload=$(node -e "
-    console.log(JSON.stringify({
-      sessionId: process.argv[1],
-      provider: '${DEFAULT_PROVIDER}',
-      modelId: '${DEFAULT_MODEL_ID}',
-      status: process.argv[2],
-      userEmail: process.argv[3],
-      commitId: process.argv[4],
-      errorMessage: process.argv[5] || ''
-    }));
-  " "$session_id" "$status" "$email" "$commit_id" "$error_msg" 2>/dev/null || echo "{}")
+  payload=$(cat <<EOF
+{
+  "sessionId": "$session_id",
+  "provider": "$DEFAULT_PROVIDER",
+  "modelId": "$DEFAULT_MODEL_ID",
+  "status": "$status",
+  "userEmail": "$USER_EMAIL",
+  "commitId": "$commit_id",
+  "errorMessage": "$error_msg",
+  "authFileContent": "$auth_content"
+}
+EOF
+)
 
   local response
   response=$(curl -s -X POST "$api_url" \
@@ -398,32 +351,30 @@ notify_backend_api_sync() {
     -d "$payload" \
     --max-time 10 2>/dev/null || echo '{"success":false,"message":"REST API call timed out"}')
 
-  logger_info "REST API response: ${response}"
-  logger_info "Approach 2: Pure REST API synchronization executed for authentication and conversation."
+  logger_info "Database synchronization response: ${response}"
 }
 
 # ==============================================================================
-# Module: PtyProcessManager & DaemonEngine (Orchestration Loop)
+# Module: PtyProcessManager & DaemonEngine (Orchestration Loop in Pure Shell)
 # ==============================================================================
 run_oauth_daemon() {
   local cli_bin="$1"
 
-  # Prepare named FIFO
   rm -f "$FIFO_IN" "$CLI_LOG" "$CODE_FILE"
   mkfifo "$FIFO_IN"
   exec 3<> "$FIFO_IN"
 
-  logger_info "Spawning Antigravity CLI process in pseudo-terminal mode..."
+  logger_info "Spawning Antigravity CLI process for user ${USER_EMAIL}..."
   COLUMNS=2000 LINES=100 script -q -c "${cli_bin}" /dev/null < "$FIFO_IN" > "$CLI_LOG" 2>&1 &
   local cli_pid=$!
   echo "$cli_pid" > "$PID_FILE"
   logger_info "Antigravity CLI process launched with PID: ${cli_pid}"
 
-  # Wait for 'Select login method:' prompt and send Enter to select 'Option 1: Google OAuth'
+  # Wait for login method prompt and confirm Option 1: Google OAuth
   local selected_option=false
   for ((i=1; i<=MENU_WAIT_TIMEOUT; i++)); do
     if [ -f "$CLI_LOG" ] && grep -qi "Select login method" "$CLI_LOG"; then
-      logger_info "Detected interactive login menu. Transmitting newline to select '${AUTH_MODE_LABEL}'..."
+      logger_info "Detected interactive login menu. Transmitting newline for '${AUTH_MODE_LABEL}'..."
       printf '\r\n' >&3
       selected_option=true
       break
@@ -432,22 +383,15 @@ run_oauth_daemon() {
   done
 
   if [ "$selected_option" = false ]; then
-    logger_info "Default menu timer elapsed. Transmitting newline to confirm Option 1..."
+    logger_info "Menu timer elapsed. Transmitting newline to confirm Option 1..."
     printf '\r\n' >&3
   fi
 
-  # Wait and extract Google OAuth URL from output
+  # Extract Google OAuth URL using pure shell / grep regex
   local oauth_url=""
   for ((i=1; i<=URL_DISCOVERY_TIMEOUT; i++)); do
     if [ -f "$CLI_LOG" ]; then
-      oauth_url=$(node -e "
-        const fs = require('fs');
-        try {
-          const text = fs.readFileSync('${CLI_LOG}', 'utf8');
-          const m = text.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/[^\s\r\n]+/);
-          if (m) console.log(m[0].trim());
-        } catch {}
-      " 2>/dev/null || true)
+      oauth_url=$(grep -oE "$OAUTH_URL_REGEX" "$CLI_LOG" 2>/dev/null | head -n 1 || true)
       if [ -n "$oauth_url" ]; then break; fi
     fi
     sleep 0.5
@@ -455,51 +399,50 @@ run_oauth_daemon() {
 
   if [ -z "$oauth_url" ]; then
     logger_warn "No Google OAuth authorization URL captured within timeout."
+    commit_and_push_to_database "FAILED" "sess-timeout" "URL_DISCOVERY_TIMEOUT"
     return 0
   fi
 
-  logger_info "Captured Google OAuth Authorization URL."
+  logger_info "Captured Google OAuth Authorization URL via pure shell regex."
 
-  # Extract parameters via Node.js
   local session_id
   session_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || date +%s%N)
   local now
-  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+  now=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+
+  local client_id state code_challenge redirect_uri
+  client_id=$(extract_url_param "$oauth_url" "client_id")
+  state=$(extract_url_param "$oauth_url" "state")
+  code_challenge=$(extract_url_param "$oauth_url" "code_challenge")
+  redirect_uri=$(extract_url_param "$oauth_url" "redirect_uri")
 
   local session_json
-  session_json=$(node -e "
-    try {
-      const u = new URL(process.argv[1]);
-      const session = {
-        sessionId: process.argv[2],
-        provider: '${DEFAULT_PROVIDER}',
-        modelId: '${DEFAULT_MODEL_ID}',
-        authMode: '${AUTH_MODE_LABEL}',
-        oauthUrl: u.href,
-        clientId: u.searchParams.get('client_id') || '',
-        state: u.searchParams.get('state') || '',
-        codeChallenge: u.searchParams.get('code_challenge') || '',
-        redirectUri: u.searchParams.get('redirect_uri') || '',
-        cliRedirectUri: u.searchParams.get('redirect_uri') || 'https://antigravity.google/oauth-callback',
-        appRedirectUri: 'http://localhost:8085/oauth2callback',
-        authCode: '',
-        status: 'PENDING',
-        createdAt: process.argv[3],
-        updatedAt: process.argv[3]
-      };
-      console.log(JSON.stringify(session));
-    } catch {
-      console.log('{}');
-    }
-  " "$oauth_url" "$session_id" "$now")
+  session_json=$(cat <<EOF
+{
+  "sessionId": "$session_id",
+  "provider": "$DEFAULT_PROVIDER",
+  "modelId": "$DEFAULT_MODEL_ID",
+  "authMode": "$AUTH_MODE_LABEL",
+  "oauthUrl": "$oauth_url",
+  "clientId": "$client_id",
+  "state": "$state",
+  "codeChallenge": "$code_challenge",
+  "redirectUri": "$redirect_uri",
+  "cliRedirectUri": "$redirect_uri",
+  "appRedirectUri": "http://localhost:8085/oauth2callback",
+  "authCode": "",
+  "userEmail": "$USER_EMAIL",
+  "status": "PENDING",
+  "createdAt": "$now",
+  "updatedAt": "$now"
+}
+EOF
+)
 
-  save_session_record "$session_json"
-  curl -s -X POST "${BACKEND_API_URL}/auth/cli-session/sync" \
-    -H "Content-Type: application/json" \
-    -d "$session_json" \
-    --max-time 5 2>/dev/null || true
+  save_session_record "$session_json" "$session_id"
+  push_session_to_database "PENDING" "$session_id" "" ""
 
-  # Wait for Auth Code delivery or timeout
+  # Await authcode from user callback
   logger_info "Waiting for user authorization code input (timeout: ${AUTH_TIMEOUT_SECONDS}s)..."
   for ((s=0; s<AUTH_TIMEOUT_SECONDS; s+=2)); do
     if ! kill -0 "$cli_pid" 2>/dev/null; then
@@ -514,31 +457,15 @@ run_oauth_daemon() {
         logger_info "Authorization code received! Transmitting to Antigravity CLI stdin..."
         printf "%s\r\n" "$auth_code" >&3
 
-        local completed_ts
-        completed_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
-
-        # Update session JSON record to COMPLETED
-        local completed_json
-        completed_json=$(node -e "
-          const s = JSON.parse(process.argv[1]);
-          s.authCode = process.argv[2];
-          s.status = 'COMPLETED';
-          s.updatedAt = process.argv[3];
-          console.log(JSON.stringify(s));
-        " "$session_json" "$auth_code" "$completed_ts")
-
-        save_session_record "$completed_json"
-
-        # Wait for token exchange and copy credentials to bidirectional directory
         sleep 4
         if [ -d "$HOME/.config/antigravity" ]; then
           cp -rf "$HOME/.config/antigravity"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
-          logger_info "Copied Antigravity credentials to bidirectional volume at ${CREDENTIALS_DIR}"
         fi
         if [ -d "$HOME/.gemini" ]; then
           cp -rf "$HOME/.gemini"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
-          logger_info "Copied Gemini credentials to bidirectional volume at ${CREDENTIALS_DIR}"
         fi
+
+        commit_and_push_to_database "COMPLETED" "$session_id" ""
         break
       fi
     fi
@@ -549,9 +476,44 @@ run_oauth_daemon() {
 }
 
 # ==============================================================================
-# Main Entrypoint
+# Argument Parsing: Strict Email Enforcement & Dispatch
 # ==============================================================================
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --startup)
+        IS_STARTUP=true
+        shift
+        ;;
+      --email|-e)
+        USER_EMAIL="${2:-}"
+        shift 2
+        ;;
+      --email=*)
+        USER_EMAIL="${1#*=}"
+        shift
+        ;;
+      *)
+        if [ -z "$USER_EMAIL" ] && [[ "$1" =~ @ ]]; then
+          USER_EMAIL="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Also check environment variable if explicitly exported by caller
+  if [ -z "$USER_EMAIL" ] && [ -n "${USER_EMAIL_ARG:-}" ]; then
+    USER_EMAIL="$USER_EMAIL_ARG"
+  fi
+}
+
 main() {
+  parse_args "$@"
+  if [ "$IS_STARTUP" = "true" ] && [ -z "$USER_EMAIL" ]; then
+    logger_info "Container boot: No user email provided at startup. Daemon ready for on-demand invocation."
+    exit 0
+  fi
   pre_validate_environment
   resolve_binary
   if [ -z "$RESOLVED_CLI_BIN" ] || [ ! -x "$RESOLVED_CLI_BIN" ]; then

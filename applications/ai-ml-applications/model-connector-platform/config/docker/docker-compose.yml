@@ -2,11 +2,13 @@ name: model-connector-platform
 
 services:
   # --------------------------------------------------------------------------
-  # Relational Database: PostgreSQL Enterprise Engine
+  # Multi-Model Database: PostgreSQL 17 (Vector, Graph, RDBMS, NoSQL)
   # --------------------------------------------------------------------------
   postgres:
-    profiles: ["infra"]
-    image: postgres:17-alpine
+    build:
+      context: ../..
+      dockerfile: config/docker/Dockerfile.postgres
+    image: model-connector-postgres:latest
     container_name: model-connector-postgres
     restart: unless-stopped
     security_opt:
@@ -42,7 +44,6 @@ services:
   # Database Management: pgAdmin 4 Web Console
   # --------------------------------------------------------------------------
   pgadmin:
-    profiles: ["infra"]
     image: dpage/pgadmin4:latest
     container_name: model-connector-pgadmin
     restart: unless-stopped
@@ -57,7 +58,7 @@ services:
           cpus: '0.1'
           memory: 128M
     environment:
-      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@modelbox.enterprise}
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-pgadmin@modelbox.internal}
       - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-admin}
       - PGADMIN_CONFIG_SERVER_MODE=False
       - PGADMIN_LISTEN_PORT=80

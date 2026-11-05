@@ -7,7 +7,7 @@ import {
   CategoryMapper,
   modelFilterStrategy,
 } from "@/utils";
-import { OdooControlPanel, OdooModelCardGrid, type OdooViewType } from "@/components/odoo";
+import { ControlPanel, ModelCardGrid, type ViewType } from "@/components/views";
 
 interface DesktopModelPageProps {
   readonly state: ModelConnectorState;
@@ -20,8 +20,8 @@ export const DesktopModelPage: React.FC<DesktopModelPageProps> = ({ state }) => 
   const [categoryModelPages, setCategoryModelPages] = useState<Record<string, number>>({});
   const categoryPageSize = PaginationConstants.DEFAULT_CATEGORY_PAGE_SIZE;
 
-  // Odoo View Mode: "list" vs "card"
-  const [viewMode, setViewMode] = useState<OdooViewType>("list");
+  // View Mode: "list" vs "card"
+  const [viewMode, setViewMode] = useState<ViewType>("list");
   const [groupBy, setGroupBy] = useState<"family" | "none">("family");
 
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -101,8 +101,8 @@ export const DesktopModelPage: React.FC<DesktopModelPageProps> = ({ state }) => 
 
   return (
     <div className="desktop-model-catalog" data-testid="desktop-model-catalog">
-      {/* 1. Odoo Unified Control Panel with Create, Search, Filter, Group By & View Switcher */}
-      <OdooControlPanel
+      {/* 1. Unified Control Panel with Create, Search, Filter, Group By & View Switcher */}
+      <ControlPanel
         viewType={viewMode}
         title="AI Model Catalog"
         onCreateClick={handleCreateNewConfiguration}
@@ -130,7 +130,7 @@ export const DesktopModelPage: React.FC<DesktopModelPageProps> = ({ state }) => 
 
       {/* 2. Card View (Kanban) */}
       {viewMode === "card" && (
-        <OdooModelCardGrid
+        <ModelCardGrid
           models={filteredModels}
           modelAccounts={state.modelAccounts}
           selectedModelId={state.selectedModel}

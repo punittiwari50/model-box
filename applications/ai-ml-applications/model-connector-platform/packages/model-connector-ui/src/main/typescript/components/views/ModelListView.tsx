@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { UiModel, UiModelAccount, UiSession, UiAuditRecord } from "@/types/ui.types";
 import { CategoryMetricsCalculator } from "@/utils";
 
-export interface OdooModelListViewProps {
+export interface ModelListViewProps {
   readonly models: readonly UiModel[];
   readonly modelAccounts: readonly UiModelAccount[];
   readonly auditLogs: readonly UiAuditRecord[];
@@ -25,7 +25,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   fallback: "🛡️",
 };
 
-export const OdooModelListView: React.FC<OdooModelListViewProps> = ({
+export const ModelListView: React.FC<ModelListViewProps> = ({
   models,
   modelAccounts,
   auditLogs,
@@ -36,18 +36,28 @@ export const OdooModelListView: React.FC<OdooModelListViewProps> = ({
   onChatSelect,
   onManageAccountsClick,
 }) => {
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    const activeFamily = models.find((m) => m.id === selectedModelId)?.family.toLowerCase() || "gemini";
+    for (const m of models) {
+      const fam = m.family.toLowerCase();
+      if (fam !== activeFamily && initial[fam] === undefined) {
+        initial[fam] = true;
+      }
+    }
+    return initial;
+  });
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups((prev) => ({
       ...prev,
-      [key]: prev[key] === false ? true : false,
+      [key]: !prev[key],
     }));
   };
 
   if (models.length === 0) {
     return (
-      <div className="odoo-empty-state">
+      <div className="view-empty-state">
         <span className="empty-icon">📂</span>
         <h3>No Models Found</h3>
         <p>No model configurations match your current filter or search criteria.</p>
@@ -55,7 +65,7 @@ export const OdooModelListView: React.FC<OdooModelListViewProps> = ({
     );
   }
 
-  // 1. Group By: Family / Provider (matches user's screenshot!)
+  // 1. Group By: Family / Provider (matches reference layout)
   if (groupBy === "family") {
     const familyMap = new Map<string, UiModel[]>();
     for (const m of models) {
@@ -68,7 +78,7 @@ export const OdooModelListView: React.FC<OdooModelListViewProps> = ({
     const families = Array.from(familyMap.keys());
 
     return (
-      <div className="odoo-grouped-list-view" data-testid="odoo-grouped-list">
+      <div className="grouped-list-view" data-testid="grouped-list">
         {families.map((fam) => {
           const groupModels = familyMap.get(fam) || [];
           const isCollapsed = Boolean(collapsedGroups[fam]);
@@ -104,89 +114,72 @@ export const OdooModelListView: React.FC<OdooModelListViewProps> = ({
               </div>
 
               {!isCollapsed && (
-                <div className="catalog-table-wrapper" style={{ margin: 0, border: "none", borderRadius: 0 }}>
+                <div className="category-table-wrapper">
                   <table className="desktop-table">
                     <thead>
                       <tr>
-                        <th>Model Name & Identifier</th>
-                        <th>Category</th>
-                        <th>Tier</th>
-                        <th>Supported Strategies</th>
-                        <th>Status</th>
-                        <th>Action</th>
+                        <th>MODEL NAME &amp; IDENTIFIER</th>
+                        <th>CATEGORY</th>
+                        <th>TIER</th>
+                        <th>SUPPORTED STRATEGIES</th>
+                        <th>STATUS</th>
+                        <th>ACTION</th>
                       </tr>
                     </thead>
                     <tbody>
                       {groupModels.map((m) => {
                         const accounts = modelAccounts.filter((a) => a.modelId === m.id);
-                        const activeAcc = accounts.find((a) => a.isActive);
                         const isSelected = selectedModelId === m.id;
+                        const activeAcc = accounts.find((a) => a.isActive);
+                        const statusLabel = m.status === "ACTIVE"
+                          ? "ACTIVE"
+                          : activeAcc
+                          ? "CONFIGURED"
+                          : "NO ACCOUNT";
 
                         return (
                           <tr
                             key={m.id}
-                            className={`odoo-list-row ${isSelected ? "selected-row" : ""}`}
+                            className={`model-list-row odoo-list-row ${isSelected ? "selected-row" : ""}`}
                             onClick={() => onModelClick(m.id)}
-                            title={`Click to open Save View for ${m.name}`}
-                            data-testid={`odoo-row-${m.id}`}
+                            title="Click to open Save View for this model configuration"
+                            data-testid={`model-row-${m.id}`}
                           >
-                            <td>
-                              <div className="model-cell-name">
-                                <span style={{ marginRight: "6px" }}>{icon}</span>
-                                <strong>{m.name}</strong>
+                            <td className="col-identity">
+                              <span className="table-model-icon">◈</span>
+                              <div>
+                                <span className="table-model-name">{m.name}</span>
+                                <span className="table-model-id">{m.id}</span>
                               </div>
-                              <div className="model-cell-id">{m.id}</div>
                             </td>
                             <td>
-                              <span className={`family-badge ${m.family.toLowerCase()}`}>
-                                {m.family.toUpperCase()}
-                              </span>
+                              <span className="cat-badge">{m.family.toUpperCase()}</span>
                             </td>
                             <td>
-                              <span className={`tier-badge ${m.tier}`}>{m.tier.toUpperCase()}</span>
+                              <span className="tier-tag">{m.tier || "FREEWARE"}</span>
                             </td>
                             <td>
-                              <div className="strategy-tags">
-                                {m.supportedStrategies.map((s) => (
-                                  <span key={s} className="strategy-tag">
-                                    {s.toUpperCase()}
+                              <div className="strategies-cell">
+                                {m.supportedStrategies.map((strat) => (
+                                  <span key={strat} className="strategy-micro-pill">
+                                    {strat.toUpperCase()}
                                   </span>
                                 ))}
                               </div>
                             </td>
                             <td>
-                              {activeAcc ? (
-                                <span
-                                  className="status-pill active"
-                                  title={`Active Account: ${activeAcc.accountName} (${activeAcc.userEmail})`}
-                                >
-                                  ACTIVE
-                                </span>
-                              ) : accounts.length > 0 ? (
-                                <span className="status-pill inactive" title="Accounts configured but inactive">
-                                  INACTIVE
-                                </span>
-                              ) : (
-                                <span className="status-pill no-account" title="No accounts configured">
-                                  NO ACCOUNT
-                                </span>
-                              )}
+                              <span className={`status-pill ${statusLabel.toLowerCase().replace(/\s+/g, "-")}`}>
+                                {statusLabel}
+                              </span>
                             </td>
-                            <td onClick={(e) => e.stopPropagation()}>
-                              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                <button
-                                  type="button"
-                                  className="btn-configure-action"
-                                  onClick={() => onModelClick(m.id)}
-                                  title="Open Save View (Configure Credentials)"
-                                >
-                                  ⚙️ Configure
-                                </button>
+                            <td>
+                              <div className="table-actions-cell" onClick={(e) => e.stopPropagation()}>
                                 {onChatSelect && (
                                   <button
                                     type="button"
-                                    className="select-model-btn"
+                                    className={`btn-table-chat ${isSelected ? "selected" : ""}`}
                                     onClick={() => onChatSelect(m.id)}
+                                    title="Open chat"
                                   >
                                     {isSelected ? "Selected 💬" : "Select & Chat"}
                                   </button>
@@ -194,9 +187,9 @@ export const OdooModelListView: React.FC<OdooModelListViewProps> = ({
                                 {onManageAccountsClick && (
                                   <button
                                     type="button"
-                                    className="manage-accounts-btn"
+                                    className="btn-table-accounts"
                                     onClick={() => onManageAccountsClick(m.id, m.name)}
-                                    title="Manage model accounts"
+                                    title="View accounts"
                                   >
                                     🔑 Accounts {accounts.length > 0 ? `(${accounts.length})` : ""}
                                   </button>
@@ -217,84 +210,75 @@ export const OdooModelListView: React.FC<OdooModelListViewProps> = ({
     );
   }
 
-  // 2. Flat List / Other Groupings
+  // 2. Flat List View (No Grouping)
   return (
-    <div className="odoo-flat-list-view" data-testid="odoo-flat-list">
-      <div className="catalog-table-wrapper">
+    <div className="flat-list-view" data-testid="flat-list-view">
+      <div className="category-table-wrapper">
         <table className="desktop-table">
           <thead>
             <tr>
-              <th>Model Name & Identifier</th>
-              <th>Category</th>
-              <th>Tier</th>
-              <th>Supported Strategies</th>
-              <th>Status</th>
-              <th>Action</th>
+              <th>MODEL NAME &amp; IDENTIFIER</th>
+              <th>CATEGORY</th>
+              <th>TIER</th>
+              <th>SUPPORTED STRATEGIES</th>
+              <th>STATUS</th>
+              <th>ACTION</th>
             </tr>
           </thead>
           <tbody>
             {models.map((m) => {
               const accounts = modelAccounts.filter((a) => a.modelId === m.id);
-              const activeAcc = accounts.find((a) => a.isActive);
               const isSelected = selectedModelId === m.id;
-              const icon = CATEGORY_ICONS[m.family.toLowerCase()] || "◈";
+              const activeAcc = accounts.find((a) => a.isActive);
+              const statusLabel = m.status === "ACTIVE"
+                ? "ACTIVE"
+                : activeAcc
+                ? "CONFIGURED"
+                : "NO ACCOUNT";
 
               return (
                 <tr
                   key={m.id}
-                  className={`odoo-list-row ${isSelected ? "selected-row" : ""}`}
+                  className={`model-list-row odoo-list-row ${isSelected ? "selected-row" : ""}`}
                   onClick={() => onModelClick(m.id)}
-                  title={`Click to open Save View for ${m.name}`}
-                  data-testid={`odoo-row-${m.id}`}
+                  title="Click to open Save View for this model configuration"
+                  data-testid={`model-row-${m.id}`}
                 >
-                  <td>
-                    <div className="model-cell-name">
-                      <span style={{ marginRight: "6px" }}>{icon}</span>
-                      <strong>{m.name}</strong>
+                  <td className="col-identity">
+                    <span className="table-model-icon">◈</span>
+                    <div>
+                      <span className="table-model-name">{m.name}</span>
+                      <span className="table-model-id">{m.id}</span>
                     </div>
-                    <div className="model-cell-id">{m.id}</div>
                   </td>
                   <td>
-                    <span className={`family-badge ${m.family.toLowerCase()}`}>
-                      {m.family.toUpperCase()}
-                    </span>
+                    <span className="cat-badge">{m.family.toUpperCase()}</span>
                   </td>
                   <td>
-                    <span className={`tier-badge ${m.tier}`}>{m.tier.toUpperCase()}</span>
+                    <span className="tier-tag">{m.tier || "FREEWARE"}</span>
                   </td>
                   <td>
-                    <div className="strategy-tags">
-                      {m.supportedStrategies.map((s) => (
-                        <span key={s} className="strategy-tag">
-                          {s.toUpperCase()}
+                    <div className="strategies-cell">
+                      {m.supportedStrategies.map((strat) => (
+                        <span key={strat} className="strategy-micro-pill">
+                          {strat.toUpperCase()}
                         </span>
                       ))}
                     </div>
                   </td>
                   <td>
-                    {activeAcc ? (
-                      <span className="status-pill active">ACTIVE</span>
-                    ) : accounts.length > 0 ? (
-                      <span className="status-pill inactive">INACTIVE</span>
-                    ) : (
-                      <span className="status-pill no-account">NO ACCOUNT</span>
-                    )}
+                    <span className={`status-pill ${statusLabel.toLowerCase().replace(/\s+/g, "-")}`}>
+                      {statusLabel}
+                    </span>
                   </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                      <button
-                        type="button"
-                        className="btn-configure-action"
-                        onClick={() => onModelClick(m.id)}
-                        title="Open Save View (Configure Credentials)"
-                      >
-                        ⚙️ Configure
-                      </button>
+                  <td>
+                    <div className="table-actions-cell" onClick={(e) => e.stopPropagation()}>
                       {onChatSelect && (
                         <button
                           type="button"
-                          className="select-model-btn"
+                          className={`btn-table-chat ${isSelected ? "selected" : ""}`}
                           onClick={() => onChatSelect(m.id)}
+                          title="Open chat"
                         >
                           {isSelected ? "Selected 💬" : "Select & Chat"}
                         </button>
@@ -302,9 +286,9 @@ export const OdooModelListView: React.FC<OdooModelListViewProps> = ({
                       {onManageAccountsClick && (
                         <button
                           type="button"
-                          className="manage-accounts-btn"
+                          className="btn-table-accounts"
                           onClick={() => onManageAccountsClick(m.id, m.name)}
-                          title="Manage model accounts"
+                          title="View accounts"
                         >
                           🔑 Accounts {accounts.length > 0 ? `(${accounts.length})` : ""}
                         </button>

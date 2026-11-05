@@ -1299,7 +1299,9 @@
               }
             }
 
-            .oauth-action-toolbar {
+            .oauth-action-toolbar,
+            .authenticated-session-toolbar,
+            .failure-alert-actions {
               display: flex;
               align-items: center;
               flex-wrap: wrap;
@@ -1364,6 +1366,22 @@
                     background: linear-gradient(135deg, #1e40af, #2563eb);
                     transform: translateY(-1px);
                     box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+                  }
+                }
+
+                &.btn-step2-redirect,
+                &.btn-view-redirect-step {
+                  background: rgba(30, 41, 59, 0.75);
+                  border: 1px solid rgba(59, 130, 246, 0.4);
+                  color: #93c5fd;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+
+                  &:hover:not(:disabled) {
+                    background: rgba(59, 130, 246, 0.25);
+                    border-color: #60a5fa;
+                    color: #ffffff;
+                    transform: translateY(-1px);
+                    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
                   }
                 }
 
@@ -1670,7 +1688,8 @@
               box-sizing: border-box;
 
               .btn-oauth-action {
-                flex: 1 1 180px;
+                flex: 1 1 auto;
+                min-width: 180px;
               }
             }
 

@@ -71,19 +71,23 @@ export const MobileLayoutSelectors = Object.freeze({
   SWITCH_TO_DESKTOP_BTN: "button:has-text('Switch to Desktop')",
 });
 
-export const OdooSelectors = Object.freeze({
-  CONTROL_PANEL: '[data-testid="odoo-control-panel"], .odoo-control-panel',
-  BTN_CREATE: '[data-testid="odoo-btn-create"], .btn-create-primary',
-  BTN_SAVE: '[data-testid="odoo-btn-save"], .btn-save-primary',
-  BTN_DISCARD: '[data-testid="odoo-btn-discard"], .btn-discard-secondary',
-  BTN_DELETE: '[data-testid="odoo-btn-delete"], .btn-delete-danger',
-  VIEW_CARD: '[data-testid="odoo-view-card"], .view-mode-btn[title*="Card" i]',
-  VIEW_LIST: '[data-testid="odoo-view-list"], .view-mode-btn[title*="List" i]',
-  CARD_GRID: '[data-testid="odoo-card-grid"], .odoo-card-grid',
-  GROUPED_LIST: '[data-testid="odoo-grouped-list"], .odoo-grouped-list-view',
-  FORM_VIEW: '[data-testid="odoo-form-view"], .odoo-form-view-container',
-  CREATE_BANNER: '[data-testid="odoo-create-banner"], .odoo-form-create-banner',
-  SELECT_TARGET_MODEL: '[data-testid="odoo-select-target-model"], .model-select-dropdown',
+export const EnterpriseViewSelectors = Object.freeze({
+  CONTROL_PANEL: '[data-testid="control-panel"], [data-testid="odoo-control-panel"], .control-panel, .odoo-control-panel',
+  BTN_CREATE: '[data-testid="btn-create"], [data-testid="odoo-btn-create"], .btn-create-primary',
+  BTN_SAVE: '[data-testid="btn-save"], [data-testid="odoo-btn-save"], .btn-save-primary',
+  BTN_DISCARD: '[data-testid="btn-discard"], [data-testid="odoo-btn-discard"], .btn-discard-secondary',
+  BTN_DELETE: '[data-testid="btn-delete"], [data-testid="odoo-btn-delete"], .btn-delete-danger',
+  VIEW_CARD: '[data-testid="view-card"], [data-testid="odoo-view-card"], .view-mode-btn[title*="Card" i]',
+  VIEW_LIST: '[data-testid="view-list"], [data-testid="odoo-view-list"], .view-mode-btn[title*="List" i]',
+  CARD_GRID: '[data-testid="model-card-grid"], [data-testid="odoo-card-grid"], .model-card-grid, .odoo-card-grid',
+  GROUPED_LIST: '[data-testid="grouped-list"], [data-testid="odoo-grouped-list"], .grouped-list-view, .odoo-grouped-list-view',
+  FORM_VIEW: '[data-testid="form-view"], [data-testid="odoo-form-view"], .form-view-container, .odoo-form-view-container',
+  CREATE_BANNER: '[data-testid="create-banner"], [data-testid="odoo-create-banner"], .form-create-banner, .odoo-form-create-banner',
+  SELECT_TARGET_MODEL: '[data-testid="select-target-model"], [data-testid="odoo-select-target-model"], .model-select-dropdown',
+  MODEL_ROW: '[data-testid^="model-row-"], .model-list-row, .odoo-list-row, .model-item-row',
+  MODEL_CARD: '[data-testid^="model-card-"], .model-card-item, .odoo-model-card',
 });
+
+export const OdooSelectors = EnterpriseViewSelectors;
 
 

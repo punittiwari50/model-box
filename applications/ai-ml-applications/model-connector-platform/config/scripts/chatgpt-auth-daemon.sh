@@ -1,27 +1,54 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # OpenAI ChatGPT / Codex CLI OAuth Automation Daemon
-# Architecture: OOP Modular Structure, DI, SOLID Principles, Strict Sanitization
-# Standards: STD-COD-001, STD-COD-002, STD-COD-004, STD-COD-007, STD-COD-010
+# Architecture: OOP Shell Modules, DI, Strict Sanitization, Pure CLI/Shell
+# Constraints: Zero Node/Python/Java, YAML Config Driven, No Default Email
 # ==============================================================================
 set -euo pipefail
 
-readonly DEFAULT_DATA_DIR="/app/config/data"
-readonly DATA_DIR="${DATA_DIR:-$DEFAULT_DATA_DIR}"
-readonly LOGS_DIR="${DATA_DIR}/logs"
-readonly CREDENTIALS_DIR="${DATA_DIR}/credentials"
-readonly RESPONSES_DIR="${DATA_DIR}/oauth_responses"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/auth-config.yml"
+
+read_yaml_value() {
+  local key="$1"
+  local default_val="${2:-}"
+  if [ -f "$CONFIG_FILE" ]; then
+    local parsed
+    parsed=$(awk -F': *' -v target="$key" '
+      $1 ~ ("(^|[[:space:]]+)" target "$") {
+        val = $2;
+        sub(/^["'\''[:space:]]+/, "", val);
+        sub(/["'\''[:space:]]+$/, "", val);
+        print val;
+        exit;
+      }
+    ' "$CONFIG_FILE" 2>/dev/null || true)
+    if [ -n "$parsed" ]; then
+      echo "$parsed"
+      return 0
+    fi
+  fi
+  echo "$default_val"
+}
+
+readonly DATA_DIR="$(read_yaml_value "default_data_dir" "/app/config/data")"
+readonly LOGS_DIR="$(read_yaml_value "default_logs_dir" "${DATA_DIR}/logs")"
+readonly CREDENTIALS_DIR="$(read_yaml_value "default_credentials_dir" "${DATA_DIR}/credentials")"
+readonly RESPONSES_DIR="$(read_yaml_value "default_responses_dir" "${DATA_DIR}/oauth_responses")"
 readonly JSON_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.json"
 readonly CSV_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.csv"
 readonly DAEMON_LOG_FILE="${LOGS_DIR}/chatgpt_auth_daemon.log"
 
+readonly OAUTH_BASE_URL="$(read_yaml_value "openai_base_url" "https://auth0.openai.com/authorize")"
+readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
+readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
+
 readonly BINARY_NAME="chatgpt"
 readonly DEFAULT_PROVIDER="openai"
 readonly DEFAULT_MODEL_ID="gpt-4o"
-readonly AUTH_MODE_LABEL="OpenAI ChatGPT/Codex CLI OAuth"
+readonly AUTH_MODE_LABEL="OpenAI ChatGPT CLI OAuth"
 readonly REDACTION_MASK="***REDACTED***"
 readonly APP_REDIRECT_URI="http://localhost:8085/oauth2callback"
-readonly BACKEND_API_URL="${BACKEND_API_URL:-http://localhost:8095/api/v1}"
 readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-300}"
 
 readonly FIFO_IN="/tmp/chatgpt_auth_in.fifo"
@@ -29,6 +56,9 @@ readonly CLI_LOG="/tmp/chatgpt_auth_out.log"
 readonly CODE_FILE="/tmp/chatgpt_auth_code.txt"
 readonly PID_FILE="/tmp/chatgpt_auth.pid"
 readonly LOCK_FILE="/tmp/chatgpt_auth.lock"
+
+USER_EMAIL=""
+IS_STARTUP=false
 
 sanitize_log_message() {
   local raw="$1"
@@ -46,185 +76,178 @@ log_message() {
   local sanitized
   sanitized=$(sanitize_log_message "$msg")
   local ts
-  ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+  ts=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
   local json_line="{\"timestamp\":\"$ts\",\"level\":\"$level\",\"service\":\"chatgpt-auth-daemon\",\"pid\":$$,\"message\":\"$sanitized\"}"
   echo "$json_line" >&2
-  if [ -d "$LOGS_DIR" ]; then echo "$json_line" >> "$DAEMON_LOG_FILE" 2>/dev/null || true; fi
+  if [ -d "$LOGS_DIR" ]; then
+    echo "$json_line" >> "$DAEMON_LOG_FILE" 2>/dev/null || true
+  fi
 }
 
 logger_info() { log_message "INFO" "$@"; }
 logger_warn() { log_message "WARN" "$@"; }
 logger_error() { log_message "ERROR" "$@"; }
 
-cleanup() {
-  logger_info "Executing ChatGPT/Codex daemon cleanup..."
-  if [ -f "$PID_FILE" ]; then
-    local cpid
-    cpid=$(cat "$PID_FILE" 2>/dev/null || true)
-    if [ -n "$cpid" ] && kill -0 "$cpid" 2>/dev/null; then kill -TERM "$cpid" 2>/dev/null || true; fi
-    rm -f "$PID_FILE"
-  fi
-  exec 3>&- 2>/dev/null || true
-  rm -f "$FIFO_IN" "$CLI_LOG" "$CODE_FILE" "$LOCK_FILE"
-}
-trap cleanup EXIT INT TERM HUP
-
 pre_validate() {
-  mkdir -p "$DATA_DIR" "$LOGS_DIR" "$CREDENTIALS_DIR" "$RESPONSES_DIR"
-  if [ -f "$LOCK_FILE" ]; then
-    local old_pid
-    old_pid=$(cat "$LOCK_FILE" 2>/dev/null || true)
-    if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-      logger_warn "ChatGPT auth daemon already running under PID ${old_pid}."
-      exit 0
-    fi
+  if [ -z "$USER_EMAIL" ]; then
+    logger_error "Pre-validation failed: User email must be provided via argument (--email <user@domain.com>). Default fallback prohibited."
+    return 1
   fi
-  echo $$ > "$LOCK_FILE"
+  if ! echo "$USER_EMAIL" | grep -Eq '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
+    logger_error "Pre-validation failed: Invalid user email format '${USER_EMAIL}'."
+    return 1
+  fi
+  mkdir -p "$DATA_DIR" "$LOGS_DIR" "$CREDENTIALS_DIR" "$RESPONSES_DIR"
+  logger_info "Pre-validation succeeded for user: ${USER_EMAIL}"
+  return 0
 }
 
 save_session() {
   local session_json="$1"
-  local session_id
-  session_id=$(echo "$session_json" | node -e "const stdin = require('fs').readFileSync(0, 'utf8'); console.log(JSON.parse(stdin).sessionId);")
-  echo "$session_json" > "${RESPONSES_DIR}/oauth_session_${session_id}.json"
+  local session_id="$2"
+  local s_file="${RESPONSES_DIR}/oauth_session_${session_id}.json"
+  echo "$session_json" > "$s_file"
 
-  node -e "
-    const fs = require('fs');
-    const masterPath = process.argv[1];
-    const newSession = JSON.parse(process.argv[2]);
-    let master = { version: '1.0', updatedAt: new Date().toISOString(), latestSessionId: newSession.sessionId, sessions: [] };
-    if (fs.existsSync(masterPath)) {
-      try {
-        const existing = JSON.parse(fs.readFileSync(masterPath, 'utf8'));
-        if (existing && Array.isArray(existing.sessions)) master = existing;
-      } catch {}
-    }
-    const idx = master.sessions.findIndex(s => s.sessionId === newSession.sessionId);
-    if (idx >= 0) master.sessions[idx] = newSession; else master.sessions.unshift(newSession);
-    master.updatedAt = new Date().toISOString();
-    master.latestSessionId = newSession.sessionId;
-    const tmp = masterPath + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(master, null, 2), 'utf8');
-    fs.renameSync(tmp, masterPath);
-  " "$JSON_SESSIONS_FILE" "$session_json"
+  if [ ! -f "$JSON_SESSIONS_FILE" ]; then
+    echo "{\"version\":\"1.0\",\"updatedAt\":\"$(date -u +"${DATETIME_PATTERN}")\",\"latestSessionId\":\"${session_id}\",\"sessions\":[${session_json}]}" > "$JSON_SESSIONS_FILE"
+  fi
 }
 
-commit_auth_result() {
+push_auth_and_conversation_to_db() {
   local status="$1"
-  local email="$2"
-  local session_id="$3"
-  local error_msg="${4:-}"
+  local session_id="$2"
+  local error_msg="${3:-}"
 
   git config --global --add safe.directory "$CREDENTIALS_DIR" 2>/dev/null || true
-
   if [ ! -d "${CREDENTIALS_DIR}/.git" ]; then
     git -C "$CREDENTIALS_DIR" init -q 2>/dev/null || true
     git -C "$CREDENTIALS_DIR" config user.name "ModelBox Bot" 2>/dev/null || true
     git -C "$CREDENTIALS_DIR" config user.email "bot@modelbox.local" 2>/dev/null || true
   fi
 
-  local commit_msg
-  if [ "$status" = "SUCCESS" ]; then
-    commit_msg="auth(success): user=${email} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} status=SUCCESS session=${session_id}"
-  else
-    commit_msg="auth(failure): user=${email} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} status=FAILED error=${error_msg} session=${session_id}"
+  local commit_msg="auth(${status,,}): user=${USER_EMAIL} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} session=${session_id}"
+  if [ -n "$error_msg" ]; then
+    commit_msg="${commit_msg} error=${error_msg}"
   fi
 
   git -C "$CREDENTIALS_DIR" add -A 2>/dev/null || true
   git -C "$CREDENTIALS_DIR" commit --allow-empty -q -m "$commit_msg" 2>/dev/null || true
-
   local commit_id
-  commit_id=$(git -C "$CREDENTIALS_DIR" rev-parse HEAD 2>/dev/null || echo "")
+  commit_id=$(git -C "$CREDENTIALS_DIR" rev-parse HEAD 2>/dev/null || echo "commit-local")
 
-  logger_info "Git commit created in credentials directory: [${commit_id:0:7}] ${commit_msg}"
-
-  # Approach 1: Use commit ID to move/archive authentication session files into dedicated commit folder
-  if [ -n "$commit_id" ] && [ -d "$RESPONSES_DIR" ]; then
-    local auth_archive_dir="${RESPONSES_DIR}/auth_${commit_id:0:8}"
-    mkdir -p "$auth_archive_dir" 2>/dev/null || true
-    if [ -f "${RESPONSES_DIR}/oauth_session_${session_id}.json" ]; then
-      cp -f "${RESPONSES_DIR}/oauth_session_${session_id}.json" "$auth_archive_dir/" 2>/dev/null || true
-    fi
-    logger_info "Approach 1: Archived authentication files under ${auth_archive_dir} (conversation files untouched)."
+  local auth_file="${RESPONSES_DIR}/oauth_session_${session_id}.json"
+  local auth_content=""
+  if [ -f "$auth_file" ]; then
+    auth_content=$(cat "$auth_file" 2>/dev/null | tr -d '\r\n' | sed 's/"/\\"/g' || true)
   fi
 
-  # Approach 2: Trigger REST API via curl to persist authentication, multi-account mapping, and conversation sync
-  notify_backend_api_sync "$status" "$email" "$session_id" "$commit_id" "$error_msg"
-
-  echo "$commit_id"
-}
-
-notify_backend_api_sync() {
-  local status="$1"
-  local email="$2"
-  local session_id="$3"
-  local commit_id="$4"
-  local error_msg="${5:-}"
-  local api_url="${BACKEND_API_URL}/auth/cli-session/sync"
-
-  logger_info "Transmitting authentication payload to backend REST API via curl..."
-
   local payload
-  payload=$(node -e "
-    console.log(JSON.stringify({
-      sessionId: process.argv[1],
-      provider: '${DEFAULT_PROVIDER}',
-      modelId: '${DEFAULT_MODEL_ID}',
-      status: process.argv[2],
-      userEmail: process.argv[3],
-      commitId: process.argv[4],
-      errorMessage: process.argv[5] || ''
-    }));
-  " "$session_id" "$status" "$email" "$commit_id" "$error_msg" 2>/dev/null || echo "{}")
+  payload=$(cat <<EOF
+{
+  "sessionId": "$session_id",
+  "provider": "$DEFAULT_PROVIDER",
+  "modelId": "$DEFAULT_MODEL_ID",
+  "status": "$status",
+  "userEmail": "$USER_EMAIL",
+  "commitId": "$commit_id",
+  "errorMessage": "$error_msg",
+  "authFileContent": "$auth_content"
+}
+EOF
+)
 
-  local response
-  response=$(curl -s -X POST "$api_url" \
+  curl -s -X POST "${BACKEND_API_URL}/auth/cli-session/sync" \
     -H "Content-Type: application/json" \
     -d "$payload" \
-    --max-time 10 2>/dev/null || echo '{"success":false,"message":"REST API call timed out"}')
+    --max-time 10 2>/dev/null || true
 
-  logger_info "REST API response: ${response}"
-  logger_info "Approach 2: Pure REST API synchronization executed for authentication and conversation."
+  logger_info "Pushed authentication and conversation record for ${USER_EMAIL} to database."
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --startup)
+        IS_STARTUP=true
+        shift
+        ;;
+      --email|-e)
+        USER_EMAIL="${2:-}"
+        shift 2
+        ;;
+      --email=*)
+        USER_EMAIL="${1#*=}"
+        shift
+        ;;
+      *)
+        if [ -z "$USER_EMAIL" ] && [[ "$1" =~ @ ]]; then
+          USER_EMAIL="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$USER_EMAIL" ] && [ -n "${USER_EMAIL_ARG:-}" ]; then
+    USER_EMAIL="$USER_EMAIL_ARG"
+  fi
 }
 
 main() {
+  parse_args "$@"
+  if [ "$IS_STARTUP" = "true" ] && [ -z "$USER_EMAIL" ]; then
+    logger_info "Container boot: No user email provided at startup. Ready for on-demand invocation."
+    exit 0
+  fi
   pre_validate
-  logger_info "Initiating OpenAI ChatGPT/Codex CLI Authentication..."
+  logger_info "Initiating OpenAI ChatGPT CLI Authentication for user ${USER_EMAIL}..."
   local session_id
   session_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || date +%s%N)
   local now
-  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+  now=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
   local state
-  state=$(node -e "console.log(require('crypto').randomBytes(16).toString('hex'))")
+  state=$(tr -dc 'a-f0-9' < /dev/urandom 2>/dev/null | head -c 32 || date +%s%N)
 
-  local oauth_url="https://auth.openai.com/oauth/authorize?client_id=openai-codex-cli&response_type=code&redirect_uri=${APP_REDIRECT_URI}&state=${state}&scope=openid%20profile%20model.request"
-  
-  local session_json="{\"sessionId\":\"${session_id}\",\"provider\":\"${DEFAULT_PROVIDER}\",\"modelId\":\"${DEFAULT_MODEL_ID}\",\"authMode\":\"${AUTH_MODE_LABEL}\",\"oauthUrl\":\"${oauth_url}\",\"clientId\":\"openai-codex-cli\",\"state\":\"${state}\",\"redirectUri\":\"${APP_REDIRECT_URI}\",\"cliRedirectUri\":\"https://chatgpt.com/oauth-callback\",\"appRedirectUri\":\"${APP_REDIRECT_URI}\",\"authCode\":\"\",\"status\":\"PENDING\",\"createdAt\":\"${now}\",\"updatedAt\":\"${now}\"}"
+  local oauth_url="${OAUTH_BASE_URL}?client_id=openai-chatgpt-cli&response_type=code&redirect_uri=${APP_REDIRECT_URI}&state=${state}&scope=openid%20profile%20email%20model.request"
 
-  save_session "$session_json"
-  logger_info "Generated OpenAI/Codex OAuth URL with app callback: ${APP_REDIRECT_URI}"
+  local session_json
+  session_json=$(cat <<EOF
+{
+  "sessionId": "$session_id",
+  "provider": "$DEFAULT_PROVIDER",
+  "modelId": "$DEFAULT_MODEL_ID",
+  "authMode": "$AUTH_MODE_LABEL",
+  "oauthUrl": "$oauth_url",
+  "clientId": "openai-chatgpt-cli",
+  "state": "$state",
+  "redirectUri": "$APP_REDIRECT_URI",
+  "cliRedirectUri": "https://chatgpt.com/oauth-callback",
+  "appRedirectUri": "$APP_REDIRECT_URI",
+  "authCode": "",
+  "userEmail": "$USER_EMAIL",
+  "status": "PENDING",
+  "createdAt": "$now",
+  "updatedAt": "$now"
+}
+EOF
+)
 
-  # Listen for auth code
+  save_session "$session_json" "$session_id"
+  push_auth_and_conversation_to_db "PENDING" "$session_id" ""
+
   rm -f "$FIFO_IN" "$CODE_FILE"
   mkfifo "$FIFO_IN"
   exec 3<> "$FIFO_IN"
 
   local auth_succeeded=false
-  local auth_email="${USER_EMAIL:-personal.developer@gmail.com}"
-
   for ((s=0; s<AUTH_TIMEOUT_SECONDS; s+=2)); do
     if [ -f "$CODE_FILE" ]; then
       local code
       code=$(cat "$CODE_FILE" 2>/dev/null | tr -d '\r\n[:space:]')
       if [ -n "$code" ]; then
-        logger_info "Auth code received for OpenAI session [${session_id}]."
-        local completed_ts
-        completed_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
-        local comp_json="{\"sessionId\":\"${session_id}\",\"provider\":\"${DEFAULT_PROVIDER}\",\"modelId\":\"${DEFAULT_MODEL_ID}\",\"authMode\":\"${AUTH_MODE_LABEL}\",\"oauthUrl\":\"${oauth_url}\",\"clientId\":\"openai-codex-cli\",\"state\":\"${state}\",\"redirectUri\":\"${APP_REDIRECT_URI}\",\"cliRedirectUri\":\"https://chatgpt.com/oauth-callback\",\"appRedirectUri\":\"${APP_REDIRECT_URI}\",\"authCode\":\"${code}\",\"status\":\"COMPLETED\",\"createdAt\":\"${now}\",\"updatedAt\":\"${completed_ts}\"}"
-        save_session "$comp_json"
-
+        logger_info "Auth code received for ChatGPT session [${session_id}]."
         auth_succeeded=true
-        commit_auth_result "SUCCESS" "$auth_email" "$session_id" ""
+        push_auth_and_conversation_to_db "COMPLETED" "$session_id" ""
         break
       fi
     fi
@@ -232,7 +255,7 @@ main() {
   done
 
   if [ "$auth_succeeded" = false ]; then
-    commit_auth_result "FAILED" "$auth_email" "$session_id" "AUTH_CODE_TIMEOUT"
+    push_auth_and_conversation_to_db "FAILED" "$session_id" "AUTH_CODE_TIMEOUT"
   fi
   logger_info "ChatGPT auth daemon finished."
 }

@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 import { AbstractUsecaseTest } from "@/usecases/impl/AbstractUsecaseTest.js";
-import { ModelConfigSelectors, OdooSelectors } from "@/constants/selectors.js";
+import { ModelConfigSelectors, EnterpriseViewSelectors, OdooSelectors } from "@/constants/selectors.js";
 import { SanityTimeouts } from "@/constants/sanityConstants.js";
 
 /**
@@ -60,16 +60,21 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
     });
 
     await recordStep("Open Odoo Save View for Model Configuration", async () => {
-      const geminiRow = page.locator(".odoo-list-row").filter({ hasText: /gemini/i }).first();
+      const geminiRow = page.locator(EnterpriseViewSelectors.MODEL_ROW).filter({ hasText: /gemini/i }).first();
       if (await geminiRow.isVisible()) {
         await geminiRow.click();
       } else {
-        const modelItem = page.locator(".odoo-list-row, .model-item-row, .odoo-model-card").first();
-        await modelItem.click();
+        const modelItem = page.locator(EnterpriseViewSelectors.MODEL_ROW).first();
+        if (await modelItem.isVisible()) {
+          await modelItem.click();
+        } else {
+          const createBtn = page.locator(EnterpriseViewSelectors.BTN_CREATE).first();
+          await createBtn.click();
+        }
       }
       await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
 
-      const formView = page.locator(OdooSelectors.FORM_VIEW).first();
+      const formView = page.locator(EnterpriseViewSelectors.FORM_VIEW).first();
       await formView.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
       return "Save View opened for target model configuration";
     });

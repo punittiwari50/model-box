@@ -7,12 +7,12 @@ import {
   modelFilterStrategy,
 } from "@/utils";
 import {
-  OdooControlPanel,
-  OdooModelCardGrid,
-  OdooModelListView,
-  type OdooViewType,
-  type OdooFormMode,
-} from "@/components/odoo";
+  ControlPanel,
+  ModelCardGrid,
+  ModelListView,
+  type ViewType,
+  type FormMode,
+} from "@/components/views";
 import {
   oauthProviderRegistry,
   DynamicOnboardedOAuthStrategy,
@@ -132,9 +132,9 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [isApplyingOAuthClientConfig, setIsApplyingOAuthClientConfig] = useState<boolean>(false);
   const [activeOAuthStep, setActiveOAuthStep] = useState<1 | 2 | 3 | null>(null);
 
-  // Odoo View Mode: "list" | "card" | "form" (Defaults to "list")
-  const [viewMode, setViewMode] = useState<OdooViewType>("list");
-  const [formMode, setFormMode] = useState<OdooFormMode>("save");
+  // View Mode: "list" | "card" | "form" (Defaults to "list")
+  const [viewMode, setViewMode] = useState<ViewType>("list");
+  const [formMode, setFormMode] = useState<FormMode>("save");
   const [modelFilterSearch, setModelFilterSearch] = useState<string>("");
   const [modelFamilyFilter, setModelFamilyFilter] = useState<string>("all");
   const [modelGroupBy, setModelGroupBy] = useState<"family" | "none">("family");
@@ -1069,8 +1069,8 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
   return (
     <div className="desktop-model-config-page" data-testid="desktop-model-config-page">
-      {/* 1. Odoo Unified Control Panel */}
-      <OdooControlPanel
+      {/* 1. Unified Control Panel */}
+      <ControlPanel
         viewType={viewMode}
         formMode={formMode}
         title={viewMode === "form" ? currentModelTitle : "Model Configuration Studio"}
@@ -1125,9 +1125,9 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         </div>
       )}
 
-      {/* 2. List View (Odoo List View with Group By & Metrics) */}
+      {/* 2. List View (Group By & Metrics) */}
       {viewMode === "list" && (
-        <OdooModelListView
+        <ModelListView
           models={filteredModelsForView}
           modelAccounts={state.modelAccounts}
           auditLogs={state.auditLogs}
@@ -1145,9 +1145,9 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         />
       )}
 
-      {/* 3. Card View (Odoo Kanban Card Grid) */}
+      {/* 3. Card View (Kanban Card Grid) */}
       {viewMode === "card" && (
-        <OdooModelCardGrid
+        <ModelCardGrid
           models={filteredModelsForView}
           modelAccounts={state.modelAccounts}
           selectedModelId={targetModelId}
@@ -1159,11 +1159,11 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         />
       )}
 
-      {/* 4. Form View (Odoo Create / Save View) */}
+      {/* 4. Form View (Create / Save View) */}
       {viewMode === "form" && (
-        <div className="odoo-form-view-container" data-testid="odoo-form-view">
+        <div className="form-view-container odoo-form-view-container" data-testid="form-view">
           {formMode === "create" && (
-            <div className="odoo-form-create-banner" data-testid="odoo-create-banner">
+            <div className="form-create-banner odoo-form-create-banner" data-testid="create-banner">
               <div className="create-banner-info">
                 <span className="banner-icon">✨</span>
                 <div className="banner-text">
@@ -1180,7 +1180,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                     setTargetModelId(e.target.value);
                     state.setSelectedModel(e.target.value);
                   }}
-                  data-testid="odoo-select-target-model"
+                  data-testid="select-target-model"
                 >
                   {state.models.map((m) => (
                     <option key={m.id} value={m.id}>

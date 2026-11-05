@@ -1,0 +1,33 @@
+# ==============================================================================
+# Multi-Model PostgreSQL Enterprise Engine Dockerfile
+# Capabilities: RDBMS, Vector (pgvector), Graph (ltree/tablefunc), NoSQL (JSONB/HStore)
+# Base: PostgreSQL 17 (Latest Official Release)
+# ==============================================================================
+FROM postgres:17-bookworm
+
+LABEL maintainer="ModelBox Enterprise Team" \
+      description="PostgreSQL 17 Multi-Model Engine (Graph, Vector, RDBMS, NoSQL)"
+
+# Install compilation toolchain & pgvector v0.8.0
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential \
+      git \
+      postgresql-server-dev-17 \
+      postgresql-contrib \
+      ca-certificates && \
+    cd /tmp && \
+    git clone --depth 1 --branch v0.8.0 https://github.com/pgvector/pgvector.git && \
+    cd pgvector && \
+    make && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/pgvector && \
+    apt-get remove -y build-essential git postgresql-server-dev-17 && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+EXPOSE 5432
+
+CMD ["postgres"]
+

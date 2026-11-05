@@ -612,7 +612,7 @@ export class ModelConfigController {
       provider = "google",
       modelId = "gemini-3.8-flash",
       status = "PENDING",
-      userEmail = "personal.developer@gmail.com",
+      userEmail,
       commitId = "",
       errorMessage = "",
       oauthUrl = "",
@@ -629,6 +629,15 @@ export class ModelConfigController {
       res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         message: "Missing mandatory field: sessionId.",
+        correlationId: req.correlationId,
+      });
+      return;
+    }
+
+    if (!userEmail || !String(userEmail).trim()) {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        message: "Missing mandatory field: userEmail must be provided by user.",
         correlationId: req.correlationId,
       });
       return;
