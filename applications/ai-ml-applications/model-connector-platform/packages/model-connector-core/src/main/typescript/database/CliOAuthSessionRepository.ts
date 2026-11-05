@@ -5,6 +5,8 @@ import { pathUtils } from "@/utils/file/pathUtils.js";
 import { processUtils } from "@/utils/process/processUtils.js";
 import { logger } from "@/logging/logger.js";
 
+export type CliOAuthSessionStatus = "PENDING" | "COMPLETED" | "EXPIRED" | "FAILED";
+
 export interface CliOAuthSession {
   readonly sessionId: string;
   readonly provider: string;
@@ -20,7 +22,7 @@ export interface CliOAuthSession {
   readonly authCode?: string;
   readonly commitId?: string;
   readonly userEmail?: string;
-  readonly status: "PENDING" | "COMPLETED" | "EXPIRED" | "FAILED";
+  readonly status: CliOAuthSessionStatus;
   readonly errorMessage?: string;
   readonly errorCode?: string;
   readonly createdAt: string;
@@ -230,6 +232,31 @@ export class CliOAuthSessionRepository {
         WHERE SESSION_ID = ?
       `)
       .run(errorMessage, errorCode ?? "CLI_ERROR", now, sessionId);
+
+    return Number(result.changes) > 0;
+  }
+
+  public recordAuthResult(params: {
+    sessionId: string;
+    status: CliOAuthSessionStatus;
+    commitId?: string;
+    userEmail?: string;
+    errorMessage?: string;
+  }): boolean {
+    this.ensureTable();
+    const db = coreDatabaseManager.getDatabase();
+    const now = new Date().toISOString();
+    const result = db
+      .prepare(`
+        UPDATE ${DatabaseTable.CLI_OAUTH_SESSIONS}
+        SET STATUS = ?,
+            COMMIT_ID = COALESCE(?, COMMIT_ID),
+            USER_EMAIL = COALESCE(?, USER_EMAIL),
+            ERROR_MESSAGE = COALESCE(?, ERROR_MESSAGE),
+            UPDATED_AT = ?
+        WHERE SESSION_ID = ?
+      `)
+      .run(params.status, params.commitId ?? null, params.userEmail ?? null, params.errorMessage ?? null, now, params.sessionId);
 
     return Number(result.changes) > 0;
   }

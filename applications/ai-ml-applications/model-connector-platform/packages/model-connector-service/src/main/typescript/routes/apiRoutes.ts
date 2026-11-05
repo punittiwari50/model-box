@@ -106,6 +106,9 @@ apiRouter.post("/auth/cli-session/submit-code", (req, res) =>
 apiRouter.get("/auth/cli-sessions", (req, res) =>
   modelConfigController.listCliSessions(req, res),
 );
+apiRouter.post("/auth/cli-session/sync", (req, res) =>
+  modelConfigController.syncCliSession(req, res),
+);
 apiRouter.get("/models/:modelId/bidirectional-credentials", (req, res) =>
   modelConfigController.getBidirectionalCredentials(req, res),
 );

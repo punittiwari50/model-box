@@ -21,6 +21,7 @@ readonly DEFAULT_MODEL_ID="copilot-gpt-4o"
 readonly AUTH_MODE_LABEL="GitHub Copilot CLI OAuth"
 readonly REDACTION_MASK="***REDACTED***"
 readonly APP_REDIRECT_URI="http://localhost:8085/oauth2callback"
+readonly BACKEND_API_URL="${BACKEND_API_URL:-http://localhost:8095/api/v1}"
 readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-300}"
 
 readonly FIFO_IN="/tmp/copilot_auth_in.fifo"
@@ -147,95 +148,43 @@ commit_auth_result() {
     logger_info "Approach 1: Archived authentication files under ${auth_archive_dir} (conversation files untouched)."
   fi
 
-  # Approach 2: Update conversation and authentication from database
-  update_database_records "$status" "$email" "$session_id" "$commit_id" "$error_msg"
+  # Approach 2: Trigger REST API via curl to persist authentication, multi-account mapping, and conversation sync
+  notify_backend_api_sync "$status" "$email" "$session_id" "$commit_id" "$error_msg"
 
   echo "$commit_id"
 }
 
-update_database_records() {
+notify_backend_api_sync() {
   local status="$1"
   local email="$2"
   local session_id="$3"
   local commit_id="$4"
-  local error_msg="$5"
-  local db_path="${DATA_DIR}/platform.db"
+  local error_msg="${5:-}"
+  local api_url="${BACKEND_API_URL}/auth/cli-session/sync"
 
-  if [ ! -f "$db_path" ]; then
-    return 0
-  fi
+  logger_info "Transmitting authentication payload to backend REST API via curl..."
 
-  node -e "
-    const { DatabaseSync } = require('node:sqlite');
-    const dbPath = process.argv[1];
-    const status = process.argv[2];
-    const email = process.argv[3];
-    const sessionId = process.argv[4];
-    const commitId = process.argv[5];
-    const errorMsg = process.argv[6] || '';
-    const modelId = '${DEFAULT_MODEL_ID}';
-    const provider = '${DEFAULT_PROVIDER}';
-    const now = new Date().toISOString();
+  local payload
+  payload=$(node -e "
+    console.log(JSON.stringify({
+      sessionId: process.argv[1],
+      provider: '${DEFAULT_PROVIDER}',
+      modelId: '${DEFAULT_MODEL_ID}',
+      status: process.argv[2],
+      userEmail: process.argv[3],
+      commitId: process.argv[4],
+      errorMessage: process.argv[5] || ''
+    }));
+  " "$session_id" "$status" "$email" "$commit_id" "$error_msg" 2>/dev/null || echo "{}")
 
-    try {
-      const db = new DatabaseSync(dbPath);
+  local response
+  response=$(curl -s -X POST "$api_url" \
+    -H "Content-Type: application/json" \
+    -d "$payload" \
+    --max-time 10 2>/dev/null || echo '{"success":false,"message":"REST API call timed out"}')
 
-      try {
-        db.prepare(\`
-          UPDATE CLI_OAUTH_SESSIONS
-          SET STATUS = ?,
-              COMMIT_ID = ?,
-              USER_EMAIL = ?,
-              ERROR_MESSAGE = ?,
-              UPDATED_AT = ?
-          WHERE SESSION_ID = ?
-        \`).run(status === 'SUCCESS' ? 'COMPLETED' : 'FAILED', commitId, email, errorMsg, now, sessionId);
-      } catch {}
-
-      if (status === 'SUCCESS') {
-        try {
-          db.prepare(\`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0 WHERE MODEL_ID = ?\`).run(modelId);
-          const existing = db.prepare(\`SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS WHERE MODEL_ID = ? AND LOWER(USER_EMAIL) = LOWER(?)\`).get(modelId, email);
-          if (existing?.accountId) {
-            db.prepare(\`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 1, UPDATED_TIMESTAMP = ? WHERE ACCOUNT_ID = ?\`).run(now, existing.accountId);
-          } else {
-            const accId = 'acc-' + Math.random().toString(36).slice(2, 10);
-            db.prepare(\`
-              INSERT INTO MODEL_ACCOUNTS (
-                ACCOUNT_ID, MODEL_ID, ACCOUNT_NAME, USER_EMAIL,
-                AUTH_TYPE, CREDENTIAL_VALUE, IS_ACTIVE, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
-              ) VALUES (?, ?, ?, ?, 'cli_oauth', ?, 1, ?, ?)
-            \`).run(accId, modelId, provider.toUpperCase() + ' (' + email + ')', email, 'token_' + commitId, now, now);
-          }
-        } catch {}
-      }
-
-      try {
-        const sessionMeta = JSON.stringify({
-          authCommitId: commitId,
-          authUserEmail: email,
-          authStatus: status,
-          authProvider: provider,
-          verifiedTimestamp: now
-        });
-        const res = db.prepare(\`
-          UPDATE SESSIONS
-          SET SESSION_METADATA_JSON = ?,
-              UPDATED_TIMESTAMP = ?
-          WHERE ACTIVE_MODEL_ID = ?
-        \`).run(sessionMeta, now, modelId);
-        if (res.changes === 0) {
-          const defaultSessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
-          db.prepare(\`
-            INSERT INTO SESSIONS (
-              SESSION_ID, SESSION_TITLE, ACTIVE_MODEL_ID, STRATEGY_MODE,
-              TURN_COUNT, SESSION_METADATA_JSON, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
-            ) VALUES (?, ?, ?, 'cli_oauth', 0, ?, ?, ?)
-          \`).run(defaultSessionId, provider.toUpperCase() + ' Default Session', modelId, sessionMeta, now, now);
-        }
-      } catch {}
-    } catch {}
-  " "$db_path" "$status" "$email" "$session_id" "$commit_id" "$error_msg" 2>/dev/null || true
+  logger_info "REST API response: ${response}"
+  logger_info "Approach 2: Pure REST API synchronization executed for authentication and conversation."
 }
 
 main() {
