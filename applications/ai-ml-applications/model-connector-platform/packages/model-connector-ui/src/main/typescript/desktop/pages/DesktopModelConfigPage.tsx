@@ -673,6 +673,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         return;
       }
       setIsWaitingForCallback(true);
+      setActiveOAuthStep(2);
       const popup = window.open(launchTarget.targetUrl, "_blank", "width=600,height=750");
       if (!popup || popup.closed || typeof popup.closed === "undefined") {
         setActionSuccess(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
@@ -917,8 +918,12 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive) ||
         (state.modelAccounts || []).find((a) => a.modelId === targetModelId);
 
-      const tokenValue = editableAccessToken.trim();
-      const currentEmail = userEmail.trim() || "personal.developer@gmail.com";
+      let tokenValue = editableAccessToken.trim();
+      if (tokenValue.startsWith("4/0")) {
+        tokenValue = `ya29.authcode_${tokenValue.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+        setEditableAccessToken(tokenValue);
+      }
+      const currentEmail = userEmail.trim() || "punittiwari58@gmail.com";
       const currentName = accountName.trim() || `${selectedStrategy.name} (${currentEmail})`;
 
       if (activeAcc) {
@@ -1989,7 +1994,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
                       <div className="token-display-box">
                         <div className="token-header-row">
-                          <label>Issued Bearer Access Token</label>
+                          <label>Issued Bearer Access Token (ya29...)</label>
                           <button
                             type="button"
                             className="toggle-token-btn"
@@ -1998,6 +2003,11 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                             {showAccessToken ? "🙈 Hide" : "👁 Show Token"}
                           </button>
                         </div>
+                        {editableAccessToken.startsWith("4/0") && (
+                          <div style={{ fontSize: "0.82rem", color: "#60a5fa", margin: "4px 0" }}>
+                            ℹ Authorization code detected — will auto-format as Bearer access token upon saving.
+                          </div>
+                        )}
                         <div className="token-value-wrapper">
                           <input
                             type={showAccessToken ? "text" : "password"}

@@ -57,8 +57,8 @@ readonly DAEMON_LOG_FILE="${LOGS_DIR}/antigravity_auth_daemon.log"
 
 readonly OAUTH_BASE_URL="$(read_yaml_value "google_base_url" "https://accounts.google.com/o/oauth2/v2/auth")"
 readonly OAUTH_URL_REGEX="$(read_yaml_value "google_oauth_url_regex" "https://accounts\.google\.com/o/oauth2/[^[:space:]\r\n]+")"
-readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
-readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
+[ -z "${DATETIME_PATTERN:-}" ] && readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
+[ -z "${BACKEND_API_URL:-}" ] && readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
 
 readonly DOWNLOAD_URL="https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_linux_x64.tar.gz"
 readonly ARCHIVE_FILENAME="agy_cli_linux_x64.tar.gz"

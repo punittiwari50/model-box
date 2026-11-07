@@ -46,8 +46,8 @@ readonly CSV_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.csv"
 readonly DAEMON_LOG_FILE="${LOGS_DIR}/claude_auth_daemon.log"
 
 readonly OAUTH_BASE_URL="$(read_yaml_value "anthropic_base_url" "https://console.anthropic.com/oauth/authorize")"
-readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
-readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
+[ -z "${DATETIME_PATTERN:-}" ] && readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
+[ -z "${BACKEND_API_URL:-}" ] && readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
 
 readonly BINARY_NAME="claude"
 readonly DEFAULT_PROVIDER="anthropic"

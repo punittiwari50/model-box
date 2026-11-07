@@ -151,11 +151,11 @@ export class UpstreamProviderCodeExchangeStrategy implements IOAuthCodeExchangeS
         const raw = fileUtils.readFileSync(filePath);
         const parsed = JSON.parse(raw) as Record<string, unknown>;
         const accessToken = (parsed.access_token as string) || (parsed.accessToken as string);
-        if (accessToken) {
+        if (accessToken && !accessToken.includes("SAMPL") && !accessToken.includes("authcode_")) {
           return {
             accessToken,
             refreshToken: (parsed.refresh_token as string) || `rt_${ctx.provider}`,
-            userEmail: ctx.emailHint?.trim() || (parsed.email as string) || "gemini.developer@gmail.com",
+            userEmail: ctx.emailHint?.trim() || (parsed.email as string) || "punittiwari58@gmail.com",
             authorizedTimestamp: new Date().toISOString(),
           };
         }
@@ -170,9 +170,9 @@ export class UpstreamProviderCodeExchangeStrategy implements IOAuthCodeExchangeS
     const defaultAcc = DEFAULT_PROVIDER_ACCOUNTS[ctx.provider]?.[0]?.email || `${ctx.provider}.user@authorized.account`;
     const resolvedEmail = ctx.emailHint?.trim() || defaultAcc;
     const tokenPrefix = isGoogle ? "ya29.authcode_" : `${ctx.provider}_authcode_`;
-    const cleanCode = ctx.code.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24);
+    const cleanCode = ctx.code.replace(/[^a-zA-Z0-9_-]/g, "");
     return {
-      accessToken: `${tokenPrefix}${cleanCode}_${Date.now()}`,
+      accessToken: `${tokenPrefix}${cleanCode}`,
       refreshToken: `rt_${ctx.provider}_${Date.now()}`,
       userEmail: resolvedEmail,
       authorizedTimestamp: new Date().toISOString(),

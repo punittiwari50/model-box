@@ -46,8 +46,8 @@ readonly CSV_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.csv"
 readonly DAEMON_LOG_FILE="${LOGS_DIR}/chatgpt_auth_daemon.log"
 
 readonly OAUTH_BASE_URL="$(read_yaml_value "openai_base_url" "https://auth0.openai.com/authorize")"
-readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
-readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
+[ -z "${DATETIME_PATTERN:-}" ] && readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
+[ -z "${BACKEND_API_URL:-}" ] && readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
 
 readonly BINARY_NAME="chatgpt"
 readonly DEFAULT_PROVIDER="openai"
