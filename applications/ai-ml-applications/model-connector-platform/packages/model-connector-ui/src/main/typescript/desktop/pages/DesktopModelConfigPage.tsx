@@ -729,6 +729,17 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     const strategy = oauthProviderRegistry.getStrategy(selectedProviderId);
     try {
       if (exchangeCode) {
+        try {
+          const cliSessionRes = await ApiService.fetchLatestCliSession(targetModelId);
+          await ApiService.submitCliAuthCode({
+            sessionId: cliSessionRes?.session?.sessionId,
+            authCode: exchangeCode,
+            modelId: targetModelId,
+            userEmail,
+          });
+        } catch {
+          // Graceful best-effort sync
+        }
         const res = await ApiService.verifyOAuthManual(targetModelId, exchangeCode, userEmail);
         if (res?.session) {
           const session = res.session;

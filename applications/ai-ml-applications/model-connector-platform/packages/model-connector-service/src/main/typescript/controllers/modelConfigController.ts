@@ -537,29 +537,43 @@ export class ModelConfigController {
 
   public submitCliAuthCode(req: Request, res: Response): void {
     const { sessionId, authCode, modelId, userEmail } = req.body || {};
-    if (!sessionId || !authCode) {
+    if (!authCode || !String(authCode).trim()) {
       res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
-        message: "Missing required fields: sessionId and authCode are mandatory.",
+        message: "Missing required field: authCode is mandatory.",
         correlationId: req.correlationId,
       });
       return;
     }
 
-    // 1. Update database
-    cliOAuthSessionRepository.updateAuthCode(String(sessionId), String(authCode));
+    const resolvedSessionId =
+      sessionId ||
+      cliOAuthSessionRepository.getLatestPendingSession(modelId)?.sessionId ||
+      cliOAuthSessionRepository.getLatestSession(modelId)?.sessionId ||
+      `cli-${Date.now()}`;
 
-    // 2. Deliver auth code to CLI via trigger file
-    const codeFile = "/tmp/antigravity_auth_code.txt";
-    try {
-      fileUtils.writeFileSync(codeFile, String(authCode).trim());
-    } catch {
-      // Ignored if permissions restrict
+    // 1. Update database
+    cliOAuthSessionRepository.updateAuthCode(String(resolvedSessionId), String(authCode));
+
+    // 2. Deliver auth code to CLI via trigger files
+    const triggerFiles = [
+      "/tmp/antigravity_auth_code.txt",
+      "/tmp/gemini_auth_code.txt",
+      "/tmp/claude_auth_code.txt",
+      "/tmp/chatgpt_auth_code.txt",
+      "/tmp/copilot_auth_code.txt",
+    ];
+    for (const codeFile of triggerFiles) {
+      try {
+        fileUtils.writeFileSync(codeFile, String(authCode).trim());
+      } catch {
+        // Ignored if permissions restrict
+      }
     }
 
     // 3. Persist credentials to bidirectional volume and database
     const mid = modelId || "gemini-3.8-flash";
-    const session = cliOAuthSessionRepository.getSessionById(String(sessionId));
+    const session = cliOAuthSessionRepository.getSessionById(String(resolvedSessionId));
     const email = userEmail || session?.userEmail || "authorized.principal@local.vault";
     const saveResult = bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
       modelId: mid,

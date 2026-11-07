@@ -485,6 +485,7 @@ EOF
       if [ -n "$auth_code" ]; then
         logger_info "Authorization code received! Transmitting to Antigravity CLI stdin..."
         printf "%s\r\n" "$auth_code" >&3
+        rm -f "$CODE_FILE" 2>/dev/null || true
 
         sleep 4
         if [ -d "$HOME/.config/antigravity" ]; then

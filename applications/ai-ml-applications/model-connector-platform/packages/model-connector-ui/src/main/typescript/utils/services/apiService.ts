@@ -434,6 +434,27 @@ export class ApiService {
     return await res.json();
   }
 
+  public static async submitCliAuthCode(payload: {
+    sessionId?: string;
+    authCode: string;
+    modelId?: string;
+    userEmail?: string;
+  }): Promise<{
+    success: boolean;
+    sessionId: string;
+    authCode: string;
+    message: string;
+  }> {
+    const res = await fetch(`${API_BASE}/auth/cli-session/submit-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || "Failed to submit CLI auth code");
+    return data;
+  }
+
   public static async executeCliLogin(
     modelId: string,
     payload: {
