@@ -555,6 +555,9 @@
       padding: $spacing-lg;
       backdrop-filter: blur(12px);
       box-shadow: $shadow-md;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow-x: hidden;
 
       .card-header {
         display: flex;
@@ -2284,6 +2287,9 @@
       gap: $spacing-sm;
       max-height: 520px;
       overflow-y: auto;
+      overflow-x: hidden;
+      width: 100%;
+      box-sizing: border-box;
 
       .credential-row-item {
         display: flex;
@@ -2431,6 +2437,9 @@
         border-radius: $radius-lg;
         padding: 12px 14px;
         transition: all $transition-speed $transition-ease;
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
 
         &:hover {
           background: rgba(30, 41, 59, 0.7);
@@ -2488,8 +2497,19 @@
           .active-dot-pill {
             font-size: 0.65rem;
             font-weight: 700;
-            background: #10b981;
-            color: #ffffff;
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            padding: 2px 8px;
+            border-radius: $radius-full;
+          }
+
+          .inactive-dot-pill {
+            font-size: 0.65rem;
+            font-weight: 700;
+            background: rgba(245, 158, 11, 0.15);
+            color: #fde68a;
+            border: 1px solid rgba(245, 158, 11, 0.35);
             padding: 2px 8px;
             border-radius: $radius-full;
           }
@@ -2497,14 +2517,17 @@
 
         .account-details-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 6px 12px;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          gap: 6px 10px;
           font-size: 0.76rem;
+          width: 100%;
+          box-sizing: border-box;
 
           .detail-item {
             display: flex;
             align-items: center;
             gap: 6px;
+            min-width: 0;
 
             &.full-span {
               grid-column: 1 / -1;
@@ -2513,11 +2536,16 @@
             .detail-label {
               color: $color-text-muted;
               font-size: 0.72rem;
+              flex-shrink: 0;
             }
 
             .detail-val {
               color: $color-text-secondary;
               font-weight: 500;
+              min-width: 0;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
             }
 
             .credential-code-val {
@@ -2527,6 +2555,12 @@
               background: rgba(0, 0, 0, 0.35);
               padding: 2px 6px;
               border-radius: 4px;
+              min-width: 0;
+              max-width: 100%;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              display: inline-block;
             }
           }
         }
@@ -2534,34 +2568,79 @@
         .card-action-bar {
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-top: 2px;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-top: 6px;
 
           .action-btn {
-            padding: 5px 12px;
+            padding: 5px 11px;
             border-radius: $radius-sm;
             font-size: 0.75rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
 
             &.test-btn {
               background: rgba(6, 182, 212, 0.15);
-              border: 1px solid rgba(6, 182, 212, 0.35);
+              border: 1px solid rgba(6, 182, 212, 0.4);
               color: #67e8f9;
 
               &:hover:not(:disabled) {
                 background: rgba(6, 182, 212, 0.3);
+                border-color: rgba(6, 182, 212, 0.7);
+                color: #ffffff;
+              }
+            }
+
+            &.deactivate-btn {
+              background: rgba(239, 68, 68, 0.15);
+              border: 1px solid rgba(239, 68, 68, 0.45);
+              color: #fca5a5;
+
+              &:hover {
+                background: rgba(239, 68, 68, 0.32);
+                border-color: rgba(239, 68, 68, 0.7);
+                color: #ffffff;
+              }
+            }
+
+            &.activate-btn {
+              background: rgba(16, 185, 129, 0.15);
+              border: 1px solid rgba(16, 185, 129, 0.45);
+              color: #6ee7b7;
+
+              &:hover {
+                background: rgba(16, 185, 129, 0.32);
+                border-color: rgba(16, 185, 129, 0.7);
+                color: #ffffff;
               }
             }
 
             &.select-btn {
               background: rgba(255, 255, 255, 0.08);
-              border: 1px solid rgba(255, 255, 255, 0.15);
+              border: 1px solid rgba(255, 255, 255, 0.2);
               color: #cbd5e1;
 
               &:hover {
-                background: rgba(255, 255, 255, 0.16);
+                background: rgba(255, 255, 255, 0.18);
+                border-color: rgba(255, 255, 255, 0.35);
+                color: #ffffff;
+              }
+            }
+
+            &.delete-btn {
+              background: rgba(244, 63, 94, 0.12);
+              border: 1px solid rgba(244, 63, 94, 0.35);
+              color: #fda4af;
+
+              &:hover {
+                background: rgba(244, 63, 94, 0.3);
+                border-color: rgba(244, 63, 94, 0.6);
+                color: #ffffff;
               }
             }
           }

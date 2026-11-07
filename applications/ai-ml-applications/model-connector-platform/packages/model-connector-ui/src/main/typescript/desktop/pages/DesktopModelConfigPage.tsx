@@ -1031,6 +1031,18 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     }
   };
 
+  const handleDeleteExistingAccount = async (acc: UiModelAccount) => {
+    const confirmed = window.confirm(`Are you sure you want to delete credential '${acc.accountName}'?`);
+    if (!confirmed) return;
+    try {
+      await ApiService.deleteModelAccount(acc.modelId, acc.accountId);
+      setActionSuccess(`Successfully deleted credential '${acc.accountName}'.`);
+      await state.refreshModelAccounts();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete credential");
+    }
+  };
+
   const handleTestExistingAccount = async (acc: UiModelAccount) => {
     setTestingAccountId(acc.accountId);
     try {
@@ -1857,40 +1869,8 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                           <p className="failure-alert-desc">
                             {testResult?.message || "Token rejected by identity server."}
                             {testResult?.errorMessage ? ` Diagnostic: ${testResult.errorMessage}` : ""}
-                            {" "}Launch the browser now to re-authenticate with {selectedStrategy.name} and acquire a fresh, valid bearer token.
+                            {" "}Please re-authenticate below using Browser Redirect or CLI to acquire a fresh, valid bearer token.
                           </p>
-                          <div className="failure-alert-actions">
-                            <button
-                              type="button"
-                              className="btn-oauth-action btn-browser-auth"
-                              onClick={handleInitiateBrowserRedirect}
-                              disabled={isRedirecting}
-                            >
-                              <span className="btn-icon">🌐</span>
-                              <span>
-                                {isRedirecting
-                                  ? "Opening Browser..."
-                                  : `Launch Browser & Redirect to ${selectedStrategy.name}`}
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-oauth-action btn-cli-auth"
-                              onClick={handleExecuteCliLogin}
-                              disabled={isCliLoggingIn}
-                            >
-                              <span className="btn-icon">⚡</span>
-                              <span>{isCliLoggingIn ? "Authenticating CLI..." : "Run CLI Authentication"}</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-oauth-action btn-view-redirect-step"
-                              onClick={() => setActiveOAuthStep(2)}
-                            >
-                              <span className="btn-icon">📋</span>
-                              <span>Pre-Auth Redirect Controls</span>
-                            </button>
-                          </div>
                         </div>
                       )}
 
@@ -2259,45 +2239,6 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                   <p>{testResult.errorMessage}</p>
                 </div>
               )}
-              {testResult.status === "FAILED" && selectedProtocol === "oauth" && (
-                <div className="feedback-reauth-actions">
-                  <div className="reauth-actions-label">
-                    <span>⚠️ Token rejected by identity server. Launch browser redirect to authenticate:</span>
-                  </div>
-                  <div className="reauth-btn-row">
-                    <button
-                      type="button"
-                      className="btn-reauth-browser"
-                      onClick={handleInitiateBrowserRedirect}
-                      disabled={isRedirecting}
-                    >
-                      <span className="btn-icon">🌐</span>
-                      <span>
-                        {isRedirecting
-                          ? "Opening Browser..."
-                          : `Launch Browser & Redirect to ${selectedStrategy.name}`}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-reauth-cli"
-                      onClick={handleExecuteCliLogin}
-                      disabled={isCliLoggingIn}
-                    >
-                      <span className="btn-icon">⚡</span>
-                      <span>{isCliLoggingIn ? "Authenticating CLI..." : "Run CLI Auth"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-reauth-switch-step"
-                      onClick={() => setActiveOAuthStep(2)}
-                    >
-                      <span className="btn-icon">📋</span>
-                      <span>Browser Redirect Step</span>
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -2329,33 +2270,22 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                   {acc.isActive ? (
                     <span className="active-dot-pill">Active ✔</span>
                   ) : (
-                    <span
-                      style={{
-                        background: "rgba(245, 158, 11, 0.15)",
-                        color: "#fbbf24",
-                        padding: "2px 8px",
-                        borderRadius: "100px",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Inactive
-                    </span>
+                    <span className="inactive-dot-pill">Inactive</span>
                   )}
                 </div>
 
                 <div className="account-details-grid">
                   <div className="detail-item">
                     <span className="detail-label">Account Label:</span>
-                    <span className="detail-val">{acc.accountName}</span>
+                    <span className="detail-val" title={acc.accountName}>{acc.accountName}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Owner:</span>
-                    <span className="detail-val">{acc.userEmail}</span>
+                    <span className="detail-val" title={acc.userEmail}>{acc.userEmail}</span>
                   </div>
                   <div className="detail-item full-span">
                     <span className="detail-label">Credential:</span>
-                    <code className="credential-code-val">{acc.maskedCredential}</code>
+                    <code className="credential-code-val" title={acc.maskedCredential}>{acc.maskedCredential}</code>
                   </div>
                 </div>
 
@@ -2365,8 +2295,9 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                     className="action-btn test-btn"
                     onClick={() => handleTestExistingAccount(acc)}
                     disabled={testingAccountId === acc.accountId}
+                    title="Test connection for this account"
                   >
-                    {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test Handshake"}
+                    {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
                   </button>
 
                   {acc.isActive ? (
@@ -2376,7 +2307,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                       onClick={() => handleDeactivateAccount(acc)}
                       title="Deactivate this account"
                     >
-                      Deactivate
+                      ⏸ Deactivate
                     </button>
                   ) : (
                     <button
@@ -2385,7 +2316,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                       onClick={() => handleActivateAccount(acc)}
                       title="Activate this account as the primary credential"
                     >
-                      Set Active
+                      ▶ Set Active
                     </button>
                   )}
 
@@ -2419,8 +2350,18 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                         setCookieString(acc.credentialValue);
                       }
                     }}
+                    title="Load this account into the form editor"
                   >
                     ✏️ Load
+                  </button>
+
+                  <button
+                    type="button"
+                    className="action-btn delete-btn"
+                    onClick={() => handleDeleteExistingAccount(acc)}
+                    title="Delete this credential"
+                  >
+                    🗑️ Delete
                   </button>
                 </div>
 
