@@ -28,6 +28,7 @@ import {
   ModelConstants,
   ProviderId,
 } from "@/constants/providerConfigConstants";
+import { DeleteRecordModal } from "@/components/common/DeleteRecordModal";
 
 interface DesktopModelConfigPageProps {
   readonly state: ModelConnectorState;
@@ -139,6 +140,11 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [modelFamilyFilter, setModelFamilyFilter] = useState<string>("all");
   const [modelGroupBy, setModelGroupBy] = useState<"family" | "none">("family");
 
+  // Deletion Confirmation Modal State
+  const [accountToDelete, setAccountToDelete] = useState<UiModelAccount | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -177,7 +183,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     setActionError(null);
   };
 
-  const handleDeleteActiveAccount = async () => {
+  const handleDeleteActiveAccount = () => {
     const activeAcc =
       (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive) ||
       (state.modelAccounts || []).find((a) => a.modelId === targetModelId);
@@ -185,20 +191,8 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       setActionError("No configuration found to delete for this model.");
       return;
     }
-    const confirmed = window.confirm(
-      `Are you sure you want to delete and revoke credentials for '${activeAcc.accountName}'?`,
-    );
-    if (!confirmed) return;
-
-    try {
-      await ApiService.deleteModelAccount(targetModelId, activeAcc.accountId);
-      setActionSuccess(`Successfully deleted configuration for '${targetModelId}'.`);
-      setOauthSession(null);
-      await state.refreshModelAccounts();
-      setViewMode("list");
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : "Failed to delete account");
-    }
+    setAccountToDelete(activeAcc);
+    setIsDeleteModalOpen(true);
   };
 
   const categoriesList = useMemo(() => {
@@ -1031,15 +1025,41 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     }
   };
 
-  const handleDeleteExistingAccount = async (acc: UiModelAccount) => {
-    const confirmed = window.confirm(`Are you sure you want to delete credential '${acc.accountName}'?`);
-    if (!confirmed) return;
+  const handleOpenDeleteModal = (acc: UiModelAccount) => {
+    setAccountToDelete(acc);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (isDeletingAccount) return;
+    setIsDeleteModalOpen(false);
+    setAccountToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!accountToDelete) return;
+    setIsDeletingAccount(true);
     try {
-      await ApiService.deleteModelAccount(acc.modelId, acc.accountId);
-      setActionSuccess(`Successfully deleted credential '${acc.accountName}'.`);
+      await ApiService.deleteModelAccount(accountToDelete.modelId, accountToDelete.accountId);
+      setActionSuccess(`Successfully deleted credential '${accountToDelete.accountName}'.`);
+      if (oauthSession && oauthSession.providerId === selectedStrategy.id) {
+        setOauthSession(null);
+      }
       await state.refreshModelAccounts();
+      setIsDeleteModalOpen(false);
+      setAccountToDelete(null);
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : "Failed to delete credential");
+      setActionError(err instanceof Error ? err.message : "Failed to delete account");
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const handleToggleAccountStatus = async (acc: UiModelAccount) => {
+    if (acc.isActive) {
+      await handleDeactivateAccount(acc);
+    } else {
+      await handleActivateAccount(acc);
     }
   };
 
@@ -2267,11 +2287,22 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                         : "Cookie"}
                     </span>
                   </div>
-                  {acc.isActive ? (
-                    <span className="active-dot-pill">Active ✔</span>
-                  ) : (
-                    <span className="inactive-dot-pill">Inactive</span>
-                  )}
+                  {/* Interactive Status Toggle Switch */}
+                  <div className="account-status-toggle-wrapper">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={acc.isActive}
+                      className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
+                      onClick={() => handleToggleAccountStatus(acc)}
+                      title={acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate."}
+                    >
+                      <span className="switch-slider">
+                        <span className="switch-knob" />
+                      </span>
+                      <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="account-details-grid">
@@ -2300,25 +2331,16 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                     {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
                   </button>
 
-                  {acc.isActive ? (
-                    <button
-                      type="button"
-                      className="action-btn deactivate-btn"
-                      onClick={() => handleDeactivateAccount(acc)}
-                      title="Deactivate this account"
-                    >
-                      ⏸ Deactivate
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="action-btn activate-btn"
-                      onClick={() => handleActivateAccount(acc)}
-                      title="Activate this account as the primary credential"
-                    >
-                      ▶ Set Active
-                    </button>
-                  )}
+                  {/* Interactive Toggle Button for Active / Inactive */}
+                  <button
+                    type="button"
+                    className={`action-btn toggle-status-btn ${acc.isActive ? "btn-active-state" : "btn-inactive-state"}`}
+                    onClick={() => handleToggleAccountStatus(acc)}
+                    title={acc.isActive ? "Account is active. Click to deactivate." : "Account is inactive. Click to set active."}
+                  >
+                    <span className={`toggle-dot ${acc.isActive ? "on" : "off"}`} />
+                    <span>{acc.isActive ? "Active" : "Set Active"}</span>
+                  </button>
 
                   <button
                     type="button"
@@ -2358,7 +2380,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                   <button
                     type="button"
                     className="action-btn delete-btn"
-                    onClick={() => handleDeleteExistingAccount(acc)}
+                    onClick={() => handleOpenDeleteModal(acc)}
                     title="Delete this credential"
                   >
                     🗑️ Delete
@@ -2542,6 +2564,15 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
           </div>
         </div>
       )}
+
+      {/* Delete Record Confirmation Modal */}
+      <DeleteRecordModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        account={accountToDelete}
+        isDeleting={isDeletingAccount}
+      />
     </div>
   );
 };

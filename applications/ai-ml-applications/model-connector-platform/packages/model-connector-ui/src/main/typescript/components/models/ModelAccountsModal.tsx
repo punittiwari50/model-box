@@ -3,6 +3,7 @@ import type { UiModelAccount, UiModelOAuthConfig, UiOAuthExchangeResult, TestCon
 import { ApiService } from "@/utils/services/apiService";
 import { oauthProviderRegistry } from "@/utils/services/oauthProviderRegistry";
 import { ProviderId } from "@/constants/providerConfigConstants";
+import { DeleteRecordModal } from "@/components/common/DeleteRecordModal";
 
 interface ModelAccountsModalProps {
   readonly modelId: string;
@@ -22,6 +23,9 @@ export const ModelAccountsModal: React.FC<ModelAccountsModalProps> = ({
   const [accounts, setAccounts] = useState<UiModelAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<UiModelAccount | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const loadAccounts = useCallback(async () => {
     setIsLoading(true);
@@ -572,17 +576,24 @@ export const ModelAccountsModal: React.FC<ModelAccountsModalProps> = ({
     }
   };
 
-  const handleDelete = async (accountId: string) => {
-    if (!window.confirm("Are you sure you want to delete this account credential?")) return;
-    setIsLoading(true);
+  const handleOpenDelete = (acc: UiModelAccount) => {
+    setAccountToDelete(acc);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!accountToDelete) return;
+    setIsDeleting(true);
     try {
-      await ApiService.deleteModelAccount(modelId, accountId);
+      await ApiService.deleteModelAccount(modelId, accountToDelete.accountId);
       await loadAccounts();
       onAccountChange?.();
+      setIsDeleteModalOpen(false);
+      setAccountToDelete(null);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to delete account");
     } finally {
-      setIsLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -887,7 +898,7 @@ export const ModelAccountsModal: React.FC<ModelAccountsModalProps> = ({
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(acc.accountId)}
+                          onClick={() => handleOpenDelete(acc)}
                           style={{
                             background: "rgba(239, 68, 68, 0.12)",
                             border: "none",
@@ -2122,6 +2133,19 @@ export const ModelAccountsModal: React.FC<ModelAccountsModalProps> = ({
           )}
         </div>
       </div>
+
+      <DeleteRecordModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!isDeleting) {
+            setIsDeleteModalOpen(false);
+            setAccountToDelete(null);
+          }
+        }}
+        onConfirm={handleConfirmDelete}
+        account={accountToDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };
