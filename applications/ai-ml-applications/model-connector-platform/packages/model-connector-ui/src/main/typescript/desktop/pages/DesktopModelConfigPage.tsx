@@ -1669,7 +1669,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                             <div>
                               <h5>Authenticate Code from Browser</h5>
                               <span className="card-subtext">
-                                OAuth 2.0 Authorization Code received from browser redirect or consent portal
+                                Paste the code generated from the browser consent portal (e.g., https://antigravity.google/oauth-callback: &quot;Paste this code into your application to complete authentication&quot;)
                               </span>
                             </div>
                           </div>
@@ -1681,14 +1681,30 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                         </div>
 
                         <div className="authcode-input-row">
-                          <div className="input-with-label">
+                          <div className="input-with-label" style={{ display: "flex", gap: "8px", flex: 1 }}>
                             <input
                               type="text"
                               className="form-input authcode-text-input"
-                              placeholder="Paste or inspect authenticate code from browser (e.g. 4/0AVv... or oauth_pkce_...)"
+                              placeholder="Paste authenticate code from browser (e.g. 4/0AUn6... or oauth_pkce_...)"
                               value={redirectAuthCode}
                               onChange={(e) => setRedirectAuthCode(e.target.value)}
                             />
+                            <button
+                              type="button"
+                              className="btn-discard-secondary"
+                              style={{ padding: "6px 12px", whiteSpace: "nowrap" }}
+                              onClick={async () => {
+                                if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+                                  try {
+                                    const text = await navigator.clipboard.readText();
+                                    if (text) setRedirectAuthCode(text.trim());
+                                  } catch {}
+                                }
+                              }}
+                              title="Paste authorization code directly from your system clipboard"
+                            >
+                              📋 Paste from Clipboard
+                            </button>
                           </div>
                           <button
                             type="button"

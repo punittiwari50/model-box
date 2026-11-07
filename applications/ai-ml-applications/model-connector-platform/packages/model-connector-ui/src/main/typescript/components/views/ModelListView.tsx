@@ -15,14 +15,14 @@ export interface ModelListViewProps {
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
-  gemini: "✦",
-  grok: "⚡",
-  claude: "🧠",
-  chatgpt: "🤖",
-  openai: "🤖",
-  copilot: "🚀",
-  ollama: "🛡️",
-  fallback: "🛡️",
+  gemini: "◆",
+  grok: "◆",
+  claude: "◆",
+  chatgpt: "◆",
+  openai: "◆",
+  copilot: "◆",
+  ollama: "◆",
+  fallback: "◆",
 };
 
 export const ModelListView: React.FC<ModelListViewProps> = ({
@@ -146,7 +146,7 @@ export const ModelListView: React.FC<ModelListViewProps> = ({
                             data-testid={`model-row-${m.id}`}
                           >
                             <td className="col-identity">
-                              <span className="table-model-icon">◈</span>
+                              <span className="table-model-icon">◆</span>
                               <div>
                                 <span className="table-model-name">{m.name}</span>
                                 <span className="table-model-id">{m.id}</span>
@@ -245,7 +245,7 @@ export const ModelListView: React.FC<ModelListViewProps> = ({
                   data-testid={`model-row-${m.id}`}
                 >
                   <td className="col-identity">
-                    <span className="table-model-icon">◈</span>
+                    <span className="table-model-icon">◆</span>
                     <div>
                       <span className="table-model-name">{m.name}</span>
                       <span className="table-model-id">{m.id}</span>

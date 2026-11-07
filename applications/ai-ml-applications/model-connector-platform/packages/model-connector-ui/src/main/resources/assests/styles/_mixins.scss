@@ -52,11 +52,11 @@
     background: transparent;
   }
   &::-webkit-scrollbar-thumb {
-    background: $color-border;
+    background: rgba(255, 255, 255, 0.15);
     border-radius: $radius-full;
   }
   &::-webkit-scrollbar-thumb:hover {
-    background: lighten($color-border, 10%);
+    background: rgba(255, 255, 255, 0.3);
   }
 }
 
