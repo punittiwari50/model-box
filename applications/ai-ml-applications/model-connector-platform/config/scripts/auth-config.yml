@@ -28,3 +28,11 @@ paths:
 services:
   backend_api_url: "http://localhost:8095/api/v1"
 
+models:
+  google_default_model: "gemini-3.8-flash"
+  anthropic_default_model: "claude-3-7-sonnet"
+  openai_default_model: "gpt-4o"
+  copilot_default_model: "copilot-gpt-4o"
+  ollama_default_model: "lfm3-omni"
+
+

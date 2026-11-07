@@ -14,6 +14,7 @@ export interface CliTriggerOptions {
   readonly accountCategory?: "individual" | "enterprise";
   readonly customCallbackUrl?: string;
   readonly clientId?: string;
+  readonly modelId?: string;
 }
 
 export interface ICliAuthStrategy {
@@ -66,12 +67,15 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
       if (options?.clientId) {
         args.push("--client", options.clientId);
       }
+      if (options?.modelId) {
+        args.push("--model", options.modelId);
+      }
       const child = childProcessUtils.spawn(scriptPath, args, {
         detached: true,
         stdio: "ignore",
         env: {
           ...processUtils.env,
-          MODEL_ID: this.defaultModelId,
+          MODEL_ID: options?.modelId || this.defaultModelId,
           PROVIDER: this.provider,
           USER_EMAIL: options?.userEmail || "",
           CLIENT_ID: options?.clientId || "default",

@@ -51,7 +51,7 @@ readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:
 
 readonly BINARY_NAME="chatgpt"
 readonly DEFAULT_PROVIDER="openai"
-readonly DEFAULT_MODEL_ID="gpt-4o"
+MODEL_ID="${MODEL_ID:-gpt-4o}"
 readonly AUTH_MODE_LABEL="OpenAI ChatGPT CLI OAuth"
 readonly REDACTION_MASK="***REDACTED***"
 readonly APP_REDIRECT_URI="http://localhost:8085/oauth2callback"
@@ -114,6 +114,14 @@ pre_validate() {
     PID_FILE="${VENV_PID_FILE}"
     LOCK_FILE="${VENV_LOCK_FILE}"
     logger_info "Activated ChatGPT isolated virtual environment: ${MODEL_VENV_PATH}"
+
+    if [ -z "${MODEL_ID:-}" ] || [ "$MODEL_ID" = "gpt-4o" ]; then
+      local venv_model
+      venv_model=$(model_venv_get_model "$DEFAULT_PROVIDER" "$USER_EMAIL" "$CLIENT_ID" 2>/dev/null | grep -o '"activeModel":"[^"]*' | cut -d'"' -f4 || echo "")
+      if [ -n "$venv_model" ]; then
+        MODEL_ID="$venv_model"
+      fi
+    fi
   fi
 
   mkdir -p "$DATA_DIR" "$LOGS_DIR" "$CREDENTIALS_DIR" "$RESPONSES_DIR"
@@ -144,7 +152,7 @@ push_auth_and_conversation_to_db() {
     git -C "$CREDENTIALS_DIR" config user.email "bot@modelbox.local" 2>/dev/null || true
   fi
 
-  local commit_msg="auth(${status,,}): user=${USER_EMAIL} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} session=${session_id}"
+  local commit_msg="auth(${status,,}): user=${USER_EMAIL} provider=${DEFAULT_PROVIDER} model=${MODEL_ID} session=${session_id}"
   if [ -n "$error_msg" ]; then
     commit_msg="${commit_msg} error=${error_msg}"
   fi
@@ -165,7 +173,7 @@ push_auth_and_conversation_to_db() {
 {
   "sessionId": "$session_id",
   "provider": "$DEFAULT_PROVIDER",
-  "modelId": "$DEFAULT_MODEL_ID",
+  "modelId": "$MODEL_ID",
   "status": "$status",
   "userEmail": "$USER_EMAIL",
   "commitId": "$commit_id",
@@ -206,6 +214,14 @@ parse_args() {
         CLIENT_ID="${1#*=}"
         shift
         ;;
+      --model|-m|--model-id)
+        MODEL_ID="${2:-}"
+        shift 2
+        ;;
+      --model=*|--model-id=*)
+        MODEL_ID="${1#*=}"
+        shift
+        ;;
       *)
         if [ -z "$USER_EMAIL" ] && [[ "$1" =~ @ ]]; then
           USER_EMAIL="$1"
@@ -242,7 +258,7 @@ main() {
 {
   "sessionId": "$session_id",
   "provider": "$DEFAULT_PROVIDER",
-  "modelId": "$DEFAULT_MODEL_ID",
+  "modelId": "$MODEL_ID",
   "authMode": "$AUTH_MODE_LABEL",
   "oauthUrl": "$oauth_url",
   "clientId": "openai-chatgpt-cli",

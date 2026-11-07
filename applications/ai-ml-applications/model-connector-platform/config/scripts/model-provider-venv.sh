@@ -249,6 +249,168 @@ EOF
 }
 
 # ==============================================================================
+# Module: VenvModelManager
+# Allows dynamically changing the active model and listing models per venv
+# Pushes model change events asynchronously to the database via REST API
+# ==============================================================================
+model_venv_resolve_default_model() {
+  local provider="${1,,}"
+  case "$provider" in
+    *google*|*gemini*|*antigravity*)
+      read_yaml_value "google_default_model" "gemini-3.8-flash"
+      ;;
+    *anthropic*|*claude*)
+      read_yaml_value "anthropic_default_model" "claude-3-7-sonnet"
+      ;;
+    *openai*|*chatgpt*)
+      read_yaml_value "openai_default_model" "gpt-4o"
+      ;;
+    *copilot*)
+      read_yaml_value "copilot_default_model" "copilot-gpt-4o"
+      ;;
+    *ollama*)
+      read_yaml_value "ollama_default_model" "lfm3-omni"
+      ;;
+    *)
+      echo "default-model"
+      ;;
+  esac
+}
+
+model_venv_get_model() {
+  local provider="$1"
+  local user_email="$2"
+  local client_id="${3:-default}"
+
+  local venv_path
+  venv_path=$(model_venv_resolve_root "$provider" "$user_email" "$client_id")
+  local active_model_file="${venv_path}/config/active_model.txt"
+
+  local active_model=""
+  if [ -f "$active_model_file" ]; then
+    active_model=$(cat "$active_model_file" 2>/dev/null | tr -d '\r\n[:space:]')
+  fi
+
+  if [ -z "$active_model" ]; then
+    active_model=$(model_venv_resolve_default_model "$provider")
+  fi
+
+  echo "{\"provider\":\"$provider\",\"user\":\"$user_email\",\"clientId\":\"$client_id\",\"activeModel\":\"$active_model\"}"
+}
+
+model_venv_set_model() {
+  local provider="$1"
+  local user_email="$2"
+  local client_id="${3:-default}"
+  local target_model="$4"
+
+  if [ -z "$provider" ] || [ -z "$user_email" ] || [ -z "$target_model" ]; then
+    echo "{\"error\":\"Missing required arguments: provider, user_email, and target_model are mandatory\"}" >&2
+    return 1
+  fi
+
+  local venv_path
+  venv_path=$(model_venv_init "$provider" "$user_email" "$client_id")
+  mkdir -p "${venv_path}/config"
+  echo "$target_model" > "${venv_path}/config/active_model.txt"
+
+  # Update or append ACTIVE_MODEL in activate.sh
+  if [ -f "${venv_path}/activate.sh" ]; then
+    if grep -q "export ACTIVE_MODEL=" "${venv_path}/activate.sh"; then
+      sed -i -e "s/^export ACTIVE_MODEL=.*/export ACTIVE_MODEL=\"${target_model}\"/" "${venv_path}/activate.sh" 2>/dev/null || true
+    else
+      echo "export ACTIVE_MODEL=\"${target_model}\"" >> "${venv_path}/activate.sh"
+    fi
+  fi
+
+  # Record local version control commit in credentials repository
+  local cred_dir="${venv_path}/credentials"
+  if [ -d "$cred_dir" ]; then
+    git -C "$cred_dir" add -A 2>/dev/null || true
+    git -C "$cred_dir" commit --allow-empty -q -m "model(switch): user=${user_email} client=${client_id} model=${target_model}" 2>/dev/null || true
+  fi
+
+  # Async sync model change event to database via REST API
+  local session_id
+  session_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || date +%s%N)
+  local now
+  now=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+
+  local payload
+  payload=$(cat <<EOF
+{
+  "sessionId": "model-switch-${session_id}",
+  "provider": "$provider",
+  "modelId": "$target_model",
+  "status": "COMPLETED",
+  "userEmail": "$user_email",
+  "clientId": "$client_id",
+  "commitId": "model-switch-${now}",
+  "errorMessage": "",
+  "venvPath": "$venv_path"
+}
+EOF
+)
+  curl -s -X POST "${BACKEND_API_URL}/auth/cli-session/sync" \
+    -H "Content-Type: application/json" \
+    -d "$payload" \
+    --max-time 10 >/dev/null 2>&1 || true
+
+  echo "{\"status\":\"SUCCESS\",\"provider\":\"$provider\",\"user\":\"$user_email\",\"clientId\":\"$client_id\",\"activeModel\":\"$target_model\"}"
+}
+
+model_venv_list_models() {
+  local provider="$1"
+  local user_email="${2:-}"
+  local client_id="${3:-default}"
+
+  local active_model=""
+  if [ -n "$user_email" ]; then
+    active_model=$(model_venv_get_model "$provider" "$user_email" "$client_id" 2>/dev/null | grep -o '"activeModel":"[^"]*' | cut -d'"' -f4 || echo "")
+  fi
+  if [ -z "$active_model" ]; then
+    active_model=$(model_venv_resolve_default_model "$provider")
+  fi
+
+  # Query backend REST endpoint for models under this provider
+  local api_url="${BACKEND_API_URL}/models/providers/${provider}/models"
+  local response
+  response=$(curl -s "$api_url" --max-time 5 2>/dev/null || true)
+  if [ -n "$response" ] && echo "$response" | grep -q "models"; then
+    echo "$response"
+    return 0
+  fi
+
+  response=$(curl -s "${BACKEND_API_URL}/models" --max-time 5 2>/dev/null || true)
+  if [ -n "$response" ] && echo "$response" | grep -q "models"; then
+    echo "$response"
+    return 0
+  fi
+
+  # Pure shell fallback catalog from configuration
+  case "${provider,,}" in
+    *google*|*gemini*|*antigravity*)
+      echo "{\"provider\":\"$provider\",\"activeModel\":\"$active_model\",\"models\":[{\"id\":\"gemini-3.8-flash\",\"name\":\"Google Gemini 3.8 Flash\",\"tier\":\"freeware\"},{\"id\":\"gemini-3.5-flash\",\"name\":\"Google Gemini 3.5 Flash\",\"tier\":\"freeware\"},{\"id\":\"gemini-3.5-flash-lite\",\"name\":\"Google Gemini 3.5 Flash Lite\",\"tier\":\"freeware\"}]}"
+      ;;
+    *anthropic*|*claude*)
+      echo "{\"provider\":\"$provider\",\"activeModel\":\"$active_model\",\"models\":[{\"id\":\"claude-3-7-sonnet\",\"name\":\"Claude 3.7 Sonnet\",\"tier\":\"premium\"},{\"id\":\"claude-3-5-sonnet\",\"name\":\"Claude 3.5 Sonnet\",\"tier\":\"premium\"},{\"id\":\"claude-3-5-haiku\",\"name\":\"Claude 3.5 Haiku\",\"tier\":\"freeware\"}]}"
+      ;;
+    *openai*|*chatgpt*)
+      echo "{\"provider\":\"$provider\",\"activeModel\":\"$active_model\",\"models\":[{\"id\":\"gpt-4o\",\"name\":\"GPT-4o Omnimodal\",\"tier\":\"freeware\"},{\"id\":\"gpt-4o-mini\",\"name\":\"GPT-4o Mini\",\"tier\":\"freeware\"},{\"id\":\"o1-preview\",\"name\":\"OpenAI o1 Reasoning\",\"tier\":\"premium\"}]}"
+      ;;
+    *copilot*)
+      echo "{\"provider\":\"$provider\",\"activeModel\":\"$active_model\",\"models\":[{\"id\":\"copilot-gpt-4o\",\"name\":\"GitHub Copilot GPT-4o\",\"tier\":\"freeware\"},{\"id\":\"copilot-claude-3.5-sonnet\",\"name\":\"GitHub Copilot Claude 3.5\",\"tier\":\"premium\"}]}"
+      ;;
+    *ollama*)
+      echo "{\"provider\":\"$provider\",\"activeModel\":\"$active_model\",\"models\":[{\"id\":\"lfm3-omni\",\"name\":\"Liquid Foundation Model 3.0\",\"tier\":\"freeware\"},{\"id\":\"llama-3.2\",\"name\":\"Meta Llama 3.2\",\"tier\":\"freeware\"},{\"id\":\"deepseek-r1\",\"name\":\"DeepSeek R1\",\"tier\":\"freeware\"}]}"
+      ;;
+    *)
+      echo "{\"provider\":\"$provider\",\"activeModel\":\"$active_model\",\"models\":[{\"id\":\"$active_model\",\"name\":\"$active_model\",\"tier\":\"freeware\"}]}"
+      ;;
+  esac
+}
+
+# ==============================================================================
 # Module: VenvInspector
 # Lists and inspects active virtual environments
 # ==============================================================================
@@ -318,6 +480,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   PROVIDER=""
   USER_EMAIL=""
   CLIENT_ID="default"
+  MODEL_ID=""
   EXEC_ARGS=()
 
   while [[ $# -gt 0 ]]; do
@@ -332,6 +495,10 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         ;;
       --client|-c|--client-id)
         CLIENT_ID="$2"
+        shift 2
+        ;;
+      --model|-m|--model-id)
+        MODEL_ID="$2"
         shift 2
         ;;
       --)
@@ -362,8 +529,17 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     path)
       model_venv_resolve_root "$PROVIDER" "$USER_EMAIL" "$CLIENT_ID"
       ;;
+    get-model)
+      model_venv_get_model "$PROVIDER" "$USER_EMAIL" "$CLIENT_ID"
+      ;;
+    set-model)
+      model_venv_set_model "$PROVIDER" "$USER_EMAIL" "$CLIENT_ID" "$MODEL_ID"
+      ;;
+    list-models|models)
+      model_venv_list_models "$PROVIDER" "$USER_EMAIL" "$CLIENT_ID"
+      ;;
     *)
-      echo "Usage: model-provider-venv.sh <init|exec|list|path> --provider <p> --email <e> [--client <c>] [-- <cmd>]"
+      echo "Usage: model-provider-venv.sh <init|activate|exec|list|path|get-model|set-model|list-models> --provider <p> --email <e> [--client <c>] [--model <m>] [-- <cmd>]"
       exit 1
       ;;
   esac

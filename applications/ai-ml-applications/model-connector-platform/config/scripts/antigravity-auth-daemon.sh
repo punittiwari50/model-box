@@ -75,7 +75,7 @@ DAEMON_PID_FILE="/tmp/antigravity_auth_daemon.pid"
 LOCK_FILE="/tmp/antigravity_auth.lock"
 
 readonly DEFAULT_PROVIDER="google"
-readonly DEFAULT_MODEL_ID="gemini-3.8-flash"
+MODEL_ID="${MODEL_ID:-gemini-3.8-flash}"
 readonly AUTH_MODE_LABEL="1. Google OAuth"
 readonly REDACTION_MASK="***REDACTED***"
 readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-300}"
@@ -178,6 +178,15 @@ pre_validate_environment() {
     DAEMON_PID_FILE="${MODEL_VENV_PATH}/run/daemon.pid"
     LOCK_FILE="${VENV_LOCK_FILE}"
     logger_info "Activated isolated virtual environment: ${MODEL_VENV_PATH}"
+
+    # Resolve active model from virtual environment if not explicitly passed
+    if [ -z "${MODEL_ID:-}" ] || [ "$MODEL_ID" = "gemini-3.8-flash" ]; then
+      local venv_model
+      venv_model=$(model_venv_get_model "$DEFAULT_PROVIDER" "$USER_EMAIL" "$CLIENT_ID" 2>/dev/null | grep -o '"activeModel":"[^"]*' | cut -d'"' -f4 || echo "")
+      if [ -n "$venv_model" ]; then
+        MODEL_ID="$venv_model"
+      fi
+    fi
   fi
 
   # 4. Validate / create directory structure in bidirectional volume
@@ -298,7 +307,7 @@ save_session_record() {
   if [ ! -f "$CSV_SESSIONS_FILE" ]; then
     echo "SESSION_ID,PROVIDER,MODEL_ID,USER_EMAIL,STATUS,UPDATED_AT" > "$CSV_SESSIONS_FILE"
   fi
-  echo "\"${session_id}\",\"${DEFAULT_PROVIDER}\",\"${DEFAULT_MODEL_ID}\",\"${USER_EMAIL}\",\"PENDING\",\"$(date -u +"${DATETIME_PATTERN}")\"" >> "$CSV_SESSIONS_FILE"
+  echo "\"${session_id}\",\"${DEFAULT_PROVIDER}\",\"${MODEL_ID}\",\"${USER_EMAIL}\",\"PENDING\",\"$(date -u +"${DATETIME_PATTERN}")\"" >> "$CSV_SESSIONS_FILE"
 
   logger_info "Saved OAuth session [${session_id}] for user [${USER_EMAIL}] to bidirectional volume."
   return 0
@@ -319,7 +328,7 @@ commit_and_push_to_database() {
     git -C "$CREDENTIALS_DIR" config user.email "daemon@modelbox.internal" 2>/dev/null || true
   fi
 
-  local commit_msg="auth(${status,,}): user=${USER_EMAIL} provider=${DEFAULT_PROVIDER} model=${DEFAULT_MODEL_ID} session=${session_id}"
+  local commit_msg="auth(${status,,}): user=${USER_EMAIL} provider=${DEFAULT_PROVIDER} model=${MODEL_ID} session=${session_id}"
   if [ -n "$error_msg" ]; then
     commit_msg="${commit_msg} error=${error_msg}"
   fi
@@ -355,7 +364,7 @@ push_session_to_database() {
 {
   "sessionId": "$session_id",
   "provider": "$DEFAULT_PROVIDER",
-  "modelId": "$DEFAULT_MODEL_ID",
+  "modelId": "$MODEL_ID",
   "status": "$status",
   "userEmail": "$USER_EMAIL",
   "commitId": "$commit_id",
@@ -441,7 +450,7 @@ run_oauth_daemon() {
 {
   "sessionId": "$session_id",
   "provider": "$DEFAULT_PROVIDER",
-  "modelId": "$DEFAULT_MODEL_ID",
+  "modelId": "$MODEL_ID",
   "authMode": "$AUTH_MODE_LABEL",
   "oauthUrl": "$oauth_url",
   "clientId": "$client_id",
@@ -519,6 +528,14 @@ parse_args() {
         ;;
       --client=*|--client-id=*)
         CLIENT_ID="${1#*=}"
+        shift
+        ;;
+      --model|-m|--model-id)
+        MODEL_ID="${2:-}"
+        shift 2
+        ;;
+      --model=*|--model-id=*)
+        MODEL_ID="${1#*=}"
         shift
         ;;
       *)
