@@ -9,6 +9,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/auth-config.yml"
 
+# Source Model Provider Virtual Environment Manager
+if [ -f "${SCRIPT_DIR}/model-provider-venv.sh" ]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/model-provider-venv.sh"
+fi
+
 read_yaml_value() {
   local key="$1"
   local default_val="${2:-}"
@@ -51,13 +57,14 @@ readonly REDACTION_MASK="***REDACTED***"
 readonly APP_REDIRECT_URI="http://localhost:8085/oauth2callback"
 readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-300}"
 
-readonly FIFO_IN="/tmp/chatgpt_auth_in.fifo"
-readonly CLI_LOG="/tmp/chatgpt_auth_out.log"
-readonly CODE_FILE="/tmp/chatgpt_auth_code.txt"
-readonly PID_FILE="/tmp/chatgpt_auth.pid"
-readonly LOCK_FILE="/tmp/chatgpt_auth.lock"
+FIFO_IN="/tmp/chatgpt_auth_in.fifo"
+CLI_LOG="/tmp/chatgpt_auth_out.log"
+CODE_FILE="/tmp/chatgpt_auth_code.txt"
+PID_FILE="/tmp/chatgpt_auth.pid"
+LOCK_FILE="/tmp/chatgpt_auth.lock"
 
 USER_EMAIL=""
+CLIENT_ID="default"
 IS_STARTUP=false
 
 sanitize_log_message() {
@@ -97,6 +104,18 @@ pre_validate() {
     logger_error "Pre-validation failed: Invalid user email format '${USER_EMAIL}'."
     return 1
   fi
+
+  # Launch & Activate Isolated Virtual Environment for OpenAI ChatGPT / Codex
+  if command -v model_venv_activate >/dev/null 2>&1; then
+    model_venv_activate "$DEFAULT_PROVIDER" "$USER_EMAIL" "$CLIENT_ID"
+    FIFO_IN="${VENV_FIFO_IN}"
+    CLI_LOG="${VENV_CLI_LOG}"
+    CODE_FILE="${VENV_CODE_FILE}"
+    PID_FILE="${VENV_PID_FILE}"
+    LOCK_FILE="${VENV_LOCK_FILE}"
+    logger_info "Activated ChatGPT isolated virtual environment: ${MODEL_VENV_PATH}"
+  fi
+
   mkdir -p "$DATA_DIR" "$LOGS_DIR" "$CREDENTIALS_DIR" "$RESPONSES_DIR"
   logger_info "Pre-validation succeeded for user: ${USER_EMAIL}"
   return 0
@@ -177,6 +196,14 @@ parse_args() {
         ;;
       --email=*)
         USER_EMAIL="${1#*=}"
+        shift
+        ;;
+      --client|-c|--client-id)
+        CLIENT_ID="${2:-default}"
+        shift 2
+        ;;
+      --client=*|--client-id=*)
+        CLIENT_ID="${1#*=}"
         shift
         ;;
       *)

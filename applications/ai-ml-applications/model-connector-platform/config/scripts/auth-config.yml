@@ -19,6 +19,7 @@ patterns:
 paths:
   default_model_dir: "/opt/model-connector/models"
   default_data_dir: "/app/config/data"
+  default_venvs_dir: "/app/config/data/venvs"
   default_logs_dir: "/app/config/data/logs"
   default_credentials_dir: "/app/config/data/credentials"
   default_responses_dir: "/app/config/data/oauth_responses"

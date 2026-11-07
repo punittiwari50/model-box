@@ -285,14 +285,14 @@ export class ModelConfigController {
 
   public async executeCliLogin(req: Request, res: Response): Promise<void> {
     const { modelId } = req.params;
-    const { userEmail, accountCategory } = req.body || {};
+    const { userEmail, accountCategory, clientId } = req.body || {};
     try {
       const vcsResult = await directoryAccountSyncService.executeWithVcsTracking(
         modelId,
         "cli-login",
         async () => {
           const strategy = CliAuthStrategyFactory.getStrategy(modelId);
-          return strategy.triggerAuth({ userEmail, accountCategory });
+          return strategy.triggerAuth({ userEmail, accountCategory, clientId });
         },
         undefined,
         userEmail,
@@ -462,7 +462,7 @@ export class ModelConfigController {
     const { userEmail, accessToken, refreshToken, authMode, accountCategory } = req.body || {};
     const descriptor = modelOAuthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
     const provider = descriptor.provider;
-    const email = (userEmail && String(userEmail).trim()) || "personal.developer@gmail.com";
+    const email = (userEmail && String(userEmail).trim()) || `${provider}.user@authorized.local`;
     const token = (accessToken && String(accessToken).trim()) || `ya29.pkce_cli_${Date.now()}`;
     const rToken = (refreshToken && String(refreshToken).trim()) || `rt_${provider}_${Date.now()}`;
 
@@ -559,7 +559,8 @@ export class ModelConfigController {
 
     // 3. Persist credentials to bidirectional volume and database
     const mid = modelId || "gemini-3.8-flash";
-    const email = userEmail || "personal.developer@gmail.com";
+    const session = cliOAuthSessionRepository.getSessionById(String(sessionId));
+    const email = userEmail || session?.userEmail || "authorized.principal@local.vault";
     const saveResult = bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
       modelId: mid,
       provider: "google",

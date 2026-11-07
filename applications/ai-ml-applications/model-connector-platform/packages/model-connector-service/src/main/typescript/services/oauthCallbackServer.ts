@@ -333,7 +333,7 @@ export class OAuthCallbackServer {
       const strategy = this.exchangeRegistry.resolve(ctx);
       const outcome = await strategy.exchange(ctx);
       this.persistCallbackSession(ctx, outcome);
-      const successReturnUrl = this.resolveReturnUrl(returnUrl, ctx.modelId, outcome.userEmail);
+      const successReturnUrl = this.resolveReturnUrl(returnUrl, ctx.modelId, outcome.userEmail, ctx.code);
       res.status(200).send(
         this.renderSuccessHtml(outcome.userEmail, ctx.provider, ctx.code, outcome.accessToken, ctx.modelId, successReturnUrl),
       );
@@ -407,7 +407,7 @@ export class OAuthCallbackServer {
     }
   }
 
-  private resolveReturnUrl(returnUrl: string | undefined, modelId: string, email: string): string {
+  private resolveReturnUrl(returnUrl: string | undefined, modelId: string, email: string, authCode?: string): string {
     const defaultUiUrl = OAuthConstants.DEFAULT_UI_BASE_URL;
     const base = returnUrl && returnUrl.startsWith("http") ? returnUrl : defaultUiUrl;
     try {
@@ -415,11 +415,16 @@ export class OAuthCallbackServer {
       url.searchParams.set("oauth_success", "true");
       url.searchParams.set("model", modelId);
       if (email) url.searchParams.set("email", email);
+      if (authCode) {
+        url.searchParams.set("code", authCode);
+        url.searchParams.set("auth_code", authCode);
+      }
       url.searchParams.set("tab", "model-config");
       return url.toString();
     } catch {
       const emailParam = email ? `&email=${encodeURIComponent(email)}` : "";
-      return `${defaultUiUrl}/?oauth_success=true&model=${encodeURIComponent(modelId)}&tab=model-config${emailParam}`;
+      const codeParam = authCode ? `&code=${encodeURIComponent(authCode)}&auth_code=${encodeURIComponent(authCode)}` : "";
+      return `${defaultUiUrl}/?oauth_success=true&model=${encodeURIComponent(modelId)}&tab=model-config${emailParam}${codeParam}`;
     }
   }
 
@@ -492,24 +497,213 @@ export class OAuthCallbackServer {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="2;url=${targetUrl}">
-  <title>ModelBox - Account Connected</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="3;url=${targetUrl}">
+  <title>ModelBox - OAuth 2.0 Authenticate Code Portal</title>
   <style>
-    body { background: #0b0f19; color: #f8fafc; font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
-    .card { background: #131d31; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 16px; padding: 36px; max-width: 500px; text-align: center; }
-    .badge { display: inline-block; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #6ee7b7; padding: 5px 14px; border-radius: 9999px; font-weight: 700; font-size: 0.85rem; margin-bottom: 16px; }
-    .email-chip { background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; font-weight: 700; padding: 6px 14px; border-radius: 8px; display: inline-block; margin: 6px 0 16px 0; font-family: monospace; }
-    .return-btn { display: inline-block; background: #0284c7; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; margin-top: 8px; }
+    * { box-sizing: border-box; }
+    body {
+      background: radial-gradient(circle at 50% 20%, #0f172a 0%, #020617 100%);
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 580px;
+      width: 100%;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(16px);
+      text-align: center;
+    }
+    .badge-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      color: #6ee7b7;
+      padding: 6px 16px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.3px;
+    }
+    h2 {
+      margin: 0 0 6px 0;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #f1f5f9;
+    }
+    .subtext {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+    }
+    .code-box-wrapper {
+      background: #030712;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .code-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .copy-btn {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #7dd3fc;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .copy-btn:hover {
+      background: rgba(56, 189, 248, 0.3);
+      color: #ffffff;
+    }
+    .code-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #a7f3d0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.85rem;
+      outline: none;
+      word-break: break-all;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      text-align: left;
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .meta-item label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+    .meta-item span {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-top: 2px;
+      word-break: break-all;
+    }
+    .db-badge {
+      color: #34d399 !important;
+    }
+    .return-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #ffffff;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+      transition: all 0.2s ease;
+    }
+    .return-btn:hover {
+      background: linear-gradient(135deg, #0369a1, #1d4ed8);
+      transform: translateY(-1px);
+    }
+    .countdown-note {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin-top: 12px;
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="badge">✔ Account Connected Successfully</div>
-    <h2>Authorization Complete</h2>
-    <div class="email-chip" id="connected-email">${email}</div>
-    <p>Redirecting to ModelBox Studio in <span id="countdown">2</span>s...</p>
-    <a href="${targetUrl}" class="return-btn" id="return-now-btn">Return to ModelBox Studio Now &rarr;</a>
+    <div class="badge-row">
+      <span class="status-badge">✔ Authenticate Code Captured from Browser</span>
+    </div>
+    <h2>OAuth 2.0 Authenticate Code Portal</h2>
+    <p class="subtext">Browser authentication completed for <strong>${provider.toUpperCase()}</strong></p>
+
+    <div class="code-box-wrapper">
+      <div class="code-header">
+        <span class="code-label">Captured Authenticate Code</span>
+        <button class="copy-btn" id="copy-btn" onclick="copyAuthCode()">📋 Copy Authenticate Code</button>
+      </div>
+      <input type="text" readonly class="code-input" id="authcode-input" value="${code}" />
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-item">
+        <label>Authenticated Principal</label>
+        <span>${email}</span>
+      </div>
+      <div class="meta-item">
+        <label>Target Model & Provider</label>
+        <span>${provider.toUpperCase()} (${modelId})</span>
+      </div>
+      <div class="meta-item" style="grid-column: 1 / -1;">
+        <label>Database Record Status</label>
+        <span class="db-badge">✔ Authenticate code saved in database against account</span>
+      </div>
+    </div>
+
+    <a href="${targetUrl}" class="return-btn" id="return-now-btn">
+      <span>🚀 Complete &amp; Return to ModelBox Studio</span>
+    </a>
+    <div class="countdown-note">Auto-closing and redirecting in <span id="countdown">3</span>s...</div>
+
     <script>
+      function copyAuthCode() {
+        var input = document.getElementById("authcode-input");
+        if (input) {
+          input.select();
+          navigator.clipboard.writeText(input.value);
+          var btn = document.getElementById("copy-btn");
+          if (btn) btn.innerText = "✔ Copied!";
+        }
+      }
+
       (function() {
         var targetUrl = "${targetUrl}";
         var payload = {
@@ -519,6 +713,7 @@ export class OAuthCallbackServer {
           userEmail: "${email}",
           userName: "${email.split("@")[0]}",
           code: "${code}",
+          authCode: "${code}",
           token: "${token}",
           accessToken: "${token}",
           modelId: "${modelId}"
@@ -529,15 +724,23 @@ export class OAuthCallbackServer {
             window.opener.postMessage(Object.assign({}, payload, { type: "OAUTH_CALLBACK_SUCCESS" }), "*");
           }
         } catch (e) {}
-        var seconds = 1;
+
+        var seconds = 3;
         var timer = setInterval(function() {
           seconds--;
+          var el = document.getElementById("countdown");
+          if (el) el.innerText = seconds;
           if (seconds <= 0) {
             clearInterval(timer);
-            try { if (window.opener && !window.opener.closed) { window.close(); return; } } catch (e) {}
+            try {
+              if (window.opener && !window.opener.closed) {
+                window.close();
+                return;
+              }
+            } catch (e) {}
             window.location.replace(targetUrl);
           }
-        }, 500);
+        }, 1000);
       })();
     </script>
   </div>

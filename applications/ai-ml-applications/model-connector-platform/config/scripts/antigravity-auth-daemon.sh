@@ -7,10 +7,16 @@
 set -euo pipefail
 
 # ==============================================================================
-# Module: YamlConfigReader (Pure Shell / AWK YAML Parser)
+# Module: YamlConfigReader (Pure Shell / AWK YAML Parser) & Virtual Environment
 # ==============================================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/auth-config.yml"
+
+# Source Model Provider Virtual Environment Manager
+if [ -f "${SCRIPT_DIR}/model-provider-venv.sh" ]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/model-provider-venv.sh"
+fi
 
 read_yaml_value() {
   local key="$1"
@@ -61,12 +67,12 @@ readonly BINARY_NAME="antigravity"
 readonly TARGET_BINARY_PATH="${SYSTEM_BIN_DIR}/${BINARY_NAME}"
 readonly TARGET_SYMLINK_PATH="${SYSTEM_BIN_DIR}/agy"
 
-readonly FIFO_IN="/tmp/antigravity_auth_in.fifo"
-readonly CLI_LOG="/tmp/antigravity_auth_out.log"
-readonly CODE_FILE="/tmp/antigravity_auth_code.txt"
-readonly PID_FILE="/tmp/antigravity_auth.pid"
-readonly DAEMON_PID_FILE="/tmp/antigravity_auth_daemon.pid"
-readonly LOCK_FILE="/tmp/antigravity_auth.lock"
+FIFO_IN="/tmp/antigravity_auth_in.fifo"
+CLI_LOG="/tmp/antigravity_auth_out.log"
+CODE_FILE="/tmp/antigravity_auth_code.txt"
+PID_FILE="/tmp/antigravity_auth.pid"
+DAEMON_PID_FILE="/tmp/antigravity_auth_daemon.pid"
+LOCK_FILE="/tmp/antigravity_auth.lock"
 
 readonly DEFAULT_PROVIDER="google"
 readonly DEFAULT_MODEL_ID="gemini-3.8-flash"
@@ -78,6 +84,7 @@ readonly URL_DISCOVERY_TIMEOUT=40
 
 RESOLVED_CLI_BIN=""
 USER_EMAIL=""
+CLIENT_ID="default"
 IS_STARTUP=false
 
 # ==============================================================================
@@ -160,7 +167,20 @@ pre_validate_environment() {
     fi
   done
 
-  # 3. Validate / create directory structure in bidirectional volume
+  # 3. Launch & Activate Model Provider Virtual Environment (modenv)
+  # Provides isolated Home, Config, IPC FIFO/Lock per User & Client mapping (like nvm / pyenv)
+  if command -v model_venv_activate >/dev/null 2>&1; then
+    model_venv_activate "$DEFAULT_PROVIDER" "$USER_EMAIL" "$CLIENT_ID"
+    FIFO_IN="${VENV_FIFO_IN}"
+    CLI_LOG="${VENV_CLI_LOG}"
+    CODE_FILE="${VENV_CODE_FILE}"
+    PID_FILE="${VENV_PID_FILE}"
+    DAEMON_PID_FILE="${MODEL_VENV_PATH}/run/daemon.pid"
+    LOCK_FILE="${VENV_LOCK_FILE}"
+    logger_info "Activated isolated virtual environment: ${MODEL_VENV_PATH}"
+  fi
+
+  # 4. Validate / create directory structure in bidirectional volume
   local required_dirs=("$DATA_DIR" "$DOWNLOADS_DIR" "$LOGS_DIR" "$CREDENTIALS_DIR" "$RESPONSES_DIR" "$SYSTEM_BIN_DIR" "$MODEL_DIR")
   for dir in "${required_dirs[@]}"; do
     if [ ! -d "$dir" ]; then
@@ -175,12 +195,12 @@ pre_validate_environment() {
     fi
   done
 
-  # 4. Check single daemon instance concurrency
+  # 5. Check isolated daemon instance concurrency per virtual environment
   if [ -f "$LOCK_FILE" ]; then
     local old_pid
     old_pid=$(cat "$LOCK_FILE" 2>/dev/null || true)
     if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-      logger_warn "Daemon already active under PID ${old_pid}. Terminating duplicate invocation."
+      logger_warn "Daemon already active in virtualenv under PID ${old_pid}. Terminating duplicate invocation."
       exit 0
     fi
   fi
@@ -491,6 +511,14 @@ parse_args() {
         ;;
       --email=*)
         USER_EMAIL="${1#*=}"
+        shift
+        ;;
+      --client|-c|--client-id)
+        CLIENT_ID="${2:-default}"
+        shift 2
+        ;;
+      --client=*|--client-id=*)
+        CLIENT_ID="${1#*=}"
         shift
         ;;
       *)

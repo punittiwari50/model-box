@@ -1440,6 +1440,126 @@
               }
             }
 
+            .browser-authcode-capture-card {
+              background: rgba(15, 23, 42, 0.7);
+              border: 1px solid rgba(56, 189, 248, 0.3);
+              border-radius: 10px;
+              padding: 14px 16px;
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+              box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+
+              .authcode-card-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 8px;
+
+                .header-title-row {
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+
+                  .card-icon {
+                    font-size: 1.25rem;
+                  }
+
+                  h5 {
+                    margin: 0;
+                    font-size: 0.88rem;
+                    font-weight: 700;
+                    color: #f8fafc;
+                  }
+
+                  .card-subtext {
+                    display: block;
+                    font-size: 0.72rem;
+                    color: #94a3b8;
+                    margin-top: 2px;
+                  }
+                }
+
+                .code-captured-tag {
+                  padding: 3px 10px;
+                  background: rgba(16, 185, 129, 0.15);
+                  border: 1px solid rgba(16, 185, 129, 0.4);
+                  color: #6ee7b7;
+                  border-radius: 100px;
+                  font-size: 0.72rem;
+                  font-weight: 700;
+                }
+
+                .code-waiting-tag {
+                  padding: 3px 10px;
+                  background: rgba(59, 130, 246, 0.12);
+                  border: 1px solid rgba(59, 130, 246, 0.3);
+                  color: #93c5fd;
+                  border-radius: 100px;
+                  font-size: 0.72rem;
+                  font-weight: 600;
+                }
+              }
+
+              .authcode-input-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+
+                .input-with-label {
+                  flex: 1 1 240px;
+
+                  .authcode-text-input {
+                    width: 100%;
+                    background: #030712;
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    color: #a7f3d0;
+                    font-family: monospace;
+                    font-size: 0.8rem;
+
+                    &:focus {
+                      border-color: #38bdf8;
+                      box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+                    }
+                  }
+                }
+
+                .btn-submit-authcode {
+                  padding: 8px 16px;
+                  background: linear-gradient(135deg, #059669, #10b981);
+                  border: 1px solid #10b981;
+                  border-radius: 6px;
+                  color: #ffffff;
+                  font-size: 0.8rem;
+                  font-weight: 700;
+                  cursor: pointer;
+                  white-space: nowrap;
+                  transition: all 0.2s ease;
+
+                  &:hover:not(:disabled) {
+                    background: linear-gradient(135deg, #047857, #059669);
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+                  }
+
+                  &:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                  }
+                }
+              }
+
+              .authcode-synced-note {
+                font-size: 0.74rem;
+                color: #34d399;
+                font-weight: 500;
+              }
+            }
+
             .cli-terminal-hint {
               background: #030712;
               border: 1px solid rgba(255, 255, 255, 0.12);

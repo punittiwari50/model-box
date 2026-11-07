@@ -10,6 +10,7 @@ set -euo pipefail
 
 IS_STARTUP=false
 USER_EMAIL=""
+CLIENT_ID="default"
 POSITIONAL=()
 
 while [[ $# -gt 0 ]]; do
@@ -24,6 +25,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --email=*)
       USER_EMAIL="${1#*=}"
+      shift
+      ;;
+    --client|-c|--client-id)
+      CLIENT_ID="${2:-default}"
+      shift 2
+      ;;
+    --client=*|--client-id=*)
+      CLIENT_ID="${1#*=}"
       shift
       ;;
     *)
@@ -43,11 +52,14 @@ MODEL_ID="${1:-${MODEL_ID:-gemini-3.8-flash}}"
 PROVIDER="${2:-${PROVIDER:-google}}"
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-export MODEL_ID PROVIDER IS_STARTUP USER_EMAIL
+export MODEL_ID PROVIDER IS_STARTUP USER_EMAIL CLIENT_ID
 
 FORWARD_ARGS=()
 if [ -n "$USER_EMAIL" ]; then
   FORWARD_ARGS+=("--email" "$USER_EMAIL")
+fi
+if [ -n "$CLIENT_ID" ]; then
+  FORWARD_ARGS+=("--client" "$CLIENT_ID")
 fi
 
 case "$MODEL_ID" in

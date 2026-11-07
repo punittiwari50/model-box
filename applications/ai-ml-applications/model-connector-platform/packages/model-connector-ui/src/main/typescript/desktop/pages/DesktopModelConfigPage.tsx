@@ -418,6 +418,10 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         const incomingCode = event.data.code || event.data.authCode;
         const provider = event.data.provider || selectedProviderId;
 
+        if (incomingCode) {
+          setRedirectAuthCode(incomingCode);
+        }
+
         if (accessToken) {
           const newSession: AuthenticatedOAuthSession = {
             providerId: provider,
@@ -470,6 +474,9 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
         const res = await ApiService.fetchLatestOAuthCallback(targetModelId);
         const session = res?.accessToken ? res : (res?.session || res?.callback);
+        if (session?.code) {
+          setRedirectAuthCode(session.code);
+        }
         if (session?.accessToken && session.email) {
           const newSession: AuthenticatedOAuthSession = {
             providerId: session.provider || selectedStrategy.id,
@@ -528,11 +535,15 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     const params = new URLSearchParams(window.location.search);
     if (params.get("oauth_success") === "true") {
       const email = params.get("email");
+      const authCode = params.get("code") || params.get("auth_code");
       if (email) {
         setUserEmail(email);
         setAccountName(`${selectedStrategy.name} (${email})`);
       }
-      handleCompleteOAuthExchange();
+      if (authCode) {
+        setRedirectAuthCode(authCode);
+      }
+      handleCompleteOAuthExchange(authCode || undefined);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -1647,6 +1658,52 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                             <span className="btn-icon">🔒</span>
                             <span>View Active Token Vault (Step 3) ➔</span>
                           </button>
+                        )}
+                      </div>
+
+                      {/* Section: Authenticate Code from Browser (Direct Capture & Manual Submission) */}
+                      <div className="browser-authcode-capture-card" data-testid="browser-authcode-card">
+                        <div className="authcode-card-header">
+                          <div className="header-title-row">
+                            <span className="card-icon">🔑</span>
+                            <div>
+                              <h5>Authenticate Code from Browser</h5>
+                              <span className="card-subtext">
+                                OAuth 2.0 Authorization Code received from browser redirect or consent portal
+                              </span>
+                            </div>
+                          </div>
+                          {redirectAuthCode ? (
+                            <span className="code-captured-tag">✔ Code Captured from Browser</span>
+                          ) : (
+                            <span className="code-waiting-tag">Awaiting Browser Redirect</span>
+                          )}
+                        </div>
+
+                        <div className="authcode-input-row">
+                          <div className="input-with-label">
+                            <input
+                              type="text"
+                              className="form-input authcode-text-input"
+                              placeholder="Paste or inspect authenticate code from browser (e.g. 4/0AVv... or oauth_pkce_...)"
+                              value={redirectAuthCode}
+                              onChange={(e) => setRedirectAuthCode(e.target.value)}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-submit-authcode"
+                            disabled={!redirectAuthCode.trim()}
+                            onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
+                          >
+                            <span>⚡ Verify &amp; Save Auth Code</span>
+                          </button>
+                        </div>
+
+                        {redirectAuthCode && (
+                          <div className="authcode-synced-note">
+                            <span>✔ Authenticate code captured from browser. Click &apos;Verify &amp; Save Auth Code&apos; to register bearer token in database.</span>
+                          </div>
                         )}
                       </div>
 

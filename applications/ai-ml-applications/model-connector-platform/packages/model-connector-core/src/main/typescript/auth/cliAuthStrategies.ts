@@ -13,6 +13,7 @@ export interface CliTriggerOptions {
   readonly userEmail?: string;
   readonly accountCategory?: "individual" | "enterprise";
   readonly customCallbackUrl?: string;
+  readonly clientId?: string;
 }
 
 export interface ICliAuthStrategy {
@@ -52,23 +53,34 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
       );
     }
 
-    this.spawnScriptProcess(scriptPath);
+    this.spawnScriptProcess(scriptPath, options);
     return this.pollForSessionResult(options?.customCallbackUrl);
   }
 
-  private spawnScriptProcess(scriptPath: string): void {
+  private spawnScriptProcess(scriptPath: string, options?: CliTriggerOptions): void {
     try {
-      const child = childProcessUtils.spawn(scriptPath, [], {
+      const args: string[] = [];
+      if (options?.userEmail) {
+        args.push("--email", options.userEmail);
+      }
+      if (options?.clientId) {
+        args.push("--client", options.clientId);
+      }
+      const child = childProcessUtils.spawn(scriptPath, args, {
         detached: true,
         stdio: "ignore",
         env: {
           ...processUtils.env,
           MODEL_ID: this.defaultModelId,
           PROVIDER: this.provider,
+          USER_EMAIL: options?.userEmail || "",
+          CLIENT_ID: options?.clientId || "default",
         },
       });
       child.unref();
-      logger.info(`[${this.constructor.name}] Spawned ${this.scriptName} in background.`);
+      logger.info(
+        `[${this.constructor.name}] Spawned ${this.scriptName} in background for user ${options?.userEmail || "unspecified"} (client: ${options?.clientId || "default"}).`,
+      );
     } catch (err: unknown) {
       logger.error(`[${this.constructor.name}] Failed to spawn ${this.scriptName}: ${String(err)}`);
     }
