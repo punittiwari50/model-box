@@ -1713,18 +1713,19 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                         </div>
 
                         <div className="authcode-input-row">
-                          <div className="input-with-label" style={{ display: "flex", gap: "8px", flex: 1 }}>
+                          <div className="authcode-field-wrapper">
                             <input
                               type="text"
                               className="form-input authcode-text-input"
-                              placeholder="Paste authenticate code from browser (e.g. 4/0AUn6... or oauth_pkce_...)"
+                              placeholder="Paste authorization code from browser (e.g. 4/0AUn6...)"
                               value={redirectAuthCode}
                               onChange={(e) => setRedirectAuthCode(e.target.value)}
+                              spellCheck={false}
+                              autoComplete="off"
                             />
                             <button
                               type="button"
-                              className="btn-discard-secondary"
-                              style={{ padding: "6px 12px", whiteSpace: "nowrap" }}
+                              className="btn-paste-code"
                               onClick={async () => {
                                 if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
                                   try {

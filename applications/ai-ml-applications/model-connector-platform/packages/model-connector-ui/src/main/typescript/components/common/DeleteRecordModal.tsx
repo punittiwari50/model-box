@@ -167,3 +167,4 @@ export const DeleteRecordModal: React.FC<DeleteRecordModalProps> = ({
     </div>
   );
 };
+
