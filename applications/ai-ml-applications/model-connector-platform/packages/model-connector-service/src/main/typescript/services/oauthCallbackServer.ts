@@ -902,7 +902,7 @@ export class OAuthCallbackServer {
         ? `<div class="accounts">${listItems}</div>`
         : `<div class="empty">No active ${escapedProvider} account found for this model yet.</div>`;
     const googleDirectSignInUrl =
-      input.provider === ProviderId.GOOGLE
+      input.provider === ProviderId.GOOGLE && GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID
         ? `${input.chooserUrl}&client_id=${encodeURIComponent(GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID)}`
         : "";
     const googleAction = googleDirectSignInUrl

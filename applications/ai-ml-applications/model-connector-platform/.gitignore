@@ -20,6 +20,16 @@ __pycache__/
 *.sqlite
 *.sqlite3
 config/data/*.db*
+config/data/credentials/
+config/data/oauth_responses/
+config/data/venvs/
+config/data/logs/
+config/data/downloads/
+config/artifacts/
+*.token
+*oauth-token*
+*_creds.json
+*credentials*.json
 !config/data/.gitkeep
 *.tar.gz
 *.tgz

@@ -112,7 +112,7 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
         if ((await advancedDetails.count()) > 0) {
           await advancedDetails.click();
           const clientIdInput = page.locator(".oauth-advanced-details input.form-input").first();
-          await clientIdInput.fill("test-gemini-client.apps.googleusercontent.com");
+          await clientIdInput.fill(process.env.TEST_CLIENT_ID || "");
           await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
           computedUrl = await urlInput.inputValue();
         }

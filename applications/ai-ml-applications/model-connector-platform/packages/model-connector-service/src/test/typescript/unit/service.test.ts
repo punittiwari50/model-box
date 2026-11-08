@@ -1,7 +1,7 @@
 process.env.GEMINI_CLI_OAUTH_CLIENT_ID =
-  process.env.GEMINI_CLI_OAUTH_CLIENT_ID || "mock-gemini-client-id.apps.googleusercontent.com";
+  process.env.GEMINI_CLI_OAUTH_CLIENT_ID || "";
 process.env.GEMINI_CLI_OAUTH_CLIENT_SECRET =
-  process.env.GEMINI_CLI_OAUTH_CLIENT_SECRET || "mock-gemini-client-secret";
+  process.env.GEMINI_CLI_OAUTH_CLIENT_SECRET || "";
 
 import test from "node:test";
 import assert from "node:assert/strict";

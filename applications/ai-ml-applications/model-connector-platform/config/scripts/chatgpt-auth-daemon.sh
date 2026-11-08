@@ -251,7 +251,7 @@ main() {
   local state
   state=$(tr -dc 'a-f0-9' < /dev/urandom 2>/dev/null | head -c 32 || date +%s%N)
 
-  local oauth_url="${OAUTH_BASE_URL}?client_id=openai-chatgpt-cli&response_type=code&redirect_uri=${APP_REDIRECT_URI}&state=${state}&scope=openid%20profile%20email%20model.request"
+  local oauth_url="${OAUTH_BASE_URL}?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${APP_REDIRECT_URI}&state=${state}&scope=openid%20profile%20email%20model.request"
 
   local session_json
   session_json=$(cat <<EOF

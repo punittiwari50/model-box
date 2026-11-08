@@ -233,8 +233,8 @@ class OAuthFlowTestOrchestrator {
       body: JSON.stringify({
         modelId: "gemini-3.8-flash",
         clientName: "E2E Ephemeral Client",
-        clientId: "ephemeral-google-client-id",
-        clientSecret: "ephemeral-google-secret",
+        clientId: process.env.TEST_CLIENT_ID || "e2e-test-client-id",
+        clientSecret: process.env.TEST_CLIENT_SECRET || "e2e-test-client-secret",
         isDefault: true,
       }),
     });
