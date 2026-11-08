@@ -383,6 +383,8 @@ export class CliOAuthSessionRepository {
             insertedCount++;
           } else if (session.authCode && session.authCode !== existing.authCode) {
             this.updateAuthCode(session.sessionId, session.authCode);
+          } else if (session.oauthUrl && (!existing.oauthUrl || !existing.oauthUrl.startsWith("http"))) {
+            this.upsertSession({ ...existing, oauthUrl: session.oauthUrl });
           }
         }
       }
@@ -422,22 +424,28 @@ export class CliOAuthSessionRepository {
   }
 
   private buildSessionFromParts(p: string[]): CliOAuthSession {
+    const isFullSchema = p.length >= 11;
+    const rawUrl = isFullSchema ? p[4] : "";
+    const validUrl = rawUrl.startsWith("http://") || rawUrl.startsWith("https://") ? rawUrl : "";
+    const status = (isFullSchema ? p[10] : p[4]) as CliOAuthSessionStatus;
+    const userEmail = !isFullSchema && p[3]?.includes("@") ? p[3] : undefined;
     return {
       sessionId: p[0],
       provider: p[1] || CliOAuthConstants.DEFAULT_PROVIDER,
       modelId: p[2] || CliOAuthConstants.DEFAULT_MODEL_ID,
-      authMode: p[3] || CliOAuthConstants.AUTH_MODE_OAUTH,
-      oauthUrl: p[4] || "",
-      clientId: p[5] || undefined,
-      state: p[6] || undefined,
-      codeChallenge: p[7] || undefined,
-      redirectUri: p[8] || undefined,
-      cliRedirectUri: p[8] || undefined,
+      authMode: isFullSchema ? p[3] : CliOAuthConstants.AUTH_MODE_OAUTH,
+      oauthUrl: validUrl,
+      clientId: isFullSchema ? p[5] || undefined : undefined,
+      state: isFullSchema ? p[6] || undefined : undefined,
+      codeChallenge: isFullSchema ? p[7] || undefined : undefined,
+      redirectUri: isFullSchema ? p[8] || undefined : undefined,
+      cliRedirectUri: isFullSchema ? p[8] || undefined : undefined,
       appRedirectUri: "http://localhost:8085/oauth2callback",
-      authCode: p[9] || undefined,
-      status: (p[10] as any) || "PENDING",
-      createdAt: p[11] || new Date().toISOString(),
-      updatedAt: p[12] || new Date().toISOString(),
+      authCode: isFullSchema ? p[9] || undefined : undefined,
+      status: status || "PENDING",
+      userEmail,
+      createdAt: isFullSchema ? p[11] || new Date().toISOString() : new Date().toISOString(),
+      updatedAt: isFullSchema ? p[12] || new Date().toISOString() : p[5] || new Date().toISOString(),
     };
   }
 

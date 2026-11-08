@@ -19,19 +19,19 @@ read_yaml_value() {
   local key="$1"
   local default_val="${2:-}"
   if [ -f "$CONFIG_FILE" ]; then
-    local parsed
-    parsed=$(awk -F': *' -v target="$key" '
-      $1 ~ ("(^|[[:space:]]+)" target "$") {
-        val = $2;
-        sub(/^["'\''[:space:]]+/, "", val);
-        sub(/["'\''[:space:]]+$/, "", val);
-        print val;
-        exit;
-      }
-    ' "$CONFIG_FILE" 2>/dev/null || true)
-    if [ -n "$parsed" ]; then
-      echo "$parsed"
-      return 0
+    local line
+    line=$(grep -E "^[[:space:]]*${key}:" "$CONFIG_FILE" 2>/dev/null | head -n 1 || true)
+    if [ -n "$line" ]; then
+      local val="${line#*:}"
+      val="$(echo "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+      val="${val#\"}"
+      val="${val%\"}"
+      val="${val#\'}"
+      val="${val%\'}"
+      if [ -n "$val" ]; then
+        echo "$val"
+        return 0
+      fi
     fi
   fi
   echo "$default_val"

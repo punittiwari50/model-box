@@ -24,7 +24,7 @@ export interface ICliAuthStrategy {
   readonly scriptName: string;
   supports(modelId: string): boolean;
   triggerAuth(options?: CliTriggerOptions): Promise<CliOAuthSession>;
-  getLatestSession(): CliOAuthSession | null;
+  getLatestSession(modelId?: string): CliOAuthSession | null;
   submitAuthCode(sessionId: string, authCode: string): Promise<CliOAuthSession>;
 }
 
@@ -54,13 +54,14 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
       );
     }
 
-    this.spawnScriptProcess(scriptPath, options);
-    return this.pollForSessionResult(options?.customCallbackUrl);
+    const sessionId = `cli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.spawnScriptProcess(scriptPath, sessionId, options);
+    return this.pollForSessionResult(sessionId, options?.customCallbackUrl, options?.modelId || this.defaultModelId);
   }
 
-  private spawnScriptProcess(scriptPath: string, options?: CliTriggerOptions): void {
+  private spawnScriptProcess(scriptPath: string, sessionId: string, options?: CliTriggerOptions): void {
     try {
-      const args: string[] = [];
+      const args: string[] = ["--session-id", sessionId];
       if (options?.userEmail) {
         args.push("--email", options.userEmail);
       }
@@ -75,6 +76,7 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
         stdio: "ignore",
         env: {
           ...processUtils.env,
+          SESSION_ID: sessionId,
           MODEL_ID: options?.modelId || this.defaultModelId,
           PROVIDER: this.provider,
           USER_EMAIL: options?.userEmail || "",
@@ -83,27 +85,47 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
       });
       child.unref();
       logger.info(
-        `[${this.constructor.name}] Spawned ${this.scriptName} in background for user ${options?.userEmail || "unspecified"} (client: ${options?.clientId || "default"}).`,
+        `[${this.constructor.name}] Spawned ${this.scriptName} for session ${sessionId} (user: ${options?.userEmail || "unspecified"}).`,
       );
     } catch (err: unknown) {
       logger.error(`[${this.constructor.name}] Failed to spawn ${this.scriptName}: ${String(err)}`);
     }
   }
 
-  private async pollForSessionResult(customCallbackUrl?: string): Promise<CliOAuthSession> {
+  private async pollForSessionResult(
+    sessionId: string,
+    customCallbackUrl?: string,
+    modelId?: string,
+  ): Promise<CliOAuthSession> {
     const appCallback = customCallbackUrl || "http://localhost:8085/oauth2callback";
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 30; i++) {
       await this.delay(400);
       cliOAuthSessionRepository.syncAll();
-      const session = this.getLatestSession();
-      if (session) {
+      const session = cliOAuthSessionRepository.getSessionById(sessionId);
+      if (session && this.isValidOAuthUrl(session.oauthUrl)) {
         return this.adaptSessionWithAppCallback(session, appCallback);
       }
+      const latest = this.getLatestSession(modelId);
+      if (latest && latest.sessionId === sessionId && this.isValidOAuthUrl(latest.oauthUrl)) {
+        return this.adaptSessionWithAppCallback(latest, appCallback);
+      }
     }
+
+    const fallback = this.getLatestSession(modelId);
+    if (fallback && this.isValidOAuthUrl(fallback.oauthUrl)) {
+      return this.adaptSessionWithAppCallback(fallback, appCallback);
+    }
+
     return this.createErrorSession(
       `Timed out waiting for ${this.cliBinary} OAuth session generation.`,
       "TIMEOUT",
     );
+  }
+
+  private isValidOAuthUrl(url?: string): boolean {
+    if (!url) return false;
+    const trimmed = url.trim();
+    return (trimmed.startsWith("http://") || trimmed.startsWith("https://")) && trimmed.length > 20;
   }
 
   private adaptSessionWithAppCallback(
@@ -148,11 +170,12 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
     return errorSession;
   }
 
-  public getLatestSession(): CliOAuthSession | null {
+  public getLatestSession(modelId?: string): CliOAuthSession | null {
     cliOAuthSessionRepository.syncAll();
+    const targetModel = modelId || this.defaultModelId;
     return (
-      cliOAuthSessionRepository.getLatestPendingSession(this.defaultModelId) ||
-      cliOAuthSessionRepository.getLatestSession(this.defaultModelId)
+      cliOAuthSessionRepository.getLatestPendingSession(targetModel) ||
+      cliOAuthSessionRepository.getLatestSession(targetModel)
     );
   }
 

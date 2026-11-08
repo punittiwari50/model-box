@@ -623,6 +623,27 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const handleExecuteCliLogin = async () => {
     setIsCliLoggingIn(true);
     setActionError(null);
+
+    // Open blank window immediately on user gesture to avoid browser popup blockers
+    const authPopup = typeof window !== "undefined"
+      ? window.open("about:blank", "_blank", "width=650,height=800,scrollbars=yes,resizable=yes")
+      : null;
+
+    if (authPopup?.document) {
+      try {
+        authPopup.document.write(
+          `<!DOCTYPE html><html><head><title>Connecting to ${selectedStrategy.name} CLI...</title></head>` +
+          `<body style="background:#0f172a;color:#f8fafc;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;padding:24px;text-align:center;">` +
+          `<div style="font-size:36px;margin-bottom:16px;">⚡</div>` +
+          `<h2 style="margin:0 0 8px 0;font-size:18px;">Initializing ${selectedStrategy.name} Authentication</h2>` +
+          `<p style="color:#94a3b8;font-size:14px;max-width:420px;line-height:1.5;">Generating authorization session from CLI... You will be redirected momentarily.</p>` +
+          `</body></html>`
+        );
+      } catch {
+        // Best effort placeholder
+      }
+    }
+
     try {
       const refreshedConfig = await ensureAppliedOAuthClientConfiguration();
       const cliResponse = await ApiService.executeCliLogin(targetModelId, {
@@ -632,6 +653,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       });
 
       if (!cliResponse.success || cliResponse.session?.status === "FAILED") {
+        if (authPopup && !authPopup.closed) authPopup.close();
         const errMsg = cliResponse.session?.errorMessage || cliResponse.message || "CLI script execution failed";
         setCliScriptError({ message: errMsg, code: cliResponse.session?.errorCode });
         setActionError(`CLI Script Error [${cliResponse.session?.errorCode || "EXEC_ERROR"}]: ${errMsg}`);
@@ -658,16 +680,26 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       }
 
       const fallbackConfig = refreshedConfig || (await ApiService.fetchModelOAuthConfig(targetModelId));
-      const launchUrl =
+      const rawLaunchUrl =
         cliResponse.loginResult?.config?.authorizationUrl ||
+        cliResponse.session?.oauthUrl ||
         fallbackConfig?.executableLaunchUrl ||
         computedAuthorizationUrl ||
         executableLaunchUrl;
+
+      const isValidLaunchUrl = Boolean(
+        rawLaunchUrl &&
+        (rawLaunchUrl.startsWith("http://") || rawLaunchUrl.startsWith("https://")) &&
+        rawLaunchUrl.length > 20
+      );
+      const launchUrl = isValidLaunchUrl ? rawLaunchUrl : (computedAuthorizationUrl || executableLaunchUrl);
+
       const nextStep = cliResponse.loginResult?.config?.nextStep;
       const setupGuide = cliResponse.loginResult?.config?.setupGuide;
       const needsRegistration = Boolean(cliResponse.loginResult?.config?.requiresClientRegistration && !effectiveClientId);
 
       if (needsRegistration && !launchUrl) {
+        if (authPopup && !authPopup.closed) authPopup.close();
         setIsWaitingForCallback(false);
         const guideSuffix = setupGuide ? ` Setup guide: ${setupGuide}` : "";
         setActionError(`OAuth Client ID is required before browser redirect. Configure Client ID in Advanced OAuth settings.${guideSuffix}`);
@@ -675,29 +707,44 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       }
 
       if (!launchUrl) {
+        if (authPopup && !authPopup.closed) authPopup.close();
         setIsWaitingForCallback(false);
         const fallbackStep = `Run ${selectedStrategy.cliCommand} and complete sign-in in ${selectedStrategy.name} CLI.`;
         const guideSuffix = setupGuide ? ` Setup guide: ${setupGuide}` : "";
         setActionSuccess(`${nextStep || fallbackStep}${guideSuffix}`);
         return;
       }
+
       const launchTarget = resolveHostBrowserLaunchTarget(launchUrl);
       if (launchTarget.requiresExternalBrowser) {
+        if (authPopup && !authPopup.closed) authPopup.close();
         await navigator.clipboard.writeText(launchTarget.targetUrl).catch(() => undefined);
         setIsWaitingForCallback(false);
         setActionError("Google OAuth is not supported in VS Code embedded browser. Authorization URL copied — open it in host Microsoft Edge.");
         return;
       }
+
       setIsWaitingForCallback(true);
       setActiveOAuthStep(2);
       setCliTimeoutSecondsRemaining(300);
-      const popup = window.open(launchTarget.targetUrl, "_blank", "width=600,height=750");
-      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+
+      if (authPopup && !authPopup.closed) {
+        try {
+          authPopup.location.href = launchTarget.targetUrl;
+          setActionSuccess(`Redirecting to ${selectedStrategy.name} authorization portal in opened window...`);
+        } catch {
+          window.open(launchTarget.targetUrl, "_blank", "noopener,noreferrer");
+          setActionSuccess(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
+        }
+      } else {
+        const opened = window.open(launchTarget.targetUrl, "_blank", "noopener,noreferrer");
+        if (!opened || opened.closed || typeof opened.closed === "undefined") {
+          window.location.assign(launchTarget.targetUrl);
+        }
         setActionSuccess(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
-        return;
       }
-      setActionSuccess(`Launching ${selectedStrategy.name} CLI authentication in your browser... Please sign in.`);
     } catch (err: unknown) {
+      if (authPopup && !authPopup.closed) authPopup.close();
       setActionError(err instanceof Error ? err.message : "Failed to generate CLI authentication instructions.");
     } finally {
       setIsCliLoggingIn(false);
@@ -1715,6 +1762,18 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                             <div className="waiting-text">
                               <strong>Browser Opened for OAuth Sign-In</strong>
                               <span>Complete account sign-in in the launched browser tab. Loopback listening on port 8085...</span>
+                              {(computedAuthorizationUrl || executableLaunchUrl) && (
+                                <div style={{ marginTop: "8px" }}>
+                                  <a
+                                    href={computedAuthorizationUrl || executableLaunchUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: "#60a5fa", textDecoration: "underline", fontWeight: 600, fontSize: "0.88rem" }}
+                                  >
+                                    🌐 Did the window not open? Click here to open OAuth Sign-In directly ➔
+                                  </a>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}

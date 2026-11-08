@@ -22,19 +22,19 @@ read_yaml_value() {
   local key="$1"
   local default_val="${2:-}"
   if [ -f "$CONFIG_FILE" ]; then
-    local parsed
-    parsed=$(awk -F': *' -v target="$key" '
-      $1 ~ ("(^|[[:space:]]+)" target "$") {
-        val = $2;
-        sub(/^["'\''[:space:]]+/, "", val);
-        sub(/["'\''[:space:]]+$/, "", val);
-        print val;
-        exit;
-      }
-    ' "$CONFIG_FILE" 2>/dev/null || true)
-    if [ -n "$parsed" ]; then
-      echo "$parsed"
-      return 0
+    local line
+    line=$(grep -E "^[[:space:]]*${key}:" "$CONFIG_FILE" 2>/dev/null | head -n 1 || true)
+    if [ -n "$line" ]; then
+      local val="${line#*:}"
+      val="$(echo "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+      val="${val#\"}"
+      val="${val%\"}"
+      val="${val#\'}"
+      val="${val%\'}"
+      if [ -n "$val" ]; then
+        echo "$val"
+        return 0
+      fi
     fi
   fi
   echo "$default_val"
@@ -56,7 +56,7 @@ readonly CSV_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.csv"
 readonly DAEMON_LOG_FILE="${LOGS_DIR}/antigravity_auth_daemon.log"
 
 readonly OAUTH_BASE_URL="$(read_yaml_value "google_base_url" "https://accounts.google.com/o/oauth2/v2/auth")"
-readonly OAUTH_URL_REGEX="$(read_yaml_value "google_oauth_url_regex" "https://accounts\.google\.com/o/oauth2/[^[:space:]\r\n]+")"
+readonly OAUTH_URL_REGEX="$(read_yaml_value "google_oauth_url_regex" "https://accounts\.google\.com/o/oauth2/[^[:space:]'\"]+")"
 [ -z "${DATETIME_PATTERN:-}" ] && readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
 [ -z "${BACKEND_API_URL:-}" ] && readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
 
@@ -85,6 +85,7 @@ readonly URL_DISCOVERY_TIMEOUT=40
 RESOLVED_CLI_BIN=""
 USER_EMAIL=""
 CLIENT_ID="default"
+SESSION_ID="${SESSION_ID:-}"
 IS_STARTUP=false
 
 # ==============================================================================
@@ -280,6 +281,11 @@ validate_json_syntax() {
 save_session_record() {
   local session_json="$1"
   local session_id="$2"
+  local oauth_url="${3:-}"
+  local client_id="${4:-}"
+  local state="${5:-}"
+  local code_challenge="${6:-}"
+  local redirect_uri="${7:-}"
 
   if ! validate_json_syntax "$session_json"; then
     logger_error "JSON syntax validation failed for session payload. Rejecting write."
@@ -303,11 +309,13 @@ save_session_record() {
     fi
   fi
 
-  # CSV append for tabular review
+  # CSV append for tabular review matching full 13-column schema
   if [ ! -f "$CSV_SESSIONS_FILE" ]; then
-    echo "SESSION_ID,PROVIDER,MODEL_ID,USER_EMAIL,STATUS,UPDATED_AT" > "$CSV_SESSIONS_FILE"
+    echo "SESSION_ID,PROVIDER,MODEL_ID,AUTH_MODE,OAUTH_URL,CLIENT_ID,STATE,CODE_CHALLENGE,REDIRECT_URI,AUTH_CODE,STATUS,CREATED_AT,UPDATED_AT" > "$CSV_SESSIONS_FILE"
   fi
-  echo "\"${session_id}\",\"${DEFAULT_PROVIDER}\",\"${MODEL_ID}\",\"${USER_EMAIL}\",\"PENDING\",\"$(date -u +"${DATETIME_PATTERN}")\"" >> "$CSV_SESSIONS_FILE"
+  local now_ts
+  now_ts="$(date -u +"${DATETIME_PATTERN}")"
+  echo "\"${session_id}\",\"${DEFAULT_PROVIDER}\",\"${MODEL_ID}\",\"${AUTH_MODE_LABEL}\",\"${oauth_url}\",\"${client_id}\",\"${state}\",\"${code_challenge}\",\"${redirect_uri}\",\"\",\"PENDING\",\"${now_ts}\",\"${now_ts}\"" >> "$CSV_SESSIONS_FILE"
 
   logger_info "Saved OAuth session [${session_id}] for user [${USER_EMAIL}] to bidirectional volume."
   return 0
@@ -320,6 +328,11 @@ commit_and_push_to_database() {
   local status="$1"
   local session_id="$2"
   local error_msg="${3:-}"
+  local oauth_url="${4:-}"
+  local client_id="${5:-}"
+  local state="${6:-}"
+  local code_challenge="${7:-}"
+  local redirect_uri="${8:-}"
 
   # 1. Pure in-container Git commit in CREDENTIALS_DIR
   if [ ! -d "${CREDENTIALS_DIR}/.git" ]; then
@@ -341,7 +354,7 @@ commit_and_push_to_database() {
   logger_info "Git commit created in credentials directory: [${commit_id:0:7}] ${commit_msg}"
 
   # 2. Push both authentication and conversation files to database via REST API
-  push_session_to_database "$status" "$session_id" "$commit_id" "$error_msg"
+  push_session_to_database "$status" "$session_id" "$commit_id" "$error_msg" "$oauth_url" "$client_id" "$state" "$code_challenge" "$redirect_uri"
 }
 
 push_session_to_database() {
@@ -349,6 +362,11 @@ push_session_to_database() {
   local session_id="$2"
   local commit_id="$3"
   local error_msg="${4:-}"
+  local oauth_url="${5:-}"
+  local client_id="${6:-}"
+  local state="${7:-}"
+  local code_challenge="${8:-}"
+  local redirect_uri="${9:-}"
   local api_url="${BACKEND_API_URL}/auth/cli-session/sync"
 
   logger_info "Pushing authentication and conversation details to database via REST API..."
@@ -357,6 +375,9 @@ push_session_to_database() {
   local auth_content=""
   if [ -f "$auth_file" ]; then
     auth_content=$(cat "$auth_file" 2>/dev/null | tr -d '\r\n' | sed 's/"/\\"/g' || true)
+    if [ -z "$oauth_url" ]; then
+      oauth_url=$(grep -o '"oauthUrl": *"[^"]*"' "$auth_file" 2>/dev/null | cut -d'"' -f4 || true)
+    fi
   fi
 
   local payload
@@ -369,6 +390,13 @@ push_session_to_database() {
   "userEmail": "$USER_EMAIL",
   "commitId": "$commit_id",
   "errorMessage": "$error_msg",
+  "oauthUrl": "$oauth_url",
+  "clientId": "$client_id",
+  "state": "$state",
+  "codeChallenge": "$code_challenge",
+  "redirectUri": "$redirect_uri",
+  "cliRedirectUri": "$redirect_uri",
+  "appRedirectUri": "http://localhost:8085/oauth2callback",
   "authFileContent": "$auth_content"
 }
 EOF
@@ -418,24 +446,25 @@ run_oauth_daemon() {
 
   # Extract Google OAuth URL using pure shell / grep regex
   local oauth_url=""
+  local clean_regex="${OAUTH_URL_REGEX//\\\\/\\}"
   for ((i=1; i<=URL_DISCOVERY_TIMEOUT; i++)); do
     if [ -f "$CLI_LOG" ]; then
-      oauth_url=$(grep -oE "$OAUTH_URL_REGEX" "$CLI_LOG" 2>/dev/null | head -n 1 || true)
+      oauth_url=$(grep -oE "$clean_regex" "$CLI_LOG" 2>/dev/null | head -n 1 || true)
       if [ -n "$oauth_url" ]; then break; fi
     fi
     sleep 0.5
   done
 
+  local session_id="${SESSION_ID:-$(cat /proc/sys/kernel/random/uuid 2>/dev/null || date +%s%N)}"
+
   if [ -z "$oauth_url" ]; then
     logger_warn "No Google OAuth authorization URL captured within timeout."
-    commit_and_push_to_database "FAILED" "sess-timeout" "URL_DISCOVERY_TIMEOUT"
+    commit_and_push_to_database "FAILED" "$session_id" "URL_DISCOVERY_TIMEOUT"
     return 0
   fi
 
   logger_info "Captured Google OAuth Authorization URL via pure shell regex."
 
-  local session_id
-  session_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || date +%s%N)
   local now
   now=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -468,8 +497,8 @@ run_oauth_daemon() {
 EOF
 )
 
-  save_session_record "$session_json" "$session_id"
-  push_session_to_database "PENDING" "$session_id" "" ""
+  save_session_record "$session_json" "$session_id" "$oauth_url" "$client_id" "$state" "$code_challenge" "$redirect_uri"
+  push_session_to_database "PENDING" "$session_id" "" "" "$oauth_url" "$client_id" "$state" "$code_challenge" "$redirect_uri"
 
   # Await authcode from user callback
   logger_info "Waiting for user authorization code input (timeout: ${AUTH_TIMEOUT_SECONDS}s)..."
@@ -560,6 +589,14 @@ parse_args() {
         ;;
       --model=*|--model-id=*)
         MODEL_ID="${1#*=}"
+        shift
+        ;;
+      --session-id|-s)
+        SESSION_ID="${2:-}"
+        shift 2
+        ;;
+      --session-id=*)
+        SESSION_ID="${1#*=}"
         shift
         ;;
       *)

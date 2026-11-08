@@ -731,12 +731,25 @@ export class ModelConfigController {
       ? "FAILED"
       : "PENDING";
 
+    let resolvedOauthUrl = String(oauthUrl || "");
+    if ((!resolvedOauthUrl || !resolvedOauthUrl.startsWith("http")) && req.body.authFileContent) {
+      try {
+        const parsed = JSON.parse(req.body.authFileContent);
+        if (parsed.oauthUrl && String(parsed.oauthUrl).startsWith("http")) {
+          resolvedOauthUrl = String(parsed.oauthUrl);
+        }
+      } catch {
+        // Fallback best-effort
+      }
+    }
+
     const now = new Date().toISOString();
     const existing = cliOAuthSessionRepository.getSessionById(String(sessionId));
     if (existing) {
       cliOAuthSessionRepository.upsertSession({
         ...existing,
         status: normStatus,
+        oauthUrl: resolvedOauthUrl && resolvedOauthUrl.startsWith("http") ? resolvedOauthUrl : existing.oauthUrl,
         commitId: commitId || existing.commitId,
         userEmail: userEmail || existing.userEmail,
         errorMessage: errorMessage || existing.errorMessage,
@@ -749,7 +762,7 @@ export class ModelConfigController {
         provider: String(provider),
         modelId: String(modelId),
         authMode: "CLI OAuth Daemon",
-        oauthUrl: String(oauthUrl),
+        oauthUrl: resolvedOauthUrl,
         clientId: String(clientId),
         state: String(state),
         codeChallenge: String(codeChallenge),
