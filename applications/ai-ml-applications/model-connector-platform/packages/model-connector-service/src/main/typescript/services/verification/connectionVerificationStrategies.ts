@@ -424,7 +424,7 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
     }
     const isAntigravity = cfg.cliExecutable.includes("antigravity") || cfg.cliExecutable.includes("agy");
     const cmd = isAntigravity
-      ? `${cfg.cliExecutable} -p "${sanitizedPrompt}" --model ${modelId}`
+      ? `${cfg.cliExecutable} -p "${sanitizedPrompt}" --model ${modelId} --dangerously-skip-permissions`
       : `${cfg.cliExecutable} -p "${sanitizedPrompt}" --skip-trust -m ${modelId}`;
     return {
       binary: cfg.cliExecutable,
@@ -558,7 +558,7 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
 
   private async executeCliPlan(plan: CliExecutionPlan, modelId: string, startTime: number, prompt = "ready"): Promise<ConnectionTestResult> {
     try {
-      const result = await childProcessUtils.exec(plan.cmd, { env: plan.env, timeout: 30000 });
+      const result = await childProcessUtils.exec(plan.cmd, { env: plan.env, timeout: 45000 });
       const latencyMs = Date.now() - startTime;
       const stdout = result.stdout ? result.stdout.trim() : "";
       if (stdout.length > 0) {

@@ -345,8 +345,8 @@ export class OAuthOnboardingStrategy implements IOnboardingAuthStrategy {
     this.ensureCliCredentialsSynced();
     try {
       const cleanPrompt = prompt.replace(/"/g, '\\"');
-      const cmd = `antigravity -p "${cleanPrompt}" --model ${modelId}`;
-      const result = await childProcessUtils.exec(cmd, { timeout: 25000 });
+      const cmd = `antigravity -p "${cleanPrompt}" --model ${modelId} --dangerously-skip-permissions`;
+      const result = await childProcessUtils.exec(cmd, { timeout: 45000 });
       const latencyMs = Date.now() - startTime;
       const stdout = (result.stdout || "").trim();
       if (stdout.includes("Authentication required") || stdout.includes("Please visit the URL to log in")) {
@@ -379,12 +379,16 @@ export class OAuthOnboardingStrategy implements IOnboardingAuthStrategy {
         details: { modelId },
       };
     } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const isAuthErr = errMsg.includes("Authentication required") || errMsg.includes("Please visit the URL") || errMsg.includes("authentication failed");
       return {
         status: "FAILED",
         protocol: "Antigravity CLI OAuth",
-        message: "Antigravity CLI authentication required. Click 'Run CLI Auth'.",
+        message: isAuthErr
+          ? "Antigravity CLI authentication required. Click 'Run CLI Auth'."
+          : `Antigravity CLI execution error: ${errMsg}`,
         latencyMs: Date.now() - startTime,
-        errorMessage: err instanceof Error ? err.message : String(err),
+        errorMessage: errMsg,
         details: { modelId },
       };
     }

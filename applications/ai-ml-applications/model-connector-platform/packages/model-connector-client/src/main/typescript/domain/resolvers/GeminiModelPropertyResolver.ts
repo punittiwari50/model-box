@@ -81,7 +81,7 @@ export class GeminiModelPropertyResolver implements IModelPropertyResolver {
 
   private buildCliArgs(isAntigravity: boolean, model: string, sessionId?: string): string[] {
     const args: string[] = isAntigravity
-      ? ["-p", "", "--output-format", "json"]
+      ? ["-p", "", "--output-format", "json", "--dangerously-skip-permissions"]
       : ["--prompt", "", "-o", "json", "--skip-trust"];
     if (model && model !== "gemini") {
       args.push(isAntigravity ? "--model" : "-m", model);
