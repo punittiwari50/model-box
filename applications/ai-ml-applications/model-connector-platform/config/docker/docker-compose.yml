@@ -227,10 +227,13 @@ services:
       - REDIS_PORT=6379
       - MONGO_URI=mongodb://mongodb:27017/model_connector
 
-      # Google Gemini Model Configuration
+      # Google Gemini / Antigravity Model Configuration
+      - FEATURE_DEFAULT_GOOGLE_CLI=${FEATURE_DEFAULT_GOOGLE_CLI:-antigravity}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_DEFAULT_MODEL=${GEMINI_DEFAULT_MODEL:-gemini-3.8-flash}
-      - GEMINI_CLI_COMMAND=${GEMINI_CLI_COMMAND:-gemini}
+      - GEMINI_CLI_COMMAND=${GEMINI_CLI_COMMAND:-antigravity}
+      - GOOGLE_CLI_COMMAND=${GOOGLE_CLI_COMMAND:-antigravity}
+      - GOOGLE_CLI_EXECUTABLE=${GOOGLE_CLI_EXECUTABLE:-antigravity}
       - GEMINI_API_BASE_URL=${GEMINI_API_BASE_URL:-https://generativelanguage.googleapis.com}
       - GEMINI_CLI_OAUTH_CLIENT_ID=${GEMINI_CLI_OAUTH_CLIENT_ID:-}
       - GEMINI_CLI_OAUTH_CLIENT_SECRET=${GEMINI_CLI_OAUTH_CLIENT_SECRET:-}

@@ -109,6 +109,15 @@ const resolveDefaultClientId = (): string => {
 
 export const DEFAULT_GEMINI_CLIENT_ID = resolveDefaultClientId();
 
+const resolveDefaultGoogleCliFeature = (): "antigravity" | "gemini" => {
+  const metaEnv = typeof import.meta !== "undefined" ? (import.meta as { env?: Record<string, string> }).env : undefined;
+  const procEnv = typeof process !== "undefined" ? process.env : undefined;
+  const flag = metaEnv?.VITE_FEATURE_DEFAULT_GOOGLE_CLI || procEnv?.FEATURE_DEFAULT_GOOGLE_CLI;
+  return flag?.toLowerCase() === "gemini" ? "gemini" : "antigravity";
+};
+
+export const DEFAULT_GOOGLE_CLI_FEATURE: "antigravity" | "gemini" = resolveDefaultGoogleCliFeature();
+
 export const CENTRALIZED_PROVIDER_CATALOG: Readonly<Record<string, ProviderEndpointConfig>> = Object.freeze({
   google: Object.freeze({
     providerId: ProviderId.GOOGLE,
@@ -119,18 +128,20 @@ export const CENTRALIZED_PROVIDER_CATALOG: Readonly<Record<string, ProviderEndpo
     accountCategory: "individual",
     baseUrl: "https://generativelanguage.googleapis.com",
     apiVersion: "v1beta",
-    cliExecutable: "gemini",
-    cliArgsTemplate: "-m {model} --non-interactive -o json",
-    cliCommand: "gemini auth login --browser",
+    cliExecutable: DEFAULT_GOOGLE_CLI_FEATURE === "gemini" ? "gemini" : "antigravity",
+    cliArgsTemplate: DEFAULT_GOOGLE_CLI_FEATURE === "gemini" ? "-m {model} --non-interactive -o json" : "--model {model}",
+    cliCommand: DEFAULT_GOOGLE_CLI_FEATURE === "gemini" ? "gemini auth login --browser" : "antigravity",
     authEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenEndpoint: "https://oauth2.googleapis.com/token",
     defaultRedirectUri: DEFAULT_PLATFORM_URLS.oauthCallbackUrl,
     defaultScopes:
       "https://www.googleapis.com/auth/cloud-platform openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
     defaultClientId: DEFAULT_GEMINI_CLIENT_ID,
-    docsUrl: "https://geminicli.com/docs/get-started/authentication/",
-    description: "Official Google Gemini CLI & Google Cloud Platform OAuth 2.0 PKCE",
-    modelKeywords: Object.freeze(["gemini"]),
+    docsUrl: DEFAULT_GOOGLE_CLI_FEATURE === "gemini" ? "https://geminicli.com/docs/get-started/authentication/" : "https://antigravity.google",
+    description: DEFAULT_GOOGLE_CLI_FEATURE === "gemini"
+      ? "Official Google Gemini CLI & Google Cloud Platform OAuth 2.0 PKCE"
+      : "Official Google Antigravity CLI & Google Cloud Platform OAuth 2.0 PKCE",
+    modelKeywords: Object.freeze(["gemini", "antigravity"]),
   }),
   github: Object.freeze({
     providerId: "github",

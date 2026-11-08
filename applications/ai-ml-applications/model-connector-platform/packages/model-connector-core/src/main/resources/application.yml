@@ -52,6 +52,9 @@ logging:
   level: "info"
   format: "json"
 
+features:
+  defaultGoogleCli: "${FEATURE_DEFAULT_GOOGLE_CLI:antigravity}"
+
 # Declarative Multi-Model Provider Master Configurations
 providers:
   google:
@@ -60,19 +63,19 @@ providers:
     authType: "oauth"
     baseUrl: "${GEMINI_API_BASE_URL:https://generativelanguage.googleapis.com}"
     apiVersion: "v1beta"
-    cliExecutable: "gemini"
-    cliArgsTemplate: "-m {model} --non-interactive -o json"
+    cliExecutable: "${GOOGLE_CLI_EXECUTABLE:antigravity}"
+    cliArgsTemplate: "--model {model} --prompt-interactive"
     authEndpoint: "https://accounts.google.com/o/oauth2/v2/auth"
     tokenEndpoint: "https://oauth2.googleapis.com/token"
     userinfoEndpoint: "https://www.googleapis.com/oauth2/v2/userinfo"
     tokeninfoEndpoint: "https://oauth2.googleapis.com/tokeninfo"
-    cliCommand: "gemini auth login --browser"
+    cliCommand: "${GOOGLE_CLI_COMMAND:antigravity}"
     defaultRedirectUri: "http://localhost:8085/oauth2callback"
     defaultScopes: "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
     apiHeader: "Authorization"
     apiHeaderPrefix: "Bearer"
-    docsUrl: "https://geminicli.com/docs/get-started/authentication/"
-    modelKeywords: "gemini"
+    docsUrl: "https://antigravity.google"
+    modelKeywords: "gemini,antigravity"
   anthropic:
     name: "Anthropic Claude"
     icon: "🧠"

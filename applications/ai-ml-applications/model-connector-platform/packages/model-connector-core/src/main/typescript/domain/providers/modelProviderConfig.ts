@@ -198,6 +198,15 @@ export class ModelProviderConfigService implements IProviderConfigRegistry {
 
   private parseProviderFromEnv(providerId: string): IModelProviderConfig {
     const prefix = `providers.${providerId}`;
+    const defaultGoogleCliFeature = this.env.getProperty(
+      "features.defaultGoogleCli",
+      this.env.getProperty("FEATURE_DEFAULT_GOOGLE_CLI", "antigravity"),
+    );
+    const isAntigravityDefault = defaultGoogleCliFeature.toLowerCase() !== "gemini";
+    const defaultCliExec = isAntigravityDefault && providerId === ProviderId.GOOGLE ? "antigravity" : providerId;
+    const defaultCliCommand = isAntigravityDefault && providerId === ProviderId.GOOGLE ? "antigravity" : "";
+    const defaultDocsUrl = isAntigravityDefault && providerId === ProviderId.GOOGLE ? "https://antigravity.google" : "";
+
     const authTypeRaw = this.env.getProperty(`${prefix}.authType`, "oauth");
     const authType = authTypeRaw === "api_key" || authTypeRaw === "none" ? authTypeRaw : "oauth";
     const scopesRaw = this.env.getProperty(`${prefix}.defaultScopes`, "");
@@ -212,7 +221,7 @@ export class ModelProviderConfigService implements IProviderConfigRegistry {
       baseUrl: this.env.getProperty(`${prefix}.baseUrl`, ""),
       oauthBaseUrl: this.env.getProperty(`${prefix}.oauthBaseUrl`, "") || undefined,
       apiVersion: this.env.getProperty(`${prefix}.apiVersion`, "v1"),
-      cliExecutable: this.env.getProperty(`${prefix}.cliExecutable`, providerId),
+      cliExecutable: this.env.getProperty(`${prefix}.cliExecutable`, defaultCliExec),
       cliArgsTemplate: this.env.getProperty(`${prefix}.cliArgsTemplate`, "--model {model}"),
       authEndpoint: this.env.getProperty(`${prefix}.authEndpoint`, ""),
       tokenEndpoint: this.env.getProperty(`${prefix}.tokenEndpoint`, ""),
@@ -221,7 +230,7 @@ export class ModelProviderConfigService implements IProviderConfigRegistry {
       messagesEndpoint: this.env.getProperty(`${prefix}.messagesEndpoint`, "") || undefined,
       chatCompletionsEndpoint: this.env.getProperty(`${prefix}.chatCompletionsEndpoint`, "") || undefined,
       anthropicVersionHeader: this.env.getProperty(`${prefix}.anthropicVersionHeader`, "") || undefined,
-      cliCommand: this.env.getProperty(`${prefix}.cliCommand`, ""),
+      cliCommand: this.env.getProperty(`${prefix}.cliCommand`, defaultCliCommand),
       defaultRedirectUri: this.env.getProperty(
         `${prefix}.defaultRedirectUri`,
         this.getPlatformUrl("oauthCallbackUrl"),
@@ -231,7 +240,7 @@ export class ModelProviderConfigService implements IProviderConfigRegistry {
       clientSecret: "",
       apiHeader: this.env.getProperty(`${prefix}.apiHeader`, "Authorization"),
       apiHeaderPrefix: this.env.getProperty(`${prefix}.apiHeaderPrefix`, "Bearer"),
-      docsUrl: this.env.getProperty(`${prefix}.docsUrl`, ""),
+      docsUrl: this.env.getProperty(`${prefix}.docsUrl`, defaultDocsUrl),
       modelKeywords: Object.freeze(keywordsRaw.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean)),
       fallbackBaseUrls: fallbackUrlsRaw
         ? Object.freeze(fallbackUrlsRaw.split(",").map((u) => u.trim()).filter(Boolean))

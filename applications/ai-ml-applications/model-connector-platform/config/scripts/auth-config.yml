@@ -2,6 +2,9 @@
 # ModelBox CLI Authentication Daemon - Centralized Static Configuration
 # Conforms to STD-COD-002: Zero Hardcoded Magic Literals
 # ==============================================================================
+features:
+  default_google_cli: "antigravity"
+
 oauth:
   google_base_url: "https://accounts.google.com/o/oauth2/v2/auth"
   anthropic_base_url: "https://console.anthropic.com/oauth/authorize"

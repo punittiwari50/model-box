@@ -676,7 +676,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
       if (!launchUrl) {
         setIsWaitingForCallback(false);
-        const fallbackStep = `Run ${selectedStrategy.cliCommand} and complete sign-in in Gemini CLI.`;
+        const fallbackStep = `Run ${selectedStrategy.cliCommand} and complete sign-in in ${selectedStrategy.name} CLI.`;
         const guideSuffix = setupGuide ? ` Setup guide: ${setupGuide}` : "";
         setActionSuccess(`${nextStep || fallbackStep}${guideSuffix}`);
         return;
