@@ -110,6 +110,20 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [editableAccessToken, setEditableAccessToken] = useState<string>("");
   const [isSavingToken, setIsSavingToken] = useState<boolean>(false);
   const [tokenSaveSuccess, setTokenSaveSuccess] = useState<string | null>(null);
+  const [cliTimeoutSecondsRemaining, setCliTimeoutSecondsRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (cliTimeoutSecondsRemaining === null) return;
+    if (cliTimeoutSecondsRemaining <= 0) {
+      setActionError("CLI OAuth authentication timed out (300s limit exceeded). Authorization code was not provided within the 300-second window. Please click 'Run CLI Authentication' again.");
+      setIsWaitingForCallback(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setCliTimeoutSecondsRemaining((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [cliTimeoutSecondsRemaining]);
 
   useEffect(() => {
     if (oauthSession?.accessToken) {
@@ -450,8 +464,10 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     let pollCount = 0;
     const interval = setInterval(async () => {
       pollCount++;
-      if (pollCount > 40) {
+      if (pollCount > 200) {
         setIsWaitingForCallback(false);
+        setCliTimeoutSecondsRemaining(0);
+        setActionError("CLI OAuth authentication timed out (300s limit exceeded). Authorization code was not provided within the 300-second window. Please click 'Run CLI Authentication' again.");
         clearInterval(interval);
         return;
       }
@@ -674,6 +690,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       }
       setIsWaitingForCallback(true);
       setActiveOAuthStep(2);
+      setCliTimeoutSecondsRemaining(300);
       const popup = window.open(launchTarget.targetUrl, "_blank", "width=600,height=750");
       if (!popup || popup.closed || typeof popup.closed === "undefined") {
         setActionSuccess(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
@@ -726,6 +743,10 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   };
 
   const handleCompleteOAuthExchange = async (codeToExchange?: string) => {
+    if (cliTimeoutSecondsRemaining === 0) {
+      setActionError("CLI OAuth authentication timed out (300s limit exceeded). Authorization code submission is rejected. Please click 'Run CLI Authentication' to start a fresh session.");
+      return;
+    }
     const exchangeCode = codeToExchange || redirectAuthCode;
     const strategy = oauthProviderRegistry.getStrategy(selectedProviderId);
     try {
@@ -772,6 +793,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
           }
           setRedirectAuthCode("");
           setTestResult(null);
+          setCliTimeoutSecondsRemaining(null);
           setActiveOAuthStep(3);
           setActionSuccess(`Successfully authorized live OAuth 2.0 session for ${session.email}!`);
           setActionError(null);
@@ -1721,12 +1743,37 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                               </span>
                             </div>
                           </div>
-                          {redirectAuthCode ? (
-                            <span className="code-captured-tag">✔ Code Captured from Browser</span>
-                          ) : (
-                            <span className="code-waiting-tag">Awaiting Browser Redirect</span>
-                          )}
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            {cliTimeoutSecondsRemaining !== null && (
+                              <span
+                                style={{
+                                  fontSize: "0.72rem",
+                                  padding: "3px 10px",
+                                  borderRadius: "100px",
+                                  fontWeight: 700,
+                                  background: cliTimeoutSecondsRemaining === 0 ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.15)",
+                                  color: cliTimeoutSecondsRemaining === 0 ? "#f87171" : "#fbbf24",
+                                  border: `1px solid ${cliTimeoutSecondsRemaining === 0 ? "rgba(239, 68, 68, 0.5)" : "rgba(245, 158, 11, 0.4)"}`,
+                                }}
+                              >
+                                {cliTimeoutSecondsRemaining > 0
+                                  ? `⏱ Timeout: ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
+                                  : "❌ Timed Out (300s limit)"}
+                              </span>
+                            )}
+                            {redirectAuthCode ? (
+                              <span className="code-captured-tag">✔ Code Captured from Browser</span>
+                            ) : (
+                              <span className="code-waiting-tag">Awaiting Browser Redirect</span>
+                            )}
+                          </div>
                         </div>
+
+                        {cliTimeoutSecondsRemaining === 0 && (
+                          <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.4)", borderRadius: "6px", padding: "8px 12px", color: "#fca5a5", fontSize: "0.82rem" }}>
+                            ⚠️ CLI authentication timed out (300s limit exceeded). The authorization code cannot be submitted. Please click &apos;Launch Browser Sign-In&apos; to initiate a fresh session.
+                          </div>
+                        )}
 
                         <div className="authcode-input-row">
                           <div className="authcode-field-wrapper">
@@ -1758,7 +1805,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                           <button
                             type="button"
                             className="btn-submit-authcode"
-                            disabled={!redirectAuthCode.trim()}
+                            disabled={!redirectAuthCode.trim() || cliTimeoutSecondsRemaining === 0}
                             onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
                           >
                             <span>⚡ Verify &amp; Save Auth Code</span>

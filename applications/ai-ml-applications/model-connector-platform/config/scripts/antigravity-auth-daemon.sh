@@ -473,19 +473,31 @@ EOF
 
   # Await authcode from user callback
   logger_info "Waiting for user authorization code input (timeout: ${AUTH_TIMEOUT_SECONDS}s)..."
+  local code_received=false
   for ((s=0; s<AUTH_TIMEOUT_SECONDS; s+=2)); do
     if ! kill -0 "$cli_pid" 2>/dev/null; then
       logger_info "CLI process ${cli_pid} finished. Terminating daemon waiting loop."
       break
     fi
 
+    local detected_code_file=""
     if [ -f "$CODE_FILE" ]; then
+      detected_code_file="$CODE_FILE"
+    elif [ -f "/tmp/antigravity_auth_code.txt" ]; then
+      detected_code_file="/tmp/antigravity_auth_code.txt"
+    elif [ -f "/tmp/gemini_auth_code.txt" ]; then
+      detected_code_file="/tmp/gemini_auth_code.txt"
+    elif [ -f "/tmp/google_auth_code.txt" ]; then
+      detected_code_file="/tmp/google_auth_code.txt"
+    fi
+
+    if [ -n "$detected_code_file" ]; then
       local auth_code
-      auth_code=$(cat "$CODE_FILE" 2>/dev/null | tr -d '\r\n[:space:]')
+      auth_code=$(cat "$detected_code_file" 2>/dev/null | tr -d '\r\n[:space:]')
       if [ -n "$auth_code" ]; then
-        logger_info "Authorization code received! Transmitting to Antigravity CLI stdin..."
+        logger_info "Authorization code received from [${detected_code_file}]! Transmitting to Antigravity CLI stdin..."
         printf "%s\r\n" "$auth_code" >&3
-        rm -f "$CODE_FILE" 2>/dev/null || true
+        rm -f "$CODE_FILE" "/tmp/antigravity_auth_code.txt" "/tmp/gemini_auth_code.txt" "/tmp/google_auth_code.txt" 2>/dev/null || true
 
         sleep 4
         if [ -d "$HOME/.config/antigravity" ]; then
@@ -496,11 +508,22 @@ EOF
         fi
 
         commit_and_push_to_database "COMPLETED" "$session_id" ""
+        code_received=true
         break
       fi
     fi
     sleep 2
   done
+
+  if [ "$code_received" = false ]; then
+    logger_error "OAuth CLI authentication timed out after ${AUTH_TIMEOUT_SECONDS}s. User did not provide authorization code."
+    if kill -0 "$cli_pid" 2>/dev/null; then
+      kill -TERM "$cli_pid" 2>/dev/null || true
+      sleep 0.5
+      kill -9 "$cli_pid" 2>/dev/null || true
+    fi
+    commit_and_push_to_database "FAILED" "$session_id" "CLI_TIMEOUT_300S: Authorization code was not provided within the 300-second window."
+  fi
 
   logger_info "Antigravity OAuth daemon session closed."
 }

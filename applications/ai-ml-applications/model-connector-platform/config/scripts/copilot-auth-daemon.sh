@@ -284,12 +284,19 @@ EOF
 
   local auth_succeeded=false
   for ((s=0; s<AUTH_TIMEOUT_SECONDS; s+=2)); do
+    local detected_code_file=""
     if [ -f "$CODE_FILE" ]; then
+      detected_code_file="$CODE_FILE"
+    elif [ -f "/tmp/copilot_auth_code.txt" ]; then
+      detected_code_file="/tmp/copilot_auth_code.txt"
+    fi
+    if [ -n "$detected_code_file" ]; then
       local code
-      code=$(cat "$CODE_FILE" 2>/dev/null | tr -d '\r\n[:space:]')
+      code=$(cat "$detected_code_file" 2>/dev/null | tr -d '\r\n[:space:]')
       if [ -n "$code" ]; then
         logger_info "Auth code received for Copilot session [${session_id}]."
         auth_succeeded=true
+        rm -f "$CODE_FILE" "/tmp/copilot_auth_code.txt" 2>/dev/null || true
         push_auth_and_conversation_to_db "COMPLETED" "$session_id" ""
         break
       fi
@@ -298,7 +305,8 @@ EOF
   done
 
   if [ "$auth_succeeded" = false ]; then
-    push_auth_and_conversation_to_db "FAILED" "$session_id" "AUTH_CODE_TIMEOUT"
+    logger_error "OAuth CLI authentication timed out after ${AUTH_TIMEOUT_SECONDS}s."
+    push_auth_and_conversation_to_db "FAILED" "$session_id" "CLI_TIMEOUT_300S: Authorization code was not provided within the 300-second window."
   fi
   logger_info "Copilot auth daemon finished."
 }

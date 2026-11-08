@@ -6,6 +6,7 @@ import {
   cliOAuthSessionRepository,
   CliOAuthConstants,
   fileUtils,
+  pathUtils,
 } from "@model-box/model-connector-core";
 import { bidirectionalCredentialVault } from "@model-box/model-connector-client";
 import { accountRepository } from "@/repositories/accountRepository";
@@ -451,12 +452,29 @@ export class OAuthCallbackServer {
       `/tmp/${providerId}_auth_code.txt`,
       `/tmp/${modelId}_auth_code.txt`,
     ];
+    this.appendVenvTriggerFiles(triggerFiles);
     for (const tf of triggerFiles) {
       try {
         fileUtils.writeFileSync(tf, code.trim());
       } catch {
         // Best effort
       }
+    }
+  }
+
+  private appendVenvTriggerFiles(triggerFiles: string[]): void {
+    try {
+      const venvsDir = "/opt/model-connector/venvs";
+      if (!fileUtils.exists(venvsDir)) return;
+      const entries = fileUtils.readdirSync(venvsDir);
+      for (const entry of entries) {
+        const runDir = pathUtils.join(venvsDir, entry, "run");
+        if (fileUtils.exists(runDir)) {
+          triggerFiles.push(pathUtils.join(runDir, "auth_code.txt"));
+        }
+      }
+    } catch {
+      // Best effort discovery
     }
   }
 

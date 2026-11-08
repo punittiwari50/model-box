@@ -16,6 +16,8 @@ import {
   type IProviderConfigRegistry,
   cliOAuthSessionRepository,
   fileUtils,
+  pathUtils,
+  CliOAuthConstants,
   CliAuthStrategyFactory,
   directoryAccountSyncService,
   localDirectoryVcsService,
@@ -367,6 +369,29 @@ export class ModelConfigController {
       return;
     }
 
+    cliOAuthSessionRepository.syncAll();
+    const pendingSession =
+      cliOAuthSessionRepository.getLatestPendingSession(modelId) ||
+      cliOAuthSessionRepository.getLatestSession(modelId);
+    if (pendingSession && pendingSession.authMode?.includes("CLI") && pendingSession.status !== "COMPLETED") {
+      const elapsedSeconds = (Date.now() - new Date(pendingSession.createdAt).getTime()) / 1000;
+      if (pendingSession.status === "EXPIRED" || pendingSession.status === "FAILED" || elapsedSeconds > 300) {
+        cliOAuthSessionRepository.markSessionFailed(
+          pendingSession.sessionId,
+          "CLI OAuth authentication timed out after 300s: Authorization code was not provided within the 300-second window.",
+          "TIMEOUT_300S",
+        );
+        res.status(HttpStatus.REQUEST_TIMEOUT).json({
+          success: false,
+          errorCode: "TIMEOUT_300S",
+          message:
+            "CLI OAuth session timed out (300s limit exceeded). The authorization code was not submitted in time. Please re-run CLI authentication.",
+          correlationId: req.correlationId,
+        });
+        return;
+      }
+    }
+
     try {
       const vcsResult = await directoryAccountSyncService.executeWithVcsTracking(
         modelId,
@@ -546,23 +571,61 @@ export class ModelConfigController {
       return;
     }
 
+    cliOAuthSessionRepository.syncAll();
     const resolvedSessionId =
       sessionId ||
       cliOAuthSessionRepository.getLatestPendingSession(modelId)?.sessionId ||
       cliOAuthSessionRepository.getLatestSession(modelId)?.sessionId ||
       `cli-${Date.now()}`;
 
+    // Validate 300s timeout on session
+    const session = cliOAuthSessionRepository.getSessionById(String(resolvedSessionId));
+    if (session) {
+      const elapsedSeconds = (Date.now() - new Date(session.createdAt).getTime()) / 1000;
+      if (session.status === "EXPIRED" || session.status === "FAILED" || elapsedSeconds > 300) {
+        cliOAuthSessionRepository.markSessionFailed(
+          session.sessionId,
+          "CLI OAuth authentication timed out after 300s: Authorization code was not provided within the 300-second window.",
+          "TIMEOUT_300S",
+        );
+        res.status(HttpStatus.REQUEST_TIMEOUT).json({
+          success: false,
+          errorCode: "TIMEOUT_300S",
+          message:
+            "CLI OAuth session timed out (300s limit exceeded). The authorization code was not submitted in time. Please re-run CLI authentication.",
+          correlationId: req.correlationId,
+        });
+        return;
+      }
+    }
+
     // 1. Update database
     cliOAuthSessionRepository.updateAuthCode(String(resolvedSessionId), String(authCode));
 
-    // 2. Deliver auth code to CLI via trigger files
+    // 2. Deliver auth code to CLI via trigger files and active venvs
     const triggerFiles = [
+      CliOAuthConstants.AUTH_CODE_TRIGGER_FILE,
       "/tmp/antigravity_auth_code.txt",
       "/tmp/gemini_auth_code.txt",
       "/tmp/claude_auth_code.txt",
       "/tmp/chatgpt_auth_code.txt",
       "/tmp/copilot_auth_code.txt",
+      `/tmp/${modelId}_auth_code.txt`,
     ];
+    try {
+      const venvsDir = "/opt/model-connector/venvs";
+      if (fileUtils.exists(venvsDir)) {
+        const entries = fileUtils.readdirSync(venvsDir);
+        for (const entry of entries) {
+          const runDir = pathUtils.join(venvsDir, entry, "run");
+          if (fileUtils.exists(runDir)) {
+            triggerFiles.push(pathUtils.join(runDir, "auth_code.txt"));
+          }
+        }
+      }
+    } catch {
+      // Best effort discovery
+    }
     for (const codeFile of triggerFiles) {
       try {
         fileUtils.writeFileSync(codeFile, String(authCode).trim());
@@ -573,15 +636,15 @@ export class ModelConfigController {
 
     // 3. Persist credentials to bidirectional volume and database
     const mid = modelId || "gemini-3.8-flash";
-    const session = cliOAuthSessionRepository.getSessionById(String(resolvedSessionId));
-    const email = userEmail || session?.userEmail || "authorized.principal@local.vault";
+    const cleanCode = String(authCode).replace(/[^a-zA-Z0-9_-]/g, "");
+    const email = userEmail || session?.userEmail || "punittiwari58@gmail.com";
     const saveResult = bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
       modelId: mid,
       provider: "google",
       userEmail: email,
       accountCategory: "individual",
       outcome: {
-        accessToken: `ya29.authcode_${String(authCode).slice(0, 15)}_${Date.now()}`,
+        accessToken: `ya29.authcode_${cleanCode}`,
         refreshToken: `rt_google_authcode_${Date.now()}`,
         userEmail: email,
         authorizedTimestamp: new Date().toISOString(),
@@ -594,7 +657,11 @@ export class ModelConfigController {
       },
       authMode: "1. Google OAuth (CLI Background Session)",
       cliProcessUsed: "antigravity",
-      rawResponse: { sessionId, authCode, status: "COMPLETED" },
+      rawResponse: {
+        code: authCode,
+        modelId: mid,
+        provider: "google",
+      },
     });
 
     res.status(HttpStatus.OK).json({
