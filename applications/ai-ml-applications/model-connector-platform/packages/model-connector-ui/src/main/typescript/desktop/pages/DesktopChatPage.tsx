@@ -169,7 +169,7 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
                 {state.selectedModel}
               </strong>
               <span style={{ fontSize: "0.72rem", color: "#94a3b8", marginLeft: "6px" }}>
-                via {state.activeStrategy.toUpperCase()}
+                via {state.effectiveStrategy.toUpperCase()}
               </span>
             </div>
           </div>
@@ -254,7 +254,7 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
               <h3>Ready for Multi-Model Inference</h3>
               <p>
                 Selected model: <strong>{state.selectedModel}</strong> via{" "}
-                <strong>{state.activeStrategy.toUpperCase()}</strong> strategy.
+                <strong>{state.effectiveStrategy.toUpperCase()}</strong> strategy.
               </p>
               <div className="quick-suggestions">
                 <button onClick={() => state.handleSendMessage("Hi , whats date time now ?")}>
@@ -347,7 +347,7 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
           {state.isLoading && (
             <div className="desktop-loading-card">
               <div className="spinner" />
-              <span>Processing multi-model inference via {state.activeStrategy.toUpperCase()} strategy...</span>
+              <span>Processing multi-model inference via {state.effectiveStrategy.toUpperCase()} strategy...</span>
             </div>
           )}
         </div>
@@ -434,7 +434,7 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
 
           <div className="spec-row" style={{ marginTop: "12px" }}>
             <span className="spec-label">Strategy:</span>
-            <span className="spec-val uppercase">{state.activeStrategy}</span>
+            <span className="spec-val uppercase">{state.effectiveStrategy}</span>
           </div>
           <div className="spec-row">
             <span className="spec-label">Active Session:</span>

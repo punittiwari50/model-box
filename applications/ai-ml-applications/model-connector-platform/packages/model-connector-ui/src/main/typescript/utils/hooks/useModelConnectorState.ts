@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type {
   ActiveTab,
   StrategyMode,
@@ -19,6 +19,7 @@ import { ModelConstants } from "@/constants/providerConfigConstants";
 export interface ModelConnectorState {
   readonly activeTab: ActiveTab;
   readonly activeStrategy: StrategyMode;
+  readonly effectiveStrategy: StrategyMode;
   readonly selectedModel: string;
   readonly models: UiModel[];
   readonly categories: UiCategory[];
@@ -83,6 +84,22 @@ export function useModelConnectorState(): ModelConnectorState {
 
   // Model Accounts
   const [modelAccounts, setModelAccounts] = useState<UiModelAccount[]>([]);
+
+  const effectiveStrategy: StrategyMode = useMemo(() => {
+    const activeAccount = modelAccounts.find(
+      (a) => a.modelId === selectedModel && a.isActive,
+    );
+    if (activeAccount?.authType === "cli_oauth" || activeAccount?.authType === "oauth") {
+      return "oauth";
+    }
+    if (activeAccount?.authType === "cli") {
+      return "cli";
+    }
+    if (activeAccount?.authType === "cookie") {
+      return "cookie";
+    }
+    return activeStrategy;
+  }, [modelAccounts, selectedModel, activeStrategy]);
 
   const loadSessionMessages = useCallback(async (sessionId: string) => {
     try {
@@ -248,7 +265,7 @@ export function useModelConnectorState(): ModelConnectorState {
     let currentSessionId = activeSessionId;
     if (!currentSessionId) {
       try {
-        const created = await ApiService.createSession(selectedModel, activeStrategy);
+        const created = await ApiService.createSession(selectedModel, effectiveStrategy);
         currentSessionId = created.sessionId;
         setActiveSessionId(currentSessionId);
         if (typeof window !== "undefined") {
@@ -266,7 +283,7 @@ export function useModelConnectorState(): ModelConnectorState {
       role: "user",
       content: prompt,
       model: selectedModel,
-      strategy: activeStrategy,
+      strategy: effectiveStrategy,
       timestamp: new Date().toLocaleTimeString(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
@@ -276,7 +293,7 @@ export function useModelConnectorState(): ModelConnectorState {
       const assistantMsg = await ApiService.sendChat(
         prompt,
         selectedModel,
-        activeStrategy,
+        effectiveStrategy,
         currentSessionId,
       );
       setMessages((prev) => [...prev, assistantMsg]);
@@ -291,7 +308,7 @@ export function useModelConnectorState(): ModelConnectorState {
         role: "assistant",
         content: `⚠️ Error: ${errorText}`,
         model: selectedModel,
-        strategy: activeStrategy,
+        strategy: effectiveStrategy,
         timestamp: new Date().toLocaleTimeString(),
         latencyMs: 0,
       };
@@ -303,7 +320,7 @@ export function useModelConnectorState(): ModelConnectorState {
 
   const handleNewSession = async () => {
     try {
-      const newSession = await ApiService.createSession(selectedModel, activeStrategy);
+      const newSession = await ApiService.createSession(selectedModel, effectiveStrategy);
       setSessions((prev) => [newSession, ...prev]);
       setActiveSessionId(newSession.sessionId);
       if (typeof window !== "undefined") {
@@ -334,6 +351,7 @@ export function useModelConnectorState(): ModelConnectorState {
   return {
     activeTab,
     activeStrategy,
+    effectiveStrategy,
     selectedModel,
     models,
     categories,

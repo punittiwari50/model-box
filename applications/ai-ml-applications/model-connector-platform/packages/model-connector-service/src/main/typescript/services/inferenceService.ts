@@ -2,6 +2,7 @@ import { randomUUID } from "@model-box/model-connector-core";
 import type {
   ExecutionRequest,
   ExecutionResponse,
+  ExecutionStrategy,
   StreamChunk,
 } from "@model-box/model-connector-client";
 import { modelService } from "@/services/modelService";
@@ -12,46 +13,32 @@ export class InferenceService {
   public async executeChat(request: ExecutionRequest): Promise<ExecutionResponse> {
     const sessionId = request.sessionId || randomUUID();
     const model = request.model || "gemini-3.8-flash";
-    const strategy = request.strategy || "api";
+    const { effectiveStrategy, effectiveApiKey, effectiveOAuthToken, activeAccount } =
+      this.resolveEffectiveCredentials(request, model);
 
-    // 1. Ensure persistent session exists
-    sessionRepository.getOrCreateSession(sessionId, model, strategy);
-
-    // 2. Persist incoming user prompt to database
+    sessionRepository.getOrCreateSession(sessionId, model, effectiveStrategy);
     sessionRepository.saveMessage({
       sessionId,
       role: "user",
       content: request.prompt,
       model,
-      strategy,
+      strategy: effectiveStrategy,
     });
 
-    // 3. Resolve active account credential for this model if available
-    const activeAccount = accountRepository.getActiveAccount(model);
-    let effectiveApiKey = request.apiKey;
-    if (!effectiveApiKey && activeAccount?.credentialValue) {
-      effectiveApiKey = activeAccount.credentialValue;
-    }
-
     const client = modelService.getClient();
-    const effectiveRequest: ExecutionRequest = {
-      ...request,
-      model,
-      strategy,
-      sessionId,
-      apiKey: effectiveApiKey,
-      oauthToken: request.oauthToken || (activeAccount?.authType === "cli_oauth" ? activeAccount.credentialValue : undefined),
-      userId: request.userId || activeAccount?.userEmail,
-      userEmail: request.userEmail || activeAccount?.userEmail,
-      accountId: request.accountId || activeAccount?.accountId,
-      taskId: request.taskId,
-      requestId: request.requestId,
-    };
-
-    // 4. Execute inference
     let response: ExecutionResponse;
     try {
-      response = await client.execute(effectiveRequest);
+      response = await client.execute({
+        ...request,
+        model,
+        strategy: effectiveStrategy,
+        sessionId,
+        apiKey: effectiveApiKey,
+        oauthToken: effectiveOAuthToken,
+        userId: request.userId || activeAccount?.userEmail,
+        userEmail: request.userEmail || activeAccount?.userEmail,
+        accountId: request.accountId || activeAccount?.accountId,
+      });
     } catch (err: unknown) {
       if (this.isUnauthorizedError(err) && activeAccount?.authType !== "cli_oauth") {
         accountRepository.deactivateActiveAccount(model);
@@ -59,40 +46,24 @@ export class InferenceService {
       throw err;
     }
 
-    // 5. Persist assistant response to database
     sessionRepository.saveMessage({
       sessionId,
       role: "assistant",
       content: response.content,
       model: response.model || model,
-      strategy: response.strategyUsed || strategy,
+      strategy: response.strategyUsed || effectiveStrategy,
       tokenCount: response.tokenMetrics?.totalTokens,
       latencyMs: response.latencyMs,
     });
 
-    // 6. Update session turn count and timestamps
     sessionRepository.updateSessionOnMessage(
       sessionId,
       response.model || model,
-      response.strategyUsed || strategy,
+      response.strategyUsed || effectiveStrategy,
       request.prompt,
     );
 
-    const isFallback = Boolean(response.fallbackOccurred || (response.model && response.model !== model));
-    const fallbackReason =
-      (response.metadata?.fallbackReason as string) ||
-      (isFallback
-        ? `Authentication token for '${model}' is expired or rejected by cloud provider. Automatically routed to local ${response.model} (${response.fallbackProvider || "Ollama"}).`
-        : undefined);
-
-    return {
-      ...response,
-      sessionId,
-      requestedModel: model,
-      fallbackOccurred: isFallback,
-      fallbackReason,
-      fallbackProvider: response.fallbackProvider || (isFallback ? "ollama" : undefined),
-    };
+    return this.buildExecutionPayload(response, sessionId, model);
   }
 
   public async streamChat(
@@ -101,22 +72,17 @@ export class InferenceService {
   ): Promise<ExecutionResponse> {
     const sessionId = request.sessionId || randomUUID();
     const model = request.model || "gemini-3.8-flash";
-    const strategy = request.strategy || "api";
+    const { effectiveStrategy, effectiveApiKey, effectiveOAuthToken, activeAccount } =
+      this.resolveEffectiveCredentials(request, model);
 
-    sessionRepository.getOrCreateSession(sessionId, model, strategy);
+    sessionRepository.getOrCreateSession(sessionId, model, effectiveStrategy);
     sessionRepository.saveMessage({
       sessionId,
       role: "user",
       content: request.prompt,
       model,
-      strategy,
+      strategy: effectiveStrategy,
     });
-
-    const activeAccount = accountRepository.getActiveAccount(model);
-    let effectiveApiKey = request.apiKey;
-    if (!effectiveApiKey && activeAccount?.credentialValue) {
-      effectiveApiKey = activeAccount.credentialValue;
-    }
 
     const client = modelService.getClient();
     let response: ExecutionResponse;
@@ -125,15 +91,13 @@ export class InferenceService {
         {
           ...request,
           model,
-          strategy,
+          strategy: effectiveStrategy,
           sessionId,
           apiKey: effectiveApiKey,
-          oauthToken: request.oauthToken || (activeAccount?.authType === "cli_oauth" ? activeAccount.credentialValue : undefined),
+          oauthToken: effectiveOAuthToken,
           userId: request.userId || activeAccount?.userEmail,
           userEmail: request.userEmail || activeAccount?.userEmail,
           accountId: request.accountId || activeAccount?.accountId,
-          taskId: request.taskId,
-          requestId: request.requestId,
         },
         onChunk,
       );
@@ -149,7 +113,7 @@ export class InferenceService {
       role: "assistant",
       content: response.content,
       model: response.model || model,
-      strategy: response.strategyUsed || strategy,
+      strategy: response.strategyUsed || effectiveStrategy,
       tokenCount: response.tokenMetrics?.totalTokens,
       latencyMs: response.latencyMs,
     });
@@ -157,10 +121,37 @@ export class InferenceService {
     sessionRepository.updateSessionOnMessage(
       sessionId,
       response.model || model,
-      response.strategyUsed || strategy,
+      response.strategyUsed || effectiveStrategy,
       request.prompt,
     );
 
+    return this.buildExecutionPayload(response, sessionId, model);
+  }
+
+  private resolveStrategyFromAuthType(authType?: string, fallback: ExecutionStrategy = "api"): ExecutionStrategy {
+    if (authType === "oauth" || authType === "cli_oauth") return "oauth";
+    if (authType === "cli") return "cli";
+    if (authType === "cookie") return "cookie";
+    return fallback;
+  }
+
+  private resolveEffectiveCredentials(request: ExecutionRequest, model: string) {
+    const activeAccount = accountRepository.getActiveAccount(model);
+    const effectiveStrategy = this.resolveStrategyFromAuthType(activeAccount?.authType, request.strategy || "api");
+    const isOAuth = effectiveStrategy === "oauth";
+    return {
+      effectiveStrategy,
+      effectiveApiKey: isOAuth ? request.apiKey : (request.apiKey || activeAccount?.credentialValue),
+      effectiveOAuthToken: isOAuth ? (activeAccount?.credentialValue || request.oauthToken) : request.oauthToken,
+      activeAccount,
+    };
+  }
+
+  private buildExecutionPayload(
+    response: ExecutionResponse,
+    sessionId: string,
+    model: string,
+  ): ExecutionResponse {
     const isFallback = Boolean(response.fallbackOccurred || (response.model && response.model !== model));
     const fallbackReason =
       (response.metadata?.fallbackReason as string) ||

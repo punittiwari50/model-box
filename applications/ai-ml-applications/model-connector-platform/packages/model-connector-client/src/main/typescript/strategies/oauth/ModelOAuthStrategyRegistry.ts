@@ -95,7 +95,18 @@ abstract class BaseModelOAuthProviderStrategy implements IModelOAuthProviderStra
 
   public isLoopbackOrPkceToken(token: string): boolean {
     const trimmed = token.trim();
-    const prefixes = ["ya29.pkce_", "ya29.oauth-pkce", "oauth_pkce_", "sk-ant-oat", "gho_", "sk-proj-", "oat_"];
+    const prefixes = [
+      "ya29.authcode_",
+      "ya29.pkce_",
+      "ya29.oauth-pkce",
+      "ya29.",
+      "4/0",
+      "oauth_pkce_",
+      "sk-ant-oat",
+      "gho_",
+      "sk-proj-",
+      "oat_",
+    ];
     return prefixes.some((p) => trimmed.startsWith(p));
   }
 

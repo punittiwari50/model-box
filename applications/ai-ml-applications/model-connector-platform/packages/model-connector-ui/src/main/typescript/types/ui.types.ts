@@ -8,7 +8,7 @@ export type ActiveTab =
   | "model-config"
   | "admin-rbac";
 
-export type StrategyMode = "cli" | "api" | "cookie";
+export type StrategyMode = "cli" | "api" | "cookie" | "oauth";
 
 export interface UiUser {
   readonly userId: string;
