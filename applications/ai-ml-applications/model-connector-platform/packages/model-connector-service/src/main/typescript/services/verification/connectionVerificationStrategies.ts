@@ -363,7 +363,7 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
       headers,
       body: JSON.stringify({ contents: [{ parts: [{ text: ctx.userPrompt }] }] }),
     });
-    return this.parseGeminiResponse(res, ctx.modelId, ctx.startTime, isOAuth);
+    return this.parseGeminiResponse(res, ctx.modelId, ctx.startTime, isOAuth, ctx.userPrompt);
   }
 
   private async parseGeminiResponse(
@@ -371,6 +371,7 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
     modelId: string,
     startTime: number,
     isOAuth = false,
+    prompt = "ready",
   ): Promise<ConnectionTestResult> {
     const latencyMs = Date.now() - startTime;
     const data = (await res.json().catch(() => ({}))) as {
@@ -394,12 +395,14 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
         details: (data?.error as Record<string, unknown>) || {},
       };
     }
+    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Response received.";
+    const modelOutput = `[${modelId} Live REST Output]\n\nPrompt (Request):\n${prompt}\n\nResponse:\n${candidateText}`;
     return {
       status: "VERIFIED",
       protocol: "REST API HTTPS / v1beta",
       message: `API handshake successful for '${modelId}'. Live model output verified.`,
       latencyMs,
-      modelOutput: data?.candidates?.[0]?.content?.parts?.[0]?.text || "Response received.",
+      modelOutput,
       details: { modelId, tokensConsumed: data?.usageMetadata?.totalTokenCount || 0 },
     };
   }
@@ -552,10 +555,10 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
     }
     const sanitizedPrompt = ctx.userPrompt.replace(/"/g, '\\"');
     const plan = providerStrategy.buildCliPlan(ctx.modelId, sanitizedPrompt, effectiveCred);
-    return this.executeCliPlan(plan, ctx.modelId, ctx.startTime);
+    return this.executeCliPlan(plan, ctx.modelId, ctx.startTime, ctx.userPrompt);
   }
 
-  private async executeCliPlan(plan: CliExecutionPlan, modelId: string, startTime: number): Promise<ConnectionTestResult> {
+  private async executeCliPlan(plan: CliExecutionPlan, modelId: string, startTime: number, prompt = "ready"): Promise<ConnectionTestResult> {
     try {
       const result = await childProcessUtils.exec(plan.cmd, { env: plan.env, timeout: 30000 });
       const latencyMs = Date.now() - startTime;
@@ -566,7 +569,7 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
           protocol: `CLI Subshell (${plan.binary})`,
           message: `${plan.binary} CLI subshell executed successfully.`,
           latencyMs,
-          modelOutput: stdout,
+          modelOutput: `[${plan.binary} CLI Verified]\nModel: ${modelId}\n\nPrompt (Request):\n${prompt}\n\nResponse:\n${stdout}`,
           details: { binary: plan.binary, modelId },
         };
       }

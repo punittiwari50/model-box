@@ -48,6 +48,34 @@ interface AuthenticatedOAuthSession {
   readonly authCode?: string;
 }
 
+interface ParsedModelOutput {
+  readonly hasSplit: boolean;
+  readonly metaText: string;
+  readonly promptText: string;
+  readonly responseText: string;
+}
+
+function parseStructuredModelOutput(output?: string): ParsedModelOutput | null {
+  if (!output) return null;
+  const promptMatch = output.match(/Prompt(?:\s*\(Request\))?:\s*([\s\S]*?)(?=\n\s*Response:|$)/i);
+  const responseMatch = output.match(/Response:\s*([\s\S]*)$/i);
+  if (promptMatch && responseMatch) {
+    const metaText = output.split(/Prompt(?:\s*\(Request\))?:/i)[0].trim();
+    return {
+      hasSplit: true,
+      metaText,
+      promptText: promptMatch[1].trim(),
+      responseText: responseMatch[1].trim(),
+    };
+  }
+  return {
+    hasSplit: false,
+    metaText: "",
+    promptText: "",
+    responseText: output,
+  };
+}
+
 export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ state }) => {
   const initialGoogleStrategy = oauthProviderRegistry.getStrategy(ProviderId.GOOGLE);
   const initialDefaults = initialGoogleStrategy.resolveCliDefaults(ModelConstants.DEFAULT_MODEL_ID);
@@ -2367,28 +2395,63 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
           </form>
 
           {/* Test Connection Results Feedback Panel */}
-          {testResult && (
-            <div className={`test-feedback-panel ${testResult.status.toLowerCase()}`}>
-              <div className="feedback-header">
-                <span className="status-badge">{testResult.status}</span>
-                <span className="protocol-badge">{testResult.protocol.toUpperCase()}</span>
-                <span className="latency-badge">{testResult.latencyMs}ms</span>
+          {testResult && (() => {
+            const parsed = parseStructuredModelOutput(testResult.modelOutput);
+            return (
+              <div className={`test-feedback-panel ${testResult.status.toLowerCase()}`}>
+                <div className="feedback-header">
+                  <span className="feedback-status-pill status-badge">
+                    {testResult.status === "VERIFIED" ? "✓ VERIFIED" : "✕ FAILED"}
+                  </span>
+                  <span className="feedback-protocol protocol-badge">{testResult.protocol.toUpperCase()}</span>
+                  <span className="feedback-latency latency-badge">⚡ {testResult.latencyMs}ms</span>
+                </div>
+                <p className="feedback-msg feedback-message">{testResult.message}</p>
+
+                {parsed && parsed.hasSplit ? (
+                  <div className="feedback-model-output model-output-box structured">
+                    {parsed.metaText && (
+                      <div className="output-meta-banner">
+                        <pre className="meta-text">{parsed.metaText}</pre>
+                      </div>
+                    )}
+                    <div className="output-split-view">
+                      <div className="split-block request-block">
+                        <div className="split-label">
+                          <span className="split-icon">⚡</span>
+                          <span>Prompt (Request)</span>
+                        </div>
+                        <div className="split-body">{parsed.promptText}</div>
+                      </div>
+                      <div className="split-block response-block">
+                        <div className="split-label">
+                          <span className="split-icon">🤖</span>
+                          <span>Model Verification Response</span>
+                        </div>
+                        <div className="split-body">{parsed.responseText}</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : testResult.modelOutput ? (
+                  <div className="feedback-model-output model-output-box">
+                    <div className="output-header output-label">
+                      <span className="output-title-badge">🤖 MODEL VERIFICATION RESPONSE</span>
+                    </div>
+                    <pre className="output-content">{testResult.modelOutput}</pre>
+                  </div>
+                ) : null}
+
+                {testResult.errorMessage && (
+                  <div className="feedback-error-output error-box">
+                    <div className="error-header error-label">
+                      <span>⚠️ Execution Diagnostic Error:</span>
+                    </div>
+                    <p className="error-content">{testResult.errorMessage}</p>
+                  </div>
+                )}
               </div>
-              <p className="feedback-message">{testResult.message}</p>
-              {testResult.modelOutput && (
-                <div className="model-output-box">
-                  <span className="output-label">Model Verification Response:</span>
-                  <pre className="output-content">{testResult.modelOutput}</pre>
-                </div>
-              )}
-              {testResult.errorMessage && (
-                <div className="error-box">
-                  <span className="error-label">Execution Diagnostic Error:</span>
-                  <p>{testResult.errorMessage}</p>
-                </div>
-              )}
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Right Column: Existing Configured Accounts Catalog */}
@@ -2515,21 +2578,34 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                   </button>
                 </div>
 
-                {accountTestResults[acc.accountId] && (
-                  <div className={`account-test-result-panel ${accountTestResults[acc.accountId].status.toLowerCase()}`}>
-                    <div className="res-header">
-                      <span className="res-pill">{accountTestResults[acc.accountId].status}</span>
-                      <span className="res-latency">{accountTestResults[acc.accountId].latencyMs}ms</span>
+                {accountTestResults[acc.accountId] && (() => {
+                  const r = accountTestResults[acc.accountId];
+                  const parsed = parseStructuredModelOutput(r.modelOutput);
+                  return (
+                    <div className={`account-test-result-panel ${r.status.toLowerCase()}`}>
+                      <div className="res-header">
+                        <span className="res-pill">{r.status}</span>
+                        <span className="res-latency">⚡ {r.latencyMs}ms</span>
+                      </div>
+                      <div className="res-msg">{r.message}</div>
+                      {parsed && parsed.hasSplit ? (
+                        <div className="output-split-view mini">
+                          <div className="split-block request-block">
+                            <div className="split-label">⚡ Prompt:</div>
+                            <div className="split-body">{parsed.promptText}</div>
+                          </div>
+                          <div className="split-block response-block">
+                            <div className="split-label">🤖 Response:</div>
+                            <div className="split-body">{parsed.responseText}</div>
+                          </div>
+                        </div>
+                      ) : r.modelOutput ? (
+                        <pre className="res-output">{r.modelOutput}</pre>
+                      ) : null}
+                      {r.errorMessage && <div className="res-error">{r.errorMessage}</div>}
                     </div>
-                    <div className="res-msg">{accountTestResults[acc.accountId].message}</div>
-                    {accountTestResults[acc.accountId].modelOutput && (
-                      <pre className="res-output">{accountTestResults[acc.accountId].modelOutput}</pre>
-                    )}
-                    {accountTestResults[acc.accountId].errorMessage && (
-                      <div className="res-error">{accountTestResults[acc.accountId].errorMessage}</div>
-                    )}
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             ))}
           </div>
