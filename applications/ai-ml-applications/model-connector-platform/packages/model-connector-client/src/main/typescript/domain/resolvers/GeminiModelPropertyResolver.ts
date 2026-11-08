@@ -70,15 +70,26 @@ export class GeminiModelPropertyResolver implements IModelPropertyResolver {
     sessionId?: string,
     credentialValue?: string,
   ): CliCommandSpec {
-    const binary = environment.getProperty("gemini.cli.command", DefaultCliCommand.GEMINI);
-    const args: string[] = ["--prompt", "", "-o", "json", "--skip-trust"];
+    const binary = environment.getProperty(
+      "google.cli.executable",
+      environment.getProperty("gemini.cli.command", DefaultCliCommand.GEMINI),
+    );
+    const isAntigravity = binary.includes("antigravity") || binary.includes("agy");
+    const args = this.buildCliArgs(isAntigravity, model, sessionId);
+    return { binary, args, env: this.buildCliEnv(credentialValue) };
+  }
+
+  private buildCliArgs(isAntigravity: boolean, model: string, sessionId?: string): string[] {
+    const args: string[] = isAntigravity
+      ? ["-p", "", "--output-format", "json"]
+      : ["--prompt", "", "-o", "json", "--skip-trust"];
     if (model && model !== "gemini") {
-      args.push("-m", model);
+      args.push(isAntigravity ? "--model" : "-m", model);
     }
     if (sessionId) {
-      args.push("--session-id", sessionId);
+      args.push(isAntigravity ? "--conversation" : "--session-id", sessionId);
     }
-    return { binary, args, env: this.buildCliEnv(credentialValue) };
+    return args;
   }
 
   private buildCliEnv(credentialValue?: string): Readonly<Record<string, string>> {

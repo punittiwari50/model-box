@@ -407,7 +407,7 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
     };
   }
 
-  public buildCliPlan(_modelId: string, sanitizedPrompt: string, credential: string): CliExecutionPlan {
+  public buildCliPlan(modelId: string, sanitizedPrompt: string, credential: string): CliExecutionPlan {
     const cfg = this.configRegistry.getProviderConfig(ProviderId.GOOGLE);
     const baseEnv: Record<string, string | undefined> = {
       ...processUtils.env,
@@ -422,9 +422,13 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
       baseEnv.GEMINI_API_KEY = token;
       baseEnv.GOOGLE_API_KEY = token;
     }
+    const isAntigravity = cfg.cliExecutable.includes("antigravity") || cfg.cliExecutable.includes("agy");
+    const cmd = isAntigravity
+      ? `${cfg.cliExecutable} -p "${sanitizedPrompt}" --model ${modelId}`
+      : `${cfg.cliExecutable} -p "${sanitizedPrompt}" --skip-trust -m ${modelId}`;
     return {
       binary: cfg.cliExecutable,
-      cmd: `${cfg.cliExecutable} -p "${sanitizedPrompt}" --skip-trust`,
+      cmd,
       env: baseEnv,
     };
   }
@@ -547,12 +551,6 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
     }
     const effectiveCred = this.resolveEffectiveCliCredential(ctx.modelId, ctx.credentialValue);
     const providerStrategy = this.providerRegistry.resolve(ctx.modelId);
-    if (this.shouldPreferApiVerification(effectiveCred)) {
-      return providerStrategy.verifyApi({
-        ...ctx,
-        credentialValue: effectiveCred,
-      });
-    }
     const sanitizedPrompt = ctx.userPrompt.replace(/"/g, '\\"');
     const plan = providerStrategy.buildCliPlan(ctx.modelId, sanitizedPrompt, effectiveCred);
     return this.executeCliPlan(plan, ctx.modelId, ctx.startTime, ctx.userPrompt);
@@ -564,6 +562,16 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
       const latencyMs = Date.now() - startTime;
       const stdout = result.stdout ? result.stdout.trim() : "";
       if (stdout.length > 0) {
+        if (stdout.includes("Authentication required") || stdout.includes("Please visit the URL to log in")) {
+          return {
+            status: "FAILED",
+            protocol: `CLI Subshell (${plan.binary})`,
+            message: `${plan.binary} CLI requires authentication. Run CLI Login to authenticate.`,
+            latencyMs,
+            errorMessage: "CLI authentication required. Please run 'Run CLI Auth' to log in.",
+            details: { binary: plan.binary, modelId },
+          };
+        }
         return {
           status: "VERIFIED",
           protocol: `CLI Subshell (${plan.binary})`,
@@ -602,12 +610,6 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
   private isNonCommandCredential(value: string): boolean {
     if (value.length === 0) return false;
     return !CLI_COMMAND_PREFIXES.some((prefix) => value.startsWith(prefix));
-  }
-
-  private shouldPreferApiVerification(credential: string): boolean {
-    const token = credential.trim();
-    if (token.length === 0) return false;
-    return token.startsWith("ya29.") || token.startsWith("Bearer ");
   }
 }
 

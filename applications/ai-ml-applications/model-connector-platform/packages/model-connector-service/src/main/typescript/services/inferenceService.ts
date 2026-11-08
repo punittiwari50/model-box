@@ -128,16 +128,19 @@ export class InferenceService {
     return this.buildExecutionPayload(response, sessionId, model);
   }
 
-  private resolveStrategyFromAuthType(authType?: string, fallback: ExecutionStrategy = "api"): ExecutionStrategy {
-    if (authType === "oauth" || authType === "cli_oauth") return "oauth";
+  private resolveStrategyFromAuthType(requestStrategy?: ExecutionStrategy, authType?: string): ExecutionStrategy {
+    if (requestStrategy && requestStrategy !== "api") {
+      return requestStrategy;
+    }
     if (authType === "cli") return "cli";
+    if (authType === "oauth" || authType === "cli_oauth") return "oauth";
     if (authType === "cookie") return "cookie";
-    return fallback;
+    return requestStrategy || "api";
   }
 
   private resolveEffectiveCredentials(request: ExecutionRequest, model: string) {
     const activeAccount = accountRepository.getActiveAccount(model);
-    const effectiveStrategy = this.resolveStrategyFromAuthType(activeAccount?.authType, request.strategy || "api");
+    const effectiveStrategy = this.resolveStrategyFromAuthType(request.strategy, activeAccount?.authType);
     const isOAuth = effectiveStrategy === "oauth";
     return {
       effectiveStrategy,

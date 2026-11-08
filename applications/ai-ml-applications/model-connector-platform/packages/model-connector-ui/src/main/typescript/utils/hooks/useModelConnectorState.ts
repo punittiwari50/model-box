@@ -84,22 +84,36 @@ export function useModelConnectorState(): ModelConnectorState {
 
   // Model Accounts
   const [modelAccounts, setModelAccounts] = useState<UiModelAccount[]>([]);
+  const [isStrategyManuallySelected, setIsStrategyManuallySelected] = useState<boolean>(false);
+
+  const handleSetActiveStrategy = useCallback((strat: StrategyMode) => {
+    setActiveStrategy(strat);
+    setIsStrategyManuallySelected(true);
+  }, []);
+
+  const handleSetSelectedModel = useCallback((model: string) => {
+    setSelectedModel(model);
+    setIsStrategyManuallySelected(false);
+  }, []);
 
   const effectiveStrategy: StrategyMode = useMemo(() => {
+    if (isStrategyManuallySelected) {
+      return activeStrategy;
+    }
     const activeAccount = modelAccounts.find(
       (a) => a.modelId === selectedModel && a.isActive,
     );
-    if (activeAccount?.authType === "cli_oauth" || activeAccount?.authType === "oauth") {
-      return "oauth";
-    }
     if (activeAccount?.authType === "cli") {
       return "cli";
+    }
+    if (activeAccount?.authType === "cli_oauth" || activeAccount?.authType === "oauth") {
+      return "oauth";
     }
     if (activeAccount?.authType === "cookie") {
       return "cookie";
     }
     return activeStrategy;
-  }, [modelAccounts, selectedModel, activeStrategy]);
+  }, [modelAccounts, selectedModel, activeStrategy, isStrategyManuallySelected]);
 
   const loadSessionMessages = useCallback(async (sessionId: string) => {
     try {
@@ -372,8 +386,8 @@ export function useModelConnectorState(): ModelConnectorState {
     modelAccounts,
     refreshModelAccounts,
     setActiveTab,
-    setActiveStrategy,
-    setSelectedModel,
+    setActiveStrategy: handleSetActiveStrategy,
+    setSelectedModel: handleSetSelectedModel,
     setActiveSessionId: handleSelectSession,
     handleSendMessage,
     handleNewSession,

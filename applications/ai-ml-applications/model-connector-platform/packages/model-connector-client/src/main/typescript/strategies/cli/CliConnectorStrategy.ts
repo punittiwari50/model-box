@@ -162,7 +162,17 @@ export class CliConnectorStrategy implements IConnectorStrategy {
     const { location, sessionEnv } = this.prepareSessionAuth(ticket, model);
     const mergedBaseEnv = { ...(spec.env || {}), ...(sessionEnv || {}) };
     const isolatedEnv = this.coordinator.buildIsolatedEnv(ticket, mergedBaseEnv);
-    return { binary: spec.binary, args: [...spec.args], env: isolatedEnv, authLocation: location };
+    const args = this.injectPromptArgs(spec.args, request.prompt);
+    return { binary: spec.binary, args, env: isolatedEnv, authLocation: location };
+  }
+
+  private injectPromptArgs(specArgs: readonly string[], prompt: string): string[] {
+    const args = [...specArgs];
+    const pIdx = args.indexOf("-p") !== -1 ? args.indexOf("-p") : args.indexOf("--prompt");
+    if (pIdx !== -1 && (args[pIdx + 1] === "" || args[pIdx + 1] === undefined)) {
+      args[pIdx + 1] = prompt;
+    }
+    return args;
   }
 
   private prepareSessionAuth(

@@ -90,8 +90,8 @@ export const DefaultEndpoint = Object.freeze({
 });
 
 export const DefaultCliCommand = Object.freeze({
-  DEFAULT: environment.getProperty("providers.google.cliExecutable", "gemini"),
-  GEMINI: environment.getProperty("providers.google.cliExecutable", "gemini"),
+  DEFAULT: environment.getProperty("google.cli.executable", environment.getProperty("providers.google.cliExecutable", "antigravity")),
+  GEMINI: environment.getProperty("google.cli.executable", environment.getProperty("providers.google.cliExecutable", "antigravity")),
   FALLBACK: environment.getProperty("providers.ollama.cliExecutable", "ollama"),
   OLLAMA: environment.getProperty("providers.ollama.cliExecutable", "ollama"),
   OPENAI: environment.getProperty("providers.openai.cliExecutable", "openai"),

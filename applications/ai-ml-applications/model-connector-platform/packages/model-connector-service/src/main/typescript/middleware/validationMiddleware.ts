@@ -5,7 +5,7 @@ import { HttpStatus } from "@/constants/index";
 export const chatRequestSchema = z.object({
   prompt: z.string().min(1, "Prompt must not be empty"),
   model: z.string().optional(),
-  strategy: z.enum(["cli", "api", "cookie"]).optional(),
+  strategy: z.enum(["cli", "api", "cookie", "oauth"]).optional(),
   systemInstruction: z.string().optional(),
   sessionId: z.string().optional(),
   apiKey: z.string().optional(),

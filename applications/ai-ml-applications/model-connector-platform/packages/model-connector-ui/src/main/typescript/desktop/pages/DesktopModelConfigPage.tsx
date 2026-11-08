@@ -113,6 +113,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedCliCommand, setCopiedCliCommand] = useState(false);
+  const [selectedGoogleCli, setSelectedGoogleCli] = useState<"antigravity" | "gemini">("antigravity");
 
   // 100+ Providers Catalog & Search State
   const [providerSearchQuery, setProviderSearchQuery] = useState("");
@@ -360,6 +361,12 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
   // Strategy Pattern polymorphic dispatch for active provider
   const selectedStrategy = oauthProviderRegistry.getStrategy(selectedProviderId);
+  const effectiveCliCommand = useMemo(() => {
+    if (selectedStrategy.id === "google") {
+      return selectedGoogleCli === "antigravity" ? "antigravity" : "gemini auth login --browser";
+    }
+    return selectedStrategy.cliCommand;
+  }, [selectedStrategy, selectedGoogleCli]);
   const computedAuthRedirectUri = resolvedOAuthConfig?.redirectUri || selectedStrategy.defaultRedirectUri;
   const resolvedDefaultClientId = (resolvedOAuthConfig?.defaultClientId || selectedStrategy.defaultClientId || "").trim();
   const effectiveClientId = (oauthClientId || resolvedDefaultClientId).trim();
@@ -1687,6 +1694,65 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                             </div>
                           </button>
                         </div>
+
+                        {selectedStrategy.id === "google" && accountCategory === "individual" && (
+                          <div
+                            style={{
+                              marginTop: "12px",
+                              padding: "10px 14px",
+                              background: "rgba(15, 23, 42, 0.7)",
+                              borderRadius: "8px",
+                              border: "1px solid rgba(255, 255, 255, 0.08)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "10px",
+                            }}
+                          >
+                            <div>
+                              <strong style={{ fontSize: "0.8rem", color: "#f8fafc" }}>
+                                Select CLI Execution Tool:
+                              </strong>
+                              <span style={{ fontSize: "0.72rem", color: "#94a3b8", display: "block" }}>
+                                Choose binary used to capture OAuth PKCE session
+                              </span>
+                            </div>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedGoogleCli("antigravity")}
+                                style={{
+                                  padding: "5px 12px",
+                                  borderRadius: "6px",
+                                  fontSize: "0.74rem",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  background: selectedGoogleCli === "antigravity" ? "rgba(16, 185, 129, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                                  color: selectedGoogleCli === "antigravity" ? "#6ee7b7" : "#94a3b8",
+                                  border: selectedGoogleCli === "antigravity" ? "1px solid rgba(16, 185, 129, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                              >
+                                ⚡ Antigravity CLI (Default)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedGoogleCli("gemini")}
+                                style={{
+                                  padding: "5px 12px",
+                                  borderRadius: "6px",
+                                  fontSize: "0.74rem",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  background: selectedGoogleCli === "gemini" ? "rgba(59, 130, 246, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                                  color: selectedGoogleCli === "gemini" ? "#93c5fd" : "#94a3b8",
+                                  border: selectedGoogleCli === "gemini" ? "1px solid rgba(59, 130, 246, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                              >
+                                ✦ Gemini CLI
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {isClientIdMissingForRedirect && (
@@ -1769,7 +1835,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                           <span>
                             {isCliLoggingIn || isRedirecting
                               ? "Opening Browser & Awaiting OAuth Consent..."
-                              : `Launch Browser Sign-In (${selectedStrategy.cliCommand})`}
+                              : `Launch Browser Sign-In (${effectiveCliCommand})`}
                           </span>
                         </button>
 
@@ -1910,13 +1976,13 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                       <div className="cli-terminal-hint">
                         <div className="terminal-prompt-row">
                           <span className="terminal-icon">$</span>
-                          <code className="hint-command">{selectedStrategy.cliCommand}</code>
+                          <code className="hint-command">{effectiveCliCommand}</code>
                         </div>
                         <button
                           type="button"
                           className="terminal-copy-btn"
                           onClick={() => {
-                            navigator.clipboard.writeText(selectedStrategy.cliCommand);
+                            navigator.clipboard.writeText(effectiveCliCommand);
                             setCopiedCliCommand(true);
                             setTimeout(() => setCopiedCliCommand(false), 2000);
                           }}

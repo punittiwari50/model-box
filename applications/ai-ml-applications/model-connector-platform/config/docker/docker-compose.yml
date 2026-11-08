@@ -276,6 +276,7 @@ services:
       - DATA_DIR=/app/config/data
     volumes:
       - model-connector-backend-data:/app/config/data
+      - ../scripts:/app/config/scripts
     networks:
       - model-connector-net
     healthcheck:
@@ -311,6 +312,7 @@ services:
       - VITE_API_BASE_URL=http://localhost:8095
       - VITE_DEFAULT_MODEL=gemini-3.8-flash
       - VITE_SUPPORTED_FAMILIES=gemini,grok,copilot,chatgpt,claude,ollama
+      - VITE_FEATURE_DEFAULT_GOOGLE_CLI=antigravity
     depends_on:
       backend:
         condition: service_healthy

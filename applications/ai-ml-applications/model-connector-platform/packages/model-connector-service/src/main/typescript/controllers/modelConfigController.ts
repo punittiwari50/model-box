@@ -206,6 +206,7 @@ export class ModelConfigController {
     if (status !== "FAILED") return;
     const active = accountRepository.getActiveAccount(modelId);
     if (!active) return;
+    if (active.authType === "cli" || active.authType === "cli_oauth" || active.authType === "oauth") return;
     const matchesActive = !credentialValue ? true : active.credentialValue === credentialValue;
     if (matchesActive) {
       accountRepository.deactivateActiveAccount(modelId);

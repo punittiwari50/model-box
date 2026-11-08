@@ -432,6 +432,82 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
             </div>
           </div>
 
+          <div className="spec-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px", marginTop: "12px" }}>
+            <label className="spec-label" style={{ marginBottom: "2px" }}>
+              Active Strategy / Protocol:
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+              <button
+                type="button"
+                className={`strategy-btn ${state.effectiveStrategy === "cli" ? "active" : ""}`}
+                onClick={() => state.setActiveStrategy("cli")}
+                style={{
+                  padding: "5px 8px",
+                  borderRadius: "6px",
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  background: state.effectiveStrategy === "cli" ? "rgba(16, 185, 129, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                  color: state.effectiveStrategy === "cli" ? "#6ee7b7" : "#94a3b8",
+                  border: state.effectiveStrategy === "cli" ? "1px solid rgba(16, 185, 129, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                }}
+              >
+                💻 CLI Binary
+              </button>
+              <button
+                type="button"
+                className={`strategy-btn ${state.effectiveStrategy === "oauth" ? "active" : ""}`}
+                onClick={() => state.setActiveStrategy("oauth")}
+                style={{
+                  padding: "5px 8px",
+                  borderRadius: "6px",
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  background: state.effectiveStrategy === "oauth" ? "rgba(59, 130, 246, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                  color: state.effectiveStrategy === "oauth" ? "#93c5fd" : "#94a3b8",
+                  border: state.effectiveStrategy === "oauth" ? "1px solid rgba(59, 130, 246, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                }}
+              >
+                🌐 OAuth 2.0
+              </button>
+              <button
+                type="button"
+                className={`strategy-btn ${state.effectiveStrategy === "api" ? "active" : ""}`}
+                onClick={() => state.setActiveStrategy("api")}
+                style={{
+                  padding: "5px 8px",
+                  borderRadius: "6px",
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  background: state.effectiveStrategy === "api" ? "rgba(168, 85, 247, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                  color: state.effectiveStrategy === "api" ? "#d8b4fe" : "#94a3b8",
+                  border: state.effectiveStrategy === "api" ? "1px solid rgba(168, 85, 247, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                }}
+              >
+                🔑 REST API
+              </button>
+              <button
+                type="button"
+                className={`strategy-btn ${state.effectiveStrategy === "cookie" ? "active" : ""}`}
+                onClick={() => state.setActiveStrategy("cookie")}
+                style={{
+                  padding: "5px 8px",
+                  borderRadius: "6px",
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  background: state.effectiveStrategy === "cookie" ? "rgba(234, 179, 8, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                  color: state.effectiveStrategy === "cookie" ? "#fde047" : "#94a3b8",
+                  border: state.effectiveStrategy === "cookie" ? "1px solid rgba(234, 179, 8, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                }}
+              >
+                🍪 Cookie Vault
+              </button>
+            </div>
+          </div>
+
           <div className="spec-row" style={{ marginTop: "12px" }}>
             <span className="spec-label">Strategy:</span>
             <span className="spec-val uppercase">{state.effectiveStrategy}</span>
