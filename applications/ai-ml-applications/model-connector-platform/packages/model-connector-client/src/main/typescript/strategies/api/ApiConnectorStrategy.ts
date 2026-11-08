@@ -231,7 +231,17 @@ export class ApiConnectorStrategy implements IConnectorStrategy {
       correlationId,
     );
     if (dockerFallback) {
-      return dockerFallback;
+      const errMsg = originalError instanceof Error ? originalError.message : String(originalError || "Authentication error or missing API key");
+      return Object.freeze({
+        ...dockerFallback,
+        fallbackOccurred: true,
+        metadata: {
+          ...dockerFallback.metadata,
+          requestedModel: model,
+          originalError: errMsg,
+          fallbackReason: `Authentication or connection failure for '${model}' (${errMsg.slice(0, 100)}). Automatically routed to local ${dockerFallback.model} (Ollama Docker).`,
+        },
+      });
     }
     if (!this.isSimulationAllowed()) {
       this.throwStrictApiFailure(model, correlationId, originalError);

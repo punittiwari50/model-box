@@ -38,13 +38,24 @@ export class DynamicFallbackCascadeHandler {
     strategyResolver: (strategy: ExecutionStrategy) => IConnectorStrategy | undefined,
     ollamaFallback: IOllamaDockerFallbackConnector,
   ): Promise<{ response: ExecutionResponse; fallbackOccurred: boolean }> {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     const secondary = await this.trySecondaryStrategy(error, request, strategyResolver);
     if (secondary) {
       return { response: secondary, fallbackOccurred: true };
     }
     const dockerResponse = await ollamaFallback.executeDockerFallback(request);
     if (dockerResponse) {
-      return { response: dockerResponse, fallbackOccurred: true };
+      const enrichedResponse: ExecutionResponse = {
+        ...dockerResponse,
+        fallbackOccurred: true,
+        metadata: {
+          ...dockerResponse.metadata,
+          requestedModel: request.model,
+          originalError: errorMsg,
+          fallbackReason: `Primary model '${request.model}' authentication or token failed (${errorMsg.slice(0, 120)}). Automatically routed to local ${dockerResponse.model} (Ollama Docker).`,
+        },
+      };
+      return { response: enrichedResponse, fallbackOccurred: true };
     }
     if (ollamaFallback.canAttemptFallback(request)) {
       const cliResponse = await this.tryAirGappedCliFallback(request, strategyResolver);

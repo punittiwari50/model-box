@@ -73,6 +73,8 @@ export interface ExecutionResponse {
   readonly accountId?: string;
   readonly fallbackOccurred?: boolean;
   readonly fallbackProvider?: string;
+  readonly fallbackReason?: string;
+  readonly requestedModel?: string;
   readonly envelope?: StructuredExecutionEnvelope;
   readonly timestamp: string;
   readonly metadata?: Readonly<Record<string, unknown>>;

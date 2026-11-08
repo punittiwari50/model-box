@@ -272,34 +272,77 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
               </div>
             </div>
           ) : (
-            state.messages.map((msg) => (
-              <div key={msg.id} className={`desktop-message-card ${msg.role}`}>
-                <div className="msg-header">
-                  <span className="msg-author">{msg.role === "user" ? "👤 User" : `🤖 ${msg.model}`}</span>
-                  <span className="msg-meta">
-                    {msg.strategy && <span className="strategy-tag">{msg.strategy.toUpperCase()}</span>}
-                    {msg.latencyMs && <span className="latency-tag">{msg.latencyMs}ms</span>}
-                    {msg.tokenCount && (
-                      <span
-                        className="token-tag"
-                        style={{
-                          background: "rgba(59, 130, 246, 0.2)",
-                          color: "#93c5fd",
-                          border: "1px solid rgba(59, 130, 246, 0.3)",
-                          padding: "1px 6px",
-                          borderRadius: "4px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        ⚡ {msg.tokenCount} tokens consumed
-                      </span>
-                    )}
-                    <span className="time-tag">{msg.timestamp}</span>
-                  </span>
+            state.messages.map((msg) => {
+              const isFallback = Boolean(
+                msg.fallbackOccurred ||
+                (msg.requestedModel && msg.requestedModel !== msg.model) ||
+                (msg.role === "assistant" && msg.model.includes("llama") && !state.selectedModel.includes("llama")),
+              );
+              const originalRequestedModel = msg.requestedModel || state.selectedModel;
+
+              return (
+                <div key={msg.id} className={`desktop-message-card ${msg.role} ${isFallback ? "fallback-message" : ""}`}>
+                  <div className="msg-header">
+                    <span className="msg-author">
+                      {msg.role === "user" ? (
+                        "👤 User"
+                      ) : isFallback ? (
+                        <span className="fallback-author-wrapper">
+                          <span>🤖 {msg.model}</span>
+                          <span className="fallback-pill-badge" title={`Original requested model: ${originalRequestedModel}`}>
+                            🔄 Fallback from {originalRequestedModel}
+                          </span>
+                        </span>
+                      ) : (
+                        `🤖 ${msg.model}`
+                      )}
+                    </span>
+                    <span className="msg-meta">
+                      {isFallback && (
+                        <span className="fallback-engine-tag" title="Local air-gapped Ollama container fallback executed">
+                          🛡️ OLLAMA DOCKER
+                        </span>
+                      )}
+                      {msg.strategy && <span className="strategy-tag">{msg.strategy.toUpperCase()}</span>}
+                      {msg.latencyMs ? <span className="latency-tag">{msg.latencyMs}ms</span> : null}
+                      {msg.tokenCount ? (
+                        <span
+                          className="token-tag"
+                          style={{
+                            background: "rgba(59, 130, 246, 0.2)",
+                            color: "#93c5fd",
+                            border: "1px solid rgba(59, 130, 246, 0.3)",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          ⚡ {msg.tokenCount} tokens consumed
+                        </span>
+                      ) : null}
+                      <span className="time-tag">{msg.timestamp}</span>
+                    </span>
+                  </div>
+
+                  {/* Fallback In-Chat Alert Notice */}
+                  {isFallback && (
+                    <div className="chat-fallback-notice">
+                      <div className="notice-header">
+                        <span className="notice-icon">⚠️</span>
+                        <span className="notice-title">Model Fallback Notification</span>
+                        <span className="notice-badge">Local Ollama Active</span>
+                      </div>
+                      <p className="notice-desc">
+                        {msg.fallbackReason ||
+                          `Token expired or authentication failed for '${originalRequestedModel}'. Automatically routed to local air-gapped Ollama (${msg.model}) container.`}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="msg-body">{msg.content}</div>
                 </div>
-                <div className="msg-body">{msg.content}</div>
-              </div>
-            ))
+              );
+            })
           )}
           {state.isLoading && (
             <div className="desktop-loading-card">

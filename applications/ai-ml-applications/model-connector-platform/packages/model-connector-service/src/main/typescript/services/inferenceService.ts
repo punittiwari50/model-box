@@ -78,9 +78,20 @@ export class InferenceService {
       request.prompt,
     );
 
+    const isFallback = Boolean(response.fallbackOccurred || (response.model && response.model !== model));
+    const fallbackReason =
+      (response.metadata?.fallbackReason as string) ||
+      (isFallback
+        ? `Authentication token for '${model}' is expired or rejected by cloud provider. Automatically routed to local ${response.model} (${response.fallbackProvider || "Ollama"}).`
+        : undefined);
+
     return {
       ...response,
       sessionId,
+      requestedModel: model,
+      fallbackOccurred: isFallback,
+      fallbackReason,
+      fallbackProvider: response.fallbackProvider || (isFallback ? "ollama" : undefined),
     };
   }
 
@@ -150,9 +161,20 @@ export class InferenceService {
       request.prompt,
     );
 
+    const isFallback = Boolean(response.fallbackOccurred || (response.model && response.model !== model));
+    const fallbackReason =
+      (response.metadata?.fallbackReason as string) ||
+      (isFallback
+        ? `Authentication token for '${model}' is expired or rejected by cloud provider. Automatically routed to local ${response.model} (${response.fallbackProvider || "Ollama"}).`
+        : undefined);
+
     return {
       ...response,
       sessionId,
+      requestedModel: model,
+      fallbackOccurred: isFallback,
+      fallbackReason,
+      fallbackProvider: response.fallbackProvider || (isFallback ? "ollama" : undefined),
     };
   }
 

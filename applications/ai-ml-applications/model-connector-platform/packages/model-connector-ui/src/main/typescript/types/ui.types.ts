@@ -84,6 +84,10 @@ export interface ChatMessage {
   readonly latencyMs?: number;
   readonly tokenCount?: number;
   readonly isStreaming?: boolean;
+  readonly fallbackOccurred?: boolean;
+  readonly fallbackReason?: string;
+  readonly requestedModel?: string;
+  readonly fallbackProvider?: string;
 }
 
 export interface UiModel {

@@ -224,6 +224,10 @@ export class ApiService {
       timestamp: new Date().toLocaleTimeString(),
       latencyMs: data.latencyMs || 0,
       tokenCount: data.tokenMetrics?.totalTokens,
+      fallbackOccurred: Boolean(data.fallbackOccurred || (data.model && data.model !== model)),
+      fallbackReason: data.fallbackReason,
+      requestedModel: data.requestedModel || model,
+      fallbackProvider: data.fallbackProvider,
     };
   }
 
@@ -260,6 +264,10 @@ export class ApiService {
         timestamp: new Date(m.timestamp).toLocaleTimeString(),
         latencyMs: m.latencyMs,
         tokenCount: m.tokenCount,
+        fallbackOccurred: Boolean(m.fallbackOccurred),
+        fallbackReason: m.fallbackReason,
+        requestedModel: m.requestedModel,
+        fallbackProvider: m.fallbackProvider,
       }));
     } catch {
       return [];
