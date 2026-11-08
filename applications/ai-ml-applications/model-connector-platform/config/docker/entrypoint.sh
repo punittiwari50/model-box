@@ -6,6 +6,24 @@ mkdir -p /app/config/data /app/config/artifacts /app/config/data/logs /app/confi
 mkdir -p /home/node/.gemini/antigravity-cli /root/.gemini/antigravity-cli /home/node/.config/antigravity /root/.config/antigravity 2>/dev/null || true
 chmod -R 777 /app/config/data /app/config/artifacts 2>/dev/null || true
 
+# Pre-configure automated headless tool permissions in Antigravity settings.json
+cat << 'EOF' > /tmp/antigravity_settings.json
+{
+  "permissions": {
+    "allow": [
+      "*",
+      "command(*)",
+      "command"
+    ]
+  }
+}
+EOF
+for settings_dir in /home/node/.gemini/antigravity-cli /root/.gemini/antigravity-cli /app/config/data/credentials/antigravity-cli; do
+    mkdir -p "$settings_dir" 2>/dev/null || true
+    cp -f /tmp/antigravity_settings.json "$settings_dir/settings.json" 2>/dev/null || true
+done
+rm -f /tmp/antigravity_settings.json 2>/dev/null || true
+
 # Restore persisted Antigravity / Gemini CLI credentials into runtime directories
 if [ -d "/app/config/data/credentials/antigravity-cli" ]; then
     cp -rf /app/config/data/credentials/antigravity-cli/* /home/node/.gemini/antigravity-cli/ 2>/dev/null || true

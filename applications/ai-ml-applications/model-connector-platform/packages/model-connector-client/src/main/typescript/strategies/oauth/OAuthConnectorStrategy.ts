@@ -220,7 +220,7 @@ export class OAuthConnectorStrategy implements IConnectorStrategy {
       const binary = isGemini ? "antigravity" : "agy";
       const result = await CliProcessManager.executeCommand(
         binary,
-        ["-p", request.prompt, "--model", model, "--dangerously-skip-permissions"],
+        ["--dangerously-skip-permissions", "-p", request.prompt, "--model", model],
         undefined,
         45000,
         correlationId,

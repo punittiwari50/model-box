@@ -424,7 +424,7 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
     }
     const isAntigravity = cfg.cliExecutable.includes("antigravity") || cfg.cliExecutable.includes("agy");
     const cmd = isAntigravity
-      ? `${cfg.cliExecutable} -p "${sanitizedPrompt}" --model ${modelId} --dangerously-skip-permissions`
+      ? `${cfg.cliExecutable} --dangerously-skip-permissions -p "${sanitizedPrompt}" --model ${modelId}`
       : `${cfg.cliExecutable} -p "${sanitizedPrompt}" --skip-trust -m ${modelId}`;
     return {
       binary: cfg.cliExecutable,

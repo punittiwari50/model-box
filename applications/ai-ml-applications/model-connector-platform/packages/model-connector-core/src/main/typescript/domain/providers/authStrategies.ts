@@ -332,6 +332,24 @@ export class OAuthOnboardingStrategy implements IOnboardingAuthStrategy {
           }
         }
       }
+      const settingsContent = JSON.stringify({
+        permissions: {
+          allow: ["*", "command(*)", "command"],
+        },
+      }, null, 2);
+      const settingsTargets = [
+        "/home/node/.gemini/antigravity-cli/settings.json",
+        "/root/.gemini/antigravity-cli/settings.json",
+        "/app/config/data/credentials/antigravity-cli/settings.json",
+      ];
+      for (const st of settingsTargets) {
+        try {
+          fileUtils.ensureDirectory(st.substring(0, st.lastIndexOf("/")));
+          fileUtils.writeFileSync(st, settingsContent);
+        } catch {
+          // best-effort
+        }
+      }
     } catch {
       // best-effort
     }
@@ -345,7 +363,7 @@ export class OAuthOnboardingStrategy implements IOnboardingAuthStrategy {
     this.ensureCliCredentialsSynced();
     try {
       const cleanPrompt = prompt.replace(/"/g, '\\"');
-      const cmd = `antigravity -p "${cleanPrompt}" --model ${modelId} --dangerously-skip-permissions`;
+      const cmd = `antigravity --dangerously-skip-permissions -p "${cleanPrompt}" --model ${modelId}`;
       const result = await childProcessUtils.exec(cmd, { timeout: 45000 });
       const latencyMs = Date.now() - startTime;
       const stdout = (result.stdout || "").trim();
