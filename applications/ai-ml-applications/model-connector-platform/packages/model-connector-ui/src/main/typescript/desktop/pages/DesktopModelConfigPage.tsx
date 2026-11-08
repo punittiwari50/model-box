@@ -2435,14 +2435,15 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                 <button
                   type="button"
                   className="test-handshake-btn"
-                  style={{ background: "rgba(239, 68, 68, 0.2)", borderColor: "rgba(239, 68, 68, 0.4)", color: "#fca5a5" }}
+                  style={{ background: "rgba(100, 116, 139, 0.2)", borderColor: "rgba(100, 116, 139, 0.4)", color: "#cbd5e1" }}
+                  title="Cancel editing this account and clear form"
                   onClick={() => {
                     setEditingAccountId(null);
                     setAccountName("");
                     setUserEmail("");
                   }}
                 >
-                  ✕ New Account
+                  ↺ Cancel Edit
                 </button>
               )}
 

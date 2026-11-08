@@ -422,7 +422,7 @@ run_oauth_daemon() {
   exec 3<> "$FIFO_IN"
 
   logger_info "Spawning Antigravity CLI process for user ${USER_EMAIL}..."
-  COLUMNS=2000 LINES=100 script -q -c "${cli_bin}" /dev/null < "$FIFO_IN" > "$CLI_LOG" 2>&1 &
+  COLUMNS=4096 LINES=100 script -q -f -c "${cli_bin}" "$CLI_LOG" < "$FIFO_IN" >/dev/null 2>&1 &
   local cli_pid=$!
   echo "$cli_pid" > "$PID_FILE"
   logger_info "Antigravity CLI process launched with PID: ${cli_pid}"
@@ -432,6 +432,7 @@ run_oauth_daemon() {
   for ((i=1; i<=MENU_WAIT_TIMEOUT; i++)); do
     if [ -f "$CLI_LOG" ] && grep -qi "Select login method" "$CLI_LOG"; then
       logger_info "Detected interactive login menu. Transmitting newline for '${AUTH_MODE_LABEL}'..."
+      sleep 1.0
       printf '\r\n' >&3
       selected_option=true
       break
@@ -441,15 +442,15 @@ run_oauth_daemon() {
 
   if [ "$selected_option" = false ]; then
     logger_info "Menu timer elapsed. Transmitting newline to confirm Option 1..."
+    sleep 1.0
     printf '\r\n' >&3
   fi
 
   # Extract Google OAuth URL using pure shell / grep regex
   local oauth_url=""
-  local clean_regex="${OAUTH_URL_REGEX//\\\\/\\}"
   for ((i=1; i<=URL_DISCOVERY_TIMEOUT; i++)); do
     if [ -f "$CLI_LOG" ]; then
-      oauth_url=$(grep -oE "$clean_regex" "$CLI_LOG" 2>/dev/null | head -n 1 || true)
+      oauth_url=$(grep -oE "https://accounts\.google\.com/o/oauth2/[^[:space:]'\"]+" "$CLI_LOG" 2>/dev/null | head -n 1 || true)
       if [ -n "$oauth_url" ]; then break; fi
     fi
     sleep 0.5
@@ -464,6 +465,11 @@ run_oauth_daemon() {
   fi
 
   logger_info "Captured Google OAuth Authorization URL via pure shell regex."
+  echo "$oauth_url" > "/tmp/antigravity_auth_url.txt"
+  echo "$oauth_url" > "/tmp/gemini_auth_url.txt"
+  if [ -n "${MODEL_VENV_PATH:-}" ] && [ -d "${MODEL_VENV_PATH}/run" ]; then
+    echo "$oauth_url" > "${MODEL_VENV_PATH}/run/oauth_url.txt"
+  fi
 
   local now
   now=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
@@ -528,17 +534,34 @@ EOF
         printf "%s\r\n" "$auth_code" >&3
         rm -f "$CODE_FILE" "/tmp/antigravity_auth_code.txt" "/tmp/gemini_auth_code.txt" "/tmp/google_auth_code.txt" 2>/dev/null || true
 
-        sleep 4
-        if [ -d "$HOME/.config/antigravity" ]; then
-          cp -rf "$HOME/.config/antigravity"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
-        fi
-        if [ -d "$HOME/.gemini" ]; then
-          cp -rf "$HOME/.gemini"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
-        fi
+        local auth_success=true
+        for ((w=0; w<8; w++)); do
+          sleep 1
+          if grep -qi "token exchange failed\|oauth2: \"invalid_grant\"" "$CLI_LOG" 2>/dev/null; then
+            logger_error "Antigravity CLI token exchange failed: invalid authorization code."
+            auth_success=false
+            break
+          fi
+        done
 
-        commit_and_push_to_database "COMPLETED" "$session_id" ""
-        code_received=true
-        break
+        if [ "$auth_success" = true ]; then
+          if [ -d "$HOME/.config/antigravity" ]; then
+            cp -rf "$HOME/.config/antigravity"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
+          fi
+          if [ -d "$HOME/.gemini" ]; then
+            cp -rf "$HOME/.gemini"/* "$CREDENTIALS_DIR/" 2>/dev/null || true
+          fi
+          if [ -n "${MODEL_VENV_PATH:-}" ] && [ -d "${MODEL_VENV_PATH}/credentials" ]; then
+            cp -rf "$CREDENTIALS_DIR"/* "${MODEL_VENV_PATH}/credentials/" 2>/dev/null || true
+          fi
+          commit_and_push_to_database "COMPLETED" "$session_id" ""
+          code_received=true
+          break
+        else
+          commit_and_push_to_database "FAILED" "$session_id" "TOKEN_EXCHANGE_FAILED: Invalid or malformed authorization code."
+          code_received=true
+          break
+        fi
       fi
     fi
     sleep 2

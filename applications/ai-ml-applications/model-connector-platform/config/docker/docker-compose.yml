@@ -276,7 +276,6 @@ services:
       - DATA_DIR=/app/config/data
     volumes:
       - model-connector-backend-data:/app/config/data
-      - ../scripts:/app/config/scripts
     networks:
       - model-connector-net
     healthcheck:
