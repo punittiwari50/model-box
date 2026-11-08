@@ -554,6 +554,11 @@ EOF
           if [ -n "${MODEL_VENV_PATH:-}" ] && [ -d "${MODEL_VENV_PATH}/credentials" ]; then
             cp -rf "$CREDENTIALS_DIR"/* "${MODEL_VENV_PATH}/credentials/" 2>/dev/null || true
           fi
+          # Synchronize tokens into home directories for node and root users
+          mkdir -p /home/node/.gemini/antigravity-cli /root/.gemini/antigravity-cli /home/node/.config/antigravity /root/.config/antigravity 2>/dev/null || true
+          cp -rf "$CREDENTIALS_DIR"/* /home/node/.gemini/ 2>/dev/null || true
+          cp -rf "$CREDENTIALS_DIR"/* /root/.gemini/ 2>/dev/null || true
+          chown -R node:node /home/node/.gemini /home/node/.config 2>/dev/null || true
           commit_and_push_to_database "COMPLETED" "$session_id" ""
           code_received=true
           break

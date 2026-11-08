@@ -3,7 +3,22 @@ set -e
 
 # Ensure runtime directories exist in bidirectional volume and have proper permissions
 mkdir -p /app/config/data /app/config/artifacts /app/config/data/logs /app/config/data/downloads /app/config/data/credentials /app/config/data/oauth_responses 2>/dev/null || true
+mkdir -p /home/node/.gemini/antigravity-cli /root/.gemini/antigravity-cli /home/node/.config/antigravity /root/.config/antigravity 2>/dev/null || true
 chmod -R 777 /app/config/data /app/config/artifacts 2>/dev/null || true
+
+# Restore persisted Antigravity / Gemini CLI credentials into runtime directories
+if [ -d "/app/config/data/credentials/antigravity-cli" ]; then
+    cp -rf /app/config/data/credentials/antigravity-cli/* /home/node/.gemini/antigravity-cli/ 2>/dev/null || true
+    cp -rf /app/config/data/credentials/antigravity-cli/* /root/.gemini/antigravity-cli/ 2>/dev/null || true
+fi
+latest_token=$(find /app/config/data -name "antigravity-oauth-token" 2>/dev/null | head -n 1 || true)
+if [ -n "$latest_token" ] && [ -f "$latest_token" ]; then
+    cp -f "$latest_token" /home/node/.gemini/antigravity-cli/ 2>/dev/null || true
+    cp -f "$latest_token" /root/.gemini/antigravity-cli/ 2>/dev/null || true
+    mkdir -p /app/config/data/credentials/antigravity-cli 2>/dev/null || true
+    cp -f "$latest_token" /app/config/data/credentials/antigravity-cli/ 2>/dev/null || true
+fi
+chown -R node:node /home/node/.gemini /home/node/.config 2>/dev/null || true
 
 # Extract Antigravity CLI binary if tarball exists in bidirectional downloads or app root
 if [ ! -x "/usr/local/bin/antigravity" ]; then

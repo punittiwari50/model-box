@@ -2,6 +2,7 @@ import type { IModelProviderConfig, IProviderConfigRegistry } from "@/domain/pro
 import { modelProviderConfigService } from "@/domain/providers/modelProviderConfig.js";
 import { GoogleAuthConstants, ProviderId } from "@/constants/index.js";
 import { childProcessUtils } from "@/utils/process/childProcessUtils.js";
+import { fileUtils } from "@/utils/file/fileUtils.js";
 
 /**
  * Onboarding Credential Types
@@ -297,15 +298,55 @@ export class OAuthOnboardingStrategy implements IOnboardingAuthStrategy {
     return `OAuth 2.0 Bearer token verified for ${modelId}. Pipeline is active and operational.`;
   }
 
+  private ensureCliCredentialsSynced(): void {
+    try {
+      const candidates = [
+        "/app/config/data/credentials/antigravity-cli/antigravity-oauth-token",
+        "/home/node/.gemini/antigravity-cli/antigravity-oauth-token",
+        "/root/.gemini/antigravity-cli/antigravity-oauth-token",
+      ];
+      let token = candidates.find((c) => fileUtils.exists(c) && fileUtils.readFileSync(c).includes("access_token"));
+      if (!token && fileUtils.exists("/app/config/data/venvs/google")) {
+        const users = fileUtils.readdirSync("/app/config/data/venvs/google");
+        for (const u of users) {
+          const vp = `/app/config/data/venvs/google/${u}/default/home/.gemini/antigravity-cli/antigravity-oauth-token`;
+          if (fileUtils.exists(vp) && fileUtils.readFileSync(vp).includes("access_token")) {
+            token = vp;
+            break;
+          }
+        }
+      }
+      if (token) {
+        const content = fileUtils.readFileSync(token);
+        const targets = [
+          "/home/node/.gemini/antigravity-cli/antigravity-oauth-token",
+          "/root/.gemini/antigravity-cli/antigravity-oauth-token",
+          "/app/config/data/credentials/antigravity-cli/antigravity-oauth-token",
+        ];
+        for (const t of targets) {
+          try {
+            fileUtils.ensureDirectory(t.substring(0, t.lastIndexOf("/")));
+            fileUtils.writeFileSync(t, content);
+          } catch {
+            // best-effort
+          }
+        }
+      }
+    } catch {
+      // best-effort
+    }
+  }
+
   private async executeCliVerification(
     modelId: string,
     prompt: string,
     startTime: number,
   ): Promise<CredentialValidationResult> {
+    this.ensureCliCredentialsSynced();
     try {
       const cleanPrompt = prompt.replace(/"/g, '\\"');
       const cmd = `antigravity -p "${cleanPrompt}" --model ${modelId}`;
-      const result = await childProcessUtils.exec(cmd, { timeout: 20000 });
+      const result = await childProcessUtils.exec(cmd, { timeout: 25000 });
       const latencyMs = Date.now() - startTime;
       const stdout = (result.stdout || "").trim();
       if (stdout.includes("Authentication required") || stdout.includes("Please visit the URL to log in")) {
