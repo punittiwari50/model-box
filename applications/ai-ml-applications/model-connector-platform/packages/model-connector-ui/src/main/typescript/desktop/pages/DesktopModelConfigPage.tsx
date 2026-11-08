@@ -2589,17 +2589,6 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                     {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
                   </button>
 
-                  {/* Interactive Toggle Button for Active / Inactive */}
-                  <button
-                    type="button"
-                    className={`action-btn toggle-status-btn ${acc.isActive ? "btn-active-state" : "btn-inactive-state"}`}
-                    onClick={() => handleToggleAccountStatus(acc)}
-                    title={acc.isActive ? "Account is active. Click to deactivate." : "Account is inactive. Click to set active."}
-                  >
-                    <span className={`toggle-dot ${acc.isActive ? "on" : "off"}`} />
-                    <span>{acc.isActive ? "Active" : "Set Active"}</span>
-                  </button>
-
                   <button
                     type="button"
                     className="action-btn select-btn"

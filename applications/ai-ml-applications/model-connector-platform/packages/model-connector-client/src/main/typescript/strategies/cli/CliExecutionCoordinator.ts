@@ -88,6 +88,8 @@ export class CliExecutionCoordinator implements ICliExecutionCoordinator {
       MODELBOX_USER_ID: ticket.userId,
       MODELBOX_SESSION_ID: ticket.sessionId,
       MODELBOX_CORRELATION_ID: ticket.correlationId,
+      CORRELATION_ID: ticket.correlationId,
+      X_CORRELATION_ID: ticket.correlationId,
       ...(ticket.userEmail ? { MODELBOX_USER_EMAIL: ticket.userEmail } : {}),
       ...(ticket.accountId ? { MODELBOX_ACCOUNT_ID: ticket.accountId } : {}),
     });

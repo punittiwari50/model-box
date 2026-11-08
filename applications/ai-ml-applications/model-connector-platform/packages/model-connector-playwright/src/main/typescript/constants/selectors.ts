@@ -84,6 +84,7 @@ export const EnterpriseViewSelectors = Object.freeze({
   FORM_VIEW: '[data-testid="form-view"], [data-testid="odoo-form-view"], .form-view-container, .odoo-form-view-container',
   CREATE_BANNER: '[data-testid="create-banner"], [data-testid="odoo-create-banner"], .form-create-banner, .odoo-form-create-banner',
   SELECT_TARGET_MODEL: '[data-testid="select-target-model"], [data-testid="odoo-select-target-model"], .model-select-dropdown',
+  MODEL_ROW: '[data-testid="model-row"], [data-testid="odoo-model-row"], .model-row, .model-item, .card-item',
 });
 
 export const OdooSelectors = EnterpriseViewSelectors;

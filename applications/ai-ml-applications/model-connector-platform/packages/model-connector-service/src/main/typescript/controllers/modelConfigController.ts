@@ -295,7 +295,16 @@ export class ModelConfigController {
         "cli-login",
         async () => {
           const strategy = CliAuthStrategyFactory.getStrategy(modelId);
-          return strategy.triggerAuth({ userEmail, accountCategory, clientId, modelId });
+          return strategy.triggerAuth({
+            userEmail,
+            accountCategory,
+            clientId,
+            modelId,
+            correlationId: req.correlationId,
+            traceId: req.traceContext?.traceId,
+            spanId: req.traceContext?.spanId,
+            parentSpanId: req.traceContext?.parentSpanId,
+          });
         },
         undefined,
         userEmail,

@@ -81,12 +81,45 @@ readonly REDACTION_MASK="***REDACTED***"
 readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-300}"
 readonly MENU_WAIT_TIMEOUT=20
 readonly URL_DISCOVERY_TIMEOUT=40
+readonly DAEMON_NAME="antigravity-auth-daemon"
 
 RESOLVED_CLI_BIN=""
 USER_EMAIL=""
 CLIENT_ID="default"
 SESSION_ID="${SESSION_ID:-}"
 IS_STARTUP=false
+
+CORRELATION_ID="${CORRELATION_ID:-}"
+TRACE_ID="${TRACE_ID:-}"
+SPAN_ID="${SPAN_ID:-}"
+PARENT_SPAN_ID="${PARENT_SPAN_ID:-}"
+
+init_trace_context() {
+  if [ -n "${TRACEPARENT:-}" ]; then
+    local tp_trace tp_parent
+    tp_trace=$(echo "$TRACEPARENT" | cut -d'-' -f2 2>/dev/null || true)
+    tp_parent=$(echo "$TRACEPARENT" | cut -d'-' -f3 2>/dev/null || true)
+    [ -z "$TRACE_ID" ] && [ -n "$tp_trace" ] && TRACE_ID="$tp_trace"
+    [ -z "$PARENT_SPAN_ID" ] && [ -n "$tp_parent" ] && PARENT_SPAN_ID="$tp_parent"
+  fi
+
+  if [ -z "$CORRELATION_ID" ]; then
+    if [ -r /proc/sys/kernel/random/uuid ]; then
+      CORRELATION_ID="$(cat /proc/sys/kernel/random/uuid 2>/dev/null || true)"
+    fi
+    if [ -z "$CORRELATION_ID" ]; then
+      CORRELATION_ID="$(od -x /dev/urandom 2>/dev/null | head -1 | awk '{print $2$3"-"$4"-"$5"-"$6"-"$7$8$9}' || date +%s%N)"
+    fi
+  fi
+
+  if [ -z "$TRACE_ID" ] || [ "${#TRACE_ID}" -ne 32 ]; then
+    TRACE_ID="$(tr -dc 'a-f0-9' < /dev/urandom 2>/dev/null | head -c 32 || printf "%032x" "$$$(date +%s)")"
+  fi
+
+  if [ -z "$SPAN_ID" ] || [ "${#SPAN_ID}" -ne 16 ]; then
+    SPAN_ID="$(tr -dc 'a-f0-9' < /dev/urandom 2>/dev/null | head -c 16 || printf "%016x" "$$")"
+  fi
+}
 
 # ==============================================================================
 # Module: LoggerService (Pure Shell Dual Stream & Sensitive Leak Prevention)
@@ -111,7 +144,16 @@ log_message() {
   sanitized=$(sanitize_log_message "$msg")
   local ts
   ts=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
-  local json_line="{\"timestamp\":\"$ts\",\"level\":\"$level\",\"service\":\"antigravity-auth-daemon\",\"pid\":$$,\"message\":\"$sanitized\"}"
+  local level_lower
+  level_lower=$(echo "$level" | tr '[:upper:]' '[:lower:]')
+
+  local json_line="{\"timestamp\":\"$ts\",\"level\":\"$level_lower\",\"serviceName\":\"$DAEMON_NAME\",\"environment\":\"${NODE_ENV:-production}\",\"message\":\"$sanitized\""
+  [ -n "$TRACE_ID" ] && json_line="${json_line},\"traceId\":\"$TRACE_ID\""
+  [ -n "$SPAN_ID" ] && json_line="${json_line},\"spanId\":\"$SPAN_ID\""
+  [ -n "$PARENT_SPAN_ID" ] && json_line="${json_line},\"parentSpanId\":\"$PARENT_SPAN_ID\""
+  [ -n "$CORRELATION_ID" ] && json_line="${json_line},\"correlationId\":\"$CORRELATION_ID\""
+  json_line="${json_line}}"
+
   echo "$json_line" >&2
   if [ -d "$LOGS_DIR" ]; then
     echo "$json_line" >> "$DAEMON_LOG_FILE" 2>/dev/null || true
@@ -134,6 +176,7 @@ cleanup() {
       kill -TERM "$cpid" 2>/dev/null || true
       sleep 0.5
       kill -9 "$cpid" 2>/dev/null || true
+      wait "$cpid" 2>/dev/null || true
     fi
     rm -f "$PID_FILE"
   fi
@@ -627,6 +670,38 @@ parse_args() {
         SESSION_ID="${1#*=}"
         shift
         ;;
+      --correlation-id)
+        CORRELATION_ID="${2:-}"
+        shift 2
+        ;;
+      --correlation-id=*)
+        CORRELATION_ID="${1#*=}"
+        shift
+        ;;
+      --trace-id)
+        TRACE_ID="${2:-}"
+        shift 2
+        ;;
+      --trace-id=*)
+        TRACE_ID="${1#*=}"
+        shift
+        ;;
+      --span-id)
+        SPAN_ID="${2:-}"
+        shift 2
+        ;;
+      --span-id=*)
+        SPAN_ID="${1#*=}"
+        shift
+        ;;
+      --parent-span-id)
+        PARENT_SPAN_ID="${2:-}"
+        shift 2
+        ;;
+      --parent-span-id=*)
+        PARENT_SPAN_ID="${1#*=}"
+        shift
+        ;;
       *)
         if [ -z "$USER_EMAIL" ] && [[ "$1" =~ @ ]]; then
           USER_EMAIL="$1"
@@ -644,6 +719,7 @@ parse_args() {
 
 main() {
   parse_args "$@"
+  init_trace_context
   if [ "$IS_STARTUP" = "true" ] && [ -z "$USER_EMAIL" ]; then
     logger_info "Container boot: No user email provided at startup. Daemon ready for on-demand invocation."
     exit 0

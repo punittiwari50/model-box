@@ -15,6 +15,10 @@ export interface CliTriggerOptions {
   readonly customCallbackUrl?: string;
   readonly clientId?: string;
   readonly modelId?: string;
+  readonly correlationId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
+  readonly parentSpanId?: string;
 }
 
 export interface ICliAuthStrategy {
@@ -71,9 +75,21 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
       if (options?.modelId) {
         args.push("--model", options.modelId);
       }
+      if (options?.correlationId) {
+        args.push("--correlation-id", options.correlationId);
+      }
+      if (options?.traceId) {
+        args.push("--trace-id", options.traceId);
+      }
+      if (options?.spanId) {
+        args.push("--span-id", options.spanId);
+      }
+      if (options?.parentSpanId) {
+        args.push("--parent-span-id", options.parentSpanId);
+      }
       const child = childProcessUtils.spawn(scriptPath, args, {
         detached: true,
-        stdio: "ignore",
+        stdio: ["ignore", "inherit", "inherit"],
         env: {
           ...processUtils.env,
           SESSION_ID: sessionId,
@@ -81,14 +97,27 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
           PROVIDER: this.provider,
           USER_EMAIL: options?.userEmail || "",
           CLIENT_ID: options?.clientId || "default",
+          CORRELATION_ID: options?.correlationId || "",
+          TRACE_ID: options?.traceId || "",
+          SPAN_ID: options?.spanId || "",
+          PARENT_SPAN_ID: options?.parentSpanId || "",
         },
       });
       child.unref();
       logger.info(
         `[${this.constructor.name}] Spawned ${this.scriptName} for session ${sessionId} (user: ${options?.userEmail || "unspecified"}).`,
+        {
+          sessionId,
+          correlationId: options?.correlationId,
+          traceId: options?.traceId,
+          spanId: options?.spanId,
+        },
       );
     } catch (err: unknown) {
-      logger.error(`[${this.constructor.name}] Failed to spawn ${this.scriptName}: ${String(err)}`);
+      logger.error(`[${this.constructor.name}] Failed to spawn ${this.scriptName}: ${String(err)}`, err, {
+        sessionId,
+        correlationId: options?.correlationId,
+      });
     }
   }
 
