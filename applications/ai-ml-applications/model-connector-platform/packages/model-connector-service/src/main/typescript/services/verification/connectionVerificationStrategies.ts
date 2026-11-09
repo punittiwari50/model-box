@@ -16,6 +16,11 @@ export interface VerificationContext {
   readonly credentialValue: string;
   readonly userPrompt: string;
   readonly startTime: number;
+  readonly correlationId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
+  readonly parentSpanId?: string;
+  readonly effortTier?: "low" | "medium" | "high";
 }
 
 export interface CliExecutionPlan {
@@ -84,18 +89,24 @@ export class OllamaProviderVerificationStrategy implements IProviderVerification
     const oauthBase = (cfg.oauthBaseUrl || "http://localhost:11436").replace(/\/+$/, "");
     const url = `${oauthBase}/ollama-oauth/api/generate`;
     const cleanToken = ctx.credentialValue.replace(/^Bearer\s+/i, "").trim();
+    const headers: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${cleanToken}` };
+    if (ctx.correlationId) headers["x-correlation-id"] = ctx.correlationId;
+    if (ctx.traceId) headers["x-trace-id"] = ctx.traceId;
+    if (ctx.spanId) headers["x-span-id"] = ctx.spanId;
+    if (ctx.traceId && ctx.spanId) headers.traceparent = `00-${ctx.traceId}-${ctx.spanId}-01`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cleanToken}` },
+      headers,
       body: JSON.stringify({ model: ctx.modelId, prompt: ctx.userPrompt, stream: false }),
     });
-    return this.parseOAuthOllamaResponse(res, url, ctx.startTime);
+    return this.parseOAuthOllamaResponse(res, url, ctx.startTime, ctx);
   }
 
   private async parseOAuthOllamaResponse(
     res: Response,
     url: string,
     startTime: number,
+    ctx?: VerificationContext,
   ): Promise<ConnectionTestResult> {
     if (!res.ok) {
       return {
@@ -104,7 +115,10 @@ export class OllamaProviderVerificationStrategy implements IProviderVerification
         message: `Ollama OAuth 2.0 token rejected (HTTP ${res.status}).`,
         latencyMs: Date.now() - startTime,
         errorMessage: `OAuth Bearer token unauthorized (${res.status})`,
-        details: { endpoint: url, authMode: "OAUTH" },
+        details: { endpoint: url, authMode: "OAUTH", correlationId: ctx?.correlationId, traceId: ctx?.traceId },
+        correlationId: ctx?.correlationId,
+        traceId: ctx?.traceId,
+        spanId: ctx?.spanId,
       };
     }
     const data = (await res.json()) as { response?: string; authenticatedEmail?: string };
@@ -114,7 +128,10 @@ export class OllamaProviderVerificationStrategy implements IProviderVerification
       message: `Ollama OAuth 2.0 connection verified for '${data.authenticatedEmail ?? "operator"}'.`,
       latencyMs: Date.now() - startTime,
       modelOutput: data.response || "Ollama OAuth response verified",
-      details: { endpoint: url, authMode: "OAUTH", authenticatedEmail: data.authenticatedEmail },
+      details: { endpoint: url, authMode: "OAUTH", authenticatedEmail: data.authenticatedEmail, correlationId: ctx?.correlationId, traceId: ctx?.traceId },
+      correlationId: ctx?.correlationId,
+      traceId: ctx?.traceId,
+      spanId: ctx?.spanId,
     };
   }
 
@@ -127,9 +144,14 @@ export class OllamaProviderVerificationStrategy implements IProviderVerification
   }
 
   private async probeOllamaEndpoint(url: string, ctx: VerificationContext): Promise<ConnectionTestResult | undefined> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (ctx.correlationId) headers["x-correlation-id"] = ctx.correlationId;
+    if (ctx.traceId) headers["x-trace-id"] = ctx.traceId;
+    if (ctx.spanId) headers["x-span-id"] = ctx.spanId;
+    if (ctx.traceId && ctx.spanId) headers.traceparent = `00-${ctx.traceId}-${ctx.spanId}-01`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ model: ctx.modelId, prompt: ctx.userPrompt, stream: false }),
     });
     if (!res.ok) return undefined;
@@ -140,7 +162,10 @@ export class OllamaProviderVerificationStrategy implements IProviderVerification
       message: `Ollama live connection verified via ${url}. Model: '${ctx.modelId}'.`,
       latencyMs: Date.now() - ctx.startTime,
       modelOutput: data.response || "Ollama generated response",
-      details: { endpoint: url, model: data.model, totalDuration: data.total_duration },
+      details: { endpoint: url, model: data.model, totalDuration: data.total_duration, correlationId: ctx.correlationId, traceId: ctx.traceId },
+      correlationId: ctx.correlationId,
+      traceId: ctx.traceId,
+      spanId: ctx.spanId,
     };
   }
 
@@ -358,12 +383,16 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
     const endpoint = isOAuth ? baseUrl : `${baseUrl}?key=${encodeURIComponent(ctx.credentialValue)}`;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (isOAuth) headers.Authorization = `Bearer ${ctx.credentialValue}`;
+    if (ctx.correlationId) headers["x-correlation-id"] = ctx.correlationId;
+    if (ctx.traceId) headers["x-trace-id"] = ctx.traceId;
+    if (ctx.spanId) headers["x-span-id"] = ctx.spanId;
+    if (ctx.traceId && ctx.spanId) headers.traceparent = `00-${ctx.traceId}-${ctx.spanId}-01`;
     const res = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify({ contents: [{ parts: [{ text: ctx.userPrompt }] }] }),
     });
-    return this.parseGeminiResponse(res, ctx.modelId, ctx.startTime, isOAuth, ctx.userPrompt);
+    return this.parseGeminiResponse(res, ctx.modelId, ctx.startTime, isOAuth, ctx.userPrompt, ctx);
   }
 
   private async parseGeminiResponse(
@@ -372,6 +401,7 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
     startTime: number,
     isOAuth = false,
     prompt = "ready",
+    ctx?: VerificationContext,
   ): Promise<ConnectionTestResult> {
     const latencyMs = Date.now() - startTime;
     const data = (await res.json().catch(() => ({}))) as {
@@ -392,18 +422,53 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
         message: `API validation failed: ${errorMsg}${authSuffix}`,
         latencyMs,
         errorMessage: `Verification failed (${res.status}): ${errorMsg}`,
-        details: (data?.error as Record<string, unknown>) || {},
+        details: { ...(data?.error as Record<string, unknown> || {}), correlationId: ctx?.correlationId, traceId: ctx?.traceId },
+        correlationId: ctx?.correlationId,
+        traceId: ctx?.traceId,
+        spanId: ctx?.spanId,
       };
     }
     const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Response received.";
     const modelOutput = `[${modelId} Live REST Output]\n\nPrompt (Request):\n${prompt}\n\nResponse:\n${candidateText}`;
+    const promptTokens = data?.usageMetadata?.totalTokenCount ? Math.max(1, Math.round(data.usageMetadata.totalTokenCount * 0.25)) : Math.max(1, Math.ceil(prompt.length / 4));
+    const completionTokens = data?.usageMetadata?.totalTokenCount ? Math.max(1, data.usageMetadata.totalTokenCount - promptTokens) : Math.max(1, Math.ceil(candidateText.length / 4));
+    const totalTokens = data?.usageMetadata?.totalTokenCount || (promptTokens + completionTokens);
+    const contextLimit = 1000000;
+    const percentConsumed = Number(((totalTokens / contextLimit) * 100).toFixed(4));
+    const percentLeft = Number((100 - percentConsumed).toFixed(4));
+    const tokenMetrics = {
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      contextLimit,
+      percentConsumed,
+      percentLeft,
+    };
     return {
       status: "VERIFIED",
       protocol: "REST API HTTPS / v1beta",
       message: `API handshake successful for '${modelId}'. Live model output verified.`,
       latencyMs,
       modelOutput,
-      details: { modelId, tokensConsumed: data?.usageMetadata?.totalTokenCount || 0 },
+      details: {
+        modelId,
+        modelName: modelId,
+        cliName: "antigravity",
+        cliVersion: "1.4.12",
+        effortTier: ctx?.effortTier || "medium",
+        tokenMetrics,
+        tokensConsumed: totalTokens,
+        correlationId: ctx?.correlationId,
+        traceId: ctx?.traceId,
+      },
+      correlationId: ctx?.correlationId,
+      traceId: ctx?.traceId,
+      spanId: ctx?.spanId,
+      modelName: modelId,
+      cliName: "antigravity",
+      cliVersion: "1.4.12",
+      effortTier: ctx?.effortTier || "medium",
+      tokenMetrics,
     };
   }
 
@@ -525,7 +590,10 @@ export class OAuthProtocolVerificationStrategy implements IProtocolVerificationS
       latencyMs: result.latencyMs,
       modelOutput: result.modelOutput,
       errorMessage: result.errorMessage,
-      details: result.details,
+      details: { ...result.details, correlationId: ctx.correlationId, traceId: ctx.traceId },
+      correlationId: ctx.correlationId,
+      traceId: ctx.traceId,
+      spanId: ctx.spanId,
     };
   }
 }
@@ -553,14 +621,41 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
     const providerStrategy = this.providerRegistry.resolve(ctx.modelId);
     const sanitizedPrompt = ctx.userPrompt.replace(/"/g, '\\"');
     const plan = providerStrategy.buildCliPlan(ctx.modelId, sanitizedPrompt, effectiveCred);
-    return this.executeCliPlan(plan, ctx.modelId, ctx.startTime, ctx.userPrompt);
+    if (ctx.correlationId) plan.env.CORRELATION_ID = ctx.correlationId;
+    if (ctx.traceId) plan.env.TRACE_ID = ctx.traceId;
+    if (ctx.spanId) plan.env.SPAN_ID = ctx.spanId;
+    if (ctx.parentSpanId) plan.env.PARENT_SPAN_ID = ctx.parentSpanId;
+    if (ctx.traceId && ctx.spanId) plan.env.TRACEPARENT = `00-${ctx.traceId}-${ctx.spanId}-01`;
+    return this.executeCliPlan(plan, ctx.modelId, ctx.startTime, ctx.userPrompt, ctx);
   }
 
-  private async executeCliPlan(plan: CliExecutionPlan, modelId: string, startTime: number, prompt = "ready"): Promise<ConnectionTestResult> {
+  private async executeCliPlan(
+    plan: CliExecutionPlan,
+    modelId: string,
+    startTime: number,
+    prompt = "ready",
+    ctx?: VerificationContext,
+  ): Promise<ConnectionTestResult> {
     try {
       const result = await childProcessUtils.exec(plan.cmd, { env: plan.env, timeout: 45000 });
       const latencyMs = Date.now() - startTime;
       const stdout = result.stdout ? result.stdout.trim() : "";
+      const promptTokens = Math.max(1, Math.ceil(prompt.length / 4));
+      const completionTokens = Math.max(1, Math.ceil(stdout.length / 4));
+      const totalTokens = promptTokens + completionTokens;
+      const contextLimit = 1000000;
+      const percentConsumed = Number(((totalTokens / contextLimit) * 100).toFixed(4));
+      const percentLeft = Number((100 - percentConsumed).toFixed(4));
+      const tokenMetrics = {
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        contextLimit,
+        percentConsumed,
+        percentLeft,
+      };
+      const cliVersion = "1.4.12";
+
       if (stdout.length > 0) {
         if (stdout.includes("Authentication required") || stdout.includes("Please visit the URL to log in")) {
           return {
@@ -569,7 +664,15 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
             message: `${plan.binary} CLI requires authentication. Run CLI Login to authenticate.`,
             latencyMs,
             errorMessage: "CLI authentication required. Please run 'Run CLI Auth' to log in.",
-            details: { binary: plan.binary, modelId },
+            details: { binary: plan.binary, modelId, cliName: plan.binary, cliVersion, tokenMetrics, effortTier: ctx?.effortTier || "medium", correlationId: ctx?.correlationId, traceId: ctx?.traceId },
+            correlationId: ctx?.correlationId,
+            traceId: ctx?.traceId,
+            spanId: ctx?.spanId,
+            modelName: modelId,
+            cliName: plan.binary,
+            cliVersion,
+            effortTier: ctx?.effortTier || "medium",
+            tokenMetrics,
           };
         }
         return {
@@ -578,24 +681,47 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
           message: `${plan.binary} CLI subshell executed successfully.`,
           latencyMs,
           modelOutput: `[${plan.binary} CLI Verified]\nModel: ${modelId}\n\nPrompt (Request):\n${prompt}\n\nResponse:\n${stdout}`,
-          details: { binary: plan.binary, modelId },
+          details: { binary: plan.binary, modelId, cliName: plan.binary, cliVersion, tokenMetrics, effortTier: ctx?.effortTier || "medium", correlationId: ctx?.correlationId, traceId: ctx?.traceId },
+          correlationId: ctx?.correlationId,
+          traceId: ctx?.traceId,
+          spanId: ctx?.spanId,
+          modelName: modelId,
+          cliName: plan.binary,
+          cliVersion,
+          effortTier: ctx?.effortTier || "medium",
+          tokenMetrics,
         };
       }
-      return this.buildFailedCliResult(plan.binary, modelId, latencyMs, result.stderr || "CLI output empty");
+      return this.buildFailedCliResult(plan.binary, modelId, latencyMs, result.stderr || "CLI output empty", ctx, cliVersion, tokenMetrics);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      return this.buildFailedCliResult(plan.binary, modelId, Date.now() - startTime, errMsg);
+      return this.buildFailedCliResult(plan.binary, modelId, Date.now() - startTime, errMsg, ctx);
     }
   }
 
-  private buildFailedCliResult(binary: string, modelId: string, latencyMs: number, errorMessage: string): ConnectionTestResult {
+  private buildFailedCliResult(
+    binary: string,
+    modelId: string,
+    latencyMs: number,
+    errorMessage: string,
+    ctx?: VerificationContext,
+    cliVersion = "1.4.12",
+    tokenMetrics?: Record<string, unknown>,
+  ): ConnectionTestResult {
     return {
       status: "FAILED",
       protocol: `CLI Subshell (${binary})`,
       message: `${binary} CLI execution failed: ${errorMessage}`,
       latencyMs,
       errorMessage,
-      details: { binary, modelId },
+      details: { binary, modelId, cliName: binary, cliVersion, tokenMetrics, correlationId: ctx?.correlationId, traceId: ctx?.traceId },
+      correlationId: ctx?.correlationId,
+      traceId: ctx?.traceId,
+      spanId: ctx?.spanId,
+      modelName: modelId,
+      cliName: binary,
+      cliVersion,
+      effortTier: ctx?.effortTier || "medium",
     };
   }
 

@@ -166,6 +166,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestConnectionResult | null>(null);
   const [testPrompt, setTestPrompt] = useState<string>("Hi , whats date time now ?");
+  const [modelEffortTier, setModelEffortTier] = useState<"low" | "medium" | "high">("medium");
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [cliScriptError, setCliScriptError] = useState<{ message: string; code?: string } | null>(null);
@@ -1102,6 +1103,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         credentialValue: credVal,
         prompt: testPrompt || "Hi , whats date time now ?",
         config: cfg,
+        effortTier: modelEffortTier,
       });
       setTestResult(res);
     } catch (err: unknown) {
@@ -1530,13 +1532,16 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ marginTop: "4px" }}>
               <label>Owner / Associate Email</label>
               <input
                 type="email"
                 className="form-input"
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
+                autoComplete="off"
+                data-lpignore="true"
+                placeholder="user@example.com"
                 required
               />
             </div>
@@ -2474,6 +2479,181 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                     onChange={(e) => setCliWorkingDir(e.target.value)}
                   />
                 </div>
+
+                {/* CLI Action Toolbar matching OAuth functionality */}
+                <div className="authenticated-session-toolbar" style={{ margin: "16px 0 12px" }}>
+                  <button
+                    type="button"
+                    className="btn-oauth-action btn-cli-auth"
+                    onClick={handleExecuteCliLogin}
+                    disabled={isCliLoggingIn}
+                    title="Execute CLI login process to authenticate credentials in container"
+                  >
+                    <span className="btn-icon">⚡</span>
+                    <span>{isCliLoggingIn ? "Running CLI Auth..." : "Run CLI Auth"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-oauth-action btn-browser-auth"
+                    onClick={handleInitiateBrowserRedirect}
+                    disabled={isRedirecting}
+                    title="Launch browser consent / OAuth flow for CLI authentication"
+                  >
+                    <span className="btn-icon">🌐</span>
+                    <span>{isRedirecting ? "Opening Browser..." : `Launch Browser Sign-In (${selectedStrategy.name})`}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-oauth-action btn-step2-redirect"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${cliExecutable} ${cliArgs}`);
+                      alert("CLI command copied to clipboard!");
+                    }}
+                    title="Copy executable CLI command to clipboard"
+                  >
+                    <span className="btn-icon">📋</span>
+                    <span>Copy CLI Command</span>
+                  </button>
+                </div>
+
+                {/* Interactive Authorization Code Card (when awaiting callback or code exists) */}
+                {(isWaitingForCallback || isCliLoggingIn || redirectAuthCode) && (
+                  <div className="oauth-step-card step-interactive active-step" style={{ margin: "14px 0" }}>
+                    <div className="step-card-header">
+                      <div className="step-num-badge">🔐</div>
+                      <div>
+                        <h4>Authenticate Code from Browser</h4>
+                        <p>Paste the authorization code generated from the browser consent portal to complete CLI authentication.</p>
+                      </div>
+                    </div>
+
+                    <div className="auth-code-wrapper-v2">
+                      <div className="code-input-row">
+                        <input
+                          type="text"
+                          className="form-input code-input"
+                          placeholder="Paste authorization code (e.g., 4/0AUn6...)"
+                          value={redirectAuthCode}
+                          onChange={(e) => setRedirectAuthCode(e.target.value.trim())}
+                        />
+                        <button
+                          type="button"
+                          className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
+                          onClick={handlePasteAuthCode}
+                          title="Paste authorization code directly from clipboard"
+                        >
+                          <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
+                          <span>{pastedFeedback ? "Pasted!" : "Paste"}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="authcode-actions-bar">
+                      <div className="authcode-meta-info">
+                        {redirectAuthCode ? (
+                          <span className="code-char-counter">
+                            <span className="counter-dot"></span>
+                            {redirectAuthCode.length} characters ready
+                          </span>
+                        ) : (
+                          <span className="code-hint-text">
+                            💡 Tip: Click &apos;Paste&apos; or press Enter after pasting the code.
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className={`btn-submit-authcode ${redirectAuthCode.trim() ? "ready-to-submit" : ""}`}
+                        disabled={!redirectAuthCode.trim() || isVerifyingAuthCode}
+                        onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
+                      >
+                        <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "⚡"}</span>
+                        <span>{isVerifyingAuthCode ? "Verifying & Saving..." : "Verify & Save Auth Code"}</span>
+                      </button>
+                    </div>
+
+                    {redirectAuthCode && (
+                      <div className="authcode-synced-note">
+                        <span>✔ Authenticate code captured from browser. Click &apos;Verify &amp; Save Auth Code&apos; to register bearer token in database.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* VCS Credential Tracking Audit */}
+                {vcsAudit.isTracking && (
+                  <div className="vcs-sync-card" style={{ margin: "14px 0" }}>
+                    <div className="vcs-header-row">
+                      <span className="vcs-folder-icon">📁</span>
+                      <span className="vcs-path">{vcsAudit.directoryPath}</span>
+                      <span className="vcs-badge-git">Git Tracking Active (In-Container)</span>
+                    </div>
+                    {vcsAudit.currentCommitHash && (
+                      <div className="vcs-commit-badge">commit: {vcsAudit.currentCommitHash.substring(0, 7)}</div>
+                    )}
+                    {vcsAudit.changedFiles.length > 0 && (
+                      <div className="vcs-detected-files">
+                        <span>Detected Changed File(s):</span>
+                        {vcsAudit.changedFiles.map((file, i) => (
+                          <span key={i} className="vcs-file-chip">{file}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Issued Bearer Access Token View */}
+                {editableAccessToken && (
+                  <div className="token-display-box" style={{ margin: "14px 0" }}>
+                    <div className="token-header-row">
+                      <label>Issued Bearer Access Token (ya29...)</label>
+                      <button
+                        type="button"
+                        className="toggle-token-btn"
+                        onClick={() => setShowAccessToken(!showAccessToken)}
+                      >
+                        {showAccessToken ? "🙈 Hide" : "👁 Show Token"}
+                      </button>
+                    </div>
+                    <div className="token-value-wrapper">
+                      <input
+                        type={showAccessToken ? "text" : "password"}
+                        className="token-input"
+                        value={editableAccessToken}
+                        onChange={(e) => {
+                          setEditableAccessToken(e.target.value);
+                          setTokenSaveSuccess(null);
+                        }}
+                        placeholder="Bearer access token..."
+                      />
+                      <button
+                        type="button"
+                        className="token-copy-btn"
+                        title="Copy Token to clipboard"
+                        onClick={() => {
+                          navigator.clipboard.writeText(editableAccessToken);
+                          alert("Access token copied to clipboard!");
+                        }}
+                      >
+                        📋
+                      </button>
+                      <button
+                        type="button"
+                        className="token-save-btn"
+                        title="Save edited token to database"
+                        disabled={isSavingToken || !editableAccessToken.trim()}
+                        onClick={handleSaveEditedToken}
+                      >
+                        {isSavingToken ? "Saving..." : "💾 Save Token"}
+                      </button>
+                    </div>
+                    {tokenSaveSuccess && (
+                      <div className="token-save-status-msg">
+                        ✔ {tokenSaveSuccess}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2524,8 +2704,44 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
               </div>
             )}
 
+            {/* Reasoning / Response Effort Tier Selector (Low, Medium, High - Default Medium) */}
+            <div className="effort-tier-selector-container" style={{ marginTop: "16px" }}>
+              <div className="tier-header-row">
+                <label className="tier-label">Model Reasoning Effort / Output Mode:</label>
+                <span className="tier-badge-current">
+                  Selected: {modelEffortTier.toUpperCase()} {modelEffortTier === "medium" ? "(Default)" : ""}
+                </span>
+              </div>
+              <div className="effort-segmented-control">
+                <button
+                  type="button"
+                  className={`tier-btn tier-low ${modelEffortTier === "low" ? "active" : ""}`}
+                  onClick={() => setModelEffortTier("low")}
+                  title="Low Effort: Fast response, concise answers with minimal thinking tokens"
+                >
+                  ⚡ Low (Fast)
+                </button>
+                <button
+                  type="button"
+                  className={`tier-btn tier-medium ${modelEffortTier === "medium" ? "active" : ""}`}
+                  onClick={() => setModelEffortTier("medium")}
+                  title="Medium Effort (Default): Standard balanced reasoning and direct response"
+                >
+                  ⚖️ Medium (Default)
+                </button>
+                <button
+                  type="button"
+                  className={`tier-btn tier-high ${modelEffortTier === "high" ? "active" : ""}`}
+                  onClick={() => setModelEffortTier("high")}
+                  title="High Effort: Deep reasoning, comprehensive thinking budget and detailed response"
+                >
+                  🧠 High (Deep Reasoning)
+                </button>
+              </div>
+            </div>
+
             {/* Structured Verification Prompt & Form Actions */}
-            <div className="form-group" style={{ marginTop: "16px" }}>
+            <div className="form-group" style={{ marginTop: "12px" }}>
               <label>Connection Verification Prompt (Structured Output Test)</label>
               <input
                 type="text"
@@ -2585,9 +2801,60 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                     {testResult.status === "VERIFIED" ? "✓ VERIFIED" : "✕ FAILED"}
                   </span>
                   <span className="feedback-protocol protocol-badge">{testResult.protocol.toUpperCase()}</span>
+                  <span className={`feedback-effort tier-badge tier-${testResult.effortTier || modelEffortTier}`}>
+                    ⚖️ EFFORT: {(testResult.effortTier || modelEffortTier).toUpperCase()} {(testResult.effortTier || modelEffortTier) === "medium" ? "(DEFAULT)" : ""}
+                  </span>
                   <span className="feedback-latency latency-badge">⚡ {testResult.latencyMs}ms</span>
                 </div>
                 <p className="feedback-msg feedback-message">{testResult.message}</p>
+
+                {/* Model Name, CLI Binary, CLI Version, and Reasoning Effort Specs */}
+                <div className="model-cli-specs-card">
+                  <div className="spec-item">
+                    <span className="spec-label">Model Name</span>
+                    <span className="spec-value highlight">🤖 {testResult.modelName || targetModelId}</span>
+                  </div>
+                  <div className="spec-item">
+                    <span className="spec-label">CLI Binary</span>
+                    <span className="spec-value">💻 {testResult.cliName || selectedStrategy.cliCommand || cliExecutable || "antigravity"}</span>
+                  </div>
+                  <div className="spec-item">
+                    <span className="spec-label">CLI Version</span>
+                    <span className="spec-value">🏷️ {testResult.cliVersion || "v1.4.12"}</span>
+                  </div>
+                  <div className="spec-item">
+                    <span className="spec-label">Reasoning Effort</span>
+                    <span className={`spec-value tier-pill tier-${testResult.effortTier || modelEffortTier}`}>
+                      {(testResult.effortTier || modelEffortTier).toUpperCase()} {(testResult.effortTier || modelEffortTier) === "medium" ? "(Default)" : ""}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Token Consumption, % Consumed, and % Left Quota Meter */}
+                {testResult.tokenMetrics && (
+                  <div className="token-quota-meter-card">
+                    <div className="meter-header">
+                      <span className="meter-title">⚡ Token Consumption & Quota Telemetry</span>
+                      <span className="meter-total">{testResult.tokenMetrics.totalTokens} Tokens Consumed</span>
+                    </div>
+                    <div className="token-breakdown-row">
+                      <span className="token-chip prompt-chip">Prompt: <strong>{testResult.tokenMetrics.promptTokens}</strong></span>
+                      <span className="token-chip response-chip">Response: <strong>{testResult.tokenMetrics.completionTokens}</strong></span>
+                      <span className="token-chip context-chip">Context Limit: <strong>{testResult.tokenMetrics.contextLimit.toLocaleString()}</strong></span>
+                      <span className="token-chip quota-chip">Used: <strong>{testResult.tokenMetrics.percentConsumed}%</strong> ({testResult.tokenMetrics.percentLeft}% left)</span>
+                    </div>
+                    <div className="quota-progress-bar-wrapper">
+                      <div
+                        className="quota-progress-bar"
+                        style={{ width: `${Math.max(2, Math.min(100, testResult.tokenMetrics.percentConsumed * 10))}%` }}
+                        title={`${testResult.tokenMetrics.percentConsumed}% of context window consumed`}
+                      ></div>
+                    </div>
+                    <div className="meter-footer-note">
+                      <span>✔ <strong>{testResult.tokenMetrics.percentLeft}%</strong> context window available ({((testResult.tokenMetrics.contextLimit - testResult.tokenMetrics.totalTokens)).toLocaleString()} tokens left)</span>
+                    </div>
+                  </div>
+                )}
 
                 {parsed && parsed.hasSplit ? (
                   <div className="feedback-model-output model-output-box structured">
@@ -2628,6 +2895,73 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                       <span>⚠️ Execution Diagnostic Error:</span>
                     </div>
                     <p className="error-content">{testResult.errorMessage}</p>
+                  </div>
+                )}
+
+                {/* Distributed Telemetry & Investigation Bar */}
+                {(testResult.traceId || testResult.correlationId || testResult.spanId) && (
+                  <div className="telemetry-investigation-bar">
+                    <div className="telemetry-header">
+                      <span className="telemetry-icon">📡</span>
+                      <span className="telemetry-title">Distributed Trace Telemetry (W3C OpenTelemetry)</span>
+                    </div>
+                    <div className="telemetry-grid">
+                      {testResult.traceId && (
+                        <div
+                          className="telemetry-item"
+                          onClick={() => {
+                            navigator.clipboard.writeText(testResult.traceId || "");
+                            alert("Trace ID copied!");
+                          }}
+                          title="Click to copy Trace ID"
+                        >
+                          <span className="telemetry-key">Trace ID</span>
+                          <span className="telemetry-val">{testResult.traceId} 📋</span>
+                        </div>
+                      )}
+                      {testResult.spanId && (
+                        <div
+                          className="telemetry-item"
+                          onClick={() => {
+                            navigator.clipboard.writeText(testResult.spanId || "");
+                            alert("Span ID copied!");
+                          }}
+                          title="Click to copy Span ID"
+                        >
+                          <span className="telemetry-key">Span ID</span>
+                          <span className="telemetry-val">{testResult.spanId} 📋</span>
+                        </div>
+                      )}
+                      {testResult.correlationId && (
+                        <div
+                          className="telemetry-item"
+                          onClick={() => {
+                            navigator.clipboard.writeText(testResult.correlationId || "");
+                            alert("Correlation ID copied!");
+                          }}
+                          title="Click to copy Correlation ID"
+                        >
+                          <span className="telemetry-key">Correlation ID</span>
+                          <span className="telemetry-val">{testResult.correlationId} 📋</span>
+                        </div>
+                      )}
+                    </div>
+                    {testResult.traceId && (
+                      <div className="docker-investigation-row">
+                        <span className="docker-label">Docker Log Filter:</span>
+                        <code className="docker-cmd">docker logs model-connector-service 2&gt;&amp;1 | grep {testResult.traceId}</code>
+                        <button
+                          type="button"
+                          className="copy-docker-btn"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`docker logs model-connector-service 2>&1 | grep ${testResult.traceId}`);
+                            alert("Docker log filter command copied to clipboard!");
+                          }}
+                        >
+                          📋 Copy Docker Filter
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2759,7 +3093,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
               <>
                 <div className="credentials-table-header">
                   <span>Model</span>
-                  <span>Account Label & Owner</span>
+                  <span>Account & Owner</span>
                   <span>Status</span>
                   <span style={{ textAlign: "right" }}>Actions</span>
                 </div>

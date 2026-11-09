@@ -43,6 +43,15 @@ export interface TestConnectionRequest {
   };
 }
 
+export interface TokenMetrics {
+  readonly promptTokens: number;
+  readonly completionTokens: number;
+  readonly totalTokens: number;
+  readonly contextLimit: number;
+  readonly percentConsumed: number;
+  readonly percentLeft: number;
+}
+
 export interface ConnectionTestResult {
   readonly status: "VERIFIED" | "FAILED" | "DEGRADED";
   readonly protocol: string;
@@ -51,6 +60,14 @@ export interface ConnectionTestResult {
   readonly modelOutput?: string;
   readonly errorMessage?: string;
   readonly details: Record<string, unknown>;
+  readonly correlationId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
+  readonly modelName?: string;
+  readonly cliName?: string;
+  readonly cliVersion?: string;
+  readonly effortTier?: "low" | "medium" | "high";
+  readonly tokenMetrics?: TokenMetrics;
 }
 
 /**
@@ -171,7 +188,9 @@ export class ModelConfigController {
   }
 
   public async testConnection(req: Request, res: Response): Promise<void> {
-    const { modelId, authType, credentialValue, prompt } = req.body as TestConnectionRequest;
+    const { modelId, authType, credentialValue, prompt, effortTier } = req.body as TestConnectionRequest & {
+      effortTier?: "low" | "medium" | "high";
+    };
 
     if (!modelId || !authType) {
       res.status(HttpStatus.BAD_REQUEST).json({
@@ -184,21 +203,38 @@ export class ModelConfigController {
 
     const startTime = Date.now();
     const userPrompt = prompt?.trim() || "Hi , whats date time now ?";
+    const resolvedEffort = effortTier || "medium";
     const strategy = this.verificationRegistry.resolve(authType);
     const testResult = await strategy.verify({
       modelId,
       credentialValue: credentialValue || "",
       userPrompt,
       startTime,
+      correlationId: req.correlationId,
+      traceId: req.traceContext?.traceId,
+      spanId: req.traceContext?.spanId,
+      parentSpanId: req.traceContext?.parentSpanId,
+      effortTier: resolvedEffort,
     });
 
     this.deactivateAccountOnFailure(modelId, credentialValue, testResult.status);
 
+    const enrichedResult = {
+      ...testResult,
+      correlationId: testResult.correlationId || req.correlationId,
+      traceId: testResult.traceId || req.traceContext?.traceId,
+      spanId: testResult.spanId || req.traceContext?.spanId,
+      effortTier: testResult.effortTier || resolvedEffort,
+      modelName: testResult.modelName || modelId,
+    };
+
     res.status(HttpStatus.OK).json({
       success: testResult.status === "VERIFIED",
       modelId,
-      result: testResult,
+      result: enrichedResult,
       correlationId: req.correlationId,
+      traceId: req.traceContext?.traceId,
+      spanId: req.traceContext?.spanId,
     });
   }
 

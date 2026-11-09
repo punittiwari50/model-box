@@ -169,6 +169,15 @@ export interface UiModelAccount {
   readonly updatedTimestamp: string;
 }
 
+export interface TokenMetrics {
+  readonly promptTokens: number;
+  readonly completionTokens: number;
+  readonly totalTokens: number;
+  readonly contextLimit: number;
+  readonly percentConsumed: number;
+  readonly percentLeft: number;
+}
+
 export interface TestConnectionResult {
   readonly status: "VERIFIED" | "FAILED";
   readonly protocol: string;
@@ -177,6 +186,14 @@ export interface TestConnectionResult {
   readonly modelOutput?: string;
   readonly errorMessage?: string;
   readonly details: Record<string, unknown>;
+  readonly correlationId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
+  readonly modelName?: string;
+  readonly cliName?: string;
+  readonly cliVersion?: string;
+  readonly effortTier?: "low" | "medium" | "high";
+  readonly tokenMetrics?: TokenMetrics;
 }
 
 export interface UiCategory {

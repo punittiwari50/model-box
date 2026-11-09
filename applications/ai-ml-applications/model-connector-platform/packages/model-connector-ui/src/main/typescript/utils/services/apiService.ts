@@ -20,6 +20,45 @@ import { ollamaUiModelCache, providerCatalogStore } from "@/utils/services/ollam
 const API_BASE = "/api/v1";
 
 export class ApiService {
+  public static generateTraceId(): string {
+    const chars = "abcdef0123456789";
+    let s = "";
+    for (let i = 0; i < 32; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+  public static generateSpanId(): string {
+    const chars = "abcdef0123456789";
+    let s = "";
+    for (let i = 0; i < 16; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+  public static generateUuid(): string {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  public static async fetchWithTelemetry(
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ): Promise<Response> {
+    const traceId = this.generateTraceId();
+    const spanId = this.generateSpanId();
+    const correlationId = this.generateUuid();
+    const headers = new Headers(init?.headers);
+
+    if (!headers.has("x-correlation-id")) headers.set("x-correlation-id", correlationId);
+    if (!headers.has("x-trace-id")) headers.set("x-trace-id", traceId);
+    if (!headers.has("x-span-id")) headers.set("x-span-id", spanId);
+    if (!headers.has("traceparent")) headers.set("traceparent", `00-${traceId}-${spanId}-01`);
+
+    return fetch(input, { ...init, headers });
+  }
+
   public static async syncProviderCatalog(forceRefresh = false): Promise<void> {
     try {
       const query = forceRefresh ? "?refresh=true" : "";
@@ -109,8 +148,9 @@ export class ApiService {
     credentialValue: string;
     prompt?: string;
     config?: Record<string, unknown>;
+    effortTier?: "low" | "medium" | "high";
   }): Promise<TestConnectionResult> {
-    const res = await fetch(`${API_BASE}/models/config/test-connection`, {
+    const res = await this.fetchWithTelemetry(`${API_BASE}/models/config/test-connection`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -119,7 +159,18 @@ export class ApiService {
     if (!res.ok && !data.result) {
       throw new Error(data.message || "Failed to execute connection verification");
     }
-    return data.result;
+    const result = data.result;
+    return {
+      ...result,
+      correlationId: data.correlationId || res.headers.get("x-correlation-id") || undefined,
+      traceId: data.traceId || res.headers.get("x-trace-id") || undefined,
+      spanId: data.spanId || res.headers.get("x-span-id") || undefined,
+      modelName: data.result?.modelName || data.modelId || payload.modelId,
+      cliName: data.result?.cliName || undefined,
+      cliVersion: data.result?.cliVersion || undefined,
+      effortTier: data.result?.effortTier || payload.effortTier || "medium",
+      tokenMetrics: data.result?.tokenMetrics || undefined,
+    };
   }
 
   public static async fetchLatestOAuthCallback(modelId: string): Promise<any> {
