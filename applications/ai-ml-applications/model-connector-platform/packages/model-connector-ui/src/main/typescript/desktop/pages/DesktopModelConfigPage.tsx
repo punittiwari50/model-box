@@ -190,6 +190,66 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
+  // Existing Configured Accounts Display State (Default to current model & List view)
+  const [filterToCurrentModel, setFilterToCurrentModel] = useState<boolean>(true);
+  const [accountsViewMode, setAccountsViewMode] = useState<"list" | "card">("list");
+
+  // Chat Choice Modal State (Start fresh session vs resume existing)
+  const [isChatChoiceModalOpen, setIsChatChoiceModalOpen] = useState<boolean>(false);
+  const [chatTargetModel, setChatTargetModel] = useState<string>(targetModelId);
+
+  const handleInitiateChat = (modelId: string) => {
+    setChatTargetModel(modelId);
+    if (state.messages.length > 0 || state.sessions.length > 0) {
+      setIsChatChoiceModalOpen(true);
+    } else {
+      state.setSelectedModel(modelId);
+      state.handleNewSession();
+      state.setActiveTab("chat");
+    }
+  };
+
+  const handleStartFreshChat = () => {
+    state.setSelectedModel(chatTargetModel);
+    state.handleNewSession();
+    setIsChatChoiceModalOpen(false);
+    state.setActiveTab("chat");
+  };
+
+  const handleResumeExistingChat = () => {
+    state.setSelectedModel(chatTargetModel);
+    setIsChatChoiceModalOpen(false);
+    state.setActiveTab("chat");
+  };
+
+  const loadAccountIntoEditor = (acc: UiModelAccount) => {
+    setEditingAccountId(acc.accountId);
+    setTargetModelId(acc.modelId);
+    setAccountName(acc.accountName);
+    setUserEmail(acc.userEmail);
+    if (acc.authType === "api" || acc.authType === "api_key") {
+      setSelectedProtocol("api");
+      setApiKey(acc.credentialValue);
+    } else if (acc.authType === "oauth" || acc.authType === "cli_oauth") {
+      const accStrategy = oauthProviderRegistry.findStrategyForModel(acc.modelId);
+      setSelectedProtocol("oauth");
+      setOauthSession({
+        providerId: accStrategy.id,
+        providerName: accStrategy.name,
+        accessToken: acc.credentialValue,
+        expiresInSeconds: 3600,
+        scopes: accStrategy.defaultScopes.split(" ").filter(Boolean),
+        authorizedUser: acc.userEmail,
+        authorizedTimestamp: acc.createdTimestamp,
+      });
+    } else if (acc.authType === "cli") {
+      setSelectedProtocol("cli");
+    } else if (acc.authType === "cookie") {
+      setSelectedProtocol("cookie");
+      setCookieString(acc.credentialValue);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -253,6 +313,25 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
   const currentModelObj = state.models.find((m) => m.id === targetModelId);
   const currentModelTitle = currentModelObj?.name || targetModelId;
+
+  // Stably sorted accounts with model filtering (STD-COD-006, STD-COD-007)
+  const currentModelAccountsCount = useMemo(() => {
+    return (state.modelAccounts || []).filter((a) => a.modelId === targetModelId).length;
+  }, [state.modelAccounts, targetModelId]);
+
+  const displayedAccounts = useMemo(() => {
+    const list = state.modelAccounts || [];
+    const filtered = filterToCurrentModel
+      ? list.filter((a) => a.modelId === targetModelId)
+      : list;
+    return [...filtered].sort((a, b) => {
+      const modelComp = (a.modelId || "").localeCompare(b.modelId || "");
+      if (modelComp !== 0) return modelComp;
+      const timeComp = (a.createdTimestamp || "").localeCompare(b.createdTimestamp || "");
+      if (timeComp !== 0) return timeComp;
+      return (a.accountId || "").localeCompare(b.accountId || "");
+    });
+  }, [state.modelAccounts, filterToCurrentModel, targetModelId]);
 
   // Local In-Container VCS & Credentials Directory Audit State (Enabled by default)
   const [vcsAudit, setVcsAudit] = useState<{
@@ -1265,10 +1344,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
         onDeleteClick={viewMode === "form" && formMode === "save" ? handleDeleteActiveAccount : undefined}
         onChatClick={
           viewMode === "form"
-            ? () => {
-                state.setSelectedModel(targetModelId);
-                state.setActiveTab("chat");
-              }
+            ? () => handleInitiateChat(targetModelId)
             : undefined
         }
         isSaving={isSaving}
@@ -1319,8 +1395,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
           groupBy={modelGroupBy}
           onModelClick={openModelSaveView}
           onChatSelect={(mId) => {
-            state.setSelectedModel(mId);
-            state.setActiveTab("chat");
+            handleInitiateChat(mId);
           }}
           onManageAccountsClick={(mId) => {
             openModelSaveView(mId);
@@ -1336,8 +1411,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
           selectedModelId={targetModelId}
           onModelClick={openModelSaveView}
           onChatSelect={(mId) => {
-            state.setSelectedModel(mId);
-            state.setActiveTab("chat");
+            handleInitiateChat(mId);
           }}
         />
       )}
@@ -2563,147 +2637,344 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
 
         {/* Right Column: Existing Configured Accounts Catalog */}
         <div className="config-catalog-card">
-          <div className="card-header">
-            <span className="card-icon">📂</span>
-            <h3>Existing Configured Accounts</h3>
-            <span className="count-badge">{state.modelAccounts.length}</span>
+          <div className="card-header" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span className="card-icon">📂</span>
+              <h3 style={{ margin: 0 }}>Configured Accounts</h3>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              {/* Model Scope Filter Pills */}
+              <div style={{ display: "flex", background: "rgba(0, 0, 0, 0.35)", borderRadius: "6px", padding: "2px" }}>
+                <button
+                  type="button"
+                  onClick={() => setFilterToCurrentModel(true)}
+                  style={{
+                    padding: "4px 9px",
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: filterToCurrentModel ? "rgba(99, 102, 241, 0.4)" : "transparent",
+                    color: filterToCurrentModel ? "#ffffff" : "#94a3b8",
+                  }}
+                  title={`Filter accounts registered to ${targetModelId}`}
+                >
+                  Current Model ({currentModelAccountsCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterToCurrentModel(false)}
+                  style={{
+                    padding: "4px 9px",
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: !filterToCurrentModel ? "rgba(99, 102, 241, 0.4)" : "transparent",
+                    color: !filterToCurrentModel ? "#ffffff" : "#94a3b8",
+                  }}
+                  title="Show all registered accounts across all models"
+                >
+                  All ({state.modelAccounts.length})
+                </button>
+              </div>
+
+              {/* View Mode Switcher: List vs Card */}
+              <div style={{ display: "flex", background: "rgba(0, 0, 0, 0.35)", borderRadius: "6px", padding: "2px" }}>
+                <button
+                  type="button"
+                  onClick={() => setAccountsViewMode("list")}
+                  style={{
+                    padding: "4px 8px",
+                    fontSize: "0.72rem",
+                    borderRadius: "4px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: accountsViewMode === "list" ? "rgba(16, 185, 129, 0.3)" : "transparent",
+                    color: accountsViewMode === "list" ? "#6ee7b7" : "#94a3b8",
+                  }}
+                  title="List Mode (Compact table)"
+                >
+                  📋 List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccountsViewMode("card")}
+                  style={{
+                    padding: "4px 8px",
+                    fontSize: "0.72rem",
+                    borderRadius: "4px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: accountsViewMode === "card" ? "rgba(16, 185, 129, 0.3)" : "transparent",
+                    color: accountsViewMode === "card" ? "#6ee7b7" : "#94a3b8",
+                  }}
+                  title="Card Mode (Detailed cards)"
+                >
+                  🗂️ Cards
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="credentials-list">
-            {state.modelAccounts.map((acc) => (
-              <div key={acc.accountId} className={`credential-item-card ${acc.isActive ? "active" : ""}`}>
-                <div className="card-top-row">
-                  <div className="model-chip-title">
-                    <span className="model-name-text">{acc.modelId}</span>
-                    <span className={`auth-badge ${acc.authType}`}>
-                      {acc.authType === "api" || acc.authType === "api_key"
-                        ? "REST API"
-                        : acc.authType === "cli" || acc.authType === "cli_oauth"
-                        ? "CLI"
-                        : acc.authType === "oauth"
-                        ? "OAuth 2.0"
-                        : "Cookie"}
-                    </span>
+            {displayedAccounts.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "36px 16px", color: "#94a3b8" }}>
+                <div style={{ fontSize: "2rem", marginBottom: "8px" }}>📭</div>
+                <p style={{ margin: "0 0 6px 0", fontSize: "0.88rem", color: "#cbd5e1", fontWeight: 600 }}>
+                  {filterToCurrentModel
+                    ? `No accounts registered for '${targetModelId}'`
+                    : "No accounts configured yet"}
+                </p>
+                <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
+                  {filterToCurrentModel
+                    ? "Configure authentication on the left and click 'Save & Activate Configuration' to register."
+                    : "Select a model and configure credentials to get started."}
+                </p>
+                {filterToCurrentModel && state.modelAccounts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterToCurrentModel(false)}
+                    style={{
+                      marginTop: "12px",
+                      padding: "6px 14px",
+                      background: "rgba(99, 102, 241, 0.2)",
+                      border: "1px solid rgba(99, 102, 241, 0.4)",
+                      borderRadius: "6px",
+                      color: "#a5b4fc",
+                      fontSize: "0.76rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    View All {state.modelAccounts.length} Registered Accounts
+                  </button>
+                )}
+              </div>
+            ) : accountsViewMode === "list" ? (
+              /* LIST MODE: Compact Table View (Default) */
+              <>
+                <div className="credentials-table-header">
+                  <span>Model</span>
+                  <span>Account Label & Owner</span>
+                  <span>Status</span>
+                  <span style={{ textAlign: "right" }}>Actions</span>
+                </div>
+                {displayedAccounts.map((acc) => (
+                  <div key={acc.accountId} className={`credential-list-row ${acc.isActive ? "active" : ""}`}>
+                    <div className="col-model">
+                      <span className="model-name-text" title={acc.modelId}>{acc.modelId}</span>
+                      <span className={`auth-badge ${acc.authType}`}>
+                        {acc.authType === "api" || acc.authType === "api_key"
+                          ? "REST API"
+                          : acc.authType === "cli" || acc.authType === "cli_oauth"
+                          ? "CLI"
+                          : acc.authType === "oauth"
+                          ? "OAuth 2.0"
+                          : "Cookie"}
+                      </span>
+                    </div>
+
+                    <div className="col-label">
+                      <span className="account-name-val" title={acc.accountName}>{acc.accountName}</span>
+                      <span className="account-owner-val" title={acc.userEmail}>{acc.userEmail}</span>
+                      <code className="masked-cred-code" title={acc.maskedCredential}>{acc.maskedCredential}</code>
+                    </div>
+
+                    <div className="col-status">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={acc.isActive}
+                        className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
+                        onClick={() => handleToggleAccountStatus(acc)}
+                        title={acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate."}
+                      >
+                        <span className="switch-slider">
+                          <span className="switch-knob" />
+                        </span>
+                        <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
+                      </button>
+                    </div>
+
+                    <div className="col-actions">
+                      <button
+                        type="button"
+                        className="action-btn test-btn"
+                        onClick={() => handleTestExistingAccount(acc)}
+                        disabled={testingAccountId === acc.accountId}
+                        title="Test connection for this account"
+                      >
+                        {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="action-btn select-btn"
+                        onClick={() => loadAccountIntoEditor(acc)}
+                        title="Load this account into the form editor"
+                      >
+                        ✏️ Load
+                      </button>
+
+                      <button
+                        type="button"
+                        className="action-btn delete-btn"
+                        onClick={() => handleOpenDeleteModal(acc)}
+                        title="Delete this credential"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+
+                    {accountTestResults[acc.accountId] && (() => {
+                      const r = accountTestResults[acc.accountId];
+                      const parsed = parseStructuredModelOutput(r.modelOutput);
+                      return (
+                        <div
+                          className={`account-test-result-panel ${r.status.toLowerCase()}`}
+                          style={{ gridColumn: "1 / -1", marginTop: "6px" }}
+                        >
+                          <div className="res-header">
+                            <span className="res-pill">{r.status}</span>
+                            <span className="res-latency">⚡ {r.latencyMs}ms</span>
+                          </div>
+                          <div className="res-msg">{r.message}</div>
+                          {parsed && parsed.hasSplit ? (
+                            <div className="output-split-view mini">
+                              <div className="split-block request-block">
+                                <div className="split-label">⚡ Prompt:</div>
+                                <div className="split-body">{parsed.promptText}</div>
+                              </div>
+                              <div className="split-block response-block">
+                                <div className="split-label">🤖 Response:</div>
+                                <div className="split-body">{parsed.responseText}</div>
+                              </div>
+                            </div>
+                          ) : r.modelOutput ? (
+                            <pre className="res-output">{r.modelOutput}</pre>
+                          ) : null}
+                          {r.errorMessage && <div className="res-error">{r.errorMessage}</div>}
+                        </div>
+                      );
+                    })()}
                   </div>
-                  {/* Interactive Status Toggle Switch */}
-                  <div className="account-status-toggle-wrapper">
+                ))}
+              </>
+            ) : (
+              /* CARD MODE: Expanded Kanban Cards */
+              displayedAccounts.map((acc) => (
+                <div key={acc.accountId} className={`credential-item-card ${acc.isActive ? "active" : ""}`}>
+                  <div className="card-top-row">
+                    <div className="model-chip-title">
+                      <span className="model-name-text">{acc.modelId}</span>
+                      <span className={`auth-badge ${acc.authType}`}>
+                        {acc.authType === "api" || acc.authType === "api_key"
+                          ? "REST API"
+                          : acc.authType === "cli" || acc.authType === "cli_oauth"
+                          ? "CLI"
+                          : acc.authType === "oauth"
+                          ? "OAuth 2.0"
+                          : "Cookie"}
+                      </span>
+                    </div>
+
+                    <div className="account-status-toggle-wrapper">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={acc.isActive}
+                        className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
+                        onClick={() => handleToggleAccountStatus(acc)}
+                        title={acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate."}
+                      >
+                        <span className="switch-slider">
+                          <span className="switch-knob" />
+                        </span>
+                        <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="account-details-grid">
+                    <div className="detail-item">
+                      <span className="detail-label">Account Label:</span>
+                      <span className="detail-val" title={acc.accountName}>{acc.accountName}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Owner:</span>
+                      <span className="detail-val" title={acc.userEmail}>{acc.userEmail}</span>
+                    </div>
+                    <div className="detail-item full-span">
+                      <span className="detail-label">Credential:</span>
+                      <code className="credential-code-val" title={acc.maskedCredential}>{acc.maskedCredential}</code>
+                    </div>
+                  </div>
+
+                  <div className="card-action-bar">
                     <button
                       type="button"
-                      role="switch"
-                      aria-checked={acc.isActive}
-                      className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
-                      onClick={() => handleToggleAccountStatus(acc)}
-                      title={acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate."}
+                      className="action-btn test-btn"
+                      onClick={() => handleTestExistingAccount(acc)}
+                      disabled={testingAccountId === acc.accountId}
+                      title="Test connection for this account"
                     >
-                      <span className="switch-slider">
-                        <span className="switch-knob" />
-                      </span>
-                      <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
+                      {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="action-btn select-btn"
+                      onClick={() => loadAccountIntoEditor(acc)}
+                      title="Load this account into the form editor"
+                    >
+                      ✏️ Load
+                    </button>
+
+                    <button
+                      type="button"
+                      className="action-btn delete-btn"
+                      onClick={() => handleOpenDeleteModal(acc)}
+                      title="Delete this credential"
+                    >
+                      🗑️ Delete
                     </button>
                   </div>
-                </div>
 
-                <div className="account-details-grid">
-                  <div className="detail-item">
-                    <span className="detail-label">Account Label:</span>
-                    <span className="detail-val" title={acc.accountName}>{acc.accountName}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Owner:</span>
-                    <span className="detail-val" title={acc.userEmail}>{acc.userEmail}</span>
-                  </div>
-                  <div className="detail-item full-span">
-                    <span className="detail-label">Credential:</span>
-                    <code className="credential-code-val" title={acc.maskedCredential}>{acc.maskedCredential}</code>
-                  </div>
-                </div>
-
-                <div className="card-action-bar">
-                  <button
-                    type="button"
-                    className="action-btn test-btn"
-                    onClick={() => handleTestExistingAccount(acc)}
-                    disabled={testingAccountId === acc.accountId}
-                    title="Test connection for this account"
-                  >
-                    {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="action-btn select-btn"
-                    onClick={() => {
-                      setEditingAccountId(acc.accountId);
-                      setTargetModelId(acc.modelId);
-                      setAccountName(acc.accountName);
-                      setUserEmail(acc.userEmail);
-                      if (acc.authType === "api" || acc.authType === "api_key") {
-                        setSelectedProtocol("api");
-                        setApiKey(acc.credentialValue);
-                      } else if (acc.authType === "oauth" || acc.authType === "cli_oauth") {
-                        const accStrategy = oauthProviderRegistry.findStrategyForModel(acc.modelId);
-                        setSelectedProtocol("oauth");
-                        setOauthSession({
-                          providerId: accStrategy.id,
-                          providerName: accStrategy.name,
-                          accessToken: acc.credentialValue,
-                          expiresInSeconds: 3600,
-                          scopes: accStrategy.defaultScopes.split(" ").filter(Boolean),
-                          authorizedUser: acc.userEmail,
-                          authorizedTimestamp: acc.createdTimestamp,
-                        });
-                      } else if (acc.authType === "cli") {
-                        setSelectedProtocol("cli");
-                      } else if (acc.authType === "cookie") {
-                        setSelectedProtocol("cookie");
-                        setCookieString(acc.credentialValue);
-                      }
-                    }}
-                    title="Load this account into the form editor"
-                  >
-                    ✏️ Load
-                  </button>
-
-                  <button
-                    type="button"
-                    className="action-btn delete-btn"
-                    onClick={() => handleOpenDeleteModal(acc)}
-                    title="Delete this credential"
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
-
-                {accountTestResults[acc.accountId] && (() => {
-                  const r = accountTestResults[acc.accountId];
-                  const parsed = parseStructuredModelOutput(r.modelOutput);
-                  return (
-                    <div className={`account-test-result-panel ${r.status.toLowerCase()}`}>
-                      <div className="res-header">
-                        <span className="res-pill">{r.status}</span>
-                        <span className="res-latency">⚡ {r.latencyMs}ms</span>
-                      </div>
-                      <div className="res-msg">{r.message}</div>
-                      {parsed && parsed.hasSplit ? (
-                        <div className="output-split-view mini">
-                          <div className="split-block request-block">
-                            <div className="split-label">⚡ Prompt:</div>
-                            <div className="split-body">{parsed.promptText}</div>
-                          </div>
-                          <div className="split-block response-block">
-                            <div className="split-label">🤖 Response:</div>
-                            <div className="split-body">{parsed.responseText}</div>
-                          </div>
+                  {accountTestResults[acc.accountId] && (() => {
+                    const r = accountTestResults[acc.accountId];
+                    const parsed = parseStructuredModelOutput(r.modelOutput);
+                    return (
+                      <div className={`account-test-result-panel ${r.status.toLowerCase()}`}>
+                        <div className="res-header">
+                          <span className="res-pill">{r.status}</span>
+                          <span className="res-latency">⚡ {r.latencyMs}ms</span>
                         </div>
-                      ) : r.modelOutput ? (
-                        <pre className="res-output">{r.modelOutput}</pre>
-                      ) : null}
-                      {r.errorMessage && <div className="res-error">{r.errorMessage}</div>}
-                    </div>
-                  );
-                })()}
-              </div>
-            ))}
+                        <div className="res-msg">{r.message}</div>
+                        {parsed && parsed.hasSplit ? (
+                          <div className="output-split-view mini">
+                            <div className="split-block request-block">
+                              <div className="split-label">⚡ Prompt:</div>
+                              <div className="split-body">{parsed.promptText}</div>
+                            </div>
+                            <div className="split-block response-block">
+                              <div className="split-label">🤖 Response:</div>
+                              <div className="split-body">{parsed.responseText}</div>
+                            </div>
+                          </div>
+                        ) : r.modelOutput ? (
+                          <pre className="res-output">{r.modelOutput}</pre>
+                        ) : null}
+                        {r.errorMessage && <div className="res-error">{r.errorMessage}</div>}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -2861,6 +3132,121 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Session Choice Modal (Fresh Session vs Resume Existing) */}
+      {isChatChoiceModalOpen && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setIsChatChoiceModalOpen(false)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            className="delete-modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "460px",
+              width: "90%",
+              background: "#1e293b",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "14px",
+              padding: "24px",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              <span style={{ fontSize: "1.6rem" }}>💬</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#f8fafc", fontWeight: 700 }}>
+                  Chat with {chatTargetModel}
+                </h3>
+                <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                  Select conversation session mode
+                </span>
+              </div>
+            </div>
+
+            <p style={{ margin: "10px 0 16px 0", fontSize: "0.85rem", color: "#cbd5e1", lineHeight: 1.5 }}>
+              You have an existing conversation with history. Would you like to spawn a fresh new session or resume your current conversation?
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={handleStartFreshChat}
+                style={{
+                  padding: "12px 16px",
+                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%)",
+                  border: "1px solid rgba(16, 185, 129, 0.5)",
+                  color: "#6ee7b7",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <span>➕ Start New Chat Session</span>
+                <span style={{ fontSize: "0.72rem", opacity: 0.85 }}>Clear context</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResumeExistingChat}
+                style={{
+                  padding: "12px 16px",
+                  background: "rgba(59, 130, 246, 0.15)",
+                  border: "1px solid rgba(59, 130, 246, 0.35)",
+                  color: "#93c5fd",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <span>💬 Resume Existing Chat</span>
+                <span style={{ fontSize: "0.72rem", opacity: 0.85 }}>Keep previous messages</span>
+              </button>
+            </div>
+
+            <div style={{ marginTop: "18px", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setIsChatChoiceModalOpen(false)}
+                style={{
+                  padding: "6px 14px",
+                  background: "transparent",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  borderRadius: "6px",
+                  color: "#94a3b8",
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

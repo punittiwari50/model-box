@@ -91,7 +91,31 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
 
   const activeSessionObj = state.sessions.find((s) => s.sessionId === state.activeSessionId);
 
-  // Group models by category (Requirement 4)
+  // Registered models map & list (Requirement 2: option to switch from already registered model)
+  const registeredModelMap = useMemo(() => {
+    const map = new Map<string, typeof state.modelAccounts[0]>();
+    for (const acc of state.modelAccounts || []) {
+      if (acc.isActive || !map.has(acc.modelId)) {
+        map.set(acc.modelId, acc);
+      }
+    }
+    return map;
+  }, [state.modelAccounts]);
+
+  const registeredModels = useMemo(() => {
+    return state.models.filter((m) => registeredModelMap.has(m.id));
+  }, [state.models, registeredModelMap]);
+
+  const [filterRegisteredOnly, setFilterRegisteredOnly] = useState<boolean>(true);
+
+  // Group models by category (conditionally filtered to registered models)
+  const displayModels = useMemo(() => {
+    if (filterRegisteredOnly && registeredModels.length > 0) {
+      return registeredModels;
+    }
+    return state.models;
+  }, [filterRegisteredOnly, registeredModels, state.models]);
+
   const groupedModels = useMemo(() => {
     const groups: Record<string, { label: string; icon: string; models: typeof state.models }> = {
       gemini: { label: "Google Gemini", icon: "✦", models: [] },
@@ -101,7 +125,7 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
       ollama: { label: "Local Fallback (Ollama)", icon: "🛡️", models: [] },
     };
 
-    for (const m of state.models) {
+    for (const m of displayModels) {
       const fam = m.family?.toLowerCase() || "";
       const mid = m.id.toLowerCase();
       if (fam.includes("gemini") || mid.includes("gemini")) {
@@ -120,7 +144,7 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
       }
     }
     return groups;
-  }, [state.models]);
+  }, [displayModels]);
 
   // Active authentication status for the selected model (Requirement 4)
   const activeAccount = useMemo(() => {
@@ -162,7 +186,7 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
             gap: "12px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "1.1rem" }}>💬</span>
             <div>
               <strong style={{ fontSize: "0.85rem", color: "#f8fafc" }}>
@@ -172,6 +196,29 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
                 via {state.effectiveStrategy.toUpperCase()}
               </span>
             </div>
+            {/* Quick Spawn New Session button */}
+            <button
+              type="button"
+              onClick={() => state.handleNewSession()}
+              style={{
+                marginLeft: "8px",
+                padding: "3px 8px",
+                fontSize: "0.7rem",
+                fontWeight: 600,
+                borderRadius: "6px",
+                background: "rgba(99, 102, 241, 0.2)",
+                border: "1px solid rgba(99, 102, 241, 0.4)",
+                color: "#a5b4fc",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Spawn fresh new conversation session"
+            >
+              <span>➕</span>
+              <span>New Chat</span>
+            </button>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -246,6 +293,66 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
             </span>
           </div>
         </div>
+
+        {/* Registered Models Quick Switcher Bar (Requirement 2) */}
+        {registeredModels.length > 0 && (
+          <div
+            style={{
+              padding: "6px 16px",
+              background: "rgba(15, 23, 42, 0.85)",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              Registered:
+            </span>
+            {registeredModels.map((rm) => {
+              const isSelected = state.selectedModel === rm.id;
+              const acc = registeredModelMap.get(rm.id);
+              return (
+                <button
+                  key={rm.id}
+                  type="button"
+                  onClick={() => state.setSelectedModel(rm.id)}
+                  style={{
+                    padding: "3px 10px",
+                    borderRadius: "100px",
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    background: isSelected ? "rgba(16, 185, 129, 0.22)" : "rgba(255, 255, 255, 0.05)",
+                    color: isSelected ? "#6ee7b7" : "#cbd5e1",
+                    border: isSelected ? "1px solid rgba(16, 185, 129, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                    boxShadow: isSelected ? "0 0 8px rgba(16, 185, 129, 0.25)" : "none",
+                    transition: "all 0.15s ease",
+                  }}
+                  title={`Switch to ${rm.name} (${acc?.authType?.toUpperCase() || "Active"})`}
+                >
+                  <span
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      background: isSelected ? "#10b981" : "#64748b",
+                      boxShadow: isSelected ? "0 0 6px #10b981" : "none",
+                    }}
+                  />
+                  <span>{rm.name}</span>
+                  <span style={{ fontSize: "0.64rem", opacity: 0.8 }}>
+                    ({acc?.authType === "cli_oauth" || acc?.authType === "oauth" ? "CLI" : acc?.authType || "Active"})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="messages-stream">
           {state.messages.length === 0 ? (
@@ -371,10 +478,50 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
       <div className="chat-inspector-panel">
         {/* Model Selection & Recommendation Card (Requirement 4) */}
         <div className="inspector-card">
-          <h4>Category-Wise Model Selection</h4>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+            <h4 style={{ margin: 0 }}>Model Selection</h4>
+            {registeredModels.length > 0 && (
+              <div style={{ display: "flex", background: "rgba(0, 0, 0, 0.3)", borderRadius: "6px", padding: "2px" }}>
+                <button
+                  type="button"
+                  onClick={() => setFilterRegisteredOnly(true)}
+                  style={{
+                    padding: "3px 8px",
+                    fontSize: "0.68rem",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: filterRegisteredOnly ? "rgba(16, 185, 129, 0.35)" : "transparent",
+                    color: filterRegisteredOnly ? "#6ee7b7" : "#94a3b8",
+                  }}
+                  title="Show only models with registered accounts"
+                >
+                  Registered ({registeredModels.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterRegisteredOnly(false)}
+                  style={{
+                    padding: "3px 8px",
+                    fontSize: "0.68rem",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: !filterRegisteredOnly ? "rgba(99, 102, 241, 0.35)" : "transparent",
+                    color: !filterRegisteredOnly ? "#a5b4fc" : "#94a3b8",
+                  }}
+                  title="Show all catalog models"
+                >
+                  All ({state.models.length})
+                </button>
+              </div>
+            )}
+          </div>
           <div className="spec-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px" }}>
             <label className="spec-label" style={{ marginBottom: "2px" }}>
-              Active Model (Grouped by Category):
+              Active Model ({filterRegisteredOnly && registeredModels.length > 0 ? "Registered Only" : "All Models"}):
             </label>
             <select
               className="desktop-select"
@@ -385,11 +532,14 @@ export const DesktopChatPage: React.FC<DesktopChatPageProps> = ({ state }) => {
               {Object.entries(groupedModels).map(([key, group]) =>
                 group.models.length > 0 ? (
                   <optgroup key={key} label={`${group.icon} ${group.label}`}>
-                    {group.models.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} {m.id === ModelCatalog.GEMINI_3_8_FLASH ? "⭐ (Recommended)" : ""}
-                      </option>
-                    ))}
+                    {group.models.map((m) => {
+                      const isReg = registeredModelMap.has(m.id);
+                      return (
+                        <option key={m.id} value={m.id}>
+                          {isReg ? "🟢 " : ""}{m.name} {m.id === ModelCatalog.GEMINI_3_8_FLASH ? "⭐ (Recommended)" : ""}
+                        </option>
+                      );
+                    })}
                   </optgroup>
                 ) : null,
               )}

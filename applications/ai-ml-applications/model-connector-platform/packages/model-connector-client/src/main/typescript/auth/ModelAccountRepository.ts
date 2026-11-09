@@ -56,7 +56,7 @@ export class AccountRepository {
                 UPDATED_TIMESTAMP as updatedTimestamp
          FROM MODEL_ACCOUNTS
          WHERE MODEL_ID = ?
-         ORDER BY IS_ACTIVE DESC, CREATED_TIMESTAMP DESC
+         ORDER BY CREATED_TIMESTAMP ASC, ACCOUNT_ID ASC
          LIMIT ? OFFSET ?`,
       )
       .all(modelId, sanitizeLimit(limit), sanitizeOffset(offset)) as any[];
@@ -79,7 +79,7 @@ export class AccountRepository {
                 CREATED_TIMESTAMP as createdTimestamp,
                 UPDATED_TIMESTAMP as updatedTimestamp
          FROM MODEL_ACCOUNTS
-         ORDER BY MODEL_ID ASC, IS_ACTIVE DESC, CREATED_TIMESTAMP DESC
+         ORDER BY MODEL_ID ASC, CREATED_TIMESTAMP ASC, ACCOUNT_ID ASC
          LIMIT ? OFFSET ?`,
       )
       .all(sanitizeLimit(limit), sanitizeOffset(offset)) as any[];
