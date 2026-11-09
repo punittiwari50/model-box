@@ -109,6 +109,8 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
   const [oauthScopes, setOauthScopes] = useState(initialGoogleStrategy.defaultScopes);
   const [resolvedOAuthConfig, setResolvedOAuthConfig] = useState<UiModelOAuthConfig | null>(null);
   const [redirectAuthCode, setRedirectAuthCode] = useState("");
+  const [isVerifyingAuthCode, setIsVerifyingAuthCode] = useState(false);
+  const [pastedFeedback, setPastedFeedback] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
@@ -824,6 +826,21 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     }, 2000);
   };
 
+  const handlePasteAuthCode = async () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          setRedirectAuthCode(text.trim());
+          setPastedFeedback(true);
+          setTimeout(() => setPastedFeedback(false), 2000);
+        }
+      } catch {
+        // Fallback or browser denied permission
+      }
+    }
+  };
+
   const handleCompleteOAuthExchange = async (codeToExchange?: string) => {
     if (cliTimeoutSecondsRemaining === 0) {
       setActionError("CLI OAuth authentication timed out (300s limit exceeded). Authorization code submission is rejected. Please click 'Run CLI Authentication' to start a fresh session.");
@@ -831,6 +848,7 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
     }
     const exchangeCode = codeToExchange || redirectAuthCode;
     const strategy = oauthProviderRegistry.getStrategy(selectedProviderId);
+    setIsVerifyingAuthCode(true);
     try {
       if (exchangeCode) {
         try {
@@ -914,6 +932,8 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
       setActionError("No authorization code or captured session found. Please complete the browser login window.");
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "OAuth code exchange failed");
+    } finally {
+      setIsVerifyingAuthCode(false);
     }
   };
 
@@ -1896,18 +1916,10 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                               </span>
                             </div>
                           </div>
-                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <div className="authcode-header-badges">
                             {cliTimeoutSecondsRemaining !== null && (
                               <span
-                                style={{
-                                  fontSize: "0.72rem",
-                                  padding: "3px 10px",
-                                  borderRadius: "100px",
-                                  fontWeight: 700,
-                                  background: cliTimeoutSecondsRemaining === 0 ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.15)",
-                                  color: cliTimeoutSecondsRemaining === 0 ? "#f87171" : "#fbbf24",
-                                  border: `1px solid ${cliTimeoutSecondsRemaining === 0 ? "rgba(239, 68, 68, 0.5)" : "rgba(245, 158, 11, 0.4)"}`,
-                                }}
+                                className={`cli-timeout-badge ${cliTimeoutSecondsRemaining === 0 ? "timed-out" : "active"}`}
                               >
                                 {cliTimeoutSecondsRemaining > 0
                                   ? `⏱ Timeout: ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
@@ -1915,53 +1927,81 @@ export const DesktopModelConfigPage: React.FC<DesktopModelConfigPageProps> = ({ 
                               </span>
                             )}
                             {redirectAuthCode ? (
-                              <span className="code-captured-tag">✔ Code Captured from Browser</span>
+                              <span className="code-captured-tag">✔ Code Captured</span>
                             ) : (
-                              <span className="code-waiting-tag">Awaiting Browser Redirect</span>
+                              <span className="code-waiting-tag">Awaiting Code</span>
                             )}
                           </div>
                         </div>
 
                         {cliTimeoutSecondsRemaining === 0 && (
-                          <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.4)", borderRadius: "6px", padding: "8px 12px", color: "#fca5a5", fontSize: "0.82rem" }}>
+                          <div className="authcode-timeout-warning">
                             ⚠️ CLI authentication timed out (300s limit exceeded). The authorization code cannot be submitted. Please click &apos;Launch Browser Sign-In&apos; to initiate a fresh session.
                           </div>
                         )}
 
-                        <div className="authcode-input-row">
-                          <div className="authcode-field-wrapper">
-                            <input
-                              type="text"
-                              className="form-input authcode-text-input"
-                              placeholder="Paste authorization code from browser (e.g. 4/0AUn6...)"
-                              value={redirectAuthCode}
-                              onChange={(e) => setRedirectAuthCode(e.target.value)}
-                              spellCheck={false}
-                              autoComplete="off"
-                            />
+                        {/* Dedicated Full-Width Input Container with Inline Clear & Paste */}
+                        <div className="authcode-input-container">
+                          <span className="authcode-lead-icon" title="OAuth Authorization Code">🔑</span>
+                          <input
+                            type="text"
+                            className="form-input authcode-text-input"
+                            placeholder="Paste authorization code from browser (e.g. 4/0AUn6...)"
+                            value={redirectAuthCode}
+                            onChange={(e) => setRedirectAuthCode(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && redirectAuthCode.trim() && cliTimeoutSecondsRemaining !== 0 && !isVerifyingAuthCode) {
+                                handleCompleteOAuthExchange(redirectAuthCode);
+                              }
+                            }}
+                            spellCheck={false}
+                            autoComplete="off"
+                          />
+                          <div className="authcode-input-actions">
+                            {redirectAuthCode && (
+                              <button
+                                type="button"
+                                className="btn-clear-code"
+                                onClick={() => setRedirectAuthCode("")}
+                                title="Clear code"
+                              >
+                                ✕
+                              </button>
+                            )}
                             <button
                               type="button"
-                              className="btn-paste-code"
-                              onClick={async () => {
-                                if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
-                                  try {
-                                    const text = await navigator.clipboard.readText();
-                                    if (text) setRedirectAuthCode(text.trim());
-                                  } catch {}
-                                }
-                              }}
-                              title="Paste authorization code directly from your system clipboard"
+                              className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
+                              onClick={handlePasteAuthCode}
+                              title="Paste authorization code directly from clipboard"
                             >
-                              📋 Paste from Clipboard
+                              <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
+                              <span>{pastedFeedback ? "Pasted!" : "Paste"}</span>
                             </button>
+                          </div>
+                        </div>
+
+                        {/* Dedicated Responsive Actions & Feedback Bar */}
+                        <div className="authcode-actions-bar">
+                          <div className="authcode-meta-info">
+                            {redirectAuthCode ? (
+                              <span className="code-char-counter">
+                                <span className="counter-dot"></span>
+                                {redirectAuthCode.length} characters ready
+                              </span>
+                            ) : (
+                              <span className="code-hint-text">
+                                💡 Tip: Click &apos;Paste&apos; or press Enter after pasting the code.
+                              </span>
+                            )}
                           </div>
                           <button
                             type="button"
-                            className="btn-submit-authcode"
-                            disabled={!redirectAuthCode.trim() || cliTimeoutSecondsRemaining === 0}
+                            className={`btn-submit-authcode ${redirectAuthCode.trim() ? "ready-to-submit" : ""}`}
+                            disabled={!redirectAuthCode.trim() || cliTimeoutSecondsRemaining === 0 || isVerifyingAuthCode}
                             onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
                           >
-                            <span>⚡ Verify &amp; Save Auth Code</span>
+                            <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "⚡"}</span>
+                            <span>{isVerifyingAuthCode ? "Verifying & Saving..." : "Verify & Save Auth Code"}</span>
                           </button>
                         </div>
 
