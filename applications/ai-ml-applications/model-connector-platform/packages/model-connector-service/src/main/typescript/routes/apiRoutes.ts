@@ -22,6 +22,7 @@ export const apiRouter = Router();
 
 // Health Check
 apiRouter.get("/health", (req, res) => healthController.getHealth(req, res));
+apiRouter.get("/health/database", (req, res) => healthController.getDatabaseHealth(req, res));
 
 // Authentication & Identity
 apiRouter.post("/auth/login", (req, res) => authController.login(req, res));
@@ -154,8 +155,22 @@ apiRouter.post("/workflows/apps/compile-skill", (req, res) => {
 });
 
 apiRouter.post("/workflows/story/generate", (req, res) => {
-  const dag = ComfyUiOrchestrator.generateWorkflowDag(req.body.prompt || "A cinematic AI journey");
-  res.json({ success: true, dag });
+  const dag = ComfyUiOrchestrator.generateWorkflowDag(
+    req.body.prompt || "A cinematic AI journey",
+    4,
+    {
+      correlationId: req.correlationId,
+      traceId: req.traceContext?.traceId,
+      spanId: req.traceContext?.spanId,
+    },
+  );
+  res.json({
+    success: true,
+    dag,
+    correlationId: req.correlationId,
+    traceId: req.traceContext?.traceId,
+    spanId: req.traceContext?.spanId,
+  });
 });
 
 apiRouter.get("/audit/restrictions", (req, res) => {

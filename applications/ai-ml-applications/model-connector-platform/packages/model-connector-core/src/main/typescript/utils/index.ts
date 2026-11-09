@@ -7,3 +7,4 @@ export * from "@/utils/concurrency/concurrencyUtils.js";
 export * from "@/utils/crypto/cryptoUtils.js";
 export * from "@/utils/timer/timerUtils.js";
 export * from "@/utils/db/sqliteUtils.js";
+export * from "@/utils/db/postgresUtils.js";

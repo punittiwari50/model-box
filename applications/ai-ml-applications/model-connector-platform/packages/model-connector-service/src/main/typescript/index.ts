@@ -9,6 +9,7 @@ import { errorMiddleware } from "@/middleware/errorMiddleware";
 import { apiRouter } from "@/routes/apiRoutes";
 import { oauthCallbackServer } from "@/services/oauthCallbackServer";
 import { ollamaOAuthGatewayServer } from "@/services/ollamaOAuthGatewayServer";
+import { DatabaseMigrationEngine } from "@/database/DatabaseMigrationEngine";
 import { processUtils, cliOAuthSessionRepository, timerUtils } from "@model-box/model-connector-core";
 
 
@@ -42,6 +43,11 @@ const server = app.listen(appConfig.port, appConfig.host, () => {
   timerUtils.setInterval(() => {
     cliOAuthSessionRepository.syncAll();
   }, 5000);
+
+  // Initialize and migrate PostgreSQL DDL and DML (preserves H2 fallback)
+  DatabaseMigrationEngine.initializePostgresAndMigrate().catch((err) => {
+    console.warn("[DatabaseMigrationEngine] PostgreSQL migration startup notice:", err);
+  });
 });
 
 
