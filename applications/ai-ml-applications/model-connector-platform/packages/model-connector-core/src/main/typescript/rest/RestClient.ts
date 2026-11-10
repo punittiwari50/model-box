@@ -1,4 +1,5 @@
-import { CoreLogger } from "@/logging/logger.js";
+import { CoreLogger, type TraceContext } from "@/logging/logger.js";
+import { CryptoUtils } from "@/utils/crypto/cryptoUtils.js";
 
 export interface RestRequestOptions {
   readonly method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -6,6 +7,7 @@ export interface RestRequestOptions {
   readonly body?: unknown;
   readonly timeoutMs?: number;
   readonly correlationId?: string;
+  readonly traceContext?: TraceContext;
   readonly bearerToken?: string;
   readonly apiKeyHeader?: { readonly name: string; readonly value: string };
 }
@@ -54,11 +56,9 @@ export class HttpRestClient implements IRestClient {
     options: RestRequestOptions = {},
   ): Promise<RestResponse<T>> {
     const startTime = Date.now();
-    const trace = CoreLogger.createTraceContext(
-      options.correlationId ? { "x-correlation-id": options.correlationId } : undefined,
-    );
+    const trace = this.resolveTrace(options);
     const traceparent = `00-${trace.traceId}-${trace.spanId}-01`;
-    const headers = this.buildHeaders(options, trace.correlationId, traceparent);
+    const headers = this.buildHeaders(options, trace, traceparent);
     const bodyPayload = this.serializeBody(options.body, headers);
     const response = await fetch(url, {
       method: options.method ?? "GET",
@@ -69,17 +69,37 @@ export class HttpRestClient implements IRestClient {
     return this.parseResponse<T>(response, startTime, trace.correlationId);
   }
 
+  private resolveTrace(options: RestRequestOptions): TraceContext {
+    if (options.traceContext) {
+      return {
+        traceId: options.traceContext.traceId,
+        spanId: CryptoUtils.randomBytes(8).toString("hex"),
+        parentSpanId: options.traceContext.spanId,
+        correlationId: options.correlationId || options.traceContext.correlationId,
+        serviceName: options.traceContext.serviceName,
+      };
+    }
+    return CoreLogger.createTraceContext(
+      options.correlationId ? { "x-correlation-id": options.correlationId } : undefined,
+    );
+  }
+
   private buildHeaders(
     options: RestRequestOptions,
-    correlationId: string,
+    trace: TraceContext,
     traceparent: string,
   ): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: "application/json",
-      "x-correlation-id": correlationId,
+      "x-correlation-id": trace.correlationId,
+      "x-trace-id": trace.traceId,
+      "x-span-id": trace.spanId,
       traceparent,
       ...(options.headers ?? {}),
     };
+    if (trace.parentSpanId) {
+      headers["x-parent-span-id"] = trace.parentSpanId;
+    }
     if (options.bearerToken) {
       headers.Authorization = `Bearer ${options.bearerToken}`;
     }

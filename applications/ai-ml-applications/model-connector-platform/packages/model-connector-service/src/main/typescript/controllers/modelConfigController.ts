@@ -24,6 +24,7 @@ import {
   coreDatabaseManager,
   cryptoUtils,
 } from "@model-box/model-connector-core";
+import { auditRepository } from "@/repositories/auditRepository";
 
 export interface TestConnectionRequest {
   readonly modelId: string;
@@ -227,6 +228,21 @@ export class ModelConfigController {
       effortTier: testResult.effortTier || resolvedEffort,
       modelName: testResult.modelName || modelId,
     };
+
+    await auditRepository.saveAuditLog({
+      correlationId: enrichedResult.correlationId || req.correlationId || "corr-" + Date.now(),
+      traceId: enrichedResult.traceId,
+      spanId: enrichedResult.spanId,
+      sessionId: (req.body as any)?.sessionId || undefined,
+      modelId,
+      actionName: "TEST_CONNECTION",
+      strategyMode: authType,
+      latencyMs: testResult.latencyMs || 0,
+      executionStatus: testResult.status === "VERIFIED" ? "SUCCESS" : "FAILED",
+      clientIp: req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1",
+      promptMessage: userPrompt,
+      errorMessage: testResult.errorMessage,
+    });
 
     res.status(HttpStatus.OK).json({
       success: testResult.status === "VERIFIED",

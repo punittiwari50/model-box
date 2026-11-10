@@ -44,6 +44,10 @@ export interface ExecutionRequest {
   readonly clientId?: string;
   readonly redirectUri?: string;
   readonly cookieHeader?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
+  readonly clientIp?: string;
+  readonly effortTier?: "low" | "medium" | "high";
   readonly hyperparameters?: {
     readonly temperature?: number;
     readonly topP?: number;

@@ -15,7 +15,7 @@ export interface MenuItemRecord {
 const DEFAULT_SYSTEM_MENUS: readonly MenuItemRecord[] = Object.freeze([
   {
     menuId: "menu-chat",
-    menuLabel: "AI Chat Workspace",
+    menuLabel: "AI Chat",
     menuIcon: "💬",
     routePath: "chat",
     sortOrder: 1,
@@ -24,27 +24,27 @@ const DEFAULT_SYSTEM_MENUS: readonly MenuItemRecord[] = Object.freeze([
   },
   {
     menuId: "menu-models",
-    menuLabel: "Model Catalog",
+    menuLabel: "Models",
     menuIcon: "🤖",
     routePath: "models",
     badgeCountKey: "models",
-    sortOrder: 2,
+    sortOrder: 3,
     isDefault: true,
     descriptionText: "Discover and manage AI models across providers",
   },
   {
     menuId: "menu-model-config",
-    menuLabel: "Model Config Studio",
-    menuIcon: "⚙️",
+    menuLabel: "Integration Hub",
+    menuIcon: "🪪",
     routePath: "model-config",
     badgeCountKey: "accounts",
-    sortOrder: 3,
+    sortOrder: 2,
     isDefault: true,
-    descriptionText: "Configure model providers, OAuth 2.0 accounts, CLI & API keys",
+    descriptionText: "Discover, connect, and manage external services and model credentials",
   },
   {
     menuId: "menu-sessions",
-    menuLabel: "Session History",
+    menuLabel: "Sessions",
     menuIcon: "🗂️",
     routePath: "sessions",
     badgeCountKey: "sessions",
@@ -54,7 +54,7 @@ const DEFAULT_SYSTEM_MENUS: readonly MenuItemRecord[] = Object.freeze([
   },
   {
     menuId: "menu-upstream",
-    menuLabel: "Telemetry & Upstream",
+    menuLabel: "Telemetry",
     menuIcon: "📡",
     routePath: "upstream",
     badgeCountKey: "auditLogs",
@@ -64,7 +64,7 @@ const DEFAULT_SYSTEM_MENUS: readonly MenuItemRecord[] = Object.freeze([
   },
   {
     menuId: "menu-workflows",
-    menuLabel: "Executive Workflows",
+    menuLabel: "Workflows",
     menuIcon: "📊",
     routePath: "workflows",
     sortOrder: 6,
@@ -73,7 +73,7 @@ const DEFAULT_SYSTEM_MENUS: readonly MenuItemRecord[] = Object.freeze([
   },
   {
     menuId: "menu-onboarding",
-    menuLabel: "Provider Onboarding",
+    menuLabel: "Onboarding",
     menuIcon: "🚀",
     routePath: "onboarding",
     sortOrder: 7,
@@ -82,7 +82,7 @@ const DEFAULT_SYSTEM_MENUS: readonly MenuItemRecord[] = Object.freeze([
   },
   {
     menuId: "menu-admin-rbac",
-    menuLabel: "Access & RBAC",
+    menuLabel: "Access / RBAC",
     menuIcon: "🛡️",
     routePath: "admin-rbac",
     sortOrder: 8,
@@ -92,6 +92,79 @@ const DEFAULT_SYSTEM_MENUS: readonly MenuItemRecord[] = Object.freeze([
 ]);
 
 export class MenuRepository {
+  public async listAllMenusAsync(): Promise<MenuItemRecord[]> {
+    try {
+      const pg = platformDatabase.getPostgresManager();
+      const rows = await pg.query<{
+        menuId: string;
+        menuLabel: string;
+        menuIcon: string;
+        routePath: string;
+        badgeCountKey?: string;
+        sortOrder: number;
+        isDefault: boolean;
+        requiredPermission?: string;
+        descriptionText?: string;
+      }>(
+        `SELECT MENU_ID as "menuId",
+                MENU_LABEL as "menuLabel",
+                MENU_ICON as "menuIcon",
+                ROUTE_PATH as "routePath",
+                BADGE_COUNT_KEY as "badgeCountKey",
+                SORT_ORDER as "sortOrder",
+                IS_DEFAULT as "isDefault",
+                REQUIRED_PERMISSION as "requiredPermission",
+                DESCRIPTION_TEXT as "descriptionText"
+         FROM MENUS
+         ORDER BY SORT_ORDER ASC`,
+      );
+      if (rows && rows.length > 0) {
+        return rows.map((r) => this.mapRow(r as any));
+      }
+    } catch {
+      // Postgres safe isolation
+    }
+
+    return this.listAllMenus();
+  }
+
+  public async listMenusForRoleAsync(roleId: string, companyId?: string): Promise<MenuItemRecord[]> {
+    try {
+      const pg = platformDatabase.getPostgresManager();
+      const rows = await pg.query<{
+        menuId: string;
+        menuLabel: string;
+        menuIcon: string;
+        routePath: string;
+        badgeCountKey?: string;
+        sortOrder: number;
+        isDefault: boolean;
+        requiredPermission?: string;
+        descriptionText?: string;
+      }>(
+        `SELECT DISTINCT
+           m.MENU_ID as "menuId", m.MENU_LABEL as "menuLabel", m.MENU_ICON as "menuIcon",
+           m.ROUTE_PATH as "routePath", m.BADGE_COUNT_KEY as "badgeCountKey",
+           m.SORT_ORDER as "sortOrder", m.IS_DEFAULT as "isDefault",
+           m.REQUIRED_PERMISSION as "requiredPermission", m.DESCRIPTION_TEXT as "descriptionText"
+         FROM MENUS m
+         LEFT JOIN ROLE_MENUS rm ON m.MENU_ID = rm.MENU_ID AND rm.ROLE_ID = $1
+         LEFT JOIN COMPANY_MENUS cm ON m.MENU_ID = cm.MENU_ID AND cm.COMPANY_ID = $2
+         WHERE (rm.MENU_ID IS NOT NULL OR m.IS_DEFAULT = TRUE)
+           AND (cm.IS_ENABLED IS NULL OR cm.IS_ENABLED = TRUE)
+         ORDER BY m.SORT_ORDER ASC`,
+        [roleId, companyId || "acme-corp"],
+      );
+      if (rows && rows.length > 0) {
+        return rows.map((r) => this.mapRow(r as any));
+      }
+    } catch {
+      // Postgres safe isolation
+    }
+
+    return this.listMenusForRole(roleId, companyId);
+  }
+
   public listAllMenus(): MenuItemRecord[] {
     const db = platformDatabase.getDatabase();
     const rows = db
@@ -164,11 +237,19 @@ export class MenuRepository {
   }
 
   private mapRow(r: Record<string, unknown>): MenuItemRecord {
+    const routePath = String(r.routePath);
+    const rawLabel = String(r.menuLabel);
+    const menuLabel =
+      routePath === "model-config" &&
+      (rawLabel === "Configuration" || rawLabel === "Model Configuration" || rawLabel === "Integrations")
+        ? "Integration Hub"
+        : rawLabel;
+
     return {
       menuId: String(r.menuId),
-      menuLabel: String(r.menuLabel),
-      menuIcon: String(r.menuIcon),
-      routePath: String(r.routePath),
+      menuLabel,
+      menuIcon: routePath === "model-config" ? "🪪" : String(r.menuIcon),
+      routePath,
       badgeCountKey: r.badgeCountKey ? String(r.badgeCountKey) : undefined,
       sortOrder: Number(r.sortOrder),
       isDefault: Boolean(r.isDefault),

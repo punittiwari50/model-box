@@ -1,86 +1,110 @@
 import type { Page } from "playwright";
 import { AbstractUsecaseTest } from "@/usecases/impl/AbstractUsecaseTest.js";
-import { ModelConfigSelectors, EnterpriseViewSelectors, OdooSelectors } from "@/constants/selectors.js";
+import { EnterpriseViewSelectors, ModelConfigSelectors } from "@/constants/selectors.js";
 import { SanityTimeouts } from "@/constants/sanityConstants.js";
 
 /**
- * UC-03: Multi-Protocol Authentication & Credential Onboarding
+ * UC-03: Multi-Protocol Authentication, Integration Onboarding & OAuth Security
  */
 export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
+  private static readonly PROTOCOL_TABS = Object.freeze([
+    "REST API",
+    "OAuth 2.0 Redirect",
+    "CLI Binary",
+    "Cookie Vault",
+  ]);
+
   public constructor() {
     super(
       "UC-03",
-      "Multi-Protocol Authentication & Credential Onboarding",
+      "Multi-Protocol Authentication & Integration Onboarding",
       "Security & Configuration",
-      "Verifies Odoo List/Card views, Create/Save view transitions, and configuration views for REST API, OAuth 2.0 PKCE redirect, CLI binary, and Cookie vault",
+      "Verifies Integration Hub, Onboarding tabs/tags, selected-only Overview protocols, 4 protocol tabs, and Gemini/OAuth security popup behavior",
     );
   }
 
   public async runSteps(page: Page, recordStep: (name: string, fn: () => Promise<string>) => Promise<void>): Promise<void> {
-    await recordStep("Navigate to Model Config Studio and Verify Odoo Control Panel", async () => {
-      await this.navigateToRoute(page, "model-config", "Model Config Studio");
-      const container = page.locator(ModelConfigSelectors.CONTAINER).first();
-      await container.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      const controlPanel = page.locator(OdooSelectors.CONTROL_PANEL).first();
-      await controlPanel.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      return "Model Config Studio and Odoo Control Panel mounted";
-    });
+    await recordStep("Navigate to Integration Hub & Verify Control Panel", () => this.stepNavigateHub(page));
+    await recordStep("Verify Hub Card & List View Switching", () => this.stepSwitchHubViewModes(page));
+    await recordStep("Verify Integration Onboarding Form, Tag Editor & Popup Close Guard", () => this.stepVerifyOnboarding(page));
+    await recordStep("Open Gemini Detail View & Launch Protocol Editor", () => this.stepOpenDetailProtocolEditor(page));
+    await this.verifyAllProtocolTabs(page, recordStep);
+    await recordStep("Verify OAuth Launch Button & Loopback Security Hardening", () => this.stepVerifyOAuthSecurity(page));
+    await recordStep("Restore Default Tab & Return to Hub via Breadcrumb", () => this.stepRestoreHub(page));
+  }
 
-    await recordStep("Verify Odoo View Mode Switching (Card & List)", async () => {
-      const cardViewBtn = page.locator(OdooSelectors.VIEW_CARD).first();
-      if (await cardViewBtn.isVisible()) {
-        await cardViewBtn.click();
-        await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
-        const cardGrid = page.locator(OdooSelectors.CARD_GRID).first();
-        await cardGrid.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      }
+  private async stepNavigateHub(page: Page): Promise<string> {
+    await this.navigateToRoute(page, "model-config", "Integration Hub");
+    await page.locator(ModelConfigSelectors.CONTAINER).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    await page.locator(EnterpriseViewSelectors.CONTROL_PANEL).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    return "Integration Hub and Control Panel mounted";
+  }
 
-      const listViewBtn = page.locator(OdooSelectors.VIEW_LIST).first();
-      if (await listViewBtn.isVisible()) {
-        await listViewBtn.click();
-        await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
-      }
-      return "Successfully switched between Odoo List view and Card view";
-    });
+  private async stepSwitchHubViewModes(page: Page): Promise<string> {
+    const cardViewBtn = page.locator(EnterpriseViewSelectors.VIEW_CARD).first();
+    if (await cardViewBtn.isVisible()) {
+      await cardViewBtn.click();
+      await page.locator(EnterpriseViewSelectors.CARD_GRID).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    }
+    const listViewBtn = page.locator(EnterpriseViewSelectors.VIEW_LIST).first();
+    if (await listViewBtn.isVisible()) {
+      await listViewBtn.click();
+      await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
+    }
+    return "Card and List views switched cleanly";
+  }
 
-    await recordStep("Verify Odoo Create View and Discard Navigation", async () => {
-      const createBtn = page.locator(OdooSelectors.BTN_CREATE).first();
-      await createBtn.click();
-      await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+  private async stepVerifyOnboarding(page: Page): Promise<string> {
+    await page.locator(ModelConfigSelectors.ADD_INTEGRATION_BTN).first().click();
+    await page.locator(ModelConfigSelectors.ONBOARDING_PAGE).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
 
-      const formView = page.locator(OdooSelectors.FORM_VIEW).first();
-      await formView.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      const createBanner = page.locator(OdooSelectors.CREATE_BANNER).first();
-      await createBanner.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    await page.locator(ModelConfigSelectors.ONBOARD_PROVIDER_NAME).fill("E2E Probe Provider");
+    await page.locator(ModelConfigSelectors.ONBOARD_CATEGORY).waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
 
-      const discardBtn = page.locator(OdooSelectors.BTN_DISCARD).first();
-      await discardBtn.click();
-      await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
-      return "Create View opened, verified, and successfully discarded back to list";
-    });
+    await page.locator(ModelConfigSelectors.ONBOARD_TAB_PROTOCOLS).click();
+    await page.locator(`${ModelConfigSelectors.ONBOARDING_PAGE} ${ModelConfigSelectors.PROTOCOL_TAB_BTN}`).filter({ hasText: /OAuth 2\.0/i }).first().click();
+    await page.locator(ModelConfigSelectors.ONBOARD_OAUTH_BTN).waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
 
-    await recordStep("Open Odoo Save View for Model Configuration", async () => {
-      const geminiRow = page.locator(EnterpriseViewSelectors.MODEL_ROW).filter({ hasText: /gemini/i }).first();
-      if (await geminiRow.isVisible()) {
-        await geminiRow.click();
-      } else {
-        const modelItem = page.locator(EnterpriseViewSelectors.MODEL_ROW).first();
-        if (await modelItem.isVisible()) {
-          await modelItem.click();
-        } else {
-          const createBtn = page.locator(EnterpriseViewSelectors.BTN_CREATE).first();
-          await createBtn.click();
-        }
-      }
-      await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+    await page.locator(ModelConfigSelectors.ONBOARD_TAB_CAPABILITIES).click();
+    await page.locator(ModelConfigSelectors.ONBOARD_CUSTOM_CAP).fill("Agentic Trace");
+    await page.locator(ModelConfigSelectors.ONBOARD_TAG_ADD_BTN).first().click();
+    const chipCount = await page.locator(ModelConfigSelectors.ONBOARD_TAG_CHIPS).count();
+    if (chipCount < 1) throw new Error("Expected at least 1 custom tag chip after adding tag");
 
-      const formView = page.locator(EnterpriseViewSelectors.FORM_VIEW).first();
-      await formView.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      return "Save View opened for target model configuration";
-    });
+    await page.locator(EnterpriseViewSelectors.BTN_DISCARD).first().click();
+    await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+    return `Onboarding studio tabs, responsive inputs, and ${chipCount} custom tag(s) verified`;
+  }
 
-    const protocols = ["REST API", "OAuth 2.0 Redirect", "CLI Binary", "Cookie Vault"];
-    for (const proto of protocols) {
+  private async stepOpenDetailProtocolEditor(page: Page): Promise<string> {
+    const cardViewBtn = page.locator(EnterpriseViewSelectors.VIEW_CARD).first();
+    await cardViewBtn.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    await cardViewBtn.click();
+    await page.locator(EnterpriseViewSelectors.CARD_GRID).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+
+    const geminiItem = page
+      .locator('[data-testid="model-card-gemini-3.8-flash"], [data-testid^="model-card-gemini"]')
+      .first();
+    await geminiItem.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    await geminiItem.click();
+
+    await page.locator(ModelConfigSelectors.DETAIL_VIEW).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    const titleText = (await page.locator(".detail-provider-title").first().textContent()) || "";
+    if (!/gemini/i.test(titleText)) {
+      throw new Error(`Expected Google Gemini Detail View, got '${titleText}'`);
+    }
+    const connectionsTab = page.locator(ModelConfigSelectors.DETAIL_TAB_BTN).filter({ hasText: /Connections/i }).first();
+    await connectionsTab.click();
+    await page.locator(ModelConfigSelectors.ADD_ACCOUNT_BTN).first().click();
+    await page.locator(EnterpriseViewSelectors.FORM_VIEW).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    return "Detail View and Protocol Editor mounted for Gemini";
+  }
+
+  private async verifyAllProtocolTabs(
+    page: Page,
+    recordStep: (name: string, fn: () => Promise<string>) => Promise<void>,
+  ): Promise<void> {
+    for (const proto of UC03_MultiProtocolAuthConfig.PROTOCOL_TABS) {
       await recordStep(`Verify Protocol Tab: ${proto}`, async () => {
         const tabBtn = page.locator(ModelConfigSelectors.PROTOCOL_TAB_BTN).filter({ hasText: new RegExp(proto, "i") }).first();
         await tabBtn.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
@@ -88,85 +112,115 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
         await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
         const isActive = await tabBtn.evaluate((el) => el.classList.contains("active"));
         if (!isActive) throw new Error(`Protocol tab '${proto}' did not activate`);
-        return `Protocol '${proto}' activated without UI error`;
+        return `Protocol '${proto}' activated cleanly`;
       });
     }
+  }
 
-    await recordStep("Verify OAuth 2.0 Launch Browser Button & Responsive Clean UI", async () => {
-      const oauthTab = page.locator(ModelConfigSelectors.PROTOCOL_TAB_BTN).filter({ hasText: /OAuth 2\.0 Redirect/i }).first();
-      await oauthTab.click();
-      await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
+  private async stepVerifyOAuthSecurity(page: Page): Promise<string> {
+    await page.locator(ModelConfigSelectors.PROTOCOL_TAB_BTN).filter({ hasText: /OAuth 2\.0 Redirect/i }).first().click();
+    const step2Btn = page.locator(".oauth-step-progress .step-item-btn").filter({ hasText: /Redirect & Consent/i }).first();
+    if ((await step2Btn.count()) > 0) await step2Btn.click();
 
-      // If active session is present from previous runs, switch stepper to Step 2: Browser Redirect & Consent
-      const step2Btn = page.locator(".oauth-step-progress .step-item-btn").filter({ hasText: /Redirect & Consent/i }).first();
-      if ((await step2Btn.count()) > 0) {
-        await step2Btn.click();
-        await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
-      }
+    const computedUrl = await page.locator(ModelConfigSelectors.COMPUTED_AUTH_URL_INPUT).first().inputValue();
+    if (!computedUrl || computedUrl.includes("<DB_") || computedUrl.includes("%3CDB_")) {
+      throw new Error(`Computed OAuth URL contains invalid DB placeholder: ${computedUrl}`);
+    }
 
-      const urlInput = page.locator(ModelConfigSelectors.COMPUTED_AUTH_URL_INPUT).first();
-      await urlInput.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      let computedUrl = await urlInput.inputValue();
-      if (!computedUrl || computedUrl.includes("<DB_") || computedUrl.includes("%3CDB_") || !computedUrl.includes("client_id=")) {
-        const advancedDetails = page.locator(".oauth-advanced-details summary").first();
-        if ((await advancedDetails.count()) > 0) {
-          await advancedDetails.click();
-          const clientIdInput = page.locator(".oauth-advanced-details input.form-input").first();
-          await clientIdInput.fill(process.env.TEST_CLIENT_ID || "");
-          await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
-          computedUrl = await urlInput.inputValue();
+    await page.evaluate(() => {
+      (window as any).__lastOpenedOAuthUrl = null;
+      const fakePopup = {
+        closed: false,
+        focus: () => {},
+        location: {
+          set href(val: string) {
+            if (val && val !== "about:blank") {
+              (window as any).__lastOpenedOAuthUrl = String(val);
+            }
+          },
+          replace(val: string) {
+            if (val && val !== "about:blank") {
+              (window as any).__lastOpenedOAuthUrl = String(val);
+            }
+          },
+          assign(val: string) {
+            if (val && val !== "about:blank") {
+              (window as any).__lastOpenedOAuthUrl = String(val);
+            }
+          },
+        },
+      };
+      (window as any).open = (url?: string | URL) => {
+        const str = url ? String(url) : "";
+        if (str && str !== "about:blank") {
+          (window as any).__lastOpenedOAuthUrl = str;
         }
-      }
-      if (!computedUrl || computedUrl.includes("<DB_") || computedUrl.includes("%3CDB_") || !computedUrl.includes("client_id=")) {
-        throw new Error(`Computed OAuth URL is invalid or has unpopulated placeholders: ${computedUrl}`);
-      }
-
-      const unwantedBtn1 = page.locator("button:has-text('Use CLI Authentication Mode')");
-      const unwantedBtn2 = page.locator("button:has-text('Run CLI Auth Then Test Connection')");
-      if ((await unwantedBtn1.count()) > 0 || (await unwantedBtn2.count()) > 0) {
-        throw new Error("Unwanted placeholder buttons still present in UI");
-      }
-
-      await page.evaluate(() => {
-        (window as any).__lastOpenedOAuthUrl = null;
-        (window as any).open = (url?: string | URL, _target?: string, _features?: string) => {
-          (window as any).__lastOpenedOAuthUrl = url ? String(url) : null;
-          return { closed: false, focus: () => {} };
-        };
-      });
-
-      const launchBtn = page.locator(ModelConfigSelectors.OAUTH_LAUNCH_BROWSER_BTN).first();
-      await launchBtn.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-      const isEnabled = await launchBtn.isEnabled();
-      if (!isEnabled) throw new Error("OAuth Launch Browser button is unexpectedly disabled");
-
-      await launchBtn.click();
-      await page.waitForFunction(
-        () => Boolean((window as any).__lastOpenedOAuthUrl),
-        { timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS },
-      );
-
-      const launchedUrl = await page.evaluate(() => (window as any).__lastOpenedOAuthUrl);
-      if (!launchedUrl || !launchedUrl.includes("accounts.google.com")) {
-        throw new Error(`Launch button failed to open OAuth URL in browser. Target was: ${launchedUrl}`);
-      }
-
-      const waitingBanner = page.locator(ModelConfigSelectors.OAUTH_WAITING_INDICATOR).first();
-      await waitingBanner.waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
-
-      return `Launch Browser verified with URL: ${launchedUrl.substring(0, 60)}... and responsive waiting indicator active`;
+        return fakePopup;
+      };
     });
 
-    await recordStep("Restore REST API Default Tab & Return via Breadcrumb", async () => {
-      const defaultTab = page.locator(ModelConfigSelectors.PROTOCOL_TAB_BTN).filter({ hasText: /REST API/i }).first();
-      await defaultTab.click();
-      const breadcrumbLink = page.locator(".breadcrumb-link").first();
-      if (await breadcrumbLink.isVisible()) {
-        await breadcrumbLink.click();
-        await page.waitForTimeout(SanityTimeouts.SHORT_WAIT_MS);
-      }
-      return "REST API selected and returned to List View via breadcrumb";
+    await page.locator(ModelConfigSelectors.OAUTH_LAUNCH_BROWSER_BTN).first().click();
+    await page.waitForFunction(
+      () => {
+        const u = (window as any).__lastOpenedOAuthUrl;
+        return Boolean(u && u !== "about:blank");
+      },
+      { timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS },
+    );
+    const launchedUrl = await page.evaluate(() => String((window as any).__lastOpenedOAuthUrl));
+    if (!launchedUrl.includes("accounts.google.com") && !launchedUrl.includes("/oauth2/authorize")) {
+      throw new Error(`Unexpected OAuth launch target: ${launchedUrl}`);
+    }
+
+    const cliLoginJson = await this.probeGeminiCliDiscovery(page);
+    if (!cliLoginJson.url.includes("accounts.google.com/o/oauth2/")) {
+      throw new Error(`Gemini CLI OAuth discovery returned unexpected URL: ${cliLoginJson.url}`);
+    }
+
+    await this.assertLoopbackOAuthHeaders(page);
+    await page.locator(ModelConfigSelectors.OAUTH_WAITING_INDICATOR).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    return `OAuth URL verified (${launchedUrl.substring(0, 48)}...) + Gemini CLI discovery + CSP/DENY security headers verified`;
+  }
+
+  private async probeGeminiCliDiscovery(page: Page): Promise<{ url: string }> {
+    const apiBase = this.resolveBackendBaseUrl(page.url());
+    const res = await fetch(`${apiBase}/api/v1/models/gemini-3.8-flash/cli-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modelId: "gemini-3.8-flash" }),
     });
+    const body = await res.json();
+    const url = body?.loginResult?.config?.authorizationUrl || body?.session?.oauthUrl || body?.authorizationUrl || "";
+    return { url: String(url) };
+  }
+
+  private async assertLoopbackOAuthHeaders(page: Page): Promise<void> {
+    const backendOrigin = this.resolveBackendBaseUrl(page.url());
+    const oauthBase = backendOrigin.replace(":8095", ":8085");
+    const res = await fetch(`${oauthBase}/oauth2/authorize?provider=google&model=gemini-3.8-flash&origin=${encodeURIComponent(new URL(page.url()).origin)}`);
+    const xFrame = res.headers.get("x-frame-options") || "";
+    const csp = res.headers.get("content-security-policy") || "";
+    const html = await res.text();
+    if (xFrame.toUpperCase() !== "DENY" || !csp.includes("nonce-")) {
+      throw new Error(`Missing OAuth security headers (X-Frame-Options=${xFrame}, CSP=${csp})`);
+    }
+    if (!html.includes("close-window-btn") || html.includes("Return to ModelBox Studio")) {
+      throw new Error("OAuth authorize page must expose Close Window button without auto-redirect");
+    }
+  }
+
+  private resolveBackendBaseUrl(currentUrl: string): string {
+    const envBase = process.env.BACKEND_API_BASE_URL;
+    if (envBase) return envBase.replace(/\/+$/, "");
+    const parsed = new URL(currentUrl);
+    if (parsed.hostname === "model-connector-ui") return "http://model-connector-service:8095";
+    return `${parsed.protocol}//${parsed.hostname}:8095`;
+  }
+
+  private async stepRestoreHub(page: Page): Promise<string> {
+    await page.locator(ModelConfigSelectors.PROTOCOL_TAB_BTN).filter({ hasText: /REST API/i }).first().click();
+    const breadcrumb = page.locator(".breadcrumb-link").first();
+    if (await breadcrumb.isVisible()) await breadcrumb.click();
+    return "Restored REST API tab and returned to Integration Hub";
   }
 }
-

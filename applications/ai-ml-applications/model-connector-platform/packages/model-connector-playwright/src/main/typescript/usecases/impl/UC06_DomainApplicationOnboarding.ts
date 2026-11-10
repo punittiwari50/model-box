@@ -24,7 +24,7 @@ export class UC06_DomainApplicationOnboarding extends AbstractUsecaseTest {
       return "Provider Onboarding page mounted";
     });
 
-    const domains = ["Job Portal", "Apps Builder", "Storyteller Studio"];
+    const domains = ["Job Portal", "Apps Builder", "Storyteller"];
     for (const dom of domains) {
       await recordStep(`Activate Domain Wizard: ${dom}`, async () => {
         const tabBtn = page.locator(OnboardingSelectors.STEPPER_TAB).filter({ hasText: new RegExp(dom, "i") }).first();

@@ -10,6 +10,9 @@ export interface ComfyUiWorkflowDag {
     readonly title: string;
   }>;
   readonly executionStatus: "QUEUED" | "PROCESSING" | "COMPLETED";
+  readonly correlationId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
 }
 
 /**
@@ -22,6 +25,7 @@ export class ComfyUiOrchestrator {
   public static generateWorkflowDag(
     narrativePrompt: string,
     keyframeCount = 4,
+    traceContext?: { correlationId?: string; traceId?: string; spanId?: string },
   ): ComfyUiWorkflowDag {
     const steps = [
       { nodeId: "1", nodeType: "CLIPTextEncode", title: `Prompt: ${narrativePrompt.slice(0, 30)}` },
@@ -36,6 +40,9 @@ export class ComfyUiOrchestrator {
       nodeCount: steps.length,
       steps: Object.freeze(steps),
       executionStatus: "QUEUED",
+      correlationId: traceContext?.correlationId,
+      traceId: traceContext?.traceId,
+      spanId: traceContext?.spanId,
     });
   }
 }

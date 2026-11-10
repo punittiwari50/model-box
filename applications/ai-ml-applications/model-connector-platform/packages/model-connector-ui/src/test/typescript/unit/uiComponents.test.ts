@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 import { authStore } from "@/stores/AuthStore";
 import { workflowBuilderStore } from "@/stores/WorkflowBuilderStore";
 import { OnboardingValidators } from "@/schemas/onboarding.schemas";
+import {
+  groupSidebarMenus,
+  getUserInitials,
+  resolveMenuDisplayLabel,
+  ROUTE_BREADCRUMB_MAP,
+} from "@/constants/navigationConstants";
+import { resolveIntegrationCrudPermissions } from "@/utils/auth/rbacPermissions";
+import type { UiMenuItem } from "@/types/ui.types";
 
 test("AuthStore - manages in-memory authentication and tenant context", () => {
   // Initial state
@@ -131,4 +139,64 @@ test("OnboardingValidators - enforces strict contract rules across domain inputs
     hitlCheckpointEnabled: true,
   });
   assert.equal(validStory.success, true);
+});
+
+test("NavigationConstants - groups menus into Connections and Workspace sections and computes user initials", () => {
+  const sampleMenus: readonly UiMenuItem[] = [
+    { menuId: "chat", menuLabel: "Dashboard", menuIcon: "💬", routePath: "chat", sortOrder: 1, isDefault: true },
+    { menuId: "models", menuLabel: "Models", menuIcon: "🤖", routePath: "models", sortOrder: 3, isDefault: false },
+    { menuId: "model-config", menuLabel: "Configuration", menuIcon: "⚙️", routePath: "model-config", sortOrder: 2, isDefault: true },
+    { menuId: "sessions", menuLabel: "Sessions", menuIcon: "🗂️", routePath: "sessions", sortOrder: 4, isDefault: false },
+    { menuId: "upstream", menuLabel: "Observability", menuIcon: "📡", routePath: "upstream", sortOrder: 5, isDefault: false },
+  ];
+
+  const grouped = groupSidebarMenus(sampleMenus);
+  assert.equal(grouped.primaryMenus.length, 1);
+  assert.equal(grouped.connectionMenus.length, 3);
+  assert.equal(grouped.connectionMenus[0].routePath, "model-config");
+  assert.equal(resolveMenuDisplayLabel(grouped.connectionMenus[0]), "Integration Hub");
+  assert.equal(grouped.workspaceMenus.length, 1);
+  assert.equal(getUserInitials("Platform Admin"), "PA");
+  assert.equal(getUserInitials(undefined), "PA");
+  assert.equal(ROUTE_BREADCRUMB_MAP["model-config"].label, "Integration Hub");
+  assert.equal(ROUTE_BREADCRUMB_MAP.models.parent, "Connections");
+});
+
+test("RbacPermissions - resolves CRUD capabilities by explicit permissions and canonical roles", () => {
+  const adminAccess = resolveIntegrationCrudPermissions({
+    roleId: "role-admin",
+    roleName: "Platform Administrator",
+    permissions: ["integrations:read", "integrations:create", "integrations:update", "integrations:delete"],
+  });
+  assert.equal(adminAccess.canRead, true);
+  assert.equal(adminAccess.canCreate, true);
+  assert.equal(adminAccess.canUpdate, true);
+  assert.equal(adminAccess.canDelete, true);
+  assert.equal(adminAccess.accessTierLabel, "Full CRUD");
+
+  const devAccess = resolveIntegrationCrudPermissions({
+    roleId: "role-developer",
+    roleName: "Developer",
+    permissions: ["integrations:read", "integrations:create", "integrations:update"],
+  });
+  assert.equal(devAccess.canRead, true);
+  assert.equal(devAccess.canCreate, true);
+  assert.equal(devAccess.canUpdate, true);
+  assert.equal(devAccess.canDelete, false);
+  assert.equal(devAccess.accessTierLabel, "Create · Read · Update");
+
+  const viewerAccess = resolveIntegrationCrudPermissions({
+    roleId: "role-viewer",
+    roleName: "Read-Only Auditor",
+    permissions: [],
+  });
+  assert.equal(viewerAccess.canRead, true);
+  assert.equal(viewerAccess.canCreate, false);
+  assert.equal(viewerAccess.canUpdate, false);
+  assert.equal(viewerAccess.canDelete, false);
+  assert.equal(viewerAccess.accessTierLabel, "Read-Only");
+
+  const guestAccess = resolveIntegrationCrudPermissions(null);
+  assert.equal(guestAccess.canRead, false);
+  assert.equal(guestAccess.accessTierLabel, "Restricted");
 });

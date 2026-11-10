@@ -309,15 +309,16 @@ class OAuthFlowTestOrchestrator {
 
   async openModelConfigStudio(page) {
     await page.goto(this.config.uiBaseUrl, { waitUntil: "networkidle" });
-    const navBtn = page.locator(".desktop-nav-item").filter({ hasText: /Config|Account|Model/i });
-    const count = await navBtn.count();
-    for (let i = 0; i < count; i++) {
-      const text = (await navBtn.nth(i).textContent()) || "";
-      if (text.toLowerCase().includes("config") || text.toLowerCase().includes("account")) {
-        await navBtn.nth(i).click();
-        break;
-      }
-    }
+    const navBtn = page.locator('.desktop-nav-item[data-route="model-config"], .desktop-nav-item:has-text("Integration Hub")').first();
+    await navBtn.waitFor({ state: "visible", timeout: 10000 });
+    await navBtn.click();
+    const firstRow = page.locator('[data-testid^="model-card-"], tr.model-list-row, .resource-card').first();
+    await firstRow.waitFor({ state: "visible", timeout: 10000 });
+    await firstRow.click();
+    const connectionsTab = page.locator(".integration-detail-tabs .detail-tab-btn").filter({ hasText: /Connections/i }).first();
+    await connectionsTab.waitFor({ state: "visible", timeout: 10000 });
+    await connectionsTab.click();
+    await page.locator('[data-testid="btn-add-account"]').first().click();
     const oauthTab = page.locator(".protocol-tab-btn").filter({ hasText: /OAuth 2\.0 Redirect/i }).first();
     await oauthTab.waitFor({ state: "visible", timeout: 10000 });
     await oauthTab.click();
@@ -330,7 +331,7 @@ class OAuthFlowTestOrchestrator {
     await modelSelect.selectOption(spec.modelId);
 
     const popupPromise = page.waitForEvent("popup", { timeout: 15000 });
-    const launchBtn = page.locator(".btn-cli-auth, .btn-browser-auth").first();
+    const launchBtn = page.locator('[data-testid="btn-oauth-launch-browser"], .btn-cli-auth, .btn-browser-auth').first();
     await launchBtn.waitFor({ state: "visible", timeout: 10000 });
     await launchBtn.click();
 
@@ -348,7 +349,10 @@ class OAuthFlowTestOrchestrator {
     if (!badgeText || !badgeText.includes("Account Connected Successfully")) {
       throw new Error(`Expected callback badge 'Account Connected Successfully', got: ${badgeText}`);
     }
-    console.log(` [Playwright] Callback verified for ${spec.modelId}: ${badgeText.trim()} (${chosenEmail})`);
+    const closeBtn = popupPage.locator("#close-window-btn").first();
+    await closeBtn.waitFor({ state: "visible", timeout: 5000 });
+    await closeBtn.click();
+    console.log(` [Playwright] Callback verified & closed manually via #close-window-btn for ${spec.modelId}: ${badgeText.trim()} (${chosenEmail})`);
 
     const identityEmailLocator = page.locator(".identity-email").first();
     await identityEmailLocator.waitFor({ state: "visible", timeout: 10000 });

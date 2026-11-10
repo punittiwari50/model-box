@@ -284,7 +284,16 @@ resolve_binary() {
   if [ ! -f "$ARCHIVE_LOCAL_PATH" ]; then
     logger_info "Downloading Antigravity CLI archive into bidirectional volume: ${ARCHIVE_LOCAL_PATH}..."
     if ! curl -fsSL "$DOWNLOAD_URL" -o "$ARCHIVE_LOCAL_PATH"; then
-      logger_error "Failed to download Antigravity CLI from ${DOWNLOAD_URL}"
+      logger_warn "Antigravity CLI archive unavailable at ${DOWNLOAD_URL}. Checking Gemini CLI runtime fallback..."
+      if [ -x "/opt/model-connector/npm/bin/gemini" ]; then
+        RESOLVED_CLI_BIN="/opt/model-connector/npm/bin/gemini"
+        return 0
+      fi
+      if command -v gemini >/dev/null 2>&1; then
+        RESOLVED_CLI_BIN=$(command -v gemini)
+        return 0
+      fi
+      logger_error "Failed to download Antigravity CLI and no gemini fallback binary found."
       return 1
     fi
     chmod 666 "$ARCHIVE_LOCAL_PATH" 2>/dev/null || true
@@ -464,15 +473,25 @@ run_oauth_daemon() {
   mkfifo "$FIFO_IN"
   exec 3<> "$FIFO_IN"
 
-  logger_info "Spawning Antigravity CLI process for user ${USER_EMAIL}..."
-  COLUMNS=4096 LINES=100 script -q -f -c "${cli_bin}" "$CLI_LOG" < "$FIFO_IN" >/dev/null 2>&1 &
+  # Ensure headless Google OAuth personal auth mode is pre-selected for Gemini CLI
+  if [ -n "${HOME:-}" ]; then
+    mkdir -p "${HOME}/.gemini" 2>/dev/null || true
+    printf '{"security":{"auth":{"selectedType":"oauth-personal"}}}\n' > "${HOME}/.gemini/settings.json" 2>/dev/null || true
+  fi
+
+  logger_info "Spawning Google/Antigravity CLI process (${cli_bin}) for user ${USER_EMAIL}..."
+  NO_BROWSER=true TERM=xterm-256color COLUMNS=4096 LINES=100 script -q -f -c "${cli_bin}" "$CLI_LOG" < "$FIFO_IN" >/dev/null 2>&1 &
   local cli_pid=$!
   echo "$cli_pid" > "$PID_FILE"
   logger_info "Antigravity CLI process launched with PID: ${cli_pid}"
 
-  # Wait for login method prompt and confirm Option 1: Google OAuth
+  # Wait for login method prompt or direct OAuth URL emission
   local selected_option=false
   for ((i=1; i<=MENU_WAIT_TIMEOUT; i++)); do
+    if [ -f "$CLI_LOG" ] && grep -qE "https://accounts\.google\.com/o/oauth2/[^[:space:]'\"]+" "$CLI_LOG"; then
+      selected_option=true
+      break
+    fi
     if [ -f "$CLI_LOG" ] && grep -qi "Select login method" "$CLI_LOG"; then
       logger_info "Detected interactive login menu. Transmitting newline for '${AUTH_MODE_LABEL}'..."
       sleep 1.0

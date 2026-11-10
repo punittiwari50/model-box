@@ -4,7 +4,7 @@ import { userRepository } from "@/repositories/userRepository";
 import { HttpStatus } from "@/constants/index";
 
 export class AuthController {
-  public login(req: Request, res: Response): void {
+  public async login(req: Request, res: Response): Promise<void> {
     const { email, password } = req.body || {};
 
     if (!email || !password) {
@@ -16,7 +16,7 @@ export class AuthController {
       return;
     }
 
-    const authResult = authService.authenticate(email, password);
+    const authResult = await authService.authenticateAsync(email, password);
 
     if (!authResult) {
       res.status(HttpStatus.UNAUTHORIZED).json({
@@ -35,19 +35,9 @@ export class AuthController {
     });
   }
 
-  public getMe(req: Request, res: Response): void {
-    const authHeader = req.headers.authorization;
-    let token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
-    let userId = req.query.userId as string | undefined;
-
-    if (!userId && token) {
-      const parsed = authService.parseToken(token);
-      if (parsed) userId = parsed.userId;
-    }
-
-    // Default to admin user if not authenticated
-    const targetUserId = userId || "usr-admin";
-    const profile = authService.getUserProfile(targetUserId);
+  public async getMe(req: Request, res: Response): Promise<void> {
+    const targetUserId = this.resolveTargetUserId(req);
+    const profile = await authService.getUserProfileAsync(targetUserId);
 
     if (!profile) {
       res.status(HttpStatus.NOT_FOUND).json({
@@ -65,8 +55,27 @@ export class AuthController {
     });
   }
 
-  public listDemoUsers(req: Request, res: Response): void {
-    const users = userRepository.listUsers();
+  private resolveTargetUserId(req: Request): string {
+    const queryUserId = req.query.userId as string | undefined;
+    if (queryUserId) return queryUserId;
+
+    const headerUserId = req.headers["x-user-id"] as string | undefined;
+    if (headerUserId) return headerUserId;
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+    if (token) {
+      const parsed = authService.parseToken(token);
+      if (parsed) return parsed.userId;
+    }
+
+    return "usr-admin";
+  }
+
+  public async listDemoUsers(req: Request, res: Response): Promise<void> {
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const offset = req.query.offset ? Number(req.query.offset) : undefined;
+    const users = await userRepository.listUsersAsync(limit, offset);
     const demoAccounts = users.map((u) => {
       return {
         userId: u.userId,
@@ -82,6 +91,7 @@ export class AuthController {
 
     res.status(HttpStatus.OK).json({
       success: true,
+      count: demoAccounts.length,
       users: demoAccounts,
       correlationId: req.correlationId,
     });

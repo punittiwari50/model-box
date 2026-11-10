@@ -44,4 +44,8 @@ export interface UpstreamAuditLog {
   readonly timestamp: string;
   readonly clientIp?: string;
   readonly message?: string;
+  readonly sessionId?: string;
+  readonly correlationId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
 }

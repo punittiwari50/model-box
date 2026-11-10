@@ -130,6 +130,12 @@ export interface UiAuditRecord {
   readonly timestamp: string;
   readonly clientIp?: string;
   readonly message?: string;
+  readonly sessionId?: string;
+  readonly correlationId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
+  readonly errorMessage?: string;
+  readonly strategyMode?: string;
 }
 
 export interface UiModelAccount {
@@ -241,4 +247,70 @@ export interface UiOAuthExchangeResult {
   readonly userEmail: string;
   readonly provider: string;
   readonly authorizedTimestamp: string;
+}
+
+export interface UiIntegration {
+  readonly integrationId: string;
+  readonly providerName: string;
+  readonly providerShortCode: string;
+  readonly category: string;
+  readonly description: string;
+  readonly icon: string;
+  readonly brandColor: string;
+  readonly accountCategory: "individual" | "enterprise";
+  readonly supportedProtocols: readonly string[];
+  readonly capabilities: readonly string[];
+  readonly authUrl: string;
+  readonly tokenUrl: string;
+  readonly apiBaseUrl: string;
+  readonly cliCommand: string;
+  readonly docsUrl: string;
+  readonly lifecycleStatus: "ACTIVE" | "INACTIVE" | "DRAFT";
+  readonly createdBy?: string;
+  readonly updatedBy?: string;
+  readonly createdTimestamp?: string;
+  readonly updatedTimestamp?: string;
+}
+
+export interface UpsertIntegrationPayload {
+  readonly integrationId: string;
+  readonly providerName: string;
+  readonly providerShortCode?: string;
+  readonly category: string;
+  readonly description?: string;
+  readonly icon?: string;
+  readonly brandColor?: string;
+  readonly accountCategory?: "individual" | "enterprise";
+  readonly supportedProtocols: readonly string[];
+  readonly capabilities: readonly string[];
+  readonly authUrl?: string;
+  readonly tokenUrl?: string;
+  readonly apiBaseUrl?: string;
+  readonly cliCommand?: string;
+  readonly docsUrl?: string;
+  readonly lifecycleStatus?: "ACTIVE" | "INACTIVE" | "DRAFT";
+}
+
+export interface StagedIntegrationAccount {
+  readonly accountId: string;
+  readonly isPersisted: boolean;
+  readonly accountName: string;
+  readonly userEmail: string;
+  readonly authType: StrategyMode;
+  readonly credentialValue: string;
+  readonly isActive: boolean;
+  readonly effortTier: "low" | "medium" | "high";
+  readonly config: {
+    readonly apiBaseUrl?: string;
+    readonly apiVersion?: string;
+    readonly authUrl?: string;
+    readonly tokenUrl?: string;
+    readonly oauthClientId?: string;
+    readonly oauthClientSecret?: string;
+    readonly oauthScopes?: string;
+    readonly redirectUri?: string;
+    readonly cliExecutable?: string;
+    readonly cliArguments?: string;
+    readonly cookieDomain?: string;
+  };
 }

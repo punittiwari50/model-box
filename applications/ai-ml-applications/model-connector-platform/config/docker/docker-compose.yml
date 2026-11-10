@@ -30,7 +30,6 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - model-connector-postgres-data:/var/lib/postgresql/data
-      - ../database/ddl:/docker-entrypoint-initdb.d:ro
     networks:
       - model-connector-net
     healthcheck:
@@ -276,6 +275,9 @@ services:
       - DATA_DIR=/app/config/data
     volumes:
       - model-connector-backend-data:/app/config/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - model-connector-net
     healthcheck:

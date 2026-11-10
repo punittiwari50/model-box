@@ -27,6 +27,13 @@ RUN apt-get update && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
+# Bake enterprise DDL & canonical seed scripts directly into initdb.d
+COPY config/database/ddl/00_init_multi_model_postgres.sql /docker-entrypoint-initdb.d/
+COPY config/database/ddl/01_core_schema.sql /docker-entrypoint-initdb.d/
+COPY config/database/ddl/02_rbac_schema.sql /docker-entrypoint-initdb.d/
+COPY config/database/ddl/03_canonical_seeds.sql /docker-entrypoint-initdb.d/
+COPY config/database/ddl/flyway_schema_history.sql /docker-entrypoint-initdb.d/
+
 EXPOSE 5432
 
 CMD ["postgres"]

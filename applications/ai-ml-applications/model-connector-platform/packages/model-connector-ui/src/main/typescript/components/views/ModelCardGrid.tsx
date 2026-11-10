@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { UiModel, UiModelAccount } from "@/types/ui.types";
+import { ResourceCard, StatusBadge, EmptyState, type BadgeTone } from "@/components/common";
 
 export interface ModelCardGridProps {
   readonly models: readonly UiModel[];
@@ -7,18 +8,52 @@ export interface ModelCardGridProps {
   readonly selectedModelId: string;
   readonly onModelClick: (modelId: string) => void;
   readonly onChatSelect?: (modelId: string) => void;
+  readonly onManageAccountsClick?: (modelId: string, modelName: string) => void;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  gemini: "✦",
-  grok: "⚡",
-  claude: "🧠",
-  chatgpt: "🤖",
-  openai: "🤖",
-  copilot: "🚀",
-  ollama: "🛡️",
-  fallback: "🛡️",
+interface CatalogCardItem {
+  readonly id: string;
+  readonly targetModelId: string;
+  readonly cardTitle: string;
+  readonly categorySubtitle: string;
+  readonly tag: string;
+  readonly monogram: string;
+  readonly familyKey: string;
+  readonly description: string;
+  readonly tier: string;
+  readonly supportedStrategies: readonly string[];
+  readonly statusLabel: string;
+  readonly statusTone: BadgeTone;
+  readonly accountCount: number;
+  readonly isSelected: boolean;
+}
+
+const PROVIDER_META: Record<string, { name: string; subtitle: string; monogram: string }> = {
+  gemini: { name: "Google Gemini", subtitle: "AI Model Providers", monogram: "G" },
+  claude: { name: "Anthropic Claude", subtitle: "AI Model Providers", monogram: "A" },
+  chatgpt: { name: "OpenAI ChatGPT", subtitle: "AI Model Providers", monogram: "O" },
+  openai: { name: "OpenAI ChatGPT", subtitle: "AI Model Providers", monogram: "O" },
+  grok: { name: "xAI Grok", subtitle: "AI Model Providers", monogram: "X" },
+  copilot: { name: "GitHub Copilot", subtitle: "AI Coding Assistants", monogram: "C" },
+  ollama: { name: "Ollama Local", subtitle: "Local Runtime Providers", monogram: "OL" },
+  comfyui: { name: "ComfyUI", subtitle: "AI Workflow Platforms", monogram: "CF" },
 };
+
+function resolveStatusInfo(model: UiModel, activeAcc?: UiModelAccount): {
+  label: string;
+  tone: BadgeTone;
+} {
+  if (activeAcc) {
+    return { label: "Connected", tone: "success" };
+  }
+  if (model.status === "ACTIVE") {
+    return { label: "Available", tone: "info" };
+  }
+  if (model.status === "DEPRECATED") {
+    return { label: "Attention Required", tone: "warning" };
+  }
+  return { label: "Not Connected", tone: "neutral" };
+}
 
 export const ModelCardGrid: React.FC<ModelCardGridProps> = ({
   models,
@@ -26,99 +61,143 @@ export const ModelCardGrid: React.FC<ModelCardGridProps> = ({
   selectedModelId,
   onModelClick,
   onChatSelect,
+  onManageAccountsClick,
 }) => {
-  if (models.length === 0) {
+  const cardItems = useMemo<CatalogCardItem[]>(() => {
+    const items: CatalogCardItem[] = [];
+    const groupedCloudProviders = new Set<string>();
+
+    for (const m of models) {
+      const fam = m.family.toLowerCase();
+      const isLocalExecution = fam.includes("ollama") || fam.includes("comfyui");
+
+      if (isLocalExecution) {
+        const accounts = modelAccounts.filter((a) => a.modelId === m.id);
+        const activeAcc = accounts.find((a) => a.isActive);
+        const providerTag = fam.includes("comfyui") ? "COMFYUI" : "OLLAMA";
+        const meta = PROVIDER_META[fam.includes("comfyui") ? "comfyui" : "ollama"];
+        const statusInfo = resolveStatusInfo(m, activeAcc);
+
+        items.push({
+          id: m.id,
+          targetModelId: m.id,
+          cardTitle: m.name,
+          categorySubtitle: meta.subtitle,
+          tag: providerTag,
+          monogram: meta.monogram,
+          familyKey: fam,
+          description: m.description || `Local inference model executed via ${providerTag}.`,
+          tier: m.tier || "freeware",
+          supportedStrategies: m.supportedStrategies,
+          statusLabel: statusInfo.label,
+          statusTone: statusInfo.tone,
+          accountCount: accounts.length,
+          isSelected: selectedModelId === m.id,
+        });
+      } else {
+        if (groupedCloudProviders.has(fam)) {
+          continue;
+        }
+        groupedCloudProviders.add(fam);
+
+        const modelsInFamily = models.filter((item) => item.family.toLowerCase() === fam);
+        const primaryModel = modelsInFamily[0];
+        const meta = PROVIDER_META[fam];
+        const providerName = meta?.name || primaryModel.name.split(" ")[0] || fam.toUpperCase();
+        const familyAccounts = modelAccounts.filter((a) =>
+          modelsInFamily.some((mod) => mod.id === a.modelId),
+        );
+        const activeAcc = familyAccounts.find((a) => a.isActive);
+        const statusInfo = resolveStatusInfo(primaryModel, activeAcc);
+
+        items.push({
+          id: primaryModel.id,
+          targetModelId: primaryModel.id,
+          cardTitle: providerName,
+          categorySubtitle: meta?.subtitle || "AI Model Providers",
+          tag: fam.toUpperCase(),
+          monogram: meta?.monogram || providerName.slice(0, 2).toUpperCase(),
+          familyKey: fam,
+          description:
+            primaryModel.description ||
+            `${providerName} enterprise multi-modal reasoning (${modelsInFamily.length} models).`,
+          tier: fam.includes("gemini") ? "paid" : primaryModel.tier || "paid",
+          supportedStrategies: primaryModel.supportedStrategies,
+          statusLabel: statusInfo.label,
+          statusTone: statusInfo.tone,
+          accountCount: familyAccounts.length,
+          isSelected: modelsInFamily.some((mod) => mod.id === selectedModelId),
+        });
+      }
+    }
+
+    return items;
+  }, [models, modelAccounts, selectedModelId]);
+
+  if (cardItems.length === 0) {
     return (
-      <div className="view-empty-state">
-        <span className="empty-icon">📂</span>
-        <h3>No Models Found</h3>
-        <p>No model configurations match your current filter or search criteria.</p>
-      </div>
+      <EmptyState
+        title="No Models Found"
+        description="No model configurations match your current filter or search criteria."
+      />
     );
   }
 
   return (
     <div className="model-card-grid" data-testid="model-card-grid">
-      {models.map((m) => {
-        const familyKey = m.family.toLowerCase();
-        const icon = CATEGORY_ICONS[familyKey] || "◈";
-        const accounts = modelAccounts.filter((a) => a.modelId === m.id);
-        const activeAcc = accounts.find((a) => a.isActive);
-        const isSelected = selectedModelId === m.id;
-
+      {cardItems.map((item) => {
+        const authSummary = item.supportedStrategies.map((s) => s.toUpperCase()).join(", ");
         return (
-          <div
-            key={m.id}
-            className={`model-card-item odoo-model-card group-${familyKey} ${isSelected ? "selected" : ""}`}
-            onClick={() => onModelClick(m.id)}
-            data-testid={`model-card-${m.id}`}
-            title={`Click to open Save View for ${m.name}`}
-          >
-            <div className="card-top-row">
-              <div className="card-identity">
-                <span className="provider-icon">{icon}</span>
-                <div className="name-wrapper">
-                  <h4 className="model-name">{m.name}</h4>
-                  <span className="model-slug">{m.id}</span>
-                </div>
-              </div>
-              <span className={`family-badge badge-${familyKey}`}>
-                {m.family.toUpperCase()}
-              </span>
-            </div>
-
-            <p className="card-description">
-              {m.description || `Enterprise ${m.name} model supporting inference and chat streaming.`}
-            </p>
-
-            <div className="card-meta-row">
-              <span className="tier-pill">{m.tier || "ENTERPRISE"}</span>
-              <div className="strategies-badges">
-                {m.supportedStrategies.map((strat) => (
-                  <span key={strat} className="strategy-tag">
-                    {strat.toUpperCase()}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="card-footer-row">
-              <div className="status-indicator">
-                <span className={`status-dot ${m.status.toLowerCase()}`} />
-                <span className="status-text">
-                  {m.status === "ACTIVE"
-                    ? "ACTIVE"
-                    : activeAcc
-                    ? "CONFIGURED"
-                    : "NO ACCOUNT"}
-                </span>
-              </div>
-
-              <div className="card-actions">
-                {accounts.length > 0 && (
-                  <span className="accounts-count-badge" title="Configured accounts count">
-                    🔑 {accounts.length} Account{accounts.length > 1 ? "s" : ""}
-                  </span>
-                )}
+          <ResourceCard
+            key={item.id}
+            icon={item.monogram}
+            iconTone={item.familyKey}
+            title={item.cardTitle}
+            subtitle={item.categorySubtitle}
+            topRightSlot={
+              <StatusBadge
+                label={item.isSelected ? "★ Active" : item.tag}
+                tone={item.isSelected ? "primary" : "neutral"}
+              />
+            }
+            description={item.description}
+            statusSlot={<StatusBadge label={item.statusLabel} tone={item.statusTone} showDot />}
+            metaText={`${item.accountCount} ${item.accountCount === 1 ? "connection" : "connections"}`}
+            footerLeft={<span className="auth-summary">Auth: {authSummary || "API"}</span>}
+            footerActions={
+              <>
+                <button
+                  type="button"
+                  className="btn-ui-secondary btn-sm"
+                  onClick={() =>
+                    onManageAccountsClick
+                      ? onManageAccountsClick(item.targetModelId, item.cardTitle)
+                      : onModelClick(item.targetModelId)
+                  }
+                  title={`Inspect or configure ${item.cardTitle}`}
+                >
+                  Details
+                </button>
                 {onChatSelect && (
                   <button
                     type="button"
-                    className="btn-card-chat"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChatSelect(m.id);
-                    }}
-                    title="Launch chat with this model"
+                    className="btn-ui-dark btn-sm btn-card-chat"
+                    onClick={() => onChatSelect(item.targetModelId)}
+                    title={`Launch chat with ${item.cardTitle}`}
                   >
-                    💬 Chat
+                    {item.accountCount > 0 ? "Manage" : "Connect"}
                   </button>
                 )}
-              </div>
-            </div>
-          </div>
+              </>
+            }
+            accentClass={`group-${item.familyKey}`}
+            selected={item.isSelected}
+            onClick={() => onModelClick(item.targetModelId)}
+            testId={`model-card-${item.id}`}
+            titleTooltip={`Click to open configuration for ${item.cardTitle}`}
+          />
         );
       })}
     </div>
   );
 };
-

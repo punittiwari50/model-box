@@ -25,6 +25,25 @@ export const ModelCatalogSelectors = Object.freeze({
 
 export const ModelConfigSelectors = Object.freeze({
   CONTAINER: ".desktop-model-config-page, .desktop-model-config",
+  ADD_INTEGRATION_BTN: '[data-testid="btn-add-integration"]',
+  ONBOARDING_PAGE: '[data-testid="integration-onboarding-page"]',
+  ONBOARD_TAB_IDENTITY: '[data-testid="tab-onboard-identity"]',
+  ONBOARD_TAB_PROTOCOLS: '[data-testid="tab-onboard-protocols"]',
+  ONBOARD_TAB_CAPABILITIES: '[data-testid="tab-onboard-capabilities"]',
+  ONBOARD_PROVIDER_NAME: "#onb-provider-name",
+  ONBOARD_INTEGRATION_ID: "#onb-integration-id",
+  ONBOARD_CATEGORY: "#onb-category",
+  ONBOARD_SCOPE: "#onb-scope",
+  ONBOARD_STATUS: "#onb-status",
+  ONBOARD_CUSTOM_CAP: "#onb-custom-cap",
+  ONBOARD_OAUTH_BTN: '[data-testid="btn-oauth-redirect"]',
+  ONBOARD_OAUTH_STATUS: '[data-testid="oauth-redirect-status"]',
+  ONBOARD_TAG_CHIPS: '[data-testid="tag-chip-input"] .tag-chip-item',
+  ONBOARD_TAG_ADD_BTN: '[data-testid="panel-onboard-capabilities"] .tag-add-btn',
+  DETAIL_VIEW: '[data-testid="integration-detail-view"]',
+  DETAIL_TAB_BTN: ".integration-detail-tabs .detail-tab-btn",
+  DETAIL_SELECTED_PROTOCOLS: ".info-detail-cell .detail-proto-pill",
+  ADD_ACCOUNT_BTN: '[data-testid="btn-add-account"]',
   PROTOCOL_TAB_BTN: ".protocol-tab-btn",
   OAUTH_LAUNCH_BROWSER_BTN: '[data-testid="btn-oauth-launch-browser"], .btn-launch-primary',
   COMPUTED_AUTH_URL_INPUT: ".url-preview-input",
@@ -54,12 +73,13 @@ export const WorkflowsSelectors = Object.freeze({
 
 export const OnboardingSelectors = Object.freeze({
   PAGE: ".desktop-onboarding-page",
-  STEPPER_TAB: ".view-mode-pill",
+  STEPPER_TAB: ".stepper-tab-pills .ui-segment-btn, .view-mode-pill",
   FLOW_HOST: ".onboarding-flow-host",
 });
 
 export const RbacSelectors = Object.freeze({
   PAGE: ".desktop-rbac-page",
+  TABS: ".rbac-tabs-bar .ui-segment-btn",
   CARDS: ".rbac-card",
   MATRIX_TABLE: "table.matrix-table",
 });
@@ -68,7 +88,7 @@ export const MobileLayoutSelectors = Object.freeze({
   LAYOUT: ".mobile-layout",
   BOTTOM_NAV: ".mobile-bottom-nav",
   TAB_BUTTONS: ".mobile-bottom-nav .mobile-tab-btn",
-  SWITCH_TO_DESKTOP_BTN: "button:has-text('Switch to Desktop')",
+  SWITCH_TO_DESKTOP_BTN: '.app-header .mobile-desktop-toggle, button[aria-label="Switch to Desktop"]',
 });
 
 export const EnterpriseViewSelectors = Object.freeze({
@@ -84,7 +104,7 @@ export const EnterpriseViewSelectors = Object.freeze({
   FORM_VIEW: '[data-testid="form-view"], [data-testid="odoo-form-view"], .form-view-container, .odoo-form-view-container',
   CREATE_BANNER: '[data-testid="create-banner"], [data-testid="odoo-create-banner"], .form-create-banner, .odoo-form-create-banner',
   SELECT_TARGET_MODEL: '[data-testid="select-target-model"], [data-testid="odoo-select-target-model"], .model-select-dropdown',
-  MODEL_ROW: '[data-testid="model-row"], [data-testid="odoo-model-row"], .model-row, .model-item, .card-item',
+  MODEL_ROW: '[data-testid^="model-card-"], tr.model-list-row, [data-testid="model-row"], .resource-card',
 });
 
 export const OdooSelectors = EnterpriseViewSelectors;

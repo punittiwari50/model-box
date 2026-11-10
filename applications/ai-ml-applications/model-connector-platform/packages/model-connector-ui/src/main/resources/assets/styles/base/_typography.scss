@@ -1,0 +1,37 @@
+// ==============================================================================
+// SCSS Typography: Consistent Heading Hierarchy & Text Tokens
+// Path: src/main/resources/assets/styles/base/_typography.scss
+// ==============================================================================
+@use "@/styles/abstracts/tokens" as *;
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-display);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--theme-text-primary);
+  letter-spacing: -0.015em;
+}
+
+h1 { font-size: var(--font-2xl); }
+h2 { font-size: var(--font-xl); }
+h3 { font-size: var(--font-lg); }
+h4 { font-size: var(--font-md); }
+
+p {
+  color: var(--theme-text-secondary);
+  font-size: var(--font-base);
+  line-height: 1.55;
+}
+
+code, pre, .font-mono {
+  font-family: var(--font-family-mono);
+}
+
+code {
+  background-color: var(--theme-bg-muted);
+  color: var(--theme-text-primary);
+  padding: 0.15em 0.45em;
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  border: 1px solid var(--theme-border-subtle);
+}

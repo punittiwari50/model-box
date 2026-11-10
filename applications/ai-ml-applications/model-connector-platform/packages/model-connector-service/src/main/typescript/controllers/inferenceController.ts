@@ -46,11 +46,16 @@ export class InferenceController {
       ...req.body,
       model,
       prompt,
+      sessionId: req.body?.sessionId,
+      effortTier: req.body?.effortTier || "medium",
       userId: (req.body?.userId || headers["x-user-id"] || headers["user-id"]) as string | undefined,
       userEmail: (req.body?.userEmail || headers["x-user-email"] || headers["user-email"]) as string | undefined,
       taskId: (req.body?.taskId || headers["x-task-id"] || headers["task-id"]) as string | undefined,
       requestId: (req.body?.requestId || headers["x-request-id"] || headers["request-id"] || req.correlationId) as string | undefined,
       correlationId: req.correlationId,
+      traceId: req.traceContext?.traceId || (headers["x-trace-id"] as string) || (headers["traceparent"] as string),
+      spanId: req.traceContext?.spanId || (headers["x-span-id"] as string),
+      clientIp: req.ip || (headers["x-forwarded-for"] as string) || "127.0.0.1",
     };
   }
 

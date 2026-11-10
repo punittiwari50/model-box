@@ -8,9 +8,11 @@ import type {
 import { modelService } from "@/services/modelService";
 import { sessionRepository } from "@/repositories/sessionRepository";
 import { accountRepository } from "@/repositories/accountRepository";
+import { auditRepository } from "@/repositories/auditRepository";
 
 export class InferenceService {
   public async executeChat(request: ExecutionRequest): Promise<ExecutionResponse> {
+    const startTime = Date.now();
     const sessionId = request.sessionId || randomUUID();
     const model = request.model || "gemini-3.8-flash";
     const { effectiveStrategy, effectiveApiKey, effectiveOAuthToken, activeAccount } =
@@ -43,6 +45,21 @@ export class InferenceService {
       if (this.isUnauthorizedError(err) && activeAccount?.authType !== "cli_oauth") {
         accountRepository.deactivateActiveAccount(model);
       }
+      const latencyMs = Date.now() - startTime;
+      await auditRepository.saveAuditLog({
+        correlationId: request.correlationId || randomUUID(),
+        traceId: request.traceId,
+        spanId: request.spanId,
+        sessionId,
+        modelId: model,
+        actionName: "CHAT_INFERENCE",
+        strategyMode: effectiveStrategy,
+        latencyMs,
+        executionStatus: "FAILED",
+        clientIp: request.clientIp,
+        promptMessage: request.prompt,
+        errorMessage: (err as any)?.message || String(err),
+      });
       throw err;
     }
 
@@ -63,6 +80,21 @@ export class InferenceService {
       request.prompt,
     );
 
+    const latencyMs = response.latencyMs || Date.now() - startTime;
+    await auditRepository.saveAuditLog({
+      correlationId: request.correlationId || randomUUID(),
+      traceId: request.traceId,
+      spanId: request.spanId,
+      sessionId,
+      modelId: response.model || model,
+      actionName: "CHAT_INFERENCE",
+      strategyMode: response.strategyUsed || effectiveStrategy,
+      latencyMs,
+      executionStatus: "SUCCESS",
+      clientIp: request.clientIp,
+      promptMessage: request.prompt,
+    });
+
     return this.buildExecutionPayload(response, sessionId, model);
   }
 
@@ -70,6 +102,7 @@ export class InferenceService {
     request: ExecutionRequest,
     onChunk: (chunk: StreamChunk) => void,
   ): Promise<ExecutionResponse> {
+    const startTime = Date.now();
     const sessionId = request.sessionId || randomUUID();
     const model = request.model || "gemini-3.8-flash";
     const { effectiveStrategy, effectiveApiKey, effectiveOAuthToken, activeAccount } =
@@ -105,6 +138,21 @@ export class InferenceService {
       if (this.isUnauthorizedError(err) && activeAccount?.authType !== "cli_oauth") {
         accountRepository.deactivateActiveAccount(model);
       }
+      const latencyMs = Date.now() - startTime;
+      await auditRepository.saveAuditLog({
+        correlationId: request.correlationId || randomUUID(),
+        traceId: request.traceId,
+        spanId: request.spanId,
+        sessionId,
+        modelId: model,
+        actionName: "STREAM_INFERENCE",
+        strategyMode: effectiveStrategy,
+        latencyMs,
+        executionStatus: "FAILED",
+        clientIp: request.clientIp,
+        promptMessage: request.prompt,
+        errorMessage: (err as any)?.message || String(err),
+      });
       throw err;
     }
 
@@ -124,6 +172,21 @@ export class InferenceService {
       response.strategyUsed || effectiveStrategy,
       request.prompt,
     );
+
+    const latencyMs = response.latencyMs || Date.now() - startTime;
+    await auditRepository.saveAuditLog({
+      correlationId: request.correlationId || randomUUID(),
+      traceId: request.traceId,
+      spanId: request.spanId,
+      sessionId,
+      modelId: response.model || model,
+      actionName: "STREAM_INFERENCE",
+      strategyMode: response.strategyUsed || effectiveStrategy,
+      latencyMs,
+      executionStatus: "SUCCESS",
+      clientIp: request.clientIp,
+      promptMessage: request.prompt,
+    });
 
     return this.buildExecutionPayload(response, sessionId, model);
   }

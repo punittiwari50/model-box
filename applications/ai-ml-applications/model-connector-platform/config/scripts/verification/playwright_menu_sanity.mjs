@@ -161,13 +161,21 @@ export class ModelsMenuVerifier extends AbstractMenuVerifier {
  */
 export class ModelConfigMenuVerifier extends AbstractMenuVerifier {
   constructor() {
-    super("model-config", "Model Config Studio");
+    super("model-config", "Integration Hub");
   }
 
   async verifyView(page) {
     await this.navigateToMenu(page);
     const configContainer = page.locator(".desktop-model-config-page, .desktop-model-config").first();
     await configContainer.waitFor({ state: "visible", timeout: SanityConfig.DEFAULT_TIMEOUT_MS });
+
+    const firstRow = page.locator('[data-testid^="model-card-"], tr.model-list-row, .resource-card').first();
+    await firstRow.waitFor({ state: "visible", timeout: SanityConfig.DEFAULT_TIMEOUT_MS });
+    await firstRow.click();
+
+    await page.locator('[data-testid="integration-detail-view"]').first().waitFor({ state: "visible", timeout: SanityConfig.DEFAULT_TIMEOUT_MS });
+    await page.locator(".integration-detail-tabs .detail-tab-btn").filter({ hasText: /Connections/i }).first().click();
+    await page.locator('[data-testid="btn-add-account"]').first().click();
 
     const protocolTabs = [
       { name: "REST API", selector: "api" },
@@ -308,11 +316,11 @@ export class OnboardingMenuVerifier extends AbstractMenuVerifier {
     const stepperTabs = [
       { name: "Job Portal", expectedText: "Job" },
       { name: "Apps Builder", expectedText: "Apps" },
-      { name: "Storyteller Studio", expectedText: "Storyteller" },
+      { name: "Storyteller", expectedText: "Storyteller" },
     ];
 
     for (const tab of stepperTabs) {
-      const tabBtn = page.locator(".view-mode-pill").filter({ hasText: new RegExp(tab.name, "i") }).first();
+      const tabBtn = page.locator(".stepper-tab-pills .ui-segment-btn, .view-mode-pill").filter({ hasText: new RegExp(tab.name, "i") }).first();
       await tabBtn.waitFor({ state: "visible", timeout: SanityConfig.DEFAULT_TIMEOUT_MS });
       await tabBtn.click();
       await page.waitForTimeout(200);
@@ -343,15 +351,16 @@ export class RbacMenuVerifier extends AbstractMenuVerifier {
     const pageContainer = page.locator(".desktop-rbac-page").first();
     await pageContainer.waitFor({ state: "visible", timeout: SanityConfig.DEFAULT_TIMEOUT_MS });
 
-    const rbacCards = page.locator(".rbac-card");
-    const count = await rbacCards.count();
-    if (count < 3) throw new Error(`Expected at least 3 RBAC governance cards, found ${count}`);
+    const tabs = page.locator(".rbac-tabs-bar .ui-segment-btn");
+    const count = await tabs.count();
+    if (count < 3) throw new Error(`Expected at least 3 RBAC governance tabs, found ${count}`);
 
+    await tabs.filter({ hasText: /Access Matrix/i }).first().click();
     const matrixTable = page.locator("table.matrix-table").first();
     await matrixTable.waitFor({ state: "visible", timeout: SanityConfig.DEFAULT_TIMEOUT_MS });
 
-    console.log(`   ✔ ${count} RBAC governance cards and dynamic authorization matrix table verified`);
-    return { menu: this.menuTitle, route: this.menuRoute, status: "PASSED", details: `${count} governance cards and multi-tenant matrix table verified` };
+    console.log(`   ✔ ${count} RBAC governance tabs and dynamic authorization matrix table verified`);
+    return { menu: this.menuTitle, route: this.menuRoute, status: "PASSED", details: `${count} governance tabs and multi-tenant matrix table verified` };
   }
 }
 
@@ -386,7 +395,7 @@ export class MobileViewSanityVerifier {
     }
 
     // Switch back to desktop view
-    const backToDesktopBtn = page.locator("button").filter({ hasText: /Switch to Desktop/i }).first();
+    const backToDesktopBtn = page.locator('.app-header .mobile-desktop-toggle, button[aria-label="Switch to Desktop"]').first();
     if (await backToDesktopBtn.isVisible()) {
       await backToDesktopBtn.click();
       await page.waitForTimeout(300);

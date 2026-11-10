@@ -1,8 +1,7 @@
 import React from "react";
 import { useDeviceMode } from "@/utils/hooks/useDeviceMode";
 import { useModelConnectorState } from "@/utils/hooks/useModelConnectorState";
-import { DesktopLayout } from "@/desktop/layout/DesktopLayout";
-import { MobileLayout } from "@/mobile/layout/MobileLayout";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 export const App: React.FC = () => {
   const { isMobile, toggleMode, mode } = useDeviceMode();
@@ -10,11 +9,11 @@ export const App: React.FC = () => {
 
   return (
     <div className={`platform-viewport ${mode}-mode`}>
-      {isMobile ? (
-        <MobileLayout state={state} onSwitchToDesktop={toggleMode} />
-      ) : (
-        <DesktopLayout state={state} onSwitchToMobile={toggleMode} />
-      )}
+      <AppLayout
+        state={state}
+        isMobileMode={isMobile}
+        onSwitchDeviceMode={toggleMode}
+      />
     </div>
   );
 };

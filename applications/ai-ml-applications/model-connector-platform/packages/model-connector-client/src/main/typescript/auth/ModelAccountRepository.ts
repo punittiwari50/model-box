@@ -198,22 +198,37 @@ export class AccountRepository {
       if (acc) return acc;
     }
     const db = coreDatabaseManager.getDatabase();
-    if (userEmail && userEmail.trim().length > 0) {
+    const hasName = Boolean(accountName && accountName.trim().length > 0);
+    const hasEmail = Boolean(userEmail && userEmail.trim().length > 0);
+    if (hasName && hasEmail) {
+      const row = db
+        .prepare(
+          `SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS
+           WHERE MODEL_ID = ? AND LOWER(ACCOUNT_NAME) = LOWER(?) AND LOWER(USER_EMAIL) = LOWER(?)
+           LIMIT 1`,
+        )
+        .get(modelId, accountName!.trim(), userEmail!.trim()) as any;
+      if (row?.accountId) {
+        return this.getAccount(row.accountId);
+      }
+      return undefined;
+    }
+    if (hasEmail) {
       const row = db
         .prepare(
           `SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS WHERE MODEL_ID = ? AND LOWER(USER_EMAIL) = LOWER(?) LIMIT 1`,
         )
-        .get(modelId, userEmail.trim()) as any;
+        .get(modelId, userEmail!.trim()) as any;
       if (row?.accountId) {
         return this.getAccount(row.accountId);
       }
     }
-    if (accountName && accountName.trim().length > 0) {
+    if (hasName) {
       const row = db
         .prepare(
           `SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS WHERE MODEL_ID = ? AND LOWER(ACCOUNT_NAME) = LOWER(?) LIMIT 1`,
         )
-        .get(modelId, accountName.trim()) as any;
+        .get(modelId, accountName!.trim()) as any;
       if (row?.accountId) {
         return this.getAccount(row.accountId);
       }

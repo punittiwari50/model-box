@@ -1,0 +1,36 @@
+// ==============================================================================
+// Main SCSS Manifest: Bootstrap 6 + Enterprise 7-1 Architecture
+// Path: src/main/resources/assets/styles/main.scss
+// ==============================================================================
+
+@use "bootstrap/scss/bootstrap" with (
+  $color-mode-type: "data",
+  $enable-shadows: true,
+  $enable-gradients: true,
+  $enable-transitions: true
+);
+
+// 1. Abstracts (Design Tokens & Mixins)
+@use "@/styles/abstracts/tokens" as *;
+@use "@/styles/abstracts/mixins" as *;
+
+// 2. Base Styles
+@use "@/styles/base/reset";
+@use "@/styles/base/typography";
+
+// 3. Layout Shell & Responsive Chrome
+@use "@/styles/layout/app-shell";
+@use "@/styles/layout/mobile-navigation";
+
+// 4. Reusable Components
+@use "@/styles/components/ui-primitives";
+@use "@/styles/components/pagination";
+@use "@/styles/components/catalog-controls";
+@use "@/styles/components/integration-onboarding";
+
+// 5. Feature Workspaces
+@use "@/styles/pages/workspace-views";
+@use "@/styles/pages/administration-and-config";
+
+// 6. Theme Polarity & High-Contrast Overrides
+@use "@/styles/themes/contrast-overrides";

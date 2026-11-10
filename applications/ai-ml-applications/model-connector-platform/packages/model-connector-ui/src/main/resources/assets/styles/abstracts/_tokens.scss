@@ -1,0 +1,440 @@
+// ==============================================================================
+// Design Tokens & Theme System for ModelConnector UI
+// Path: src/main/resources/assets/styles/abstracts/_tokens.scss
+// Theme System: CSS Custom Properties on :root & [data-theme="light" | "dark"]
+// ==============================================================================
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  // Bootstrap 6 Theme Token Bridge (Light Mode - Vuexy / Materialize Palette)
+  --bg-body: var(--theme-bg-canvas);
+  --bg-1: var(--theme-bg-surface);
+  --bg-2: var(--theme-bg-muted);
+  --bg-3: var(--theme-bg-subtle);
+  --fg-body: var(--theme-text-primary);
+  --fg-1: var(--theme-text-primary);
+  --fg-2: var(--theme-text-secondary);
+  --fg-3: var(--theme-text-muted);
+  --border-color: var(--theme-border-default);
+  --primary-base: #7367f0;
+  --primary-bg: #7367f0;
+  --primary-fg: #5e50ee;
+  --primary-contrast: #ffffff;
+  --primary-subtle: rgba(115, 103, 240, 0.14);
+  --bs-primary: #7367f0;
+  --bs-body-bg: var(--theme-bg-canvas);
+  --bs-body-color: var(--theme-text-primary);
+  --bs-border-color: var(--theme-border-default);
+
+  // Canvas & Surfaces (Vuexy / Materialize Crisp Neutral Light Workspace)
+  --theme-bg-canvas: #f8f7fa;
+  --theme-bg-surface: #ffffff;
+  --theme-bg-elevated: #ffffff;
+  --theme-bg-card: #ffffff;
+  --theme-bg-card-hover: #f5f4f8;
+  --theme-bg-muted: #f3f2f6;
+  --theme-bg-subtle: #e6e4ed;
+  --theme-bg-input: #ffffff;
+  --theme-bg-table-header: #f8f7fa;
+  --theme-bg-row-hover: rgba(115, 103, 240, 0.05);
+  --theme-bg-row-selected: rgba(115, 103, 240, 0.1);
+  --theme-bg-overlay: rgba(47, 43, 61, 0.56);
+
+  // Unified Chrome Surfaces (Top Header, Sidebar, Bottom Nav)
+  --theme-header-bg: rgba(255, 255, 255, 0.94);
+  --theme-bottom-nav-bg: rgba(255, 255, 255, 0.97);
+
+  // Sidebar Surface (Vuexy / Materialize Deep Slate-Indigo Chrome)
+  --theme-sidebar-bg: #25293c;
+  --theme-sidebar-surface: #2f3349;
+  --theme-sidebar-border: rgba(207, 205, 228, 0.12);
+  --theme-sidebar-text: #cfcde4;
+  --theme-sidebar-text-muted: #9e9bae;
+  --theme-sidebar-section-label: #79768a;
+  --theme-sidebar-hover: rgba(115, 103, 240, 0.14);
+  --theme-sidebar-active-bg: linear-gradient(72deg, #7367f0 22%, #666cff 100%);
+  --theme-sidebar-active-text: #ffffff;
+  --theme-sidebar-group-bg: rgba(115, 103, 240, 0.09);
+
+  // Borders
+  --theme-border-subtle: rgba(47, 43, 61, 0.1);
+  --theme-border-default: rgba(47, 43, 61, 0.18);
+  --theme-border-hover: rgba(47, 43, 61, 0.3);
+  --theme-border-focus: #7367f0;
+  --theme-border-glow: rgba(115, 103, 240, 0.24);
+
+  // Typography Colors (Vuexy / Materialize Charcoal Ink)
+  --theme-text-primary: #2f2b3d;
+  --theme-text-secondary: #5d596c;
+  --theme-text-muted: #8a8697;
+  --theme-text-inverse: #ffffff;
+
+  // Brand & Primary Actions (Vuexy #7367F0 + Frest #5A8DEE + Materialize #666CFF)
+  --theme-primary: #7367f0;
+  --theme-primary-hover: #5e50ee;
+  --theme-primary-soft: rgba(115, 103, 240, 0.14);
+  --theme-primary-border: rgba(115, 103, 240, 0.32);
+  --theme-primary-glow: rgba(115, 103, 240, 0.22);
+  --theme-accent: #5a8dee;
+  --theme-cta-dark: #7367f0;
+  --theme-cta-dark-hover: #5e50ee;
+  --theme-cta-dark-text: #ffffff;
+
+  // Semantic Status Tokens
+  --theme-success: #10b981;
+  --theme-success-soft: rgba(16, 185, 129, 0.12);
+  --theme-success-border: rgba(16, 185, 129, 0.32);
+  --theme-success-text: #047857;
+
+  --theme-warning: #f59e0b;
+  --theme-warning-soft: rgba(245, 158, 11, 0.14);
+  --theme-warning-border: rgba(245, 158, 11, 0.36);
+  --theme-warning-text: #b45309;
+
+  --theme-danger: #ef4444;
+  --theme-danger-soft: rgba(239, 68, 68, 0.12);
+  --theme-danger-border: rgba(239, 68, 68, 0.32);
+  --theme-danger-text: #b91c1c;
+
+  --theme-info: #0ea5e9;
+  --theme-info-soft: rgba(14, 165, 233, 0.12);
+  --theme-info-border: rgba(14, 165, 233, 0.3);
+  --theme-info-text: #0369a1;
+
+  --theme-neutral-soft: #f1f5f9;
+  --theme-neutral-border: #e2e8f0;
+  --theme-neutral-text: #475569;
+
+  // Elevation & Shadows
+  --theme-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --theme-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.07), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --theme-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --theme-shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.12), 0 4px 10px rgba(15, 23, 42, 0.06);
+
+  // Model Family Accents
+  --cat-gemini-border: #0284c7;
+  --cat-gemini-glow: rgba(2, 132, 199, 0.14);
+  --cat-gemini-bg: rgba(2, 132, 199, 0.1);
+  --cat-gemini-text: #0369a1;
+
+  --cat-grok-border: #e11d48;
+  --cat-grok-glow: rgba(225, 29, 72, 0.14);
+  --cat-grok-bg: rgba(225, 29, 72, 0.1);
+  --cat-grok-text: #be123c;
+
+  --cat-copilot-border: #7c3aed;
+  --cat-copilot-glow: rgba(124, 58, 237, 0.14);
+  --cat-copilot-bg: rgba(124, 58, 237, 0.1);
+  --cat-copilot-text: #6d28d9;
+
+  --cat-chatgpt-border: #059669;
+  --cat-chatgpt-glow: rgba(5, 150, 105, 0.14);
+  --cat-chatgpt-bg: rgba(5, 150, 105, 0.1);
+  --cat-chatgpt-text: #047857;
+
+  --cat-claude-border: #d97706;
+  --cat-claude-glow: rgba(217, 119, 6, 0.14);
+  --cat-claude-bg: rgba(217, 119, 6, 0.1);
+  --cat-claude-text: #b45309;
+
+  --cat-ollama-border: #0891b2;
+  --cat-ollama-glow: rgba(8, 145, 178, 0.14);
+  --cat-ollama-bg: rgba(8, 145, 178, 0.1);
+  --cat-ollama-text: #0e7490;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  // Bootstrap 6 Theme Token Bridge (Dark Mode - Vuexy / Materialize Palette)
+  --bg-body: var(--theme-bg-canvas);
+  --bg-1: var(--theme-bg-surface);
+  --bg-2: var(--theme-bg-muted);
+  --bg-3: var(--theme-bg-subtle);
+  --fg-body: var(--theme-text-primary);
+  --fg-1: var(--theme-text-primary);
+  --fg-2: var(--theme-text-secondary);
+  --fg-3: var(--theme-text-muted);
+  --border-color: var(--theme-border-default);
+  --primary-base: #7367f0;
+  --primary-bg: #7367f0;
+  --primary-fg: #9e95f5;
+  --primary-contrast: #ffffff;
+  --primary-subtle: rgba(115, 103, 240, 0.18);
+  --bs-primary: #7367f0;
+  --bs-body-bg: var(--theme-bg-canvas);
+  --bs-body-color: var(--theme-text-primary);
+  --bs-border-color: var(--theme-border-default);
+
+  // Canvas & Surfaces (Vuexy Dark Midnight Slate)
+  --theme-bg-canvas: #25293c;
+  --theme-bg-surface: #2f3349;
+  --theme-bg-elevated: #363b54;
+  --theme-bg-card: #2f3349;
+  --theme-bg-card-hover: #383d57;
+  --theme-bg-muted: rgba(207, 205, 228, 0.06);
+  --theme-bg-subtle: rgba(207, 205, 228, 0.1);
+  --theme-bg-input: #25293c;
+  --theme-bg-table-header: rgba(207, 205, 228, 0.04);
+  --theme-bg-row-hover: rgba(115, 103, 240, 0.1);
+  --theme-bg-row-selected: rgba(115, 103, 240, 0.18);
+  --theme-bg-overlay: rgba(19, 17, 32, 0.78);
+
+  // Unified Chrome Surfaces (Dark Mode)
+  --theme-header-bg: rgba(47, 51, 73, 0.94);
+  --theme-bottom-nav-bg: rgba(47, 51, 73, 0.97);
+
+  // Sidebar Surface
+  --theme-sidebar-bg: #25293c;
+  --theme-sidebar-surface: #2f3349;
+  --theme-sidebar-border: rgba(207, 205, 228, 0.12);
+  --theme-sidebar-text: #cfcde4;
+  --theme-sidebar-text-muted: #9e9bae;
+  --theme-sidebar-section-label: #79768a;
+  --theme-sidebar-hover: rgba(115, 103, 240, 0.14);
+  --theme-sidebar-active-bg: linear-gradient(72deg, #7367f0 22%, #666cff 100%);
+  --theme-sidebar-active-text: #ffffff;
+  --theme-sidebar-group-bg: rgba(115, 103, 240, 0.09);
+
+  // Borders
+  --theme-border-subtle: rgba(255, 255, 255, 0.08);
+  --theme-border-default: rgba(255, 255, 255, 0.14);
+  --theme-border-hover: rgba(255, 255, 255, 0.24);
+  --theme-border-focus: #38bdf8;
+  --theme-border-glow: rgba(56, 189, 248, 0.3);
+
+  // Typography Colors
+  --theme-text-primary: #f8fafc;
+  --theme-text-secondary: #cbd5e1;
+  --theme-text-muted: #94a3b8;
+  --theme-text-inverse: #0f172a;
+
+  // Brand & Primary Actions
+  --theme-primary: #3b82f6;
+  --theme-primary-hover: #2563eb;
+  --theme-primary-soft: rgba(59, 130, 246, 0.16);
+  --theme-primary-border: rgba(59, 130, 246, 0.4);
+  --theme-primary-glow: rgba(59, 130, 246, 0.35);
+  --theme-accent: #38bdf8;
+  --theme-cta-dark: #2563eb;
+  --theme-cta-dark-hover: #1d4ed8;
+  --theme-cta-dark-text: #ffffff;
+
+  // Semantic Status Tokens
+  --theme-success: #10b981;
+  --theme-success-soft: rgba(16, 185, 129, 0.15);
+  --theme-success-border: rgba(16, 185, 129, 0.35);
+  --theme-success-text: #6ee7b7;
+
+  --theme-warning: #f59e0b;
+  --theme-warning-soft: rgba(245, 158, 11, 0.15);
+  --theme-warning-border: rgba(245, 158, 11, 0.38);
+  --theme-warning-text: #fcd34d;
+
+  --theme-danger: #ef4444;
+  --theme-danger-soft: rgba(239, 68, 68, 0.15);
+  --theme-danger-border: rgba(239, 68, 68, 0.38);
+  --theme-danger-text: #fca5a5;
+
+  --theme-info: #38bdf8;
+  --theme-info-soft: rgba(56, 189, 248, 0.15);
+  --theme-info-border: rgba(56, 189, 248, 0.35);
+  --theme-info-text: #7dd3fc;
+
+  --theme-neutral-soft: rgba(255, 255, 255, 0.06);
+  --theme-neutral-border: rgba(255, 255, 255, 0.12);
+  --theme-neutral-text: #cbd5e1;
+
+  // Elevation & Shadows
+  --theme-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --theme-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --theme-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --theme-shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.5);
+
+  // Model Family Accents
+  --cat-gemini-border: #38bdf8;
+  --cat-gemini-glow: rgba(56, 189, 248, 0.35);
+  --cat-gemini-bg: rgba(56, 189, 248, 0.14);
+  --cat-gemini-text: #7dd3fc;
+
+  --cat-grok-border: #f43f5e;
+  --cat-grok-glow: rgba(244, 63, 94, 0.35);
+  --cat-grok-bg: rgba(244, 63, 94, 0.14);
+  --cat-grok-text: #fda4af;
+
+  --cat-copilot-border: #a855f7;
+  --cat-copilot-glow: rgba(168, 85, 247, 0.35);
+  --cat-copilot-bg: rgba(168, 85, 247, 0.14);
+  --cat-copilot-text: #d8b4fe;
+
+  --cat-chatgpt-border: #10b981;
+  --cat-chatgpt-glow: rgba(16, 185, 129, 0.35);
+  --cat-chatgpt-bg: rgba(16, 185, 129, 0.14);
+  --cat-chatgpt-text: #6ee7b7;
+
+  --cat-claude-border: #f59e0b;
+  --cat-claude-glow: rgba(245, 158, 11, 0.35);
+  --cat-claude-bg: rgba(245, 158, 11, 0.14);
+  --cat-claude-text: #fcd34d;
+
+  --cat-ollama-border: #06b6d4;
+  --cat-ollama-glow: rgba(6, 182, 212, 0.35);
+  --cat-ollama-bg: rgba(6, 182, 212, 0.14);
+  --cat-ollama-text: #67e8f9;
+}
+
+// Unified Consistent Scale Tokens (Fonts, Margins, Paddings, Radii)
+:root {
+  --font-family-base: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-display: "Outfit", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, monospace;
+
+  --font-xs: 0.75rem; // 12px
+  --font-sm: 0.8125rem; // 13px
+  --font-base: 0.875rem; // 14px
+  --font-md: 0.9375rem; // 15px
+  --font-lg: 1.125rem; // 18px
+  --font-xl: 1.375rem; // 22px
+  --font-2xl: 1.75rem; // 28px
+
+  --space-1: 0.25rem; // 4px
+  --space-2: 0.5rem; // 8px
+  --space-3: 0.75rem; // 12px
+  --space-4: 1rem; // 16px
+  --space-5: 1.25rem; // 20px
+  --space-6: 1.5rem; // 24px
+  --space-8: 2rem; // 32px
+
+  --page-padding: 1.5rem 1.75rem;
+  --card-padding: 1.25rem;
+  --section-gap: 1.25rem;
+
+  --radius-sm: 0.375rem; // 6px
+  --radius-md: 0.5rem; // 8px
+  --radius-lg: 0.75rem; // 12px
+  --radius-xl: 1rem; // 16px
+  --radius-full: 9999px;
+
+  --header-height: 60px;
+  --sidebar-width: 264px;
+  --sidebar-collapsed-width: 72px;
+  --mobile-nav-height: 64px;
+
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  @media (max-width: 768px) {
+    --page-padding: 1rem;
+    --card-padding: 1rem;
+    --section-gap: 1rem;
+    --header-height: 56px;
+  }
+}
+
+// ==============================================================================
+// SCSS Compile-Time Aliases (Mapped to CSS Custom Properties for Theme Support)
+// ==============================================================================
+
+$color-bg-primary: var(--theme-bg-canvas);
+$color-bg-secondary: var(--theme-bg-surface);
+$color-bg-card: var(--theme-bg-card);
+$color-border: var(--theme-border-default);
+$color-border-glow: var(--theme-border-focus);
+$color-border-hover: var(--theme-border-hover);
+
+$color-primary: var(--theme-primary);
+$color-primary-hover: var(--theme-primary-hover);
+$color-secondary: #0d9488;
+$color-accent: var(--theme-accent);
+
+$color-success: var(--theme-success);
+$color-warning: var(--theme-warning);
+$color-danger: var(--theme-danger);
+$color-info: var(--theme-info);
+
+$color-text-primary: var(--theme-text-primary);
+$color-text-secondary: var(--theme-text-secondary);
+$color-text-muted: var(--theme-text-muted);
+
+$text-primary: $color-text-primary;
+$text-secondary: $color-text-secondary;
+$text-muted: $color-text-muted;
+
+$font-family-base: var(--font-family-base);
+$font-family-display: var(--font-family-display);
+$font-family-mono: var(--font-family-mono);
+
+// Breakpoints
+$breakpoint-xs: 480px;
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;
+
+// Spacing Tokens
+$spacing-xxs: var(--space-1);
+$spacing-xs: var(--space-2);
+$spacing-sm: var(--space-3);
+$spacing-md: var(--space-4);
+$spacing-lg: var(--space-5);
+$spacing-xl: var(--space-6);
+$spacing-2xl: var(--space-8);
+
+// Radii & Shadows
+$radius-sm: var(--radius-sm);
+$radius-md: var(--radius-md);
+$radius-lg: var(--radius-lg);
+$radius-xl: var(--radius-xl);
+$radius-full: var(--radius-full);
+
+$shadow-sm: var(--theme-shadow-sm);
+$shadow-md: var(--theme-shadow-md);
+$shadow-lg: var(--theme-shadow-lg);
+
+$transition-speed: 0.2s;
+$transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+// Model Ecosystem Category Color Combinations
+$color-cat-gemini-primary: var(--cat-gemini-border);
+$color-cat-gemini-gradient: linear-gradient(135deg, #1a73e8 0%, #00f2fe 100%);
+$color-cat-gemini-bg: var(--cat-gemini-bg);
+$color-cat-gemini-border: var(--cat-gemini-border);
+$color-cat-gemini-text: var(--cat-gemini-text);
+$color-cat-gemini-glow: var(--cat-gemini-glow);
+
+$color-cat-grok-primary: var(--cat-grok-border);
+$color-cat-grok-gradient: linear-gradient(135deg, #ff0055 0%, #ff5e3a 100%);
+$color-cat-grok-bg: var(--cat-grok-bg);
+$color-cat-grok-border: var(--cat-grok-border);
+$color-cat-grok-text: var(--cat-grok-text);
+$color-cat-grok-glow: var(--cat-grok-glow);
+
+$color-cat-claude-primary: var(--cat-claude-border);
+$color-cat-claude-gradient: linear-gradient(135deg, #e06c4b 0%, #f59e0b 100%);
+$color-cat-claude-bg: var(--cat-claude-bg);
+$color-cat-claude-border: var(--cat-claude-border);
+$color-cat-claude-text: var(--cat-claude-text);
+$color-cat-claude-glow: var(--cat-claude-glow);
+
+$color-cat-chatgpt-primary: var(--cat-chatgpt-border);
+$color-cat-chatgpt-gradient: linear-gradient(135deg, #10a37f 0%, #00f5a0 100%);
+$color-cat-chatgpt-bg: var(--cat-chatgpt-bg);
+$color-cat-chatgpt-border: var(--cat-chatgpt-border);
+$color-cat-chatgpt-text: var(--cat-chatgpt-text);
+$color-cat-chatgpt-glow: var(--cat-chatgpt-glow);
+
+$color-cat-copilot-primary: var(--cat-copilot-border);
+$color-cat-copilot-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+$color-cat-copilot-bg: var(--cat-copilot-bg);
+$color-cat-copilot-border: var(--cat-copilot-border);
+$color-cat-copilot-text: var(--cat-copilot-text);
+$color-cat-copilot-glow: var(--cat-copilot-glow);
+
+$color-cat-ollama-primary: var(--cat-ollama-border);
+$color-cat-ollama-gradient: linear-gradient(135deg, #f59e0b 0%, #eab308 100%);
+$color-cat-ollama-bg: var(--cat-ollama-bg);
+$color-cat-ollama-border: var(--cat-ollama-border);
+$color-cat-ollama-text: var(--cat-ollama-text);
+$color-cat-ollama-glow: var(--cat-ollama-glow);

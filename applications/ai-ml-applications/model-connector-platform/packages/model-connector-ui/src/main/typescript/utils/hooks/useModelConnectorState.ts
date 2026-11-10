@@ -15,9 +15,11 @@ import type {
 } from "@/types/ui.types";
 import { ApiService } from "@/utils/services/apiService";
 import { ModelConstants } from "@/constants/providerConfigConstants";
+import { RouteSecurity, type ParsedRoute } from "@/utils/router/routeSecurity";
 
 export interface ModelConnectorState {
   readonly activeTab: ActiveTab;
+  readonly routeParams: Record<string, string>;
   readonly activeStrategy: StrategyMode;
   readonly effectiveStrategy: StrategyMode;
   readonly selectedModel: string;
@@ -45,20 +47,32 @@ export interface ModelConnectorState {
   readonly refreshModelAccounts: () => Promise<void>;
 
   // Navigation & Session Handlers
-  readonly setActiveTab: (tab: ActiveTab) => void;
+  readonly reasoningEffort: "low" | "medium" | "high";
+  readonly setReasoningEffort: (effort: "low" | "medium" | "high") => void;
+  readonly setActiveTab: (tab: ActiveTab, params?: Record<string, string>) => void;
   readonly setActiveStrategy: (strat: StrategyMode) => void;
   readonly setSelectedModel: (model: string) => void;
   readonly setActiveSessionId: (id: string | undefined) => void;
-  readonly handleSendMessage: (prompt: string) => Promise<void>;
-  readonly handleNewSession: () => Promise<void>;
+  readonly handleSendMessage: (prompt: string, effort?: "low" | "medium" | "high") => Promise<void>;
+  readonly handleNewSession: (overrideModel?: string) => Promise<void>;
   readonly handleDeleteSession: (sessionId: string) => Promise<void>;
   readonly refreshData: () => Promise<void>;
 }
 
 export function useModelConnectorState(): ModelConnectorState {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
+  const initialRoute = useMemo<ParsedRoute>(() => {
+    return typeof window !== "undefined"
+      ? RouteSecurity.parseHash(window.location.hash)
+      : { tab: "chat", params: {} };
+  }, []);
+
+  const [activeTab, setActiveTabState] = useState<ActiveTab>(initialRoute.tab);
+  const [routeParams, setRouteParams] = useState<Record<string, string>>(initialRoute.params);
   const [activeStrategy, setActiveStrategy] = useState<StrategyMode>("api");
-  const [selectedModel, setSelectedModel] = useState<string>(ModelConstants.DEFAULT_MODEL_ID);
+  const [selectedModel, setSelectedModel] = useState<string>(
+    initialRoute.params.model || ModelConstants.DEFAULT_MODEL_ID,
+  );
+  const [reasoningEffort, setReasoningEffort] = useState<"low" | "medium" | "high">("medium");
   const [models, setModels] = useState<UiModel[]>([]);
   const [categories, setCategories] = useState<UiCategory[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -78,6 +92,10 @@ export function useModelConnectorState(): ModelConnectorState {
 
   // Authentication & Dynamic Menus State
   const [currentUser, setCurrentUser] = useState<UiUser | null>(null);
+
+  useEffect(() => {
+    ApiService.setActiveUserContext(currentUser?.userId, currentUser?.token);
+  }, [currentUser]);
   const [demoUsers, setDemoUsers] = useState<UiDemoUser[]>([]);
   const [menus, setMenus] = useState<UiMenuItem[]>([]);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
@@ -85,6 +103,35 @@ export function useModelConnectorState(): ModelConnectorState {
   // Model Accounts
   const [modelAccounts, setModelAccounts] = useState<UiModelAccount[]>([]);
   const [isStrategyManuallySelected, setIsStrategyManuallySelected] = useState<boolean>(false);
+
+  const handleSetActiveTab = useCallback(
+    (tab: ActiveTab, params?: Record<string, string>) => {
+      setActiveTabState(tab);
+      setRouteParams(params || {});
+      RouteSecurity.syncHash(tab, params);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleHashChange = () => {
+      const parsed = RouteSecurity.parseHash(window.location.hash);
+      setActiveTabState(parsed.tab);
+      setRouteParams(parsed.params);
+      if (parsed.params.model) {
+        setSelectedModel(parsed.params.model);
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    if (!window.location.hash || window.location.hash === "#") {
+      RouteSecurity.syncHash(initialRoute.tab, initialRoute.params);
+    }
+
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [initialRoute]);
 
   const handleSetActiveStrategy = useCallback((strat: StrategyMode) => {
     setActiveStrategy(strat);
@@ -164,9 +211,11 @@ export function useModelConnectorState(): ModelConnectorState {
       setMenus(userMenus);
 
       // Verify activeTab is accessible for this user, else redirect to default menu
-      setActiveTab((prevTab) => {
+      setActiveTabState((prevTab: ActiveTab) => {
         const isPermitted = userMenus.some((m) => m.routePath === prevTab);
-        return isPermitted ? prevTab : "chat";
+        const nextTab = isPermitted ? prevTab : "chat";
+        RouteSecurity.syncHash(nextTab);
+        return nextTab;
       });
     } catch {
       // Handled in fallbacks
@@ -225,13 +274,13 @@ export function useModelConnectorState(): ModelConnectorState {
     if (searchParams.get("oauth_success") === "true") {
       const tabParam = searchParams.get("tab") as ActiveTab | null;
       if (tabParam) {
-        setActiveTab(tabParam);
+        handleSetActiveTab(tabParam);
       }
       void refreshModelAccounts();
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
     }
-  }, [refreshModelAccounts]);
+  }, [refreshModelAccounts, handleSetActiveTab]);
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     setIsLoading(true);
@@ -242,9 +291,11 @@ export function useModelConnectorState(): ModelConnectorState {
       setMenus(userMenus);
 
       // Check current tab
-      setActiveTab((prev) => {
+      setActiveTabState((prev: ActiveTab) => {
         const exists = userMenus.some((m) => m.routePath === prev);
-        return exists ? prev : "chat";
+        const nextTab = exists ? prev : "chat";
+        RouteSecurity.syncHash(nextTab);
+        return nextTab;
       });
 
       setIsLoginModalOpen(false);
@@ -273,7 +324,7 @@ export function useModelConnectorState(): ModelConnectorState {
     }
   };
 
-  const handleSendMessage = async (prompt: string) => {
+  const handleSendMessage = async (prompt: string, effort?: "low" | "medium" | "high") => {
     if (!prompt.trim()) return;
 
     let currentSessionId = activeSessionId;
@@ -309,6 +360,7 @@ export function useModelConnectorState(): ModelConnectorState {
         selectedModel,
         effectiveStrategy,
         currentSessionId,
+        effort || reasoningEffort,
       );
       setMessages((prev) => [...prev, assistantMsg]);
 
@@ -332,9 +384,13 @@ export function useModelConnectorState(): ModelConnectorState {
     }
   };
 
-  const handleNewSession = async () => {
+  const handleNewSession = async (overrideModel?: string) => {
+    const targetModel = overrideModel || selectedModel;
+    if (overrideModel && overrideModel !== selectedModel) {
+      handleSetSelectedModel(overrideModel);
+    }
     try {
-      const newSession = await ApiService.createSession(selectedModel, effectiveStrategy);
+      const newSession = await ApiService.createSession(targetModel, effectiveStrategy);
       setSessions((prev) => [newSession, ...prev]);
       setActiveSessionId(newSession.sessionId);
       if (typeof window !== "undefined") {
@@ -364,9 +420,12 @@ export function useModelConnectorState(): ModelConnectorState {
 
   return {
     activeTab,
+    routeParams,
     activeStrategy,
     effectiveStrategy,
     selectedModel,
+    reasoningEffort,
+    setReasoningEffort,
     models,
     categories,
     messages,
@@ -385,7 +444,7 @@ export function useModelConnectorState(): ModelConnectorState {
     switchUser,
     modelAccounts,
     refreshModelAccounts,
-    setActiveTab,
+    setActiveTab: handleSetActiveTab,
     setActiveStrategy: handleSetActiveStrategy,
     setSelectedModel: handleSetSelectedModel,
     setActiveSessionId: handleSelectSession,

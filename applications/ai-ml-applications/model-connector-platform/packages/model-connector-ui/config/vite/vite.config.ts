@@ -6,8 +6,10 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const stylesPath = path.resolve(__dirname, "../../src/main/resources/assests/styles");
+const stylesPath = path.resolve(__dirname, "../../src/main/resources/assets/styles");
 const tsPath = path.resolve(__dirname, "../../src/main/typescript");
+const pkgNodeModules = path.resolve(__dirname, "../../node_modules");
+const workspaceNodeModules = path.resolve(__dirname, "../../../../node_modules");
 
 export default defineConfig({
   root: path.resolve(__dirname, "../../src/main/resources"),
@@ -15,7 +17,6 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^@\/styles\/(.*)/, replacement: `${stylesPath}/$1` },
-      { find: /^@\/assests\/styles\/(.*)/, replacement: `${stylesPath}/$1` },
       { find: /^@\/assets\/styles\/(.*)/, replacement: `${stylesPath}/$1` },
       { find: /^@\/(.*)/, replacement: `${tsPath}/$1` },
       { find: "@resources", replacement: path.resolve(__dirname, "../../src/main/resources") },
@@ -24,7 +25,7 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       scss: {
-        loadPaths: [stylesPath],
+        loadPaths: [stylesPath, pkgNodeModules, workspaceNodeModules],
       },
     },
   },

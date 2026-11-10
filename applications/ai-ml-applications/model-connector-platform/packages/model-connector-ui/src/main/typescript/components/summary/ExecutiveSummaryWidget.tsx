@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import type { UiExecutiveSummary } from "@/types/ui.types";
+import { StatCard, StatCardGrid, AlertBanner } from "@/components/common";
 
 export const ExecutiveSummaryWidget: React.FC = () => {
   const [summary, setSummary] = useState<UiExecutiveSummary | null>(null);
@@ -19,25 +20,37 @@ export const ExecutiveSummaryWidget: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to load summary`);
       const data = await res.json();
 
-      const completedCount = typeof data.completedTasksCount === "number"
-        ? data.completedTasksCount
-        : Array.isArray(data.completedTasks) ? data.completedTasks.length : 0;
-      const activeCount = typeof data.activeTasksCount === "number"
-        ? data.activeTasksCount
-        : Array.isArray(data.activeTasks) ? data.activeTasks.length : 0;
-      const failedCount = typeof data.failedTasksCount === "number"
-        ? data.failedTasksCount
-        : Array.isArray(data.failedTasks) ? data.failedTasks.length : 0;
+      const completedCount =
+        typeof data.completedTasksCount === "number"
+          ? data.completedTasksCount
+          : Array.isArray(data.completedTasks)
+          ? data.completedTasks.length
+          : 0;
+      const activeCount =
+        typeof data.activeTasksCount === "number"
+          ? data.activeTasksCount
+          : Array.isArray(data.activeTasks)
+          ? data.activeTasks.length
+          : 0;
+      const failedCount =
+        typeof data.failedTasksCount === "number"
+          ? data.failedTasksCount
+          : Array.isArray(data.failedTasks)
+          ? data.failedTasks.length
+          : 0;
 
       const highlights = Array.isArray(data.highLevelHighlights)
         ? data.highLevelHighlights
-        : Array.isArray(data.completedTasks) ? data.completedTasks : [];
+        : Array.isArray(data.completedTasks)
+        ? data.completedTasks
+        : [];
 
-      const decisions = Array.isArray(data.keyDecisions) && data.keyDecisions.length > 0
-        ? data.keyDecisions
-        : Array.isArray(data.recommendedNextActions) && data.recommendedNextActions.length > 0
-        ? data.recommendedNextActions
-        : ["Sequential HMAC hash chaining enforced for safe workflow resumption."];
+      const decisions =
+        Array.isArray(data.keyDecisions) && data.keyDecisions.length > 0
+          ? data.keyDecisions
+          : Array.isArray(data.recommendedNextActions) && data.recommendedNextActions.length > 0
+          ? data.recommendedNextActions
+          : ["Sequential HMAC hash chaining enforced for safe workflow resumption."];
 
       const execSummary = data.executiveSummary
         ? data.executiveSummary
@@ -57,11 +70,13 @@ export const ExecutiveSummaryWidget: React.FC = () => {
         failedTasksCount: failedCount,
         executiveSummary: execSummary,
         keyDecisions: decisions,
-        slaCompliancePercentage: typeof data.slaCompliancePercentage === "number" ? data.slaCompliancePercentage : 99.4,
-        generatedTimestamp: data.generatedTimestamp ? new Date(data.generatedTimestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
+        slaCompliancePercentage:
+          typeof data.slaCompliancePercentage === "number" ? data.slaCompliancePercentage : 99.4,
+        generatedTimestamp: data.generatedTimestamp
+          ? new Date(data.generatedTimestamp).toLocaleTimeString()
+          : new Date().toLocaleTimeString(),
       });
     } catch {
-      // Fallback presentation data when offline
       setSummary({
         summaryId: "sum-fallback-01",
         tenantId: "default-tenant",
@@ -90,69 +105,68 @@ export const ExecutiveSummaryWidget: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSummary();
+    void fetchSummary();
   }, []);
 
   return (
-    <div className="executive-summary-widget glass-card">
+    <div className="executive-summary-widget glass-card ui-surface-card">
       <div className="widget-header">
         <div className="widget-title-group">
-          <span className="widget-icon">📋</span>
+          <span className="widget-icon" aria-hidden="true">📋</span>
           <div>
             <h3>UC-11 Executive Milestone Summary</h3>
-            <span className="widget-subtitle">Real-time Task State Aggregator & SLA Monitor</span>
+            <span className="widget-subtitle">Real-time Task State Aggregator &amp; SLA Monitor</span>
           </div>
         </div>
         <button
-          className="refresh-pill"
+          type="button"
+          className="btn-ui-secondary refresh-pill"
           disabled={isLoading}
-          onClick={fetchSummary}
+          onClick={() => void fetchSummary()}
         >
           {isLoading ? "Synthesizing..." : "⚡ Synthesize Digest"}
         </button>
       </div>
 
-      {error ? <div className="widget-error-banner">{error}</div> : null}
+      {error && <AlertBanner message={error} tone="danger" />}
 
-      {summary ? (
+      {summary && (
         <div className="widget-content">
-          <div className="summary-banner glass-card" style={{ padding: "0.75rem", marginBottom: "1rem" }}>
-            <p className="summary-text" style={{ margin: 0, fontStyle: "italic", color: "#f8fafc" }}>
-              "{summary.executiveSummary || "Digest synthesized"}"
-            </p>
+          <div className="summary-quote-banner">
+            <p className="summary-text">"{summary.executiveSummary || "Digest synthesized"}"</p>
           </div>
 
-          <div className="summary-metrics-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
-            <div className="metric-box glass-card" style={{ padding: "0.5rem", textAlign: "center" }}>
-              <div style={{ fontSize: "1.2rem", color: "#10b981", fontWeight: "bold" }}>
-                {summary.completedTasksCount ?? (summary.completedTasks?.length ?? 0)}
-              </div>
-              <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>Completed Tasks</div>
-            </div>
-            <div className="metric-box glass-card" style={{ padding: "0.5rem", textAlign: "center" }}>
-              <div style={{ fontSize: "1.2rem", color: "#06b6d4", fontWeight: "bold" }}>
-                {summary.activeTasksCount ?? (summary.activeTasks?.length ?? 0)}
-              </div>
-              <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>Active Pipelines</div>
-            </div>
-            <div className="metric-box glass-card" style={{ padding: "0.5rem", textAlign: "center" }}>
-              <div style={{ fontSize: "1.2rem", color: "#6366f1", fontWeight: "bold" }}>
-                {summary.slaCompliancePercentage ?? 99.4}%
-              </div>
-              <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>SLA Compliance (≤800ms)</div>
-            </div>
-          </div>
+          <StatCardGrid>
+            <StatCard
+              label="Completed Tasks"
+              value={summary.completedTasksCount ?? summary.completedTasks?.length ?? 0}
+              tone="success"
+              icon="✅"
+            />
+            <StatCard
+              label="Active Pipelines"
+              value={summary.activeTasksCount ?? summary.activeTasks?.length ?? 0}
+              tone="info"
+              icon="⚡"
+            />
+            <StatCard
+              label="SLA Compliance (≤800ms)"
+              value={`${summary.slaCompliancePercentage ?? 99.4}%`}
+              tone="primary"
+              icon="🛡️"
+            />
+          </StatCardGrid>
 
           <div className="summary-decisions">
-            <strong>Key Milestone Decisions & Highlights:</strong>
-            <ul style={{ margin: "0.5rem 0 0 1rem", padding: 0, color: "#94a3b8", fontSize: "0.85rem" }}>
+            <strong>Key Milestone Decisions &amp; Highlights:</strong>
+            <ul>
               {(summary.keyDecisions ?? []).map((dec, idx) => (
                 <li key={idx}>{dec}</li>
               ))}
             </ul>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 };

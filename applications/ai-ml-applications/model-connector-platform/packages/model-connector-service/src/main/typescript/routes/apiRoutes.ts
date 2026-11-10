@@ -10,6 +10,9 @@ import { summaryController } from "@/controllers/summaryController";
 import { authController } from "@/controllers/authController";
 import { menuController } from "@/controllers/menuController";
 import { modelConfigController } from "@/controllers/modelConfigController";
+import { integrationController } from "@/controllers/integrationController";
+import { RbacPermission } from "@/constants/index";
+import { requirePermission } from "@/middleware/rbacMiddleware";
 import { validateChatRequest } from "@/middleware/validationMiddleware";
 import { ResumeAstService } from "@/services/job/ResumeAstService";
 import { SkillCompilerService } from "@/services/apps/SkillCompilerService";
@@ -25,14 +28,14 @@ apiRouter.get("/health", (req, res) => healthController.getHealth(req, res));
 apiRouter.get("/health/database", (req, res) => healthController.getDatabaseHealth(req, res));
 
 // Authentication & Identity
-apiRouter.post("/auth/login", (req, res) => authController.login(req, res));
-apiRouter.get("/auth/me", (req, res) => authController.getMe(req, res));
-apiRouter.get("/auth/demo-users", (req, res) => authController.listDemoUsers(req, res));
+apiRouter.post("/auth/login", (req, res, next) => authController.login(req, res).catch(next));
+apiRouter.get("/auth/me", (req, res, next) => authController.getMe(req, res).catch(next));
+apiRouter.get("/auth/demo-users", (req, res, next) => authController.listDemoUsers(req, res).catch(next));
 
 // Dynamic Navigation Menus & RBAC
-apiRouter.get("/navigation/menus", (req, res) => menuController.getMenus(req, res));
-apiRouter.get("/navigation/menus/all", (req, res) => menuController.getAllMenus(req, res));
-apiRouter.get("/rbac/matrix", (req, res) => menuController.getRbacMatrix(req, res));
+apiRouter.get("/navigation/menus", (req, res, next) => menuController.getMenus(req, res).catch(next));
+apiRouter.get("/navigation/menus/all", (req, res, next) => menuController.getAllMenus(req, res).catch(next));
+apiRouter.get("/rbac/matrix", (req, res, next) => menuController.getRbacMatrix(req, res).catch(next));
 
 // Dynamic Model Categories
 apiRouter.get("/categories", (req, res) => categoryController.getCategories(req, res));
@@ -50,22 +53,72 @@ apiRouter.post("/chat/stream", validateChatRequest, (req, res, next) =>
 );
 
 // Session Lineage & Persistent Conversation History
-apiRouter.get("/sessions", (req, res) => sessionController.listSessions(req, res));
-apiRouter.post("/sessions", (req, res) => sessionController.createSession(req, res));
-apiRouter.delete("/sessions/cleanup-test-data", (req, res) => sessionController.cleanupTestSessions(req, res));
-apiRouter.post("/sessions/cleanup-test-data", (req, res) => sessionController.cleanupTestSessions(req, res));
-apiRouter.get("/sessions/:id", (req, res) => sessionController.getSession(req, res));
-apiRouter.get("/sessions/:id/messages", (req, res) => sessionController.getSessionMessages(req, res));
-apiRouter.delete("/sessions/:id", (req, res) => sessionController.deleteSession(req, res));
+apiRouter.get("/sessions", (req, res, next) => sessionController.listSessions(req, res).catch(next));
+apiRouter.post("/sessions", (req, res, next) => sessionController.createSession(req, res).catch(next));
+apiRouter.delete("/sessions/cleanup-test-data", (req, res, next) => sessionController.cleanupTestSessions(req, res).catch(next));
+apiRouter.post("/sessions/cleanup-test-data", (req, res, next) => sessionController.cleanupTestSessions(req, res).catch(next));
+apiRouter.get("/sessions/:id", (req, res, next) => sessionController.getSession(req, res).catch(next));
+apiRouter.get("/sessions/:id/messages", (req, res, next) => sessionController.getSessionMessages(req, res).catch(next));
+apiRouter.delete("/sessions/:id", (req, res, next) => sessionController.deleteSession(req, res).catch(next));
 
-// Model Multi-Account & Credential CRUD (Per Model ID)
-apiRouter.get("/accounts", (req, res) => accountController.listAllAccounts(req, res));
-apiRouter.get("/models/:modelId/accounts", (req, res) => accountController.listAccountsByModel(req, res));
-apiRouter.post("/models/:modelId/accounts", (req, res) => accountController.createAccount(req, res));
-apiRouter.put("/models/:modelId/accounts/:accountId", (req, res) => accountController.updateAccount(req, res));
-apiRouter.post("/models/:modelId/accounts/:accountId/activate", (req, res) => accountController.activateAccount(req, res));
-apiRouter.post("/models/:modelId/accounts/:accountId/deactivate", (req, res) => accountController.deactivateAccount(req, res));
-apiRouter.delete("/models/:modelId/accounts/:accountId", (req, res) => accountController.deleteAccount(req, res));
+// Integration Hub Onboarding & CRUD (RBAC Protected)
+apiRouter.get(
+  "/integrations",
+  requirePermission(RbacPermission.INTEGRATIONS_READ, RbacPermission.MODELS_READ),
+  (req, res, next) => integrationController.listIntegrations(req, res).catch(next),
+);
+apiRouter.post(
+  "/integrations",
+  requirePermission(RbacPermission.INTEGRATIONS_CREATE, RbacPermission.ONBOARDING_MANAGE),
+  (req, res, next) => integrationController.createIntegration(req, res).catch(next),
+);
+apiRouter.put(
+  "/integrations/:integrationId",
+  requirePermission(RbacPermission.INTEGRATIONS_UPDATE, RbacPermission.MODELS_MANAGE),
+  (req, res, next) => integrationController.updateIntegration(req, res).catch(next),
+);
+apiRouter.delete(
+  "/integrations/:integrationId",
+  requirePermission(RbacPermission.INTEGRATIONS_DELETE, RbacPermission.MODELS_MANAGE),
+  (req, res, next) => integrationController.deleteIntegration(req, res).catch(next),
+);
+
+// Model Multi-Account & Credential CRUD (Per Model ID, RBAC Protected)
+apiRouter.get(
+  "/accounts",
+  requirePermission(RbacPermission.INTEGRATIONS_READ, RbacPermission.MODELS_READ),
+  (req, res) => accountController.listAllAccounts(req, res),
+);
+apiRouter.get(
+  "/models/:modelId/accounts",
+  requirePermission(RbacPermission.INTEGRATIONS_READ, RbacPermission.MODELS_READ),
+  (req, res) => accountController.listAccountsByModel(req, res),
+);
+apiRouter.post(
+  "/models/:modelId/accounts",
+  requirePermission(RbacPermission.INTEGRATIONS_CREATE, RbacPermission.MODELS_MANAGE),
+  (req, res) => accountController.createAccount(req, res),
+);
+apiRouter.put(
+  "/models/:modelId/accounts/:accountId",
+  requirePermission(RbacPermission.INTEGRATIONS_UPDATE, RbacPermission.MODELS_MANAGE),
+  (req, res) => accountController.updateAccount(req, res),
+);
+apiRouter.post(
+  "/models/:modelId/accounts/:accountId/activate",
+  requirePermission(RbacPermission.INTEGRATIONS_UPDATE, RbacPermission.MODELS_MANAGE),
+  (req, res) => accountController.activateAccount(req, res),
+);
+apiRouter.post(
+  "/models/:modelId/accounts/:accountId/deactivate",
+  requirePermission(RbacPermission.INTEGRATIONS_UPDATE, RbacPermission.MODELS_MANAGE),
+  (req, res) => accountController.deactivateAccount(req, res),
+);
+apiRouter.delete(
+  "/models/:modelId/accounts/:accountId",
+  requirePermission(RbacPermission.INTEGRATIONS_DELETE, RbacPermission.MODELS_MANAGE),
+  (req, res) => accountController.deleteAccount(req, res),
+);
 
 // Model Protocol Verification (API, CLI, Cookie, OAuth) & Multi-Client OAuth DB Registry
 apiRouter.get("/models/providers/catalog", (req, res, next) =>

@@ -3,10 +3,10 @@ import { sessionService } from "@/services/sessionService";
 import { HttpStatus } from "@/constants/index";
 
 export class SessionController {
-  public listSessions(req: Request, res: Response): void {
+  public async listSessions(req: Request, res: Response): Promise<void> {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     const offset = req.query.offset ? Number(req.query.offset) : undefined;
-    const sessions = sessionService.listSessions(limit, offset);
+    const sessions = await sessionService.listSessions(limit, offset);
     res.status(HttpStatus.OK).json({
       success: true,
       count: sessions.length,
@@ -15,9 +15,9 @@ export class SessionController {
     });
   }
 
-  public getSession(req: Request, res: Response): void {
+  public async getSession(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
-    const session = sessionService.getSession(id);
+    const session = await sessionService.getSession(id);
 
     if (!session) {
       res.status(HttpStatus.NOT_FOUND).json({
@@ -35,7 +35,7 @@ export class SessionController {
     });
   }
 
-  public createSession(req: Request, res: Response): void {
+  public async createSession(req: Request, res: Response): Promise<void> {
     const { sessionId, model, strategy } = req.body || {};
     const session = sessionService.createSession(sessionId, model, strategy);
     res.status(HttpStatus.CREATED).json({
@@ -45,11 +45,11 @@ export class SessionController {
     });
   }
 
-  public getSessionMessages(req: Request, res: Response): void {
+  public async getSessionMessages(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     const offset = req.query.offset ? Number(req.query.offset) : undefined;
-    const messages = sessionService.getSessionMessages(id, limit, offset);
+    const messages = await sessionService.getSessionMessages(id, limit, offset);
     res.status(HttpStatus.OK).json({
       success: true,
       sessionId: id,
@@ -59,9 +59,9 @@ export class SessionController {
     });
   }
 
-  public deleteSession(req: Request, res: Response): void {
+  public async deleteSession(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
-    const deleted = sessionService.deleteSession(id);
+    const deleted = await sessionService.deleteSession(id);
     res.status(HttpStatus.OK).json({
       success: deleted,
       message: deleted ? `Session '${id}' deleted.` : `Session '${id}' not found.`,
@@ -69,8 +69,8 @@ export class SessionController {
     });
   }
 
-  public cleanupTestSessions(req: Request, res: Response): void {
-    const deletedCount = sessionService.cleanupTestSessions();
+  public async cleanupTestSessions(req: Request, res: Response): Promise<void> {
+    const deletedCount = await sessionService.cleanupTestSessions();
     res.status(HttpStatus.OK).json({
       success: true,
       deletedCount,

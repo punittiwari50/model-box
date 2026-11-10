@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { UiModel, UiModelAccount, UiSession, UiAuditRecord } from "@/types/ui.types";
 import { CategoryMetricsCalculator } from "@/utils";
+import { EmptyState, StatusBadge, type BadgeTone } from "@/components/common";
 
 export interface ModelListViewProps {
   readonly models: readonly UiModel[];
@@ -14,15 +15,16 @@ export interface ModelListViewProps {
   readonly onManageAccountsClick?: (modelId: string, modelName: string) => void;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  gemini: "◆",
-  grok: "◆",
-  claude: "◆",
-  chatgpt: "◆",
-  openai: "◆",
-  copilot: "◆",
-  ollama: "◆",
-  fallback: "◆",
+const resolveStatusBadge = (
+  model: UiModel,
+  activeAcc?: UiModelAccount,
+): { label: string; tone: BadgeTone } => {
+  if (model.status === "ACTIVE" || activeAcc) {
+    return activeAcc
+      ? { label: "CONNECTED", tone: "success" }
+      : { label: "ACTIVE", tone: "info" };
+  }
+  return { label: "NO ACCOUNT", tone: "neutral" };
 };
 
 export const ModelListView: React.FC<ModelListViewProps> = ({
@@ -57,15 +59,99 @@ export const ModelListView: React.FC<ModelListViewProps> = ({
 
   if (models.length === 0) {
     return (
-      <div className="view-empty-state">
-        <span className="empty-icon">📂</span>
-        <h3>No Models Found</h3>
-        <p>No model configurations match your current filter or search criteria.</p>
-      </div>
+      <EmptyState
+        title="No Models Found"
+        description="No model configurations match your current filter or search criteria."
+      />
     );
   }
 
-  // 1. Group By: Family / Provider (matches reference layout)
+  const renderTableRows = (groupModels: readonly UiModel[]) =>
+    groupModels.map((m) => {
+      const accounts = modelAccounts.filter((a) => a.modelId === m.id);
+      const isSelected = selectedModelId === m.id;
+      const activeAcc = accounts.find((a) => a.isActive);
+      const statusBadge = resolveStatusBadge(m, activeAcc);
+
+      return (
+        <tr
+          key={m.id}
+          className={`model-list-row ${isSelected ? "selected-row" : ""}`}
+          onClick={() => onModelClick(m.id)}
+          title="Click to open Save View for this model configuration"
+          data-testid={`model-row-${m.id}`}
+        >
+          <td className="col-identity">
+            <span className="table-model-icon" aria-hidden="true">◆</span>
+            <div className="identity-text">
+              <span className="table-model-name">{m.name}</span>
+              <span className="table-model-id">{m.id}</span>
+            </div>
+          </td>
+          <td>
+            <StatusBadge label={m.family.toUpperCase()} tone="primary" />
+          </td>
+          <td>
+            <StatusBadge label={(m.tier || "FREEWARE").toUpperCase()} tone="success" />
+          </td>
+          <td>
+            <div className="strategies-cell">
+              {m.supportedStrategies.map((strat) => (
+                <span key={strat} className="strategy-micro-pill">
+                  {strat.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </td>
+          <td>
+            <StatusBadge label={statusBadge.label} tone={statusBadge.tone} showDot />
+          </td>
+          <td>
+            <div className="table-actions-cell" onClick={(e) => e.stopPropagation()}>
+              {onChatSelect && (
+                <button
+                  type="button"
+                  className={`btn-table-chat ${isSelected ? "selected" : ""}`}
+                  onClick={() => onChatSelect(m.id)}
+                  title="Open chat"
+                >
+                  {isSelected ? "Selected 💬" : "Select & Chat"}
+                </button>
+              )}
+              {onManageAccountsClick && (
+                <button
+                  type="button"
+                  className="btn-table-accounts"
+                  onClick={() => onManageAccountsClick(m.id, m.name)}
+                  title="View accounts"
+                >
+                  🔑 Accounts {accounts.length > 0 ? `(${accounts.length})` : ""}
+                </button>
+              )}
+            </div>
+          </td>
+        </tr>
+      );
+    });
+
+  const renderTable = (groupModels: readonly UiModel[]) => (
+    <div className="category-table-wrapper">
+      <table className="desktop-table">
+        <thead>
+          <tr>
+            <th>MODEL NAME &amp; IDENTIFIER</th>
+            <th>CATEGORY</th>
+            <th>TIER</th>
+            <th>SUPPORTED STRATEGIES</th>
+            <th>STATUS</th>
+            <th>ACTION</th>
+          </tr>
+        </thead>
+        <tbody>{renderTableRows(groupModels)}</tbody>
+      </table>
+    </div>
+  );
+
   if (groupBy === "family") {
     const familyMap = new Map<string, UiModel[]>();
     for (const m of models) {
@@ -75,15 +161,12 @@ export const ModelListView: React.FC<ModelListViewProps> = ({
       familyMap.set(fam, list);
     }
 
-    const families = Array.from(familyMap.keys());
-
     return (
       <div className="grouped-list-view" data-testid="grouped-list">
-        {families.map((fam) => {
+        {Array.from(familyMap.keys()).map((fam) => {
           const groupModels = familyMap.get(fam) || [];
           const isCollapsed = Boolean(collapsedGroups[fam]);
-          const icon = CATEGORY_ICONS[fam] || "◈";
-          const stats = CategoryMetricsCalculator.calculateStats(groupModels as UiModel[], auditLogs, sessions);
+          const stats = CategoryMetricsCalculator.calculateStats(groupModels, auditLogs, sessions);
 
           return (
             <div key={fam} className={`model-category-group group-${fam}`}>
@@ -93,9 +176,9 @@ export const ModelListView: React.FC<ModelListViewProps> = ({
                 title="Click to expand / collapse group"
               >
                 <div className="banner-left">
-                  <span className="cat-icon">{icon}</span>
+                  <span className="cat-icon" aria-hidden="true">◆</span>
                   <h3 className="cat-name">{fam.toUpperCase()}</h3>
-                  <span className={`family-badge ${fam}`}>{groupModels.length} MODELS</span>
+                  <StatusBadge label={`${groupModels.length} MODELS`} tone="neutral" />
                 </div>
 
                 <div className="banner-right">
@@ -113,96 +196,7 @@ export const ModelListView: React.FC<ModelListViewProps> = ({
                 </div>
               </div>
 
-              {!isCollapsed && (
-                <div className="category-table-wrapper">
-                  <table className="desktop-table">
-                    <thead>
-                      <tr>
-                        <th>MODEL NAME &amp; IDENTIFIER</th>
-                        <th>CATEGORY</th>
-                        <th>TIER</th>
-                        <th>SUPPORTED STRATEGIES</th>
-                        <th>STATUS</th>
-                        <th>ACTION</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {groupModels.map((m) => {
-                        const accounts = modelAccounts.filter((a) => a.modelId === m.id);
-                        const isSelected = selectedModelId === m.id;
-                        const activeAcc = accounts.find((a) => a.isActive);
-                        const statusLabel = m.status === "ACTIVE"
-                          ? "ACTIVE"
-                          : activeAcc
-                          ? "CONFIGURED"
-                          : "NO ACCOUNT";
-
-                        return (
-                          <tr
-                            key={m.id}
-                            className={`model-list-row odoo-list-row ${isSelected ? "selected-row" : ""}`}
-                            onClick={() => onModelClick(m.id)}
-                            title="Click to open Save View for this model configuration"
-                            data-testid={`model-row-${m.id}`}
-                          >
-                            <td className="col-identity">
-                              <span className="table-model-icon">◆</span>
-                              <div>
-                                <span className="table-model-name">{m.name}</span>
-                                <span className="table-model-id">{m.id}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="cat-badge">{m.family.toUpperCase()}</span>
-                            </td>
-                            <td>
-                              <span className="tier-tag">{m.tier || "FREEWARE"}</span>
-                            </td>
-                            <td>
-                              <div className="strategies-cell">
-                                {m.supportedStrategies.map((strat) => (
-                                  <span key={strat} className="strategy-micro-pill">
-                                    {strat.toUpperCase()}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td>
-                              <span className={`status-pill ${statusLabel.toLowerCase().replace(/\s+/g, "-")}`}>
-                                {statusLabel}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="table-actions-cell" onClick={(e) => e.stopPropagation()}>
-                                {onChatSelect && (
-                                  <button
-                                    type="button"
-                                    className={`btn-table-chat ${isSelected ? "selected" : ""}`}
-                                    onClick={() => onChatSelect(m.id)}
-                                    title="Open chat"
-                                  >
-                                    {isSelected ? "Selected 💬" : "Select & Chat"}
-                                  </button>
-                                )}
-                                {onManageAccountsClick && (
-                                  <button
-                                    type="button"
-                                    className="btn-table-accounts"
-                                    onClick={() => onManageAccountsClick(m.id, m.name)}
-                                    title="View accounts"
-                                  >
-                                    🔑 Accounts {accounts.length > 0 ? `(${accounts.length})` : ""}
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              {!isCollapsed && renderTable(groupModels)}
             </div>
           );
         })}
@@ -210,98 +204,9 @@ export const ModelListView: React.FC<ModelListViewProps> = ({
     );
   }
 
-  // 2. Flat List View (No Grouping)
   return (
     <div className="flat-list-view" data-testid="flat-list-view">
-      <div className="category-table-wrapper">
-        <table className="desktop-table">
-          <thead>
-            <tr>
-              <th>MODEL NAME &amp; IDENTIFIER</th>
-              <th>CATEGORY</th>
-              <th>TIER</th>
-              <th>SUPPORTED STRATEGIES</th>
-              <th>STATUS</th>
-              <th>ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {models.map((m) => {
-              const accounts = modelAccounts.filter((a) => a.modelId === m.id);
-              const isSelected = selectedModelId === m.id;
-              const activeAcc = accounts.find((a) => a.isActive);
-              const statusLabel = m.status === "ACTIVE"
-                ? "ACTIVE"
-                : activeAcc
-                ? "CONFIGURED"
-                : "NO ACCOUNT";
-
-              return (
-                <tr
-                  key={m.id}
-                  className={`model-list-row odoo-list-row ${isSelected ? "selected-row" : ""}`}
-                  onClick={() => onModelClick(m.id)}
-                  title="Click to open Save View for this model configuration"
-                  data-testid={`model-row-${m.id}`}
-                >
-                  <td className="col-identity">
-                    <span className="table-model-icon">◆</span>
-                    <div>
-                      <span className="table-model-name">{m.name}</span>
-                      <span className="table-model-id">{m.id}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="cat-badge">{m.family.toUpperCase()}</span>
-                  </td>
-                  <td>
-                    <span className="tier-tag">{m.tier || "FREEWARE"}</span>
-                  </td>
-                  <td>
-                    <div className="strategies-cell">
-                      {m.supportedStrategies.map((strat) => (
-                        <span key={strat} className="strategy-micro-pill">
-                          {strat.toUpperCase()}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`status-pill ${statusLabel.toLowerCase().replace(/\s+/g, "-")}`}>
-                      {statusLabel}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="table-actions-cell" onClick={(e) => e.stopPropagation()}>
-                      {onChatSelect && (
-                        <button
-                          type="button"
-                          className={`btn-table-chat ${isSelected ? "selected" : ""}`}
-                          onClick={() => onChatSelect(m.id)}
-                          title="Open chat"
-                        >
-                          {isSelected ? "Selected 💬" : "Select & Chat"}
-                        </button>
-                      )}
-                      {onManageAccountsClick && (
-                        <button
-                          type="button"
-                          className="btn-table-accounts"
-                          onClick={() => onManageAccountsClick(m.id, m.name)}
-                          title="View accounts"
-                        >
-                          🔑 Accounts {accounts.length > 0 ? `(${accounts.length})` : ""}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {renderTable(models)}
     </div>
   );
 };
-

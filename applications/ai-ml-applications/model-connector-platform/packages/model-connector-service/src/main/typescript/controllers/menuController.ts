@@ -5,7 +5,7 @@ import { authService } from "@/services/authService";
 import { HttpStatus } from "@/constants/index";
 
 export class MenuController {
-  public getMenus(req: Request, res: Response): void {
+  public async getMenus(req: Request, res: Response): Promise<void> {
     let roleId = req.query.roleId as string | undefined;
     let companyId = req.query.companyId as string | undefined;
 
@@ -23,7 +23,7 @@ export class MenuController {
     const activeRole = roleId || "SUPER_ADMIN";
     const activeCompany = companyId || "acme-corp";
 
-    const menus = menuRepository.listMenusForRole(activeRole, activeCompany);
+    const menus = await menuRepository.listMenusForRoleAsync(activeRole, activeCompany);
 
     res.status(HttpStatus.OK).json({
       success: true,
@@ -35,8 +35,8 @@ export class MenuController {
     });
   }
 
-  public getAllMenus(req: Request, res: Response): void {
-    const menus = menuRepository.listAllMenus();
+  public async getAllMenus(req: Request, res: Response): Promise<void> {
+    const menus = await menuRepository.listAllMenusAsync();
     res.status(HttpStatus.OK).json({
       success: true,
       count: menus.length,
@@ -45,21 +45,23 @@ export class MenuController {
     });
   }
 
-  public getRbacMatrix(req: Request, res: Response): void {
-    const companies = rbacRepository.listCompanies();
-    const roles = rbacRepository.listRoles();
-    const permissions = rbacRepository.listAllPermissions();
-    const allMenus = menuRepository.listAllMenus();
+  public async getRbacMatrix(req: Request, res: Response): Promise<void> {
+    const companies = await rbacRepository.listCompaniesAsync();
+    const roles = await rbacRepository.listRolesAsync();
+    const permissions = await rbacRepository.listAllPermissionsAsync();
+    const allMenus = await menuRepository.listAllMenusAsync();
 
-    const roleMatrices = roles.map((role) => {
-      const roleMenus = menuRepository.listMenusForRole(role.roleId);
-      const rolePermissions = rbacRepository.getPermissionsForRole(role.roleId);
-      return {
-        ...role,
-        menus: roleMenus,
-        permissions: rolePermissions,
-      };
-    });
+    const roleMatrices = await Promise.all(
+      roles.map(async (role) => {
+        const roleMenus = await menuRepository.listMenusForRoleAsync(role.roleId);
+        const rolePermissions = await rbacRepository.getPermissionsForRoleAsync(role.roleId);
+        return {
+          ...role,
+          menus: roleMenus,
+          permissions: rolePermissions,
+        };
+      }),
+    );
 
     res.status(HttpStatus.OK).json({
       success: true,

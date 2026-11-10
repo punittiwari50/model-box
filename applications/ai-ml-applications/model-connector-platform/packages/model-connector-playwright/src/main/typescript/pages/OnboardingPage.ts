@@ -11,7 +11,7 @@ export class OnboardingPage extends BasePage {
   private static readonly STEPPER_TABS = Object.freeze([
     "Job Portal",
     "Apps Builder",
-    "Storyteller Studio",
+    "Storyteller",
   ]);
 
   public constructor() {

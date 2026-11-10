@@ -44,11 +44,23 @@ export const HttpStatus = Object.freeze({
   CREATED: 201,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
   NOT_FOUND: 404,
   CONFLICT: 409,
   REQUEST_TIMEOUT: 408,
   INTERNAL_SERVER_ERROR: 500,
   SERVICE_UNAVAILABLE: 503,
+});
+
+export const RbacPermission = Object.freeze({
+  INTEGRATIONS_READ: "integrations:read",
+  INTEGRATIONS_CREATE: "integrations:create",
+  INTEGRATIONS_UPDATE: "integrations:update",
+  INTEGRATIONS_DELETE: "integrations:delete",
+  MODELS_READ: "models:read",
+  MODELS_MANAGE: "models:manage",
+  ONBOARDING_MANAGE: "onboarding:manage",
+  RBAC_MANAGE: "rbac:manage",
 });
 
 export const HttpHeader = Object.freeze({

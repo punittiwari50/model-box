@@ -15,50 +15,85 @@ export interface AuthenticatedUser {
   readonly token: string;
 }
 
+const CANONICAL_ROLE_PERMISSION_FALLBACKS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  SUPER_ADMIN: [
+    "chat:read", "chat:write", "models:read", "models:manage",
+    "sessions:read", "sessions:manage", "telemetry:read", "rbac:manage", "onboarding:manage",
+    "integrations:read", "integrations:create", "integrations:update", "integrations:delete",
+  ],
+  "role-admin": [
+    "chat:read", "chat:write", "models:read", "models:manage",
+    "sessions:read", "sessions:manage", "telemetry:read", "rbac:manage", "onboarding:manage",
+    "integrations:read", "integrations:create", "integrations:update", "integrations:delete",
+  ],
+  "role-mlops": [
+    "chat:read", "chat:write", "models:read", "models:manage",
+    "sessions:read", "sessions:manage", "telemetry:read", "onboarding:manage",
+    "integrations:read", "integrations:create", "integrations:update", "integrations:delete",
+  ],
+  "role-developer": [
+    "chat:read", "chat:write", "models:read",
+    "sessions:read", "sessions:manage", "telemetry:read",
+    "integrations:read", "integrations:create", "integrations:update",
+  ],
+  "role-viewer": [
+    "chat:read", "models:read", "sessions:read", "telemetry:read", "integrations:read",
+  ],
+});
+
 export class AuthService {
+  public async authenticateAsync(email: string, passwordAttempt: string): Promise<AuthenticatedUser | null> {
+    if (!email || !passwordAttempt) return null;
+    const user = await userRepository.findByEmailAsync(email.trim());
+    if (!user || !this.isPasswordValid(passwordAttempt, user.passwordHash)) {
+      return null;
+    }
+    const permissions = await this.resolvePermissionsAsync(user.roleId);
+    return this.buildAuthenticatedUser(user, permissions);
+  }
+
   public authenticate(email: string, passwordAttempt: string): AuthenticatedUser | null {
-    if (!email || !passwordAttempt) {
-      return null;
-    }
-
+    if (!email || !passwordAttempt) return null;
     const user = userRepository.findByEmail(email.trim());
-    if (!user) {
+    if (!user || !this.isPasswordValid(passwordAttempt, user.passwordHash)) {
       return null;
     }
+    const permissions = this.resolvePermissionsSync(user.roleId);
+    return this.buildAuthenticatedUser(user, permissions);
+  }
 
-    const hashedAttempt = cryptoUtils.sha256(passwordAttempt);
-    const isValid = hashedAttempt === user.passwordHash || passwordAttempt === user.passwordHash;
-
-    if (!isValid) {
-      return null;
-    }
-
-    const permissions = rbacRepository.getPermissionsForRole(user.roleId);
-    const token = this.generateToken(user);
-
-    return {
-      userId: user.userId,
-      companyId: user.companyId,
-      companyName: user.companyName,
-      roleId: user.roleId,
-      roleName: user.roleName,
-      fullName: user.fullName,
-      userEmail: user.userEmail,
-      avatarUrl: user.avatarUrl,
-      permissions,
-      token,
-    };
+  public async getUserProfileAsync(userId: string): Promise<AuthenticatedUser | null> {
+    const user = await userRepository.findByIdAsync(userId);
+    if (!user) return null;
+    const permissions = await this.resolvePermissionsAsync(user.roleId);
+    return this.buildAuthenticatedUser(user, permissions);
   }
 
   public getUserProfile(userId: string): AuthenticatedUser | null {
     const user = userRepository.findById(userId);
-    if (!user) {
-      return null;
-    }
+    if (!user) return null;
+    const permissions = this.resolvePermissionsSync(user.roleId);
+    return this.buildAuthenticatedUser(user, permissions);
+  }
 
-    const permissions = rbacRepository.getPermissionsForRole(user.roleId);
-    const token = this.generateToken(user);
+  private isPasswordValid(passwordAttempt: string, storedHash: string): boolean {
+    const hashedAttempt = cryptoUtils.sha256(passwordAttempt);
+    return hashedAttempt === storedHash || passwordAttempt === storedHash;
+  }
 
+  private async resolvePermissionsAsync(roleId: string): Promise<readonly string[]> {
+    const dbPermissions = await rbacRepository.getPermissionsForRoleAsync(roleId);
+    if (dbPermissions.length > 0) return dbPermissions;
+    return CANONICAL_ROLE_PERMISSION_FALLBACKS[roleId] ?? [];
+  }
+
+  private resolvePermissionsSync(roleId: string): readonly string[] {
+    const dbPermissions = rbacRepository.getPermissionsForRole(roleId);
+    if (dbPermissions.length > 0) return dbPermissions;
+    return CANONICAL_ROLE_PERMISSION_FALLBACKS[roleId] ?? [];
+  }
+
+  private buildAuthenticatedUser(user: UserRecord, permissions: readonly string[]): AuthenticatedUser {
     return {
       userId: user.userId,
       companyId: user.companyId,
@@ -69,7 +104,7 @@ export class AuthService {
       userEmail: user.userEmail,
       avatarUrl: user.avatarUrl,
       permissions,
-      token,
+      token: this.generateToken(user),
     };
   }
 

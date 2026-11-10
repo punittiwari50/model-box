@@ -13,6 +13,8 @@ import type {
   TestConnectionResult,
   UiModelOAuthConfig,
   UiOAuthExchangeResult,
+  UiIntegration,
+  UpsertIntegrationPayload,
 } from "@/types/ui.types";
 import { ModelConstants, ModelCatalog } from "@/constants/providerConfigConstants";
 import { ollamaUiModelCache, providerCatalogStore } from "@/utils/services/ollamaUiModelCache";
@@ -20,6 +22,12 @@ import { ollamaUiModelCache, providerCatalogStore } from "@/utils/services/ollam
 const API_BASE = "/api/v1";
 
 export class ApiService {
+  private static activeUserContext: { userId?: string; token?: string } = {};
+
+  public static setActiveUserContext(userId?: string, token?: string): void {
+    this.activeUserContext = { userId, token };
+  }
+
   public static generateTraceId(): string {
     const chars = "abcdef0123456789";
     let s = "";
@@ -55,6 +63,12 @@ export class ApiService {
     if (!headers.has("x-trace-id")) headers.set("x-trace-id", traceId);
     if (!headers.has("x-span-id")) headers.set("x-span-id", spanId);
     if (!headers.has("traceparent")) headers.set("traceparent", `00-${traceId}-${spanId}-01`);
+    if (this.activeUserContext.userId && !headers.has("x-user-id")) {
+      headers.set("x-user-id", this.activeUserContext.userId);
+    }
+    if (this.activeUserContext.token && !headers.has("authorization")) {
+      headers.set("authorization", `Bearer ${this.activeUserContext.token}`);
+    }
 
     return fetch(input, { ...init, headers });
   }
@@ -255,11 +269,12 @@ export class ApiService {
     model: string,
     strategy: StrategyMode,
     sessionId?: string,
+    effortTier?: "low" | "medium" | "high",
   ): Promise<ChatMessage> {
     const res = await fetch(`${API_BASE}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, model, strategy, sessionId }),
+      body: JSON.stringify({ prompt, model, strategy, sessionId, effortTier }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || data.success === false) {
@@ -376,13 +391,13 @@ export class ApiService {
       config?: Record<string, unknown>;
     },
   ): Promise<UiModelAccount> {
-    const res = await fetch(`${API_BASE}/models/${encodeURIComponent(modelId)}/accounts`, {
+    const res = await this.fetchWithTelemetry(`${API_BASE}/models/${encodeURIComponent(modelId)}/accounts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(account),
     });
-    if (!res.ok) throw new Error("Failed to create account credential");
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || "Failed to create account credential");
     return data.account;
   }
 
@@ -398,7 +413,7 @@ export class ApiService {
       config?: Record<string, unknown>;
     },
   ): Promise<UiModelAccount> {
-    const res = await fetch(
+    const res = await this.fetchWithTelemetry(
       `${API_BASE}/models/${encodeURIComponent(modelId)}/accounts/${encodeURIComponent(accountId)}`,
       {
         method: "PUT",
@@ -406,33 +421,42 @@ export class ApiService {
         body: JSON.stringify(account),
       },
     );
-    if (!res.ok) throw new Error("Failed to update account credential");
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || "Failed to update account credential");
     return data.account;
   }
 
   public static async activateModelAccount(modelId: string, accountId: string): Promise<void> {
-    const res = await fetch(
+    const res = await this.fetchWithTelemetry(
       `${API_BASE}/models/${encodeURIComponent(modelId)}/accounts/${encodeURIComponent(accountId)}/activate`,
       { method: "POST" },
     );
-    if (!res.ok) throw new Error("Failed to activate account");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || "Failed to activate account");
+    }
   }
 
   public static async deactivateModelAccount(modelId: string, accountId: string): Promise<void> {
-    const res = await fetch(
+    const res = await this.fetchWithTelemetry(
       `${API_BASE}/models/${encodeURIComponent(modelId)}/accounts/${encodeURIComponent(accountId)}/deactivate`,
       { method: "POST" },
     );
-    if (!res.ok) throw new Error("Failed to deactivate account");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || "Failed to deactivate account");
+    }
   }
 
   public static async deleteModelAccount(modelId: string, accountId: string): Promise<void> {
-    const res = await fetch(
+    const res = await this.fetchWithTelemetry(
       `${API_BASE}/models/${encodeURIComponent(modelId)}/accounts/${encodeURIComponent(accountId)}`,
       { method: "DELETE" },
     );
-    if (!res.ok) throw new Error("Failed to delete account");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || "Failed to delete account");
+    }
   }
 
   public static async fetchModelOAuthConfig(
@@ -672,7 +696,22 @@ export class ApiService {
       const res = await fetch(`${API_BASE}/upstream/audit`);
       if (!res.ok) throw new Error("Failed to fetch audit");
       const data = await res.json();
-      return data.logs || [];
+      return (data.logs || []).map((l: any) => ({
+        id: l.id || l.auditLogId || `audit-${Math.random().toString(36).substring(7)}`,
+        action: l.action || l.actionName || "INFERENCE",
+        modelUsed: l.modelUsed || l.modelId || "default",
+        status: l.status || l.executionStatus || "SUCCESS",
+        latencyMs: Number(l.latencyMs) || 0,
+        timestamp: l.timestamp || l.createdTimestamp || new Date().toISOString(),
+        clientIp: l.clientIp || "127.0.0.1",
+        message: l.message || l.promptMessage || "",
+        sessionId: l.sessionId,
+        correlationId: l.correlationId,
+        traceId: l.traceId,
+        spanId: l.spanId,
+        errorMessage: l.errorMessage,
+        strategyMode: l.strategyMode,
+      }));
     } catch {
       return this.getFallbackAudit();
     }
@@ -749,14 +788,14 @@ export class ApiService {
 
   private static getFallbackMenus(roleId?: string): UiMenuItem[] {
     const all: UiMenuItem[] = [
-      { menuId: "chat", menuLabel: "Omni-Channel Chat", menuIcon: "💬", routePath: "chat", badgeCountKey: "messages", sortOrder: 10, isDefault: true, requiredPermission: "menu:chat" },
-      { menuId: "models", menuLabel: "Model Registry", menuIcon: "🧠", routePath: "models", badgeCountKey: "models", sortOrder: 20, isDefault: false, requiredPermission: "menu:models" },
-      { menuId: "model-config", menuLabel: "Model Configuration", menuIcon: "⚙️", routePath: "model-config", badgeCountKey: "accounts", sortOrder: 30, isDefault: true, requiredPermission: "menu:model-config", descriptionText: "Protocol configuration for API, CLI, Cookie, OAuth (Default for each login)" },
-      { menuId: "sessions", menuLabel: "Cookie & Sessions", menuIcon: "🍪", routePath: "sessions", badgeCountKey: "sessions", sortOrder: 40, isDefault: false, requiredPermission: "menu:sessions" },
-      { menuId: "workflows", menuLabel: "Workflow DAG", menuIcon: "🔀", routePath: "workflows", sortOrder: 50, isDefault: false, requiredPermission: "menu:workflows" },
-      { menuId: "upstream", menuLabel: "Telemetry & Sync", menuIcon: "📊", routePath: "upstream", badgeCountKey: "auditLogs", sortOrder: 60, isDefault: false, requiredPermission: "menu:upstream" },
-      { menuId: "onboarding", menuLabel: "Domain Onboarding", menuIcon: "🚀", routePath: "onboarding", sortOrder: 70, isDefault: false, requiredPermission: "menu:onboarding" },
-      { menuId: "admin-rbac", menuLabel: "RBAC & Access Control", menuIcon: "🛡️", routePath: "admin-rbac", sortOrder: 80, isDefault: false, requiredPermission: "menu:admin-rbac" },
+      { menuId: "chat", menuLabel: "Dashboard", menuIcon: "💬", routePath: "chat", badgeCountKey: "messages", sortOrder: 10, isDefault: true, requiredPermission: "menu:chat" },
+      { menuId: "model-config", menuLabel: "Integration Hub", menuIcon: "🪪", routePath: "model-config", badgeCountKey: "accounts", sortOrder: 20, isDefault: true, requiredPermission: "menu:model-config", descriptionText: "Discover, connect, and manage external services and model credentials" },
+      { menuId: "models", menuLabel: "Models", menuIcon: "🤖", routePath: "models", badgeCountKey: "models", sortOrder: 30, isDefault: false, requiredPermission: "menu:models" },
+      { menuId: "sessions", menuLabel: "Sessions", menuIcon: "🗂️", routePath: "sessions", badgeCountKey: "sessions", sortOrder: 40, isDefault: false, requiredPermission: "menu:sessions" },
+      { menuId: "workflows", menuLabel: "Workflow Studio", menuIcon: "🔀", routePath: "workflows", sortOrder: 50, isDefault: false, requiredPermission: "menu:workflows" },
+      { menuId: "upstream", menuLabel: "Observability", menuIcon: "📊", routePath: "upstream", badgeCountKey: "auditLogs", sortOrder: 60, isDefault: false, requiredPermission: "menu:upstream" },
+      { menuId: "onboarding", menuLabel: "Extensions", menuIcon: "🚀", routePath: "onboarding", sortOrder: 70, isDefault: false, requiredPermission: "menu:onboarding" },
+      { menuId: "admin-rbac", menuLabel: "Administration", menuIcon: "🛡️", routePath: "admin-rbac", sortOrder: 80, isDefault: false, requiredPermission: "menu:admin-rbac" },
     ];
 
     if (roleId === "DEVELOPER") {
@@ -894,5 +933,55 @@ export class ApiService {
       { categoryId: "copilot", label: "Microsoft Copilot", icon: "🚀", accentColor: "#8b5cf6", description: "Code assistance and developer automation intelligence", sortOrder: 5 },
       { categoryId: "ollama", label: "Local Fallback (Ollama)", icon: "🛡️", accentColor: "#f59e0b", description: "Local on-device private execution & offline fallback runners", sortOrder: 6 },
     ];
+  }
+
+  public static async listIntegrations(): Promise<UiIntegration[]> {
+    try {
+      const res = await this.fetchWithTelemetry(`${API_BASE}/integrations`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.integrations) ? data.integrations : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public static async createIntegration(payload: UpsertIntegrationPayload): Promise<UiIntegration> {
+    const res = await this.fetchWithTelemetry(`${API_BASE}/integrations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.integration) {
+      throw new Error(data.message || `Failed to create integration (HTTP ${res.status})`);
+    }
+    return data.integration;
+  }
+
+  public static async updateIntegration(
+    integrationId: string,
+    payload: Partial<UpsertIntegrationPayload>,
+  ): Promise<UiIntegration> {
+    const res = await this.fetchWithTelemetry(`${API_BASE}/integrations/${encodeURIComponent(integrationId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.integration) {
+      throw new Error(data.message || `Failed to update integration (HTTP ${res.status})`);
+    }
+    return data.integration;
+  }
+
+  public static async deleteIntegration(integrationId: string): Promise<void> {
+    const res = await this.fetchWithTelemetry(`${API_BASE}/integrations/${encodeURIComponent(integrationId)}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || `Failed to delete integration (HTTP ${res.status})`);
+    }
   }
 }

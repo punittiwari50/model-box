@@ -380,28 +380,25 @@ export class ModelOAuthProviderService {
     const defaultGoogleClientId =
       descriptor.provider === ProviderId.GOOGLE ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID : "";
     const resolvedClientId = (oauthClientIdOverride || descriptor.defaultClientId || defaultGoogleClientId).trim();
-    const oauthClientIdForPreview = resolvedClientId || "<DB_MANAGED_OAUTH_CLIENT_REFERENCE>";
     const structuredState = this.buildStructuredState(modelId, descriptor.provider);
-    const authorizationUrl = this.buildAuthorizationUrl(
+    const chooserLaunchUrl = this.buildChooserLaunchUrl(
       descriptor,
-      resolvedRedirectUri,
       modelId,
-      oauthClientIdForPreview,
+      resolvedRedirectUri,
+      resolvedClientId,
+      descriptor.defaultScopes.join(" "),
       structuredState,
     );
-    const executableLaunchUrl =
-      descriptor.provider === ProviderId.GOOGLE
-        ? (resolvedClientId
-          ? this.buildAuthorizationUrl(descriptor, resolvedRedirectUri, modelId, resolvedClientId, structuredState)
-          : undefined)
-        : this.buildChooserLaunchUrl(
+    const authorizationUrl = resolvedClientId
+      ? this.buildAuthorizationUrl(
           descriptor,
-          modelId,
           resolvedRedirectUri,
+          modelId,
           resolvedClientId,
-          descriptor.defaultScopes.join(" "),
           structuredState,
-        );
+        )
+      : chooserLaunchUrl;
+    const executableLaunchUrl = authorizationUrl;
     const requiresClientRegistration = descriptor.provider === ProviderId.GOOGLE && !resolvedClientId;
 
     return {
@@ -409,12 +406,12 @@ export class ModelOAuthProviderService {
       redirectUri: resolvedRedirectUri,
       authorizationUrl,
       executableLaunchUrl,
-      usesLoopbackChooser: false,
+      usesLoopbackChooser: !resolvedClientId,
       requiresClientRegistration,
       ...descriptor,
       defaultClientId: resolvedClientId,
       structuredParams: {
-        clientId: oauthClientIdForPreview,
+        clientId: resolvedClientId,
         redirectUri: resolvedRedirectUri,
         scopes: descriptor.defaultScopes,
         state: structuredState,

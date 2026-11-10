@@ -47,3 +47,4 @@ export function createPgClient(config: PostgresConnectionConfig): pg.Client {
 
 export { pg };
 export type { Pool as PgPool, Client as PgClient, QueryResult as PgQueryResult } from "pg";
+

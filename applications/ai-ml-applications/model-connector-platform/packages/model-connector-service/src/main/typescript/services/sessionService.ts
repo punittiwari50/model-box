@@ -5,11 +5,11 @@ import {
 } from "@/repositories/sessionRepository";
 
 export class SessionService {
-  public listSessions(limit?: number, offset?: number): StoredSession[] {
+  public async listSessions(limit?: number, offset?: number): Promise<StoredSession[]> {
     return sessionRepository.listSessions(limit, offset);
   }
 
-  public getSession(sessionId: string): StoredSession | undefined {
+  public async getSession(sessionId: string): Promise<StoredSession | undefined> {
     return sessionRepository.getSession(sessionId);
   }
 
@@ -21,19 +21,19 @@ export class SessionService {
     return sessionRepository.getOrCreateSession(sessionId, modelId, strategy);
   }
 
-  public getSessionMessages(
+  public async getSessionMessages(
     sessionId: string,
     limit?: number,
     offset?: number,
-  ): StoredMessage[] {
+  ): Promise<StoredMessage[]> {
     return sessionRepository.getSessionMessages(sessionId, limit, offset);
   }
 
-  public deleteSession(sessionId: string): boolean {
+  public async deleteSession(sessionId: string): Promise<boolean> {
     return sessionRepository.deleteSession(sessionId);
   }
 
-  public cleanupTestSessions(): number {
+  public async cleanupTestSessions(): Promise<number> {
     return sessionRepository.cleanupTestSessions();
   }
 }

@@ -5,6 +5,7 @@ import {
   ProviderId,
   cliOAuthSessionRepository,
   CliOAuthConstants,
+  cryptoUtils,
   fileUtils,
   pathUtils,
 } from "@model-box/model-connector-core";
@@ -247,33 +248,51 @@ export class OAuthCallbackServer {
     const parsedState = this.parseStateMetadata(stateStr);
     const modelId = req.query.model ? String(req.query.model) : parsedState.modelId;
     const descriptor = modelOAuthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
-    const provider = req.query.provider ? String(req.query.provider) : descriptor.provider;
+    const requestedProvider = req.query.provider ? String(req.query.provider).trim().toLowerCase() : "";
+    const provider =
+      descriptor.provider && descriptor.provider !== "custom"
+        ? descriptor.provider
+        : requestedProvider.includes("gemini") || requestedProvider === ProviderId.GOOGLE
+          ? ProviderId.GOOGLE
+          : requestedProvider || descriptor.provider;
     const clientId = req.query.client_id ? String(req.query.client_id) : descriptor.defaultClientId;
     const redirectUri = req.query.redirect_uri ? String(req.query.redirect_uri) : descriptor.defaultRedirectUri || OAuthConstants.DEFAULT_CALLBACK_URL;
     const requestedReturnUrl = req.query.returnUrl ? String(req.query.returnUrl) : parsedState.returnUrl;
     const selectedAccountId = req.query.selected_account_id ? String(req.query.selected_account_id).trim() : "";
-    const returnUrl = this.resolveReturnUrl(requestedReturnUrl, modelId, "");
+    const targetOrigin = this.resolveAllowedOrigin(requestedReturnUrl);
 
     if (selectedAccountId.length > 0) {
       const selectedAccount = accountRepository.getAccount(selectedAccountId);
       if (!selectedAccount || !selectedAccount.isActive) {
-        res.status(404).send(this.renderErrorHtml("Selected account was not found or is inactive.", provider, returnUrl));
+        this.sendSecureHtml(
+          res,
+          404,
+          (nonce) => this.renderErrorHtml("Selected account was not found or is inactive.", provider, targetOrigin, nonce),
+        );
         return;
       }
       if (!this.isAccountForProvider(selectedAccount.configJson, provider)) {
-        res.status(400).send(this.renderErrorHtml("Selected account does not match requested provider.", provider, returnUrl));
+        this.sendSecureHtml(
+          res,
+          400,
+          (nonce) => this.renderErrorHtml("Selected account does not match requested provider.", provider, targetOrigin, nonce),
+        );
         return;
       }
-      const successReturnUrl = this.resolveReturnUrl(requestedReturnUrl, modelId, selectedAccount.userEmail);
-      res.status(200).send(
-        this.renderSuccessHtml(
-          selectedAccount.userEmail,
-          provider,
-          `selected_account_${selectedAccount.accountId}`,
-          selectedAccount.credentialValue,
-          modelId,
-          successReturnUrl,
-        ),
+      this.sendSecureHtml(
+        res,
+        200,
+        (nonce) =>
+          this.renderSuccessHtml(
+            selectedAccount.userEmail,
+            provider,
+            `selected_account_${selectedAccount.accountId}`,
+            selectedAccount.credentialValue,
+            modelId,
+            targetOrigin,
+            stateStr,
+            nonce,
+          ),
       );
       return;
     }
@@ -296,19 +315,22 @@ export class OAuthCallbackServer {
         scope: resolvedScope,
         returnUrl: requestedReturnUrl,
       });
-      res.status(200).send(
-        this.renderAccountChooserHtml({
-          providerName: descriptor.providerName,
-          provider,
-          modelId,
-          returnUrl,
-          chooserUrl,
-          accounts: existingAccounts.map((item) => ({
-            accountId: item.accountId,
-            accountName: item.accountName || item.userEmail,
-            userEmail: item.userEmail,
-          })),
-        }),
+      this.sendSecureHtml(
+        res,
+        200,
+        (nonce) =>
+          this.renderAccountChooserHtml({
+            providerName: descriptor.providerName,
+            provider,
+            modelId,
+            chooserUrl,
+            nonce,
+            accounts: existingAccounts.map((item) => ({
+              accountId: item.accountId,
+              accountName: item.accountName || item.userEmail,
+              userEmail: item.userEmail,
+            })),
+          }),
       );
       return;
     }
@@ -324,10 +346,16 @@ export class OAuthCallbackServer {
     if (provider === ProviderId.GOOGLE) {
       params.set("include_granted_scopes", "true");
     }
+    if (req.query.code_challenge && req.query.code_challenge_method) {
+      params.set("code_challenge", String(req.query.code_challenge));
+      params.set("code_challenge_method", String(req.query.code_challenge_method));
+    }
     const loginHint = req.query.login_hint ? String(req.query.login_hint).trim() : "";
     if (loginHint.length > 0) {
       params.set("login_hint", loginHint);
     }
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.setHeader("Referrer-Policy", "no-referrer");
     res.redirect(`${descriptor.authorizationEndpoint}?${params.toString()}`);
   }
 
@@ -348,12 +376,17 @@ export class OAuthCallbackServer {
     const code = req.query.code ? String(req.query.code) : undefined;
     const error = req.query.error ? String(req.query.error) : undefined;
     const emailHint = req.query.email ? String(req.query.email) : undefined;
-    const stateMeta = this.parseStateMetadata(req.query.state ? String(req.query.state) : "");
-    const targetUrl = this.resolveReturnUrl(stateMeta.returnUrl, stateMeta.modelId, "");
+    const rawState = req.query.state ? String(req.query.state) : "";
+    const stateMeta = this.parseStateMetadata(rawState);
+    const targetOrigin = this.resolveAllowedOrigin(stateMeta.returnUrl);
 
     if (error || !code) {
       const msg = error || "Missing authorization code in redirect query.";
-      res.status(400).send(this.renderErrorHtml(msg, stateMeta.provider, targetUrl));
+      this.sendSecureHtml(
+        res,
+        400,
+        (nonce) => this.renderErrorHtml(msg, stateMeta.provider, targetOrigin, nonce),
+      );
       return;
     }
 
@@ -365,30 +398,44 @@ export class OAuthCallbackServer {
         modelId: stateMeta.modelId,
         provider: stateMeta.provider,
         emailHint,
-        state: req.query.state ? String(req.query.state) : "",
+        state: rawState,
       },
-      stateMeta.returnUrl,
+      targetOrigin,
       res,
     );
   }
 
   private async processCallbackCode(
     ctx: OAuthCallbackContext,
-    returnUrl: string,
+    targetOrigin: string,
     res: Response,
   ): Promise<void> {
     try {
       const strategy = this.exchangeRegistry.resolve(ctx);
       const outcome = await strategy.exchange(ctx);
       this.persistCallbackSession(ctx, outcome);
-      const successReturnUrl = this.resolveReturnUrl(returnUrl, ctx.modelId, outcome.userEmail, ctx.code);
-      res.status(200).send(
-        this.renderSuccessHtml(outcome.userEmail, ctx.provider, ctx.code, outcome.accessToken, ctx.modelId, successReturnUrl),
+      this.sendSecureHtml(
+        res,
+        200,
+        (nonce) =>
+          this.renderSuccessHtml(
+            outcome.userEmail,
+            ctx.provider,
+            ctx.code,
+            outcome.accessToken,
+            ctx.modelId,
+            targetOrigin,
+            ctx.state || "",
+            nonce,
+          ),
       );
     } catch (err: unknown) {
       const errMessage = err instanceof Error ? err.message : String(err);
-      const fallbackUrl = this.resolveReturnUrl(returnUrl, ctx.modelId, "");
-      res.status(400).send(this.renderErrorHtml(errMessage, ctx.provider, fallbackUrl));
+      this.sendSecureHtml(
+        res,
+        400,
+        (nonce) => this.renderErrorHtml(errMessage, ctx.provider, targetOrigin, nonce),
+      );
     }
   }
 
@@ -478,29 +525,51 @@ export class OAuthCallbackServer {
     }
   }
 
-  private resolveReturnUrl(returnUrl: string | undefined, modelId: string, email: string, authCode?: string): string {
-    const defaultUiUrl = OAuthConstants.DEFAULT_UI_BASE_URL;
-    const base = returnUrl && returnUrl.startsWith("http") ? returnUrl : defaultUiUrl;
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  private resolveAllowedOrigin(returnUrl: string | undefined): string {
+    const defaultOrigin = new URL(OAuthConstants.DEFAULT_UI_BASE_URL).origin;
+    if (!returnUrl || !returnUrl.trim()) return defaultOrigin;
     try {
-      const url = new URL(base);
-      url.searchParams.set("oauth_success", "true");
-      url.searchParams.set("model", modelId);
-      if (email) url.searchParams.set("email", email);
-      if (authCode) {
-        url.searchParams.set("code", authCode);
-        url.searchParams.set("auth_code", authCode);
+      const parsed = new URL(returnUrl.trim());
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return defaultOrigin;
       }
-      url.searchParams.set("tab", "model-config");
-      return url.toString();
+      const allowedHosts = new Set(["localhost", "127.0.0.1", new URL(defaultOrigin).hostname]);
+      return allowedHosts.has(parsed.hostname) ? parsed.origin : defaultOrigin;
     } catch {
-      const emailParam = email ? `&email=${encodeURIComponent(email)}` : "";
-      const codeParam = authCode ? `&code=${encodeURIComponent(authCode)}&auth_code=${encodeURIComponent(authCode)}` : "";
-      return `${defaultUiUrl}/?oauth_success=true&model=${encodeURIComponent(modelId)}&tab=model-config${emailParam}${codeParam}`;
+      return defaultOrigin;
     }
   }
 
+  private sendSecureHtml(
+    res: Response,
+    statusCode: number,
+    buildHtml: (cspNonce: string) => string,
+  ): void {
+    const nonce = cryptoUtils.randomBytes(16).toString("base64url");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader(
+      "Content-Security-Policy",
+      `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none';`,
+    );
+    res.status(statusCode).send(buildHtml(nonce));
+  }
+
   public getLatestSession(modelId?: string): CapturedOAuthSession | undefined {
-    if (modelId && this.capturedSessions.has(modelId)) {
+    if (modelId) {
       return this.capturedSessions.get(modelId);
     }
     return this.capturedSessions.get("latest");
@@ -563,15 +632,37 @@ export class OAuthCallbackServer {
     code: string,
     token: string,
     modelId: string,
-    targetUrl: string,
+    targetOrigin: string,
+    state: string,
+    cspNonce: string,
   ): string {
+    const safeEmail = this.escapeHtml(email);
+    const safeProvider = this.escapeHtml(provider.toUpperCase());
+    const safeCode = this.escapeHtml(code);
+    const safeModelId = this.escapeHtml(modelId);
+    const serializedConfig = JSON.stringify({
+      targetOrigin,
+      payload: {
+        type: "MODELBOX_OAUTH_SUCCESS",
+        provider,
+        email,
+        userEmail: email,
+        userName: email.split("@")[0] || email,
+        code,
+        authCode: code,
+        token,
+        accessToken: token,
+        modelId,
+        state,
+      },
+    }).replace(/</g, "\\u003c");
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="3;url=${targetUrl}">
-  <title>ModelBox - OAuth 2.0 Authenticate Code Portal</title>
+  <title>ModelBox - OAuth 2.0 Authorization Complete</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -732,87 +823,85 @@ export class OAuthCallbackServer {
 <body>
   <div class="card">
     <div class="badge-row">
-      <span class="status-badge">✔ Authenticate Code Captured from Browser</span>
+      <span class="status-badge">✔ Authorization Verified</span>
     </div>
-    <h2>OAuth 2.0 Authenticate Code Portal</h2>
-    <p class="subtext">Browser authentication completed for <strong>${provider.toUpperCase()}</strong></p>
+    <h2>OAuth 2.0 Connection Authorized</h2>
+    <p class="subtext">Browser authentication completed for <strong>${safeProvider}</strong></p>
 
     <div class="code-box-wrapper">
       <div class="code-header">
-        <span class="code-label">Captured Authenticate Code</span>
-        <button class="copy-btn" id="copy-btn" onclick="copyAuthCode()">📋 Copy Authenticate Code</button>
+        <span class="code-label">Authorization Code</span>
+        <button type="button" class="copy-btn" id="copy-btn">📋 Copy Code</button>
       </div>
-      <input type="text" readonly class="code-input" id="authcode-input" value="${code}" />
+      <input type="text" readonly class="code-input" id="authcode-input" value="${safeCode}" />
     </div>
 
     <div class="meta-grid">
       <div class="meta-item">
         <label>Authenticated Principal</label>
-        <span>${email}</span>
+        <span>${safeEmail}</span>
       </div>
       <div class="meta-item">
         <label>Target Model & Provider</label>
-        <span>${provider.toUpperCase()} (${modelId})</span>
+        <span>${safeProvider} (${safeModelId})</span>
       </div>
       <div class="meta-item" style="grid-column: 1 / -1;">
-        <label>Database Record Status</label>
-        <span class="db-badge">✔ Authenticate code saved in database against account</span>
+        <label>Security & Session Status</label>
+        <span class="db-badge">✔ Credential delivered securely to parent session</span>
       </div>
     </div>
 
-    <a href="${targetUrl}" class="return-btn" id="return-now-btn">
-      <span>🚀 Complete &amp; Return to ModelBox Studio</span>
-    </a>
-    <div class="countdown-note">Auto-closing and redirecting in <span id="countdown">3</span>s...</div>
+    <button type="button" class="return-btn" id="close-window-btn">
+      <span>✔ Close Window</span>
+    </button>
+    <div class="countdown-note" id="close-note">Authorization verified. Click <strong>Close Window</strong> above when ready to return to your form.</div>
 
-    <script>
-      function copyAuthCode() {
-        var input = document.getElementById("authcode-input");
-        if (input) {
-          input.select();
-          navigator.clipboard.writeText(input.value);
-          var btn = document.getElementById("copy-btn");
-          if (btn) btn.innerText = "✔ Copied!";
-        }
-      }
-
+    <script nonce="${cspNonce}">
       (function() {
-        var targetUrl = "${targetUrl}";
-        var payload = {
-          type: "MODELBOX_OAUTH_SUCCESS",
-          provider: "${provider}",
-          email: "${email}",
-          userEmail: "${email}",
-          userName: "${email.split("@")[0]}",
-          code: "${code}",
-          authCode: "${code}",
-          token: "${token}",
-          accessToken: "${token}",
-          modelId: "${modelId}"
-        };
+        var data = ${serializedConfig};
+        var copyBtn = document.getElementById("copy-btn");
+        if (copyBtn) {
+          copyBtn.addEventListener("click", function() {
+            var input = document.getElementById("authcode-input");
+            if (input) {
+              input.select();
+              navigator.clipboard.writeText(input.value).catch(function() {});
+              copyBtn.textContent = "✔ Copied!";
+            }
+          });
+        }
+
+        function closePopupWindow() {
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(data.payload, data.targetOrigin);
+              window.opener.postMessage(
+                Object.assign({}, data.payload, { type: "OAUTH_CALLBACK_SUCCESS" }),
+                data.targetOrigin
+              );
+            }
+          } catch (e) {}
+          window.close();
+          var note = document.getElementById("close-note");
+          if (note && !window.closed) {
+            note.textContent = "Authentication complete. You may safely close this browser tab.";
+          }
+        }
+
         try {
           if (window.opener && !window.opener.closed) {
-            window.opener.postMessage(payload, "*");
-            window.opener.postMessage(Object.assign({}, payload, { type: "OAUTH_CALLBACK_SUCCESS" }), "*");
+            window.opener.postMessage(data.payload, data.targetOrigin);
+            window.opener.postMessage(
+              Object.assign({}, data.payload, { type: "OAUTH_CALLBACK_SUCCESS" }),
+              data.targetOrigin
+            );
           }
         } catch (e) {}
 
-        var seconds = 3;
-        var timer = setInterval(function() {
-          seconds--;
-          var el = document.getElementById("countdown");
-          if (el) el.innerText = seconds;
-          if (seconds <= 0) {
-            clearInterval(timer);
-            try {
-              if (window.opener && !window.opener.closed) {
-                window.close();
-                return;
-              }
-            } catch (e) {}
-            window.location.replace(targetUrl);
-          }
-        }, 1000);
+        var closeBtn = document.getElementById("close-window-btn");
+        if (closeBtn) {
+          closeBtn.addEventListener("click", closePopupWindow);
+        }
       })();
     </script>
   </div>
@@ -820,15 +909,56 @@ export class OAuthCallbackServer {
 </html>`;
   }
 
-  private renderErrorHtml(error: string, provider: string, targetUrl: string): string {
+  private renderErrorHtml(
+    error: string,
+    provider: string,
+    targetOrigin: string,
+    cspNonce: string,
+  ): string {
+    const safeError = this.escapeHtml(error);
+    const safeProvider = this.escapeHtml(provider);
+    const serializedError = JSON.stringify({
+      targetOrigin,
+      payload: { type: "MODELBOX_OAUTH_ERROR", error, provider },
+    }).replace(/</g, "\\u003c");
+
     return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><title>ModelBox - Authorization Error</title></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ModelBox - Authorization Error</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0b0f19; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .card { width: min(520px, 95vw); background: #111827; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 16px; padding: 24px; text-align: center; }
+    h2 { margin: 0 0 12px 0; font-size: 1.2rem; color: #f8fafc; }
+    .err-box { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; border-radius: 10px; padding: 12px; margin-bottom: 18px; word-break: break-word; font-size: 0.9rem; }
+    .btn { cursor: pointer; border: none; background: #334155; color: #f8fafc; border-radius: 8px; padding: 10px 18px; font-weight: 700; font-size: 0.9rem; }
+    .hint { margin-top: 10px; font-size: 0.78rem; color: #94a3b8; }
+  </style>
+</head>
 <body>
   <div class="card">
-    <h2>Authorization Failed (${provider})</h2>
-    <div class="err-box">${error}</div>
-    <a href="${targetUrl}" class="btn">Return to ModelBox Studio</a>
+    <h2>Authorization Failed (${safeProvider})</h2>
+    <div class="err-box">${safeError}</div>
+    <button type="button" class="btn" id="close-error-btn">Close Window</button>
+    <div class="hint" id="error-close-note">Close this window to return to your active onboarding session.</div>
+    <script nonce="${cspNonce}">
+      (function() {
+        var data = ${serializedError};
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(data.payload, data.targetOrigin);
+          }
+        } catch (e) {}
+        var btn = document.getElementById("close-error-btn");
+        if (btn) {
+          btn.addEventListener("click", function() {
+            window.close();
+          });
+        }
+      })();
+    </script>
   </div>
 </body>
 </html>`;
@@ -880,30 +1010,33 @@ export class OAuthCallbackServer {
     providerName: string;
     provider: string;
     modelId: string;
-    returnUrl: string;
     chooserUrl: string;
+    nonce: string;
     accounts: readonly { accountId: string; accountName: string; userEmail: string }[];
   }): string {
-    const escapedProvider = input.providerName.replace(/"/g, "&quot;");
+    const escapedProvider = this.escapeHtml(input.providerName);
+    const escapedModelId = this.escapeHtml(input.modelId);
     const listItems = input.accounts
       .map((account) => {
         const pickParams = new URLSearchParams({
           selected_account_id: account.accountId,
         });
-        const href = `${input.chooserUrl}&${pickParams.toString()}`;
+        const href = this.escapeHtml(`${input.chooserUrl}&${pickParams.toString()}`);
         return `<a class="account-link" href="${href}">
-            <span class="name">${account.accountName}</span>
-            <span class="email">${account.userEmail}</span>
+            <span class="name">${this.escapeHtml(account.accountName)}</span>
+            <span class="email">${this.escapeHtml(account.userEmail)}</span>
           </a>`;
       })
       .join("");
     const accountSection =
       listItems.length > 0
         ? `<div class="accounts">${listItems}</div>`
-        : `<div class="empty">No active ${escapedProvider} account found for this model yet.</div>`;
+        : `<div class="empty">No active ${escapedProvider} account found for this model yet. Configure a Client ID and Authorization Endpoint in onboarding to use external OAuth sign-in.</div>`;
     const googleDirectSignInUrl =
       input.provider === ProviderId.GOOGLE && GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID
-        ? `${input.chooserUrl}&client_id=${encodeURIComponent(GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID)}`
+        ? this.escapeHtml(
+            `${input.chooserUrl}&client_id=${encodeURIComponent(GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID)}`,
+          )
         : "";
     const googleAction = googleDirectSignInUrl
       ? `<a class="btn" style="background:#4285F4;color:#ffffff;" href="${googleDirectSignInUrl}">Sign in with Google (Recommended)</a>`
@@ -912,10 +1045,11 @@ export class OAuthCallbackServer {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>ModelBox - Select Account</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ModelBox - OAuth Account Authorization</title>
   <style>
-    body { margin: 0; font-family: sans-serif; background: #0b0f19; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { width: min(720px, 95vw); background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0b0f19; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .card { width: min(640px, 95vw); background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; }
     h1 { font-size: 1.2rem; margin: 0 0 8px 0; }
     p { margin: 0 0 16px 0; color: #94a3b8; }
     .accounts { display: grid; gap: 10px; }
@@ -923,24 +1057,38 @@ export class OAuthCallbackServer {
     .account-link:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.12); }
     .name { display: block; font-weight: 700; }
     .email { display: block; color: #93c5fd; font-size: 0.92rem; margin-top: 2px; }
-    .empty { border: 1px dashed #475569; border-radius: 10px; padding: 14px; color: #cbd5e1; }
-    .hint { margin-top: 14px; font-size: 0.9rem; }
-    .actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
-    .btn { text-decoration: none; color: #0f172a; background: #38bdf8; border-radius: 8px; padding: 10px 14px; font-weight: 700; }
+    .empty { border: 1px dashed #475569; border-radius: 10px; padding: 14px; color: #cbd5e1; font-size: 0.9rem; line-height: 1.5; }
+    .hint { margin-top: 14px; font-size: 0.85rem; color: #94a3b8; }
+    .actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn { text-decoration: none; cursor: pointer; border: none; color: #0f172a; background: #38bdf8; border-radius: 8px; padding: 10px 16px; font-weight: 700; font-size: 0.88rem; }
     .btn.secondary { background: #334155; color: #e2e8f0; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Select an existing ${escapedProvider} account</h1>
-    <p>Model: ${input.modelId}</p>
+    <p>Model: ${escapedModelId}</p>
     ${accountSection}
-    <div class="hint">You can choose an existing mapped account above or sign in with a new account.</div>
+    <div class="hint" id="chooser-close-hint">Select an account above or close this window to configure OAuth credentials.</div>
     <div class="actions">
       ${googleAction}
-      <a class="btn secondary" href="${input.returnUrl}">Return to ModelBox Studio</a>
+      <button type="button" class="btn secondary" id="close-window-btn">Close Window</button>
     </div>
   </div>
+  <script nonce="${input.nonce}">
+    (function() {
+      var btn = document.getElementById("close-window-btn");
+      if (btn) {
+        btn.addEventListener("click", function() {
+          window.close();
+          var hint = document.getElementById("chooser-close-hint");
+          if (hint && !window.closed) {
+            hint.textContent = "You may safely close this browser window.";
+          }
+        });
+      }
+    })();
+  </script>
 </body>
 </html>`;
   }
