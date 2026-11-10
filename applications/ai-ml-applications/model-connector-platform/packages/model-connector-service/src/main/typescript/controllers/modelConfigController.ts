@@ -340,7 +340,7 @@ export class ModelConfigController {
 
   public async executeCliLogin(req: Request, res: Response): Promise<void> {
     const { modelId } = req.params;
-    const { userEmail, accountCategory, clientId } = req.body || {};
+    const { userEmail, accountCategory, clientId, cliTool } = req.body || {};
     try {
       const vcsResult = await directoryAccountSyncService.executeWithVcsTracking(
         modelId,
@@ -351,6 +351,7 @@ export class ModelConfigController {
             userEmail,
             accountCategory,
             clientId,
+            cliTool,
             modelId,
             correlationId: req.correlationId,
             traceId: req.traceContext?.traceId,

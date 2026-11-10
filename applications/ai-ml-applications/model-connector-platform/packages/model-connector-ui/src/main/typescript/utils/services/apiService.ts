@@ -544,6 +544,7 @@ export class ApiService {
       provider?: string;
       userEmail?: string;
       accountCategory?: "individual" | "enterprise";
+      cliTool?: "antigravity" | "gemini";
     },
   ): Promise<{
     success: boolean;

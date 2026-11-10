@@ -268,6 +268,16 @@ pre_validate_environment() {
 # Module: BinaryDownloadService (Bidirectional Volume Download & Extraction)
 # ==============================================================================
 resolve_binary() {
+  if [ "${GOOGLE_CLI_TOOL:-}" = "gemini" ]; then
+    if [ -x "/opt/model-connector/npm/bin/gemini" ]; then
+      RESOLVED_CLI_BIN="/opt/model-connector/npm/bin/gemini"
+      return 0
+    fi
+    if command -v gemini >/dev/null 2>&1; then
+      RESOLVED_CLI_BIN=$(command -v gemini)
+      return 0
+    fi
+  fi
   if [ -x "$TARGET_BINARY_PATH" ]; then
     RESOLVED_CLI_BIN="$TARGET_BINARY_PATH"
     return 0

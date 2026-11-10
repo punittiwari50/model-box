@@ -291,9 +291,28 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
   const [accountValidationMsg, setAccountValidationMsg] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<TestConnectionResult | null>(null);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [selectedGoogleCli, setSelectedGoogleCli] = useState<"antigravity" | "gemini">(
+    initialIntegration?.cliCommand?.toLowerCase().includes("gemini") ? "gemini" : "antigravity",
+  );
   const [isOAuthRedirecting, setIsOAuthRedirecting] = useState(false);
   const [isWaitingOAuthCallback, setIsWaitingOAuthCallback] = useState(false);
   const [oauthRedirectUrl, setOauthRedirectUrl] = useState<string>("");
+  const [oauthAuthCodeInput, setOauthAuthCodeInput] = useState("");
+  const [copiedOAuthUrl, setCopiedOAuthUrl] = useState(false);
+  const [pastedAuthCode, setPastedAuthCode] = useState(false);
+  const [isVerifyingAuthCode, setIsVerifyingAuthCode] = useState(false);
+  const [isVerifyingVcsDir, setIsVerifyingVcsDir] = useState(false);
+  const [vcsAuditState, setVcsAuditState] = useState<{
+    readonly directoryPath: string;
+    readonly isGitRepo: boolean;
+    readonly commitHash?: string;
+    readonly changedFiles: readonly string[];
+  }>({
+    directoryPath: "/app/config/data/credentials",
+    isGitRepo: true,
+    commitHash: undefined,
+    changedFiles: [],
+  });
   const [oauthRedirectNotice, setOauthRedirectNotice] = useState<{
     readonly tone: "success" | "info" | "warning" | "error";
     readonly message: string;
@@ -482,6 +501,139 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
     return activeModelSlug;
   }, [canonicalOAuthProviderId, activeModelSlug]);
 
+  const isGeminiProvider = useMemo(() => {
+    const combined = `${canonicalOAuthProviderId} ${activeModelSlug} ${providerName}`.toLowerCase();
+    return canonicalOAuthProviderId === "google" || combined.includes("gemini") || combined.includes("google");
+  }, [canonicalOAuthProviderId, activeModelSlug, providerName]);
+
+  const computedPreviewUrl = useMemo(() => {
+    if (oauthRedirectUrl) return oauthRedirectUrl;
+    return buildOnboardingOAuthLaunchUrl({
+      modelSlug: canonicalOAuthModelId,
+      providerId: canonicalOAuthProviderId,
+      clientId: oauthClientId.trim(),
+      authEndpoint: authUrl.trim() || matchedOAuthStrategy.authUrl,
+      redirectUri: redirectUri.trim() || DEFAULT_OAUTH_CALLBACK_URI,
+      scopes: oauthScopes.trim() || matchedOAuthStrategy.defaultScopes || "openid profile email",
+      userEmail: ownerEmail.trim(),
+      stateNonce: oauthStateNonceRef.current || "preview",
+      pkce: null,
+    });
+  }, [
+    oauthRedirectUrl,
+    canonicalOAuthModelId,
+    canonicalOAuthProviderId,
+    oauthClientId,
+    authUrl,
+    matchedOAuthStrategy.authUrl,
+    matchedOAuthStrategy.defaultScopes,
+    redirectUri,
+    oauthScopes,
+    ownerEmail,
+  ]);
+
+  const handleSelectGoogleCliTool = (tool: "antigravity" | "gemini") => {
+    setSelectedGoogleCli(tool);
+    setCliExecutable(tool);
+    setCliArguments(tool === "gemini" ? "auth login --browser" : "auth login");
+  };
+
+  const handleCopyOAuthPreviewUrl = () => {
+    if (!computedPreviewUrl || typeof navigator === "undefined" || !navigator.clipboard) return;
+    void navigator.clipboard.writeText(computedPreviewUrl);
+    setCopiedOAuthUrl(true);
+    window.setTimeout(() => setCopiedOAuthUrl(false), 2000);
+  };
+
+  const handlePasteAuthCodeInput = async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.readText) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim()) {
+        setOauthAuthCodeInput(text.trim());
+        setPastedAuthCode(true);
+        window.setTimeout(() => setPastedAuthCode(false), 2000);
+      }
+    } catch {
+      // Clipboard permission declined by browser
+    }
+  };
+
+  const handleVerifyCredentialsDir = async () => {
+    setIsVerifyingVcsDir(true);
+    try {
+      const res = await ApiService.verifyCredentialsDirectory(
+        canonicalOAuthModelId,
+        ownerEmail.trim() || currentUserEmail,
+      );
+      if (res?.success && res.vcs) {
+        setVcsAuditState({
+          directoryPath: res.vcs.directoryPath || "/app/config/data/credentials",
+          isGitRepo: res.vcs.isGitRepo,
+          commitHash: res.vcs.currentCommitHash || res.diffReport?.gitCommitHash,
+          changedFiles: res.diffReport?.changedFiles || res.vcs.recentChangedFiles || [],
+        });
+        setOauthRedirectNotice({
+          tone: "info",
+          message: `Credentials directory verified (${res.vcs.totalTrackedFiles} tracked file(s)).`,
+        });
+      }
+    } catch (err: unknown) {
+      setOauthRedirectNotice({
+        tone: "warning",
+        message: err instanceof Error ? err.message : "Unable to verify credentials directory.",
+      });
+    } finally {
+      setIsVerifyingVcsDir(false);
+    }
+  };
+
+  const handleVerifyAndSaveAuthCode = async (overrideCode?: string) => {
+    const code = (overrideCode ?? oauthAuthCodeInput).trim();
+    if (!code || !canMutate || isSubmitting) return;
+    setIsVerifyingAuthCode(true);
+    setAccountValidationMsg(null);
+    try {
+      const cliSessionRes = await ApiService.fetchLatestCliSession(canonicalOAuthModelId).catch(() => null);
+      if (cliSessionRes?.session?.sessionId) {
+        await ApiService.submitCliAuthCode({
+          sessionId: cliSessionRes.session.sessionId,
+          authCode: code,
+          modelId: canonicalOAuthModelId,
+          userEmail: ownerEmail.trim() || currentUserEmail,
+        }).catch(() => null);
+      }
+      const res = await ApiService.verifyOAuthManual(
+        canonicalOAuthModelId,
+        code,
+        ownerEmail.trim() || currentUserEmail,
+      );
+      if (!res?.session?.accessToken) {
+        throw new Error(res?.message || "Authorization code verification returned no access token.");
+      }
+      applyOAuthCallbackPayload({
+        accessToken: res.session.accessToken,
+        authCode: res.session.code || code,
+        userEmail: res.session.email,
+      });
+      if (res.vcs) {
+        setVcsAuditState((prev) => ({
+          ...prev,
+          commitHash: res.vcs?.gitCommitHash || prev.commitHash,
+          changedFiles: res.vcs?.changedFiles || prev.changedFiles,
+        }));
+      }
+      setOauthAuthCodeInput("");
+    } catch (err: unknown) {
+      setOauthRedirectNotice({
+        tone: "error",
+        message: err instanceof Error ? err.message : "OAuth authorization code exchange failed.",
+      });
+    } finally {
+      setIsVerifyingAuthCode(false);
+    }
+  };
+
   useEffect(() => {
     if (!isWaitingOAuthCallback) return;
     let checks = 0;
@@ -601,6 +753,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
             provider: "google",
             userEmail: ownerEmail.trim() || currentUserEmail,
             accountCategory: accountCategory || "individual",
+            cliTool: isGeminiProvider ? selectedGoogleCli : undefined,
           }).catch(() => null);
           discoveredCliUrl = cliLoginRes?.loginResult?.config?.authorizationUrl || cliLoginRes?.session?.oauthUrl;
         }
@@ -691,7 +844,9 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
         oauthClientSecret: oauthClientSecret.trim() || undefined,
         oauthScopes: oauthScopes.trim() || undefined,
         redirectUri: redirectUri.trim() || undefined,
-        cliExecutable: cliExecutable.trim() || undefined,
+        cliExecutable: (isGeminiProvider && selectedProtocol === "cli" && !cliExecutable.trim()
+          ? selectedGoogleCli
+          : cliExecutable.trim()) || undefined,
         cliArguments: cliArguments.trim() || undefined,
         cookieDomain: cookieDomain.trim() || undefined,
       },
@@ -875,7 +1030,220 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
     );
   };
 
+  useEffect(() => {
+    if (selectedProtocol === "cli" && isGeminiProvider && !cliExecutable.trim()) {
+      setCliExecutable(selectedGoogleCli);
+      setCliArguments(selectedGoogleCli === "gemini" ? "auth login --browser" : "auth login");
+    }
+  }, [selectedProtocol, isGeminiProvider, selectedGoogleCli, cliExecutable]);
+
   const displayError = localError || errorMessage;
+
+  const renderGeminiCliToolSelector = () => (
+    <div className="onb-cli-tool-box" data-testid="onb-cli-tool-selector">
+      <div className="cli-tool-copy">
+        <strong>Select CLI Execution Tool:</strong>
+        <span>Choose binary used to capture OAuth PKCE session</span>
+      </div>
+      <div className="cli-tool-options" role="group" aria-label="Select CLI Execution Tool">
+        <button
+          type="button"
+          className={`cli-tool-option-btn ${selectedGoogleCli === "antigravity" ? "active" : ""}`}
+          disabled={!canMutate || isSubmitting}
+          onClick={() => handleSelectGoogleCliTool("antigravity")}
+          data-testid="btn-cli-tool-antigravity"
+        >
+          <span>⚡</span>
+          <span>Antigravity CLI (Default)</span>
+        </button>
+        <button
+          type="button"
+          className={`cli-tool-option-btn ${selectedGoogleCli === "gemini" ? "active" : ""}`}
+          disabled={!canMutate || isSubmitting}
+          onClick={() => handleSelectGoogleCliTool("gemini")}
+          data-testid="btn-cli-tool-gemini"
+        >
+          <span>✦</span>
+          <span>Gemini CLI</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderBrowserConsentAndAuthCodeBox = () => {
+    const cliLabel = isGeminiProvider ? selectedGoogleCli : cliExecutable.trim() || matchedOAuthStrategy.cliCommand || canonicalOAuthProviderId;
+    return (
+      <div className="d-flex flex-column gap-3 pt-2 border-top">
+        <div className="onb-computed-url-box">
+          <div className="url-header-row">
+            <span className="url-title">Computed Redirect Authorization URL</span>
+            <span className="url-endpoint-hint">Endpoint: {authUrl.trim() || matchedOAuthStrategy.authUrl}</span>
+          </div>
+          <div className="url-preview-row">
+            <input
+              type="text"
+              className="form-control url-preview-input"
+              readOnly
+              value={computedPreviewUrl}
+              data-testid="onb-computed-oauth-url"
+            />
+            <button
+              type="button"
+              className="btn btn-outline theme-secondary btn-sm flex-shrink-0"
+              onClick={handleCopyOAuthPreviewUrl}
+              data-testid="btn-copy-oauth-url"
+            >
+              {copiedOAuthUrl ? "✔ Copied!" : "📋 Copy"}
+            </button>
+          </div>
+        </div>
+
+        <div className="onb-vcs-audit-bar" data-testid="onb-vcs-audit-bar">
+          <div className="vcs-bar-top">
+            <div className="vcs-meta-group">
+              <span>📁</span>
+              <code>{vcsAuditState.directoryPath}</code>
+              <span className="badge badge-subtle theme-info">
+                {vcsAuditState.isGitRepo ? "Git Tracking Active (In-Container)" : "Snapshot VCS"}
+              </span>
+              {vcsAuditState.commitHash && (
+                <span className="badge badge-subtle theme-secondary">commit: {vcsAuditState.commitHash.slice(0, 7)}</span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn btn-outline theme-secondary btn-xs"
+              disabled={isVerifyingVcsDir || isSubmitting}
+              onClick={() => void handleVerifyCredentialsDir()}
+              data-testid="btn-verify-vcs-dir"
+            >
+              {isVerifyingVcsDir ? "Verifying..." : "🔄 Verify Directory & Diff"}
+            </button>
+          </div>
+          {vcsAuditState.changedFiles.length > 0 && (
+            <div className="vcs-changed-files">
+              <span>Changed files:</span>
+              {vcsAuditState.changedFiles.map((file) => (
+                <code key={file}>{file}</code>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              className="btn btn-solid theme-primary btn-sm"
+              disabled={!canMutate || isSubmitting || isOAuthRedirecting}
+              onClick={() => void handleLaunchOAuthRedirect()}
+              data-testid="btn-oauth-redirect"
+            >
+              {renderProtocolSymbol("oauth", 14)}
+              <span>
+                {isOAuthRedirecting ? "Opening Browser Sign-In..." : `Launch Browser Sign-In (${cliLabel})`}
+              </span>
+            </button>
+            {oauthRedirectUrl && isWaitingOAuthCallback && (
+              <button
+                type="button"
+                className="btn btn-outline theme-secondary btn-sm"
+                onClick={() => void handleLaunchOAuthRedirect()}
+                data-testid="link-oauth-redirect-url"
+              >
+                Re-open OAuth Popup
+              </button>
+            )}
+          </div>
+          <span className="small text-secondary">
+            {credentialSecret ? "OAuth credential ready" : "Redirects via OAuth portal & captures callback"}
+          </span>
+        </div>
+
+        {oauthRedirectNotice && (
+          <div className={`alert-banner ${oauthRedirectNotice.tone} py-2 px-3`} data-testid="oauth-redirect-status">
+            <span className="alert-icon">
+              {oauthRedirectNotice.tone === "success" ? <SymbolCheck size={14} /> : <SymbolAlert size={14} />}
+            </span>
+            <span className="alert-text">{oauthRedirectNotice.message}</span>
+          </div>
+        )}
+
+        <div className="onb-authcode-box" data-testid="onb-authcode-box">
+          <div className="authcode-header-row">
+            <div>
+              <div className="authcode-title">🔑 Authenticate Code from Browser</div>
+              <p className="authcode-subtitle">
+                Paste the authorization code generated from the browser consent portal to verify and capture the session token.
+              </p>
+            </div>
+            <StatusBadge
+              label={oauthAuthCodeInput.trim() ? "✔ Code Captured" : "Awaiting Code"}
+              tone={oauthAuthCodeInput.trim() ? "success" : "info"}
+            />
+          </div>
+
+          <div className="authcode-input-row">
+            <input
+              id="onb-auth-code"
+              type="text"
+              className="form-control"
+              disabled={!canMutate || isSubmitting}
+              placeholder="Paste authorization code from browser (e.g. 4/0AUn6...)"
+              value={oauthAuthCodeInput}
+              onChange={(e) => setOauthAuthCodeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && oauthAuthCodeInput.trim() && !isVerifyingAuthCode) {
+                  e.preventDefault();
+                  void handleVerifyAndSaveAuthCode();
+                }
+              }}
+              spellCheck={false}
+              autoComplete="off"
+              data-testid="input-oauth-code"
+            />
+            {oauthAuthCodeInput && (
+              <button
+                type="button"
+                className="btn btn-outline theme-secondary btn-sm flex-shrink-0"
+                onClick={() => setOauthAuthCodeInput("")}
+                title="Clear authorization code"
+              >
+                ✕
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-outline theme-secondary btn-sm flex-shrink-0"
+              disabled={!canMutate || isSubmitting}
+              onClick={() => void handlePasteAuthCodeInput()}
+              data-testid="btn-paste-authcode"
+            >
+              {pastedAuthCode ? "✔ Pasted" : "📋 Paste"}
+            </button>
+          </div>
+
+          <div className="authcode-footer-row">
+            <span className="small text-secondary">
+              {oauthAuthCodeInput.trim()
+                ? `${oauthAuthCodeInput.trim().length} characters ready`
+                : "Tip: Paste the authorization code or press Enter to verify."}
+            </span>
+            <button
+              type="button"
+              className="btn btn-solid theme-primary btn-sm"
+              disabled={!canMutate || isSubmitting || !oauthAuthCodeInput.trim() || isVerifyingAuthCode}
+              onClick={() => void handleVerifyAndSaveAuthCode()}
+              data-testid="btn-verify-authcode"
+            >
+              <SymbolCheck size={14} />
+              <span>{isVerifyingAuthCode ? "Verifying & Saving..." : "Verify & Save Auth Code"}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -1310,10 +1678,51 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
 
                       {selectedProtocol === "oauth" && (
                         <>
-                          <div className="d-flex align-items-center gap-2 fw-semibold small">
-                            {renderProtocolSymbol("oauth", 15)}
-                            <span>OAuth 2.0 Redirect & Client Credentials</span>
+                          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div className="d-flex align-items-center gap-2 fw-semibold small">
+                              {renderProtocolSymbol("oauth", 15)}
+                              <span>OAuth 2.0 Redirect &amp; Account Authentication Mode</span>
+                            </div>
+                            <span className="badge badge-subtle theme-info">CLI &amp; OAuth 2.0 PKCE</span>
                           </div>
+
+                          <div className="onb-auth-mode-grid" role="group" aria-label="Account Authentication Mode">
+                            <button
+                              type="button"
+                              disabled={!canMutate || isSubmitting}
+                              className={`onb-auth-mode-card ${(accountCategory || "individual") === "individual" ? "active" : ""}`}
+                              onClick={() => setAccountCategory("individual")}
+                              data-testid="btn-mode-individual"
+                            >
+                              <div className="mode-card-title">
+                                <span>👤</span>
+                                <span>Individual Account (CLI)</span>
+                              </div>
+                              <div className="mode-card-desc">
+                                Personal account bearer authentication. No cloud project registration required.
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!canMutate || isSubmitting}
+                              className={`onb-auth-mode-card ${accountCategory === "enterprise" ? "active" : ""}`}
+                              onClick={() => setAccountCategory("enterprise")}
+                              data-testid="btn-mode-enterprise"
+                            >
+                              <div className="mode-card-title">
+                                <span>🏢</span>
+                                <span>Enterprise Project (OAuth Web)</span>
+                              </div>
+                              <div className="mode-card-desc">
+                                Corporate consent flow with registered Client ID and Redirect URI.
+                              </div>
+                            </button>
+                          </div>
+
+                          {(isGeminiProvider || !providerName.trim()) &&
+                            (accountCategory || "individual") === "individual" &&
+                            renderGeminiCliToolSelector()}
+
                           <div className="row g-3">
                             <div className="col-12 md:col-6">
                               <label className="form-label" htmlFor="onb-oauth-client-id">
@@ -1401,64 +1810,22 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                             </div>
                           </div>
 
-                          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2 border-top">
-                            <div className="d-flex align-items-center gap-2 flex-wrap">
-                              <button
-                                type="button"
-                                className="btn btn-solid theme-primary btn-sm"
-                                disabled={!canMutate || isSubmitting || isOAuthRedirecting}
-                                onClick={() => void handleLaunchOAuthRedirect()}
-                                data-testid="btn-oauth-redirect"
-                              >
-                                {renderProtocolSymbol("oauth", 14)}
-                                <span>
-                                  {isOAuthRedirecting
-                                    ? "Opening OAuth Redirect..."
-                                    : "Launch OAuth Browser Redirect"}
-                                </span>
-                              </button>
-                              {oauthRedirectUrl && isWaitingOAuthCallback && (
-                                <button
-                                  type="button"
-                                  className="btn btn-outline theme-secondary btn-sm"
-                                  onClick={() => void handleLaunchOAuthRedirect()}
-                                  data-testid="link-oauth-redirect-url"
-                                >
-                                  Re-open OAuth Popup
-                                </button>
-                              )}
-                            </div>
-                            <span className="small text-secondary">
-                              {credentialSecret
-                                ? "OAuth credential ready"
-                                : "Redirects via OAuth portal & captures callback"}
-                            </span>
-                          </div>
-
-                          {oauthRedirectNotice && (
-                            <div
-                              className={`alert-banner ${oauthRedirectNotice.tone} py-2 px-3`}
-                              data-testid="oauth-redirect-status"
-                            >
-                              <span className="alert-icon">
-                                {oauthRedirectNotice.tone === "success" ? (
-                                  <SymbolCheck size={14} />
-                                ) : (
-                                  <SymbolAlert size={14} />
-                                )}
-                              </span>
-                              <span className="alert-text">{oauthRedirectNotice.message}</span>
-                            </div>
-                          )}
+                          {renderBrowserConsentAndAuthCodeBox()}
                         </>
                       )}
 
                       {selectedProtocol === "cli" && (
                         <>
-                          <div className="d-flex align-items-center gap-2 fw-semibold small">
-                            {renderProtocolSymbol("cli", 15)}
-                            <span>Host CLI Binary Authentication</span>
+                          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div className="d-flex align-items-center gap-2 fw-semibold small">
+                              {renderProtocolSymbol("cli", 15)}
+                              <span>Host CLI Binary Authentication</span>
+                            </div>
+                            <span className="badge badge-subtle theme-info">CLI &amp; OAuth 2.0 PKCE</span>
                           </div>
+
+                          {(isGeminiProvider || !providerName.trim()) && renderGeminiCliToolSelector()}
+
                           <div className="row g-3">
                             <div className="col-12 md:col-6">
                               <label className="form-label" htmlFor="onb-cli-cmd">
@@ -1469,7 +1836,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                                 type="text"
                                 className="form-control"
                                 disabled={!canMutate || isSubmitting}
-                                placeholder="e.g. mistral-cli"
+                                placeholder={isGeminiProvider ? selectedGoogleCli : "e.g. mistral-cli"}
                                 value={cliExecutable}
                                 onChange={(e) => setCliExecutable(e.target.value)}
                               />
@@ -1497,12 +1864,14 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                                 type="password"
                                 className="form-control"
                                 disabled={!canMutate || isSubmitting}
-                                placeholder="Leave blank to use CLI host keyring"
+                                placeholder="Leave blank to use CLI host keyring or capture via Browser Sign-In below"
                                 value={credentialSecret}
                                 onChange={(e) => setCredentialSecret(e.target.value)}
                               />
                             </div>
                           </div>
+
+                          {(isGeminiProvider || !providerName.trim()) && renderBrowserConsentAndAuthCodeBox()}
                         </>
                       )}
 
@@ -1565,22 +1934,31 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                         </div>
                       </div>
 
-                      <label
-                        className="d-inline-flex align-items-center gap-2 mb-0"
-                        style={{ cursor: canMutate ? "pointer" : "not-allowed" }}
-                        htmlFor="acc-active-switch"
-                      >
-                        <span className="switch theme-primary">
-                          <input
-                            id="acc-active-switch"
-                            type="checkbox"
-                            checked={accountIsActive}
+                      <div className="d-inline-flex align-items-center gap-2">
+                        <span className="small fw-semibold">Account Active:</span>
+                        <div className="onb-yesno-group" role="group" aria-label="Account Active">
+                          <button
+                            type="button"
+                            className={`onb-yesno-btn ${accountIsActive ? "active-yes" : ""}`}
                             disabled={!canMutate}
-                            onChange={(e) => setAccountIsActive(e.target.checked)}
-                          />
-                        </span>
-                        <span className="small fw-semibold">Account Active</span>
-                      </label>
+                            aria-pressed={accountIsActive}
+                            onClick={() => setAccountIsActive(true)}
+                            data-testid="btn-account-active-yes"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            className={`onb-yesno-btn ${!accountIsActive ? "active-no" : ""}`}
+                            disabled={!canMutate}
+                            aria-pressed={!accountIsActive}
+                            onClick={() => setAccountIsActive(false)}
+                            data-testid="btn-account-active-no"
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     {accountValidationMsg && (

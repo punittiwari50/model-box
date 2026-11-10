@@ -14,6 +14,7 @@ export interface CliTriggerOptions {
   readonly accountCategory?: "individual" | "enterprise";
   readonly customCallbackUrl?: string;
   readonly clientId?: string;
+  readonly cliTool?: string;
   readonly modelId?: string;
   readonly correlationId?: string;
   readonly traceId?: string;
@@ -97,6 +98,7 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
           PROVIDER: this.provider,
           USER_EMAIL: options?.userEmail || "",
           CLIENT_ID: options?.clientId || "default",
+          GOOGLE_CLI_TOOL: options?.cliTool || "",
           CORRELATION_ID: options?.correlationId || "",
           TRACE_ID: options?.traceId || "",
           SPAN_ID: options?.spanId || "",

@@ -58,12 +58,22 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
     await page.locator(ModelConfigSelectors.ADD_INTEGRATION_BTN).first().click();
     await page.locator(ModelConfigSelectors.ONBOARDING_PAGE).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
 
-    await page.locator(ModelConfigSelectors.ONBOARD_PROVIDER_NAME).fill("E2E Probe Provider");
+    await page.locator(ModelConfigSelectors.ONBOARD_PROVIDER_NAME).fill("Google Gemini E2E");
     await page.locator(ModelConfigSelectors.ONBOARD_CATEGORY).waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
 
     await page.locator(ModelConfigSelectors.ONBOARD_TAB_PROTOCOLS).click();
+    await page.locator(`${ModelConfigSelectors.ONBOARDING_PAGE} ${ModelConfigSelectors.PROTOCOL_TAB_BTN}`).filter({ hasText: /CLI Binary/i }).first().click();
+    await page.locator(ModelConfigSelectors.ONBOARD_CLI_GEMINI_BTN).click();
+    if ((await page.locator(ModelConfigSelectors.ONBOARD_CLI_CMD).inputValue()) !== "gemini") {
+      throw new Error("Expected Gemini CLI selector to populate #onb-cli-cmd with 'gemini'");
+    }
+    await page.locator(ModelConfigSelectors.ONBOARD_CLI_ANTIGRAVITY_BTN).click();
+    await page.locator(ModelConfigSelectors.ONBOARD_AUTHCODE_INPUT).waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    await page.locator(ModelConfigSelectors.ONBOARD_ACCOUNT_ACTIVE_YES).click();
+
     await page.locator(`${ModelConfigSelectors.ONBOARDING_PAGE} ${ModelConfigSelectors.PROTOCOL_TAB_BTN}`).filter({ hasText: /OAuth 2\.0/i }).first().click();
     await page.locator(ModelConfigSelectors.ONBOARD_OAUTH_BTN).waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
+    await page.locator(ModelConfigSelectors.ONBOARD_AUTHCODE_VERIFY_BTN).waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
 
     await page.locator(ModelConfigSelectors.ONBOARD_TAB_CAPABILITIES).click();
     await page.locator(ModelConfigSelectors.ONBOARD_CUSTOM_CAP).fill("Agentic Trace");
@@ -73,7 +83,7 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
 
     await page.locator(EnterpriseViewSelectors.BTN_DISCARD).first().click();
     await page.waitForTimeout(SanityTimeouts.TRANSITION_WAIT_MS);
-    return `Onboarding studio tabs, responsive inputs, and ${chipCount} custom tag(s) verified`;
+    return `Onboarding Gemini CLI (antigravity/gemini), Yes/No active toggle, Auth Code box & ${chipCount} tag verified`;
   }
 
   private async stepOpenDetailProtocolEditor(page: Page): Promise<string> {
