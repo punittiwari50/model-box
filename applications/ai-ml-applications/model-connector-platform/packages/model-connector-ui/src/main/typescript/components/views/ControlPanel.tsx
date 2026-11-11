@@ -244,26 +244,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         )}
       </div>
 
-      {/* Bottom Row: Filter Pills + Search + Group By + Clear All */}
+      {/* Bottom Row: Search + Faceted Filter & Group By Tags */}
       {!isFormView && (
         <div className="control-center-section">
-          {filterOptions.length > 0 && onFilterChange && (
-            <div className="filter-pills-bar family-filter-pills">
-              {filterOptions.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  className={`filter-pill ${activeFilter === opt ? "active" : ""}`}
-                  data-family={opt.toUpperCase()}
-                  data-testid={`filter-${opt.toLowerCase()}`}
-                  onClick={() => onFilterChange(opt)}
-                >
-                  {opt.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div className="control-inputs-row">
             {onSearchChange && (
               <div className="search-input-wrapper">
@@ -291,11 +274,69 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
             )}
 
+            {onClearAll && hasActiveFilters && (
+              <button
+                type="button"
+                className="btn-clear-filters"
+                onClick={onClearAll}
+              >
+                Clear All
+              </button>
+            )}
+          </div>
+
+          <div className="control-facets-row">
+            {filterOptions.length > 0 && onFilterChange && (
+              <div className="facet-group filter-facet-group">
+                <span className="facet-label">
+                  <span className="facet-label-icon" aria-hidden="true">🏷️</span>
+                  <span>Filter:</span>
+                </span>
+                <div className="filter-pills-bar family-filter-pills" role="group" aria-label="Filter by provider">
+                  {filterOptions.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      className={`filter-pill ${activeFilter === opt ? "active" : ""}`}
+                      data-family={opt.toUpperCase()}
+                      data-testid={`filter-${opt.toLowerCase()}`}
+                      onClick={() => onFilterChange(opt)}
+                    >
+                      {opt.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {groupByOptions.length > 0 && onGroupByChange && (
-              <div className="groupby-wrapper">
-                <span className="groupby-label">Group:</span>
+              <div className="facet-group groupby-facet-group">
+                <span className="facet-label">
+                  <span className="facet-label-icon" aria-hidden="true">🗂️</span>
+                  <span>Group By:</span>
+                </span>
+                <div className="groupby-tags-bar" role="group" aria-label="Group by options">
+                  {groupByOptions.map((g) => {
+                    const isActive = (activeGroupBy || groupByOptions[0]?.value) === g.value;
+                    return (
+                      <button
+                        key={g.value}
+                        type="button"
+                        className={`groupby-tag ${isActive ? "active" : ""}`}
+                        onClick={() => onGroupByChange(g.value)}
+                        data-testid={`groupby-tag-${g.value}`}
+                        title={`Group results by ${g.label}`}
+                      >
+                        <span className="tag-icon" aria-hidden="true">{g.value === "none" ? "📄" : "🗂️"}</span>
+                        <span className="tag-label">{g.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
                 <select
-                  className="groupby-select"
+                  className="groupby-select groupby-select-hidden"
+                  aria-hidden="true"
+                  tabIndex={-1}
                   value={activeGroupBy || groupByOptions[0]?.value}
                   onChange={(e) => onGroupByChange(e.target.value)}
                   data-testid="groupby-select"
@@ -307,16 +348,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                   ))}
                 </select>
               </div>
-            )}
-
-            {onClearAll && hasActiveFilters && (
-              <button
-                type="button"
-                className="btn-clear-filters"
-                onClick={onClearAll}
-              >
-                Clear All
-              </button>
             )}
           </div>
         </div>
