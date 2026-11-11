@@ -2079,17 +2079,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           <form className="protocol-config-form" onSubmit={handleSaveConfiguration}>
             <div className="form-row-2">
               <div className="form-group">
-                <label>
-                  Target Model
-                  <span
-                    style={{
-                      marginLeft: "8px",
-                      fontSize: "0.74rem",
-                      fontWeight: 600,
-                      color: isAuthSuccessful ? "#4ade80" : "#f59e0b",
-                    }}
-                  >
-                    {isAuthSuccessful ? "🟢 Authenticated • Models Discovered" : "🔒 Authenticate to Fetch Models"}
+                <label className="form-label-inline-split">
+                  <span>Target Model</span>
+                  <span className={`target-auth-pill ${isAuthSuccessful ? "verified" : "pending"}`}>
+                    {isAuthSuccessful ? "🟢 Discovered" : "🔒 Pending Auth"}
                   </span>
                 </label>
                 <select
@@ -2106,11 +2099,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
               </div>
 
               <div className="form-group">
-                <label>Configuration / Account Label</label>
+                <label className="form-label-inline-split">
+                  <span>Configuration / Account Label</span>
+                </label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Enterprise Production Key / Live OAuth Account"
+                  placeholder="e.g. Enterprise Production Key"
                   value={accountName}
                   onChange={(e) => setAccountName(e.target.value)}
                   required
@@ -2381,57 +2376,23 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         </div>
 
                         {selectedStrategy.id === "google" && accountCategory === "individual" && (
-                          <div
-                            style={{
-                              marginTop: "12px",
-                              padding: "10px 14px",
-                              background: "rgba(15, 23, 42, 0.7)",
-                              borderRadius: "8px",
-                              border: "1px solid rgba(255, 255, 255, 0.08)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: "10px",
-                            }}
-                          >
-                            <div>
-                              <strong style={{ fontSize: "0.8rem", color: "#f8fafc" }}>
-                                Select CLI Execution Tool:
-                              </strong>
-                              <span style={{ fontSize: "0.72rem", color: "#94a3b8", display: "block" }}>
-                                Choose binary used to capture OAuth PKCE session
-                              </span>
+                          <div className="google-cli-selector-panel">
+                            <div className="cli-selector-text">
+                              <strong>Select CLI Execution Tool:</strong>
+                              <span>Choose binary used to capture OAuth PKCE session</span>
                             </div>
-                            <div style={{ display: "flex", gap: "6px" }}>
+                            <div className="cli-selector-buttons">
                               <button
                                 type="button"
+                                className={`cli-tool-choice-btn ${selectedGoogleCli === "antigravity" ? "active" : ""}`}
                                 onClick={() => setSelectedGoogleCli("antigravity")}
-                                style={{
-                                  padding: "5px 12px",
-                                  borderRadius: "6px",
-                                  fontSize: "0.74rem",
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  background: selectedGoogleCli === "antigravity" ? "rgba(16, 185, 129, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                                  color: selectedGoogleCli === "antigravity" ? "#6ee7b7" : "#94a3b8",
-                                  border: selectedGoogleCli === "antigravity" ? "1px solid rgba(16, 185, 129, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
                               >
                                 ⚡ Antigravity CLI (Default)
                               </button>
                               <button
                                 type="button"
+                                className={`cli-tool-choice-btn ${selectedGoogleCli === "gemini" ? "active" : ""}`}
                                 onClick={() => setSelectedGoogleCli("gemini")}
-                                style={{
-                                  padding: "5px 12px",
-                                  borderRadius: "6px",
-                                  fontSize: "0.74rem",
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  background: selectedGoogleCli === "gemini" ? "rgba(59, 130, 246, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                                  color: selectedGoogleCli === "gemini" ? "#93c5fd" : "#94a3b8",
-                                  border: selectedGoogleCli === "gemini" ? "1px solid rgba(59, 130, 246, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
                               >
                                 ✦ Gemini CLI
                               </button>
@@ -3632,18 +3593,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 {filterToCurrentModel && state.modelAccounts.length > 0 && (
                   <button
                     type="button"
+                    className="btn btn-outline theme-primary btn-sm"
+                    style={{ marginTop: "12px" }}
                     onClick={() => setFilterToCurrentModel(false)}
-                    style={{
-                      marginTop: "12px",
-                      padding: "6px 14px",
-                      background: "rgba(99, 102, 241, 0.2)",
-                      border: "1px solid rgba(99, 102, 241, 0.4)",
-                      borderRadius: "6px",
-                      color: "#a5b4fc",
-                      fontSize: "0.76rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
                   >
                     View All {state.modelAccounts.length} Registered Accounts
                   </button>
