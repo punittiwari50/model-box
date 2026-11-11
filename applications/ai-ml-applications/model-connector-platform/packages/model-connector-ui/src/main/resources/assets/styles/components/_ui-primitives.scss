@@ -1095,28 +1095,40 @@
   }
 }
 
-// 15. OAuth & VCS Cards (Preserved)
+// 15. OAuth & VCS Cards (Clean Light Design Tokens)
 .btn-oauth-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 9px 16px;
   border-radius: var(--radius-md);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 600;
-  color: #ffffff !important;
+  cursor: pointer;
   transition: all var(--transition-fast);
 
-  &.btn-cli-auth { background: linear-gradient(135deg, #059669, #10b981); }
-  &.btn-browser-auth { background: linear-gradient(135deg, #1d4ed8, #3b82f6); }
-  &.btn-step2-redirect, &.btn-view-redirect-step {
-    background: var(--theme-bg-muted);
-    color: var(--theme-text-primary) !important;
+  &.btn-cli-auth,
+  &.btn-launch-primary {
+    background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
+    border: 1px solid #7367f0;
+    color: #ffffff;
+  }
+
+  &.btn-browser-auth,
+  &.btn-return-vault {
+    background: var(--theme-primary-soft);
+    border: 1px solid var(--theme-primary-border);
+    color: var(--theme-primary-hover);
+  }
+
+  &.btn-step2-redirect,
+  &.btn-view-redirect-step,
+  &.btn-verify-auth {
+    background: var(--theme-bg-surface);
+    color: var(--theme-text-primary);
     border: 1px solid var(--theme-border-default);
   }
-  &.btn-return-vault { background: #059669; }
-  &.btn-verify-auth { background: #0891b2; }
 }
 
 .vcs-container-audit-card {

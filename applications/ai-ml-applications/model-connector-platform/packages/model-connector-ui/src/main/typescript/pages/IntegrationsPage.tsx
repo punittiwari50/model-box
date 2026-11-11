@@ -1951,7 +1951,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
               <div className="form-view-container" data-testid="form-view">
                 <div className="detail-editor-toolbar">
                   <div className="editor-toolbar-title">
-                    <strong>{formMode === "create" ? "New Connection Configuration" : `Edit Connection: ${accountName || currentModelTitle}`}</strong>
+                    <strong>{formMode === "create" ? "New Connection" : `Edit: ${accountName || currentModelTitle}`}</strong>
                   </div>
                   <div className="inline-btn-group">
                     {formMode === "save" && (
@@ -1961,7 +1961,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         onClick={handleDeleteActiveAccount}
                         data-testid="btn-delete"
                       >
-                        Delete / Revoke
+                        Delete
                       </button>
                     )}
                     <button
@@ -1972,58 +1972,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     >
                       Cancel
                     </button>
-                    <button
-                      type="button"
-                      className="btn-ui-primary btn-sm"
-                      onClick={() => void handleSaveConfiguration()}
-                      disabled={isSaving}
-                      data-testid="btn-save"
-                    >
-                      {isSaving ? "Saving..." : "Save Connection"}
-                    </button>
                   </div>
                 </div>
-                {formMode === "create" && (
-                  <div className="form-create-banner" data-testid="create-banner">
-              <div className="create-banner-info">
-                <span className="banner-icon">✨</span>
-                <div className="banner-text">
-                  <h4>New Model Configuration</h4>
-                  <p>Select target model below to bind credentials and authentication strategies.</p>
-                </div>
-              </div>
-              <div className="create-model-selector-row">
-                <label className="selector-label">
-                  Target Model:
-                  <span
-                    style={{
-                      marginLeft: "8px",
-                      fontSize: "0.74rem",
-                      fontWeight: 600,
-                      color: isAuthSuccessful ? "#4ade80" : "#f59e0b",
-                    }}
-                  >
-                    {isAuthSuccessful ? "🟢 Authenticated • Models Discovered" : "🔒 Authenticate to Fetch Models"}
-                  </span>
-                </label>
-                <select
-                  className="model-select-dropdown"
-                  value={targetModelId}
-                  onChange={(e) => {
-                    setTargetModelId(e.target.value);
-                    state.setSelectedModel(e.target.value);
-                  }}
-                  data-testid="select-target-model"
-                >
-                  {availableConfigModels.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.family})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
 
           <div className="config-studio-grid">
         {/* Left Column: Interactive Protocol Configuration Form */}
@@ -2082,13 +2032,17 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 <label className="form-label-inline-split">
                   <span>Target Model</span>
                   <span className={`target-auth-pill ${isAuthSuccessful ? "verified" : "pending"}`}>
-                    {isAuthSuccessful ? "🟢 Discovered" : "🔒 Pending Auth"}
+                    {isAuthSuccessful ? "Discovered" : "Pending Auth"}
                   </span>
                 </label>
                 <select
                   className="form-select"
                   value={targetModelId}
-                  onChange={(e) => setTargetModelId(e.target.value)}
+                  onChange={(e) => {
+                    setTargetModelId(e.target.value);
+                    state.setSelectedModel(e.target.value);
+                  }}
+                  data-testid="select-target-model"
                 >
                   {availableConfigModels.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -2100,12 +2054,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
               <div className="form-group">
                 <label className="form-label-inline-split">
-                  <span>Configuration / Account Label</span>
+                  <span>Account Label</span>
                 </label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Enterprise Production Key"
+                  placeholder="e.g. Production Gemini CLI"
                   value={accountName}
                   onChange={(e) => setAccountName(e.target.value)}
                   required
@@ -2114,7 +2068,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             </div>
 
             <div className="form-group" style={{ marginTop: "4px" }}>
-              <label>Owner / Associate Email</label>
+              <label>Owner Email</label>
               <input
                 type="email"
                 className="form-input"
@@ -2135,17 +2089,17 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 <div className="protocol-badge-intro api-intro">
                   <span className="badge-icon">🔑</span>
                   <div>
-                    <strong>Direct REST API Key Authentication</strong>
-                    <p>Standard header-based Bearer token or URL key parameters for model execution.</p>
+                    <strong>REST API Authentication</strong>
+                    <p>Header-based bearer token or API key configuration.</p>
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>API Key / Secret Token</label>
+                  <label>API Key</label>
                   <input
                     type="password"
                     className="form-input code-font"
-                    placeholder="Enter runtime token"
+                    placeholder="Enter API key"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     required={selectedProtocol === "api"}
@@ -2153,7 +2107,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 </div>
                 <div className="form-row-2">
                   <div className="form-group">
-                    <label>Base Endpoint URL</label>
+                    <label>Endpoint URL</label>
                     <input
                       type="text"
                       className="form-input"
@@ -2162,7 +2116,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     />
                   </div>
                   <div className="form-group">
-                    <label>API Version Tag</label>
+                    <label>API Version</label>
                     <input
                       type="text"
                       className="form-input"
@@ -2301,7 +2255,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           className="btn-oauth-action btn-browser-auth"
                           onClick={() => setActiveOAuthStep(2)}
                         >
-                          <span>Proceed to Browser Redirect & Consent (Step 2) ➔</span>
+                          <span>Next: Authorization Setup</span>
                         </button>
                       </div>
                     </div>
@@ -2318,11 +2272,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           <span className="callout-icon">{selectedStrategy.icon}</span>
                           <div>
                             <div className="title-with-badge">
-                              <h4>OAuth Authorization Handshake</h4>
+                              <h4>OAuth 2.0 Authorization</h4>
                               <span className="verified-status-chip">✔ {selectedStrategy.verifiedStatus}</span>
                             </div>
                             <p className="handshake-desc">
-                              Authenticate with <strong>{selectedStrategy.name}</strong> to grant inference permissions for <strong>{targetModelId}</strong>.
+                              Authenticate with <strong>{selectedStrategy.name}</strong> for <strong>{targetModelId}</strong>.
                             </p>
                           </div>
                         </div>
@@ -2333,7 +2287,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             rel="noreferrer"
                             className="upstream-docs-link"
                           >
-                            📖 Upstream Docs ↗
+                            📖 Docs ↗
                           </a>
                         )}
                       </div>
@@ -2341,8 +2295,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                       {/* Section 2: Account Category Selector (Individual vs Enterprise) */}
                       <div className="account-mode-container">
                         <div className="mode-header-label">
-                          <span>Account Authentication Mode ({selectedStrategy.name})</span>
-                          <span className="mode-subtag">CLI & OAuth 2.0 PKCE</span>
+                          <span>Authentication Mode ({selectedStrategy.name})</span>
+                          <span className="mode-subtag">OAuth 2.0 PKCE</span>
                         </div>
 
                         <div className="mode-cards-grid">
@@ -2356,7 +2310,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                               <strong>Individual Account (CLI)</strong>
                             </div>
                             <div className="mode-card-desc">
-                              Personal account bearer authentication. No cloud project registration required.
+                              Personal account bearer sign-in without a cloud project ID.
                             </div>
                           </button>
 
@@ -2367,10 +2321,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           >
                             <div className="mode-card-title">
                               <span>🏢</span>
-                              <strong>Enterprise Project (OAuth Web)</strong>
+                              <strong>Enterprise Project (Web)</strong>
                             </div>
                             <div className="mode-card-desc">
-                              Corporate consent flow with registered Client ID and Redirect URI.
+                              Corporate OAuth consent with Client ID and Redirect URI.
                             </div>
                           </button>
                         </div>
@@ -2378,21 +2332,27 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         {selectedStrategy.id === "google" && accountCategory === "individual" && (
                           <div className="google-cli-selector-panel">
                             <div className="cli-selector-text">
-                              <strong>Select CLI Execution Tool:</strong>
-                              <span>Choose binary used to capture OAuth PKCE session</span>
+                              <strong>CLI Binary</strong>
+                              <span>Choose tool used for OAuth PKCE session</span>
                             </div>
                             <div className="cli-selector-buttons">
                               <button
                                 type="button"
                                 className={`cli-tool-choice-btn ${selectedGoogleCli === "antigravity" ? "active" : ""}`}
-                                onClick={() => setSelectedGoogleCli("antigravity")}
+                                onClick={() => {
+                                  setSelectedGoogleCli("antigravity");
+                                  setCliExecutable("antigravity");
+                                }}
                               >
-                                ⚡ Antigravity CLI (Default)
+                                ⚡ Antigravity CLI
                               </button>
                               <button
                                 type="button"
                                 className={`cli-tool-choice-btn ${selectedGoogleCli === "gemini" ? "active" : ""}`}
-                                onClick={() => setSelectedGoogleCli("gemini")}
+                                onClick={() => {
+                                  setSelectedGoogleCli("gemini");
+                                  setCliExecutable("gemini");
+                                }}
                               >
                                 ✦ Gemini CLI
                               </button>
@@ -2402,10 +2362,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                       </div>
 
                       {isClientIdMissingForRedirect && (
-                        <div className="alert-banner error" style={{ marginTop: 12, marginBottom: 12 }}>
+                        <div className="alert-banner error" style={{ marginTop: 8, marginBottom: 4 }}>
                           <span className="alert-icon">ℹ️</span>
                           <span className="alert-text">
-                            Client ID is required to launch OAuth redirect. Add OAuth Client ID in Advanced OAuth 2.0 parameters to enable redirect.
+                            Client ID is required for Enterprise Web OAuth. Add it under OAuth Parameters below, or use Individual Account (CLI).
                           </span>
                         </div>
                       )}
@@ -2413,7 +2373,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                       {/* Section 3: Computed Authorization URL */}
                       <div className="computed-url-box">
                         <div className="url-label-row">
-                          <label>Computed Redirect Authorization URL</label>
+                          <label>Authorization URL</label>
                           <span className="url-info-tag">Endpoint: {oauthAuthUrl || selectedStrategy.authUrl}</span>
                         </div>
                         <div className="url-preview-wrapper">
@@ -2428,23 +2388,23 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                               setTimeout(() => setCopiedUrl(false), 2000);
                             }}
                           >
-                            {copiedUrl ? "✔ Copied!" : "📋 Copy"}
+                            {copiedUrl ? "✔ Copied" : "📋 Copy"}
                           </button>
                         </div>
                       </div>
 
-                      {/* Local Container VCS & Credentials Directory Verification (Enabled by default) */}
+                      {/* Local Container VCS & Credentials Directory Verification */}
                       <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card">
                         <div className="vcs-audit-header">
                           <div className="vcs-badge-group">
                             <span className="vcs-icon">📁</span>
                             <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
                             <span className="vcs-status-tag">
-                              {vcsAudit.isGitRepo ? "Git Tracking Active (In-Container)" : "Snapshot VCS Active"}
+                              {vcsAudit.isGitRepo ? "Git Active" : "Snapshot VCS"}
                             </span>
                             {vcsAudit.currentCommitHash && (
                               <span className="vcs-commit-tag">
-                                commit: {vcsAudit.currentCommitHash.slice(0, 7)}
+                                {vcsAudit.currentCommitHash.slice(0, 7)}
                               </span>
                             )}
                           </div>
@@ -2452,18 +2412,17 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             type="button"
                             className="btn-vcs-reverify"
                             onClick={() => triggerDirectoryVerification("manual-reverify")}
-                            title="Verify directory state and check changed files locally"
+                            title="Verify credentials directory and check changes"
                           >
-                            🔄 Verify Directory & Diff
+                            🔄 Verify Directory
                           </button>
                         </div>
                         {vcsAudit.changedFiles.length > 0 && (
                           <div className="vcs-changed-files-row">
-                            <span className="changed-label">Detected Changed File(s):</span>
+                            <span className="changed-label">Changed Files:</span>
                             {vcsAudit.changedFiles.map((f) => (
                               <code key={f} className="changed-file-pill">{f}</code>
                             ))}
-                            <span className="vcs-sync-note">Synced to database for multi-account interaction</span>
                           </div>
                         )}
                       </div>
@@ -2477,11 +2436,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           onClick={handleExecuteCliLogin}
                           disabled={isCliLoggingIn || isRedirecting}
                         >
-                          <span className="btn-icon">⚡</span>
+                          <span className="btn-icon">🌐</span>
                           <span>
                             {isCliLoggingIn || isRedirecting
-                              ? "Opening Browser & Awaiting OAuth Consent..."
-                              : `Launch Browser Sign-In (${effectiveCliCommand})`}
+                              ? "Awaiting Browser Sign-In..."
+                              : `Browser Sign-In (${effectiveCliCommand})`}
                           </span>
                         </button>
 
@@ -2489,8 +2448,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           <div className="alert-banner error" data-testid="cli-script-error-banner" style={{ marginTop: "0.5rem" }}>
                             <span className="alert-icon">⚠️</span>
                             <div className="alert-text">
-                              <strong>CLI Script Error ({cliScriptError.code || "FAILURE"}):</strong>
-                              <div style={{ fontSize: "0.85rem", marginTop: "0.2rem", fontFamily: "monospace" }}>{cliScriptError.message}</div>
+                              <strong>CLI Error ({cliScriptError.code || "FAILURE"}):</strong>
+                              <div style={{ fontSize: "0.82rem", marginTop: "0.2rem", fontFamily: "monospace" }}>{cliScriptError.message}</div>
                             </div>
                             <button className="alert-close" onClick={() => setCliScriptError(null)}>×</button>
                           </div>
@@ -2500,10 +2459,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           <div className="oauth-waiting-banner" data-testid="oauth-waiting-indicator">
                             <span className="waiting-spinner">⏳</span>
                             <div className="waiting-text">
-                              <strong>Browser Opened for OAuth Sign-In</strong>
-                              <span>Complete account sign-in in the launched browser tab. Loopback listening on port 8085...</span>
+                              <strong>Browser Sign-In Opened</strong>
+                              <span>Complete sign-in in the browser tab. Listening on port 8085...</span>
                               {isUsableOAuthUrl(executableLaunchUrl || computedAuthorizationUrl) && (
-                                <div style={{ marginTop: "8px" }}>
+                                <div style={{ marginTop: "6px" }}>
                                   <button
                                     type="button"
                                     onClick={handleInitiateBrowserRedirect}
@@ -2512,13 +2471,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                       border: "none",
                                       padding: 0,
                                       cursor: "pointer",
-                                      color: "#60a5fa",
+                                      color: "var(--theme-primary-hover)",
                                       textDecoration: "underline",
                                       fontWeight: 600,
-                                      fontSize: "0.88rem",
+                                      fontSize: "0.84rem",
                                     }}
                                   >
-                                    🌐 Did the window not open? Click here to re-open OAuth Sign-In popup ➔
+                                    Re-open Sign-In Window
                                   </button>
                                 </div>
                               )}
@@ -2533,20 +2492,20 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             onClick={() => setActiveOAuthStep(3)}
                           >
                             <span className="btn-icon">🔒</span>
-                            <span>View Active Token Vault (Step 3) ➔</span>
+                            <span>View Token Vault</span>
                           </button>
                         )}
                       </div>
 
-                      {/* Section: Authenticate Code from Browser (Direct Capture & Manual Submission) */}
+                      {/* Section: Authorization Code Capture */}
                       <div className="browser-authcode-capture-card" data-testid="browser-authcode-card">
                         <div className="authcode-card-header">
                           <div className="header-title-row">
                             <span className="card-icon">🔑</span>
                             <div>
-                              <h5>Authenticate Code from Browser</h5>
+                              <h5>Authorization Code</h5>
                               <span className="card-subtext">
-                                Paste the code generated from the browser consent portal (e.g., https://antigravity.google/oauth-callback: &quot;Paste this code into your application to complete authentication&quot;)
+                                Paste the code returned by the browser consent portal to exchange for a token.
                               </span>
                             </div>
                           </div>
@@ -2556,12 +2515,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                 className={`cli-timeout-badge ${cliTimeoutSecondsRemaining === 0 ? "timed-out" : "active"}`}
                               >
                                 {cliTimeoutSecondsRemaining > 0
-                                  ? `⏱ Timeout: ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
-                                  : "❌ Timed Out (300s limit)"}
+                                  ? `⏱ ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
+                                  : "Timed Out (300s)"}
                               </span>
                             )}
                             {redirectAuthCode ? (
-                              <span className="code-captured-tag">✔ Code Captured</span>
+                              <span className="code-captured-tag">✔ Captured</span>
                             ) : (
                               <span className="code-waiting-tag">Awaiting Code</span>
                             )}
@@ -2570,17 +2529,16 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
                         {cliTimeoutSecondsRemaining === 0 && (
                           <div className="authcode-timeout-warning">
-                            ⚠️ CLI authentication timed out (300s limit exceeded). The authorization code cannot be submitted. Please click &apos;Launch Browser Sign-In&apos; to initiate a fresh session.
+                            ⚠️ Session timed out (300s). Click Browser Sign-In to start a new session.
                           </div>
                         )}
 
-                        {/* Dedicated Full-Width Input Container with Inline Clear & Paste */}
                         <div className="authcode-input-container">
                           <span className="authcode-lead-icon" title="OAuth Authorization Code">🔑</span>
                           <input
                             type="text"
                             className="form-input authcode-text-input"
-                            placeholder="Paste authorization code from browser (e.g. 4/0AUn6...)"
+                            placeholder="Paste authorization code (e.g. 4/0AUn6...)"
                             value={redirectAuthCode}
                             onChange={(e) => setRedirectAuthCode(e.target.value)}
                             onKeyDown={(e) => {
@@ -2606,25 +2564,24 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                               type="button"
                               className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
                               onClick={handlePasteAuthCode}
-                              title="Paste authorization code directly from clipboard"
+                              title="Paste from clipboard"
                             >
                               <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
-                              <span>{pastedFeedback ? "Pasted!" : "Paste"}</span>
+                              <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
                             </button>
                           </div>
                         </div>
 
-                        {/* Dedicated Responsive Actions & Feedback Bar */}
                         <div className="authcode-actions-bar">
                           <div className="authcode-meta-info">
                             {redirectAuthCode ? (
                               <span className="code-char-counter">
                                 <span className="counter-dot"></span>
-                                {redirectAuthCode.length} characters ready
+                                {redirectAuthCode.length} chars ready
                               </span>
                             ) : (
                               <span className="code-hint-text">
-                                💡 Tip: Click &apos;Paste&apos; or press Enter after pasting the code.
+                                Click Paste or press Enter after pasting the code.
                               </span>
                             )}
                           </div>
@@ -2634,19 +2591,19 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             disabled={!redirectAuthCode.trim() || cliTimeoutSecondsRemaining === 0 || isVerifyingAuthCode}
                             onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
                           >
-                            <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "⚡"}</span>
-                            <span>{isVerifyingAuthCode ? "Verifying & Saving..." : "Verify & Save Auth Code"}</span>
+                            <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "✔"}</span>
+                            <span>{isVerifyingAuthCode ? "Verifying..." : "Verify & Save Code"}</span>
                           </button>
                         </div>
 
                         {redirectAuthCode && (
                           <div className="authcode-synced-note">
-                            <span>✔ Authenticate code captured from browser. Click &apos;Verify &amp; Save Auth Code&apos; to register bearer token in database.</span>
+                            <span>✔ Code ready. Click Verify &amp; Save Code to store token.</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Section 5: Sleek Terminal CLI Banner */}
+                      {/* Section 5: Terminal CLI Hint */}
                       <div className="cli-terminal-hint">
                         <div className="terminal-prompt-row">
                           <span className="terminal-icon">$</span>
@@ -2661,14 +2618,14 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             setTimeout(() => setCopiedCliCommand(false), 2000);
                           }}
                         >
-                          {copiedCliCommand ? "✔ Copied!" : "📋 Copy Command"}
+                          {copiedCliCommand ? "✔ Copied" : "📋 Copy Command"}
                         </button>
                       </div>
                     </div>
 
                     {/* Collapsible Advanced OAuth Parameters */}
                     <details className="oauth-advanced-details">
-                      <summary>Advanced OAuth 2.0 PKCE Parameters (Client ID, Secret, Endpoints)</summary>
+                      <summary>OAuth Parameters (Client ID, Secret, Endpoints)</summary>
                       <div className="advanced-fields-box">
                         <div className="form-row-2">
                           <div className="form-group">
@@ -2987,15 +2944,46 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 <div className="protocol-badge-intro cli-intro">
                   <span className="badge-icon">💻</span>
                   <div>
-                    <strong>Local & Headless Container CLI Execution</strong>
-                    <p>Execute queries through native command-line binaries on host / container PATH.</p>
+                    <strong>Local CLI Execution</strong>
+                    <p>Execute queries using native binaries configured on the runtime PATH.</p>
                   </div>
                 </div>
 
+                {selectedStrategy.id === "google" && (
+                  <div className="google-cli-selector-panel">
+                    <div className="cli-selector-text">
+                      <strong>CLI Tool</strong>
+                      <span>Select Antigravity or Gemini binary</span>
+                    </div>
+                    <div className="cli-selector-buttons">
+                      <button
+                        type="button"
+                        className={`cli-tool-choice-btn ${selectedGoogleCli === "antigravity" ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedGoogleCli("antigravity");
+                          setCliExecutable("antigravity");
+                        }}
+                      >
+                        ⚡ Antigravity CLI
+                      </button>
+                      <button
+                        type="button"
+                        className={`cli-tool-choice-btn ${selectedGoogleCli === "gemini" ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedGoogleCli("gemini");
+                          setCliExecutable("gemini");
+                        }}
+                      >
+                        ✦ Gemini CLI
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="cli-terminal-status-card">
                   <div className="status-row">
-                    <span className="cli-name">Executable: <code>{cliExecutable}</code></span>
-                    <span className="cli-path-badge">PATH: /opt/model-connector/npm/bin/{cliExecutable}</span>
+                    <span className="cli-name">Binary: <code>{cliExecutable}</code></span>
+                    <span className="cli-path-badge">/opt/model-connector/npm/bin/{cliExecutable}</span>
                     <span className="cli-status-badge">Available</span>
                   </div>
                   <div className="cli-code-preview">
@@ -3005,28 +2993,28 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
                 <div className="form-row-2">
                   <div className="form-group">
-                    <label>CLI Binary Command</label>
+                    <label>CLI Command</label>
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="e.g. gemini, claude, ollama"
+                      placeholder="e.g. antigravity, gemini"
                       value={cliExecutable}
                       onChange={(e) => setCliExecutable(e.target.value)}
                     />
                   </div>
                   <div className="form-group">
-                    <label>Default Arguments</label>
+                    <label>Arguments</label>
                     <input
                       type="text"
                       className="form-input"
-                      placeholder={`e.g. -m ${ModelConstants.DEFAULT_MODEL_ID} --non-interactive -o json`}
+                      placeholder={`e.g. --model ${ModelConstants.DEFAULT_MODEL_ID}`}
                       value={cliArgs}
                       onChange={(e) => setCliArgs(e.target.value)}
                     />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Subprocess Working Directory</label>
+                  <label>Working Directory</label>
                   <input
                     type="text"
                     className="form-input"
@@ -3035,50 +3023,49 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                   />
                 </div>
 
-                {/* CLI Action Toolbar matching OAuth functionality */}
-                <div className="authenticated-session-toolbar" style={{ margin: "16px 0 12px" }}>
+                <div className="authenticated-session-toolbar">
                   <button
                     type="button"
                     className="btn-oauth-action btn-cli-auth"
                     onClick={handleExecuteCliLogin}
                     disabled={isCliLoggingIn}
-                    title="Execute CLI login process to authenticate credentials in container"
+                    title="Run CLI login in container"
                   >
                     <span className="btn-icon">⚡</span>
-                    <span>{isCliLoggingIn ? "Running CLI Auth..." : "Run CLI Auth"}</span>
+                    <span>{isCliLoggingIn ? "Running Auth..." : "Run CLI Auth"}</span>
                   </button>
                   <button
                     type="button"
                     className="btn-oauth-action btn-browser-auth"
                     onClick={handleInitiateBrowserRedirect}
                     disabled={isRedirecting}
-                    title="Launch browser consent / OAuth flow for CLI authentication"
+                    title="Launch browser OAuth consent"
                   >
                     <span className="btn-icon">🌐</span>
-                    <span>{isRedirecting ? "Opening Browser..." : `Launch Browser Sign-In (${selectedStrategy.name})`}</span>
+                    <span>{isRedirecting ? "Opening..." : "Browser Sign-In"}</span>
                   </button>
                   <button
                     type="button"
                     className="btn-oauth-action btn-step2-redirect"
                     onClick={() => {
                       navigator.clipboard.writeText(`${cliExecutable} ${cliArgs}`);
-                      alert("CLI command copied to clipboard!");
+                      setCopiedCliCommand(true);
+                      setTimeout(() => setCopiedCliCommand(false), 2000);
                     }}
-                    title="Copy executable CLI command to clipboard"
+                    title="Copy CLI command"
                   >
-                    <span className="btn-icon">📋</span>
-                    <span>Copy CLI Command</span>
+                    <span className="btn-icon">{copiedCliCommand ? "✔" : "📋"}</span>
+                    <span>{copiedCliCommand ? "Copied" : "Copy Command"}</span>
                   </button>
                 </div>
 
-                {/* Interactive Authorization Code Card (when awaiting callback or code exists) */}
                 {(isWaitingForCallback || isCliLoggingIn || redirectAuthCode) && (
-                  <div className="oauth-step-card step-interactive active-step" style={{ margin: "14px 0" }}>
+                  <div className="oauth-step-card step-interactive active-step">
                     <div className="step-card-header">
                       <div className="step-num-badge">🔐</div>
                       <div>
-                        <h4>Authenticate Code from Browser</h4>
-                        <p>Paste the authorization code generated from the browser consent portal to complete CLI authentication.</p>
+                        <h4>Authorization Code</h4>
+                        <p>Paste the code from browser consent to complete CLI authentication.</p>
                       </div>
                     </div>
 
@@ -3095,10 +3082,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           type="button"
                           className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
                           onClick={handlePasteAuthCode}
-                          title="Paste authorization code directly from clipboard"
+                          title="Paste code from clipboard"
                         >
                           <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
-                          <span>{pastedFeedback ? "Pasted!" : "Paste"}</span>
+                          <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
                         </button>
                       </div>
                     </div>
@@ -3108,11 +3095,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         {redirectAuthCode ? (
                           <span className="code-char-counter">
                             <span className="counter-dot"></span>
-                            {redirectAuthCode.length} characters ready
+                            {redirectAuthCode.length} chars ready
                           </span>
                         ) : (
                           <span className="code-hint-text">
-                            💡 Tip: Click &apos;Paste&apos; or press Enter after pasting the code.
+                            Click Paste or press Enter after pasting the code.
                           </span>
                         )}
                       </div>
@@ -3122,33 +3109,32 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         disabled={!redirectAuthCode.trim() || isVerifyingAuthCode}
                         onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
                       >
-                        <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "⚡"}</span>
-                        <span>{isVerifyingAuthCode ? "Verifying & Saving..." : "Verify & Save Auth Code"}</span>
+                        <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "✔"}</span>
+                        <span>{isVerifyingAuthCode ? "Verifying..." : "Verify & Save Code"}</span>
                       </button>
                     </div>
 
                     {redirectAuthCode && (
                       <div className="authcode-synced-note">
-                        <span>✔ Authenticate code captured from browser. Click &apos;Verify &amp; Save Auth Code&apos; to register bearer token in database.</span>
+                        <span>✔ Code ready. Click Verify &amp; Save Code to store token.</span>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* VCS Credential Tracking Audit */}
                 {vcsAudit.isTracking && (
-                  <div className="vcs-sync-card" style={{ margin: "14px 0" }}>
+                  <div className="vcs-sync-card">
                     <div className="vcs-header-row">
                       <span className="vcs-folder-icon">📁</span>
                       <span className="vcs-path">{vcsAudit.directoryPath}</span>
-                      <span className="vcs-badge-git">Git Tracking Active (In-Container)</span>
+                      <span className="vcs-badge-git">Git Active</span>
+                      {vcsAudit.currentCommitHash && (
+                        <span className="vcs-commit-badge">{vcsAudit.currentCommitHash.substring(0, 7)}</span>
+                      )}
                     </div>
-                    {vcsAudit.currentCommitHash && (
-                      <div className="vcs-commit-badge">commit: {vcsAudit.currentCommitHash.substring(0, 7)}</div>
-                    )}
                     {vcsAudit.changedFiles.length > 0 && (
                       <div className="vcs-detected-files">
-                        <span>Detected Changed File(s):</span>
+                        <span>Changed Files:</span>
                         {vcsAudit.changedFiles.map((file, i) => (
                           <span key={i} className="vcs-file-chip">{file}</span>
                         ))}
@@ -3157,17 +3143,16 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                   </div>
                 )}
 
-                {/* Issued Bearer Access Token View */}
                 {editableAccessToken && (
-                  <div className="token-display-box" style={{ margin: "14px 0" }}>
+                  <div className="token-display-box">
                     <div className="token-header-row">
-                      <label>Issued Bearer Access Token (ya29...)</label>
+                      <label>Access Token</label>
                       <button
                         type="button"
                         className="toggle-token-btn"
                         onClick={() => setShowAccessToken(!showAccessToken)}
                       >
-                        {showAccessToken ? "🙈 Hide" : "👁 Show Token"}
+                        {showAccessToken ? "Hide" : "Show"}
                       </button>
                     </div>
                     <div className="token-value-wrapper">
@@ -3184,10 +3169,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                       <button
                         type="button"
                         className="token-copy-btn"
-                        title="Copy Token to clipboard"
+                        title="Copy token"
                         onClick={() => {
                           navigator.clipboard.writeText(editableAccessToken);
-                          alert("Access token copied to clipboard!");
                         }}
                       >
                         📋
@@ -3195,11 +3179,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                       <button
                         type="button"
                         className="token-save-btn"
-                        title="Save edited token to database"
+                        title="Save edited token"
                         disabled={isSavingToken || !editableAccessToken.trim()}
                         onClick={handleSaveEditedToken}
                       >
-                        {isSavingToken ? "Saving..." : "💾 Save Token"}
+                        {isSavingToken ? "Saving..." : "Save Token"}
                       </button>
                     </div>
                     {tokenSaveSuccess && (
@@ -3259,12 +3243,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
               </div>
             )}
 
-            {/* Reasoning / Response Effort Tier Selector (Low, Medium, High - Default Medium) */}
-            <div className="effort-tier-selector-container" style={{ marginTop: "16px" }}>
+            {/* Reasoning Effort Tier Selector */}
+            <div className="effort-tier-selector-container" style={{ marginTop: "14px" }}>
               <div className="tier-header-row">
-                <label className="tier-label">Model Reasoning Effort / Output Mode:</label>
+                <label className="tier-label">Reasoning Effort</label>
                 <span className="tier-badge-current">
-                  Selected: {modelEffortTier.toUpperCase()} {modelEffortTier === "medium" ? "(Default)" : ""}
+                  {modelEffortTier.toUpperCase()}{modelEffortTier === "medium" ? " (Default)" : ""}
                 </span>
               </div>
               <div className="effort-segmented-control">
@@ -3272,32 +3256,32 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                   type="button"
                   className={`tier-btn tier-low ${modelEffortTier === "low" ? "active" : ""}`}
                   onClick={() => setModelEffortTier("low")}
-                  title="Low Effort: Fast response, concise answers with minimal thinking tokens"
+                  title="Fast response with minimal reasoning tokens"
                 >
-                  ⚡ Low (Fast)
+                  Low
                 </button>
                 <button
                   type="button"
                   className={`tier-btn tier-medium ${modelEffortTier === "medium" ? "active" : ""}`}
                   onClick={() => setModelEffortTier("medium")}
-                  title="Medium Effort (Default): Standard balanced reasoning and direct response"
+                  title="Balanced reasoning and response time"
                 >
-                  ⚖️ Medium (Default)
+                  Medium
                 </button>
                 <button
                   type="button"
                   className={`tier-btn tier-high ${modelEffortTier === "high" ? "active" : ""}`}
                   onClick={() => setModelEffortTier("high")}
-                  title="High Effort: Deep reasoning, comprehensive thinking budget and detailed response"
+                  title="Deep reasoning and comprehensive output"
                 >
-                  🧠 High (Deep Reasoning)
+                  High
                 </button>
               </div>
             </div>
 
-            {/* Structured Verification Prompt & Form Actions */}
+            {/* Verification Prompt & Form Actions */}
             <div className="form-group" style={{ marginTop: "12px" }}>
-              <label>Connection Verification Prompt (Structured Output Test)</label>
+              <label>Verification Prompt</label>
               <input
                 type="text"
                 className="form-input"
@@ -3313,15 +3297,14 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 onClick={handleTestCurrentConfig}
                 disabled={isTesting}
               >
-                {isTesting ? "Testing Handshake..." : "⚡ Test Connection"}
+                {isTesting ? "Testing..." : "⚡ Test Connection"}
               </button>
 
               {editingAccountId && (
                 <button
                   type="button"
                   className="test-handshake-btn"
-                  style={{ background: "rgba(100, 116, 139, 0.2)", borderColor: "rgba(100, 116, 139, 0.4)", color: "#cbd5e1" }}
-                  title="Cancel editing this account and clear form"
+                  title="Reset form and exit edit mode"
                   onClick={() => {
                     setEditingAccountId(null);
                     setAccountName("");
@@ -3329,7 +3312,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     state.setActiveTab("model-config", { view: "form", model: targetModelId });
                   }}
                 >
-                  ↺ Cancel Edit
+                  Reset
                 </button>
               )}
 
@@ -3337,12 +3320,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 type="submit"
                 className="save-config-btn"
                 disabled={isSaving}
+                data-testid="btn-save"
               >
                 {isSaving
-                  ? "Saving Configuration..."
+                  ? "Saving..."
                   : editingAccountId
-                    ? "💾 Update & Activate Configuration"
-                    : "💾 Save & Activate Configuration"}
+                    ? "Update"
+                    : "Save"}
               </button>
             </div>
           </form>
