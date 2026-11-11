@@ -31,17 +31,23 @@ export const StatCard: React.FC<StatCardProps> = ({
       onClick={onClick}
       className={`ui-stat-card telemetry-card tone-${tone} ${active ? "active" : ""} ${onClick ? "interactive" : ""} ${className}`.trim()}
     >
-      <div className="stat-card-top">
-        {icon && <span className="stat-card-icon">{icon}</span>}
-        {onClick && (
-          <span className="stat-card-arrow" aria-hidden="true">
-            ↗
-          </span>
+      <div className="stat-card-inner">
+        {icon && (
+          <div className="stat-card-icon-container">
+            <span className="stat-card-icon">{icon}</span>
+          </div>
         )}
+        <div className="stat-card-body">
+          <div className="stat-card-value">{value}</div>
+          <div className="stat-card-label" title={label}>{label}</div>
+          {subtitle && <div className="stat-card-sub" title={subtitle}>{subtitle}</div>}
+        </div>
       </div>
-      <div className="stat-card-value">{value}</div>
-      <div className="stat-card-label">{label}</div>
-      {subtitle && <div className="stat-card-sub">{subtitle}</div>}
+      {onClick && (
+        <span className="stat-card-arrow" aria-hidden="true">
+          ↗
+        </span>
+      )}
     </Tag>
   );
 };
