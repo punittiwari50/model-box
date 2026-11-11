@@ -255,41 +255,44 @@
         label {
           font-size: 0.8rem;
           font-weight: 600;
-          color: #cbd5e1;
+          color: var(--theme-text-secondary);
           letter-spacing: 0.02em;
           margin-bottom: 2px;
         }
 
         .form-input, .form-select, .form-textarea {
-          background: #0f172a !important;
-          background-color: #0f172a !important;
-          border: 1px solid rgba(255, 255, 255, 0.16) !important;
+          background: var(--theme-bg-input) !important;
+          background-color: var(--theme-bg-input) !important;
+          border: 1px solid var(--theme-border-default) !important;
           border-radius: $radius-md;
           padding: 10px 14px;
-          color: #f8fafc !important;
+          color: var(--theme-text-primary) !important;
           font-size: 0.86rem;
           outline: none;
-          transition: all 0.2s ease;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 
           &::placeholder {
-            color: #64748b;
+            color: var(--theme-text-muted);
           }
 
           &:focus {
-            border-color: #6366f1 !important;
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3) !important;
-            background: #0f172a !important;
+            border-color: var(--theme-border-focus) !important;
+            box-shadow: 0 0 0 3px var(--theme-primary-soft) !important;
+            background: var(--theme-bg-input) !important;
+            background-color: var(--theme-bg-input) !important;
+            color: var(--theme-text-primary) !important;
+            outline: none !important;
           }
 
           &:-webkit-autofill,
           &:-webkit-autofill:hover, 
           &:-webkit-autofill:focus,
           &:-webkit-autofill:active {
-            -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
-            box-shadow: 0 0 0 1000px #0f172a inset !important;
-            -webkit-text-fill-color: #f8fafc !important;
-            color: #f8fafc !important;
-            caret-color: #f8fafc !important;
+            -webkit-box-shadow: 0 0 0 1000px var(--theme-bg-input) inset !important;
+            box-shadow: 0 0 0 1000px var(--theme-bg-input) inset !important;
+            -webkit-text-fill-color: var(--theme-text-primary) !important;
+            color: var(--theme-text-primary) !important;
+            caret-color: var(--theme-text-primary) !important;
             transition: background-color 5000s ease-in-out 0s;
           }
         }

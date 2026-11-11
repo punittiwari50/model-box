@@ -804,6 +804,9 @@
 
   &:focus {
     @include focus-ring;
+    background: var(--theme-bg-input);
+    background-color: var(--theme-bg-input);
+    color: var(--theme-text-primary);
   }
 }
 

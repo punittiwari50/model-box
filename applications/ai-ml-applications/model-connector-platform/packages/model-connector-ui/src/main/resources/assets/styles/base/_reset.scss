@@ -52,6 +52,16 @@
   textarea {
     font-family: inherit;
     color: var(--theme-text-primary);
+    background-color: var(--theme-bg-input);
+
+    &:focus,
+    &:focus-visible {
+      outline: none;
+      background-color: var(--theme-bg-input);
+      color: var(--theme-text-primary);
+      border-color: var(--theme-border-focus);
+      box-shadow: 0 0 0 3px var(--theme-primary-soft);
+    }
   }
 
   a {
@@ -66,10 +76,7 @@
   }
 
   button:focus-visible,
-  a:focus-visible,
-  input:focus-visible,
-  select:focus-visible,
-  textarea:focus-visible {
+  a:focus-visible {
     outline: 2px solid var(--theme-border-focus);
     outline-offset: 2px;
   }

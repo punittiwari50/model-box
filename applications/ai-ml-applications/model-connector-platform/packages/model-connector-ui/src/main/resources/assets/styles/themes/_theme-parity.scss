@@ -159,8 +159,12 @@
           padding: 8px 12px;
 
           &:focus {
+            background: var(--theme-bg-input) !important;
+            background-color: var(--theme-bg-input) !important;
+            color: var(--theme-text-primary) !important;
             border-color: var(--theme-border-focus) !important;
             box-shadow: 0 0 0 3px var(--theme-primary-soft) !important;
+            outline: none !important;
           }
         }
 

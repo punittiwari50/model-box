@@ -71,6 +71,8 @@
   outline: none;
   border-color: var(--theme-border-focus);
   box-shadow: 0 0 0 3px var(--theme-primary-soft);
+  background-color: var(--theme-bg-input);
+  color: var(--theme-text-primary);
 }
 
 @mixin control-input {
@@ -92,6 +94,7 @@
 
   &:focus {
     @include focus-ring;
+    background-color: var(--theme-bg-input);
   }
 
   &::placeholder {

@@ -399,6 +399,9 @@
 
         &:focus {
           outline: none;
+          background: var(--theme-bg-input);
+          background-color: var(--theme-bg-input);
+          color: var(--theme-text-primary);
           border-color: var(--theme-border-focus);
           box-shadow: 0 0 0 3px var(--theme-primary-soft);
         }
