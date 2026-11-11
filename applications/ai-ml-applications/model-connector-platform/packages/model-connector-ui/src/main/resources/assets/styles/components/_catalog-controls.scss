@@ -1023,8 +1023,27 @@
       justify-content: space-between;
       flex-wrap: wrap;
       gap: var(--space-3);
-      padding: var(--space-3) 0;
+      padding: var(--space-3) var(--space-2);
       border-top: 1px solid var(--theme-border-subtle);
+      border-radius: var(--radius-sm);
+      transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+
+      &.account-row-blurred {
+        filter: blur(2.5px) !important;
+        opacity: 0.35 !important;
+        pointer-events: none !important;
+        user-select: none !important;
+      }
+
+      &.account-row-editing {
+        filter: none !important;
+        opacity: 1 !important;
+        border: 1px solid var(--theme-primary, #6366f1) !important;
+        background: rgba(99, 102, 241, 0.05) !important;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25) !important;
+        position: relative;
+        z-index: 2;
+      }
 
       &:first-child {
         border-top: none;

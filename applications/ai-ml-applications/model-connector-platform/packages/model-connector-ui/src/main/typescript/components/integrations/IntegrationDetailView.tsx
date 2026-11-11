@@ -27,6 +27,9 @@ export interface IntegrationDetailViewProps {
   readonly onEditIntegration?: () => void;
   readonly onDeleteIntegration?: () => void;
   readonly protocolStudioSlot?: React.ReactNode;
+  readonly editingAccountId?: string | null;
+  readonly onSaveAccount?: () => void;
+  readonly onToggleAccountStatus?: (account: UiModelAccount) => void;
 }
 
 const PROVIDER_DISPLAY: Record<string, { name: string; category: string; monogram: string }> = {
@@ -128,6 +131,9 @@ export const IntegrationDetailView: React.FC<IntegrationDetailViewProps> = ({
   onEditIntegration,
   onDeleteIntegration,
   protocolStudioSlot,
+  editingAccountId,
+  onSaveAccount,
+  onToggleAccountStatus,
 }) => {
   const fam = (model?.family || customIntegration?.integrationId || targetModelId.split("-")[0] || "gemini").toLowerCase();
   const meta = PROVIDER_DISPLAY[fam];
@@ -414,9 +420,14 @@ export const IntegrationDetailView: React.FC<IntegrationDetailViewProps> = ({
                     .replace(new RegExp(`\\s*\\(?${acc.userEmail}\\)?`, "gi"), "")
                     .replace(/\s*\([^)]*@[^)]*\)/g, "")
                     .trim() || acc.accountName;
+                  const isEditingThis = editingAccountId === acc.accountId;
+                  const isEditingOther = Boolean(editingAccountId && editingAccountId !== acc.accountId);
 
                   return (
-                    <div key={acc.accountId} className="configured-account-row">
+                    <div
+                      key={acc.accountId}
+                      className={`configured-account-row ${isEditingOther ? "account-row-blurred" : isEditingThis ? "account-row-editing" : ""}`}
+                    >
                       <div className="account-row-info">
                         <div className="account-row-name">{cleanAccountName}</div>
                         <div className="account-row-meta">
@@ -429,10 +440,28 @@ export const IntegrationDetailView: React.FC<IntegrationDetailViewProps> = ({
                       </div>
 
                       <div className="account-row-actions">
-                        <StatusBadge
-                          label={acc.isActive ? "Connected" : "Inactive"}
-                          tone={acc.isActive ? "success" : "neutral"}
-                        />
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={acc.isActive}
+                          disabled={!isEditingThis}
+                          className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
+                          onClick={() => {
+                            if (isEditingThis && onToggleAccountStatus) {
+                              onToggleAccountStatus(acc);
+                            }
+                          }}
+                          title={
+                            isEditingThis
+                              ? (acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate.")
+                              : "Click 'Edit' on this account to toggle Active/Inactive status"
+                          }
+                        >
+                          <span className="switch-slider">
+                            <span className="switch-knob" />
+                          </span>
+                          <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
+                        </button>
                         <button
                           type="button"
                           className="btn-ui-secondary btn-sm"
@@ -444,12 +473,18 @@ export const IntegrationDetailView: React.FC<IntegrationDetailViewProps> = ({
                         </button>
                         <button
                           type="button"
-                          className="btn-ui-secondary btn-sm"
-                          onClick={() => onEditAccount(acc)}
+                          className={`btn-ui-secondary btn-sm ${isEditingThis ? "active-save" : ""}`}
+                          onClick={() => {
+                            if (isEditingThis && onSaveAccount) {
+                              onSaveAccount();
+                            } else {
+                              onEditAccount(acc);
+                            }
+                          }}
                           disabled={!canUpdate}
-                          title={canUpdate ? "Edit account settings" : "RBAC: Missing integrations:update permission"}
+                          title={isEditingThis ? "Save modifications to this account" : "Edit account settings"}
                         >
-                          Edit
+                          {isEditingThis ? "💾 Save" : "Edit"}
                         </button>
                         <button
                           type="button"
