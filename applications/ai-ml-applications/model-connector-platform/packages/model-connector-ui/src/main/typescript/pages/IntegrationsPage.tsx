@@ -403,12 +403,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     }
     if (state.routeParams.mode === "create") {
       setFormMode("create");
+      setEditingAccountId(null);
     } else if (state.routeParams.mode === "save") {
       setFormMode("save");
     }
-    if (state.routeParams.account && state.modelAccounts.length > 0) {
+    if (state.routeParams.mode !== "create" && state.routeParams.account && state.modelAccounts.length > 0) {
       const match = state.modelAccounts.find((a) => a.accountId === state.routeParams.account);
-      if (match) {
+      if (match && editingAccountId !== match.accountId) {
         loadAccountIntoEditor(match);
       }
     }
@@ -1550,17 +1551,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       const credVal = getCredentialValueForProtocol();
       const cfg = getProtocolConfigObject();
 
-      const existingMatch = editingAccountId
-        ? state.modelAccounts.find((a) => a.accountId === editingAccountId)
-        : state.modelAccounts.find(
-            (a) =>
-              a.modelId === targetModelId &&
-              ((userEmail.trim().length > 0 && a.userEmail.toLowerCase() === userEmail.trim().toLowerCase()) ||
-                a.accountName.toLowerCase() === accountName.trim().toLowerCase()),
-          );
-
-      if (existingMatch) {
-        await ApiService.updateModelAccount(targetModelId, existingMatch.accountId, {
+      if (editingAccountId) {
+        await ApiService.updateModelAccount(targetModelId, editingAccountId, {
           accountName: accountName.trim(),
           userEmail: userEmail.trim(),
           authType: protocolStrategy.storageAuthType,
@@ -1582,11 +1574,15 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       }
 
       setEditingAccountId(null);
+      setFormMode("save");
       setAccountName("");
       setUserEmail("");
       setApiKey("");
       setCookieString("");
       setRedirectAuthCode("");
+      setOauthSession(null);
+      setTestResult(null);
+      state.setActiveTab("model-config", { view: "form", model: targetModelId, mode: "save" });
       await state.refreshModelAccounts();
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Failed to save configuration");
@@ -1997,7 +1993,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             setFormMode("create");
             setShowProtocolEditor(true);
             setEditingAccountId(null);
-            setIsAuthSuccessful(false);
             setAccountName("");
             setUserEmail("");
             setApiKey("");
@@ -2007,6 +2002,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             setTestResult(null);
             setActionError(null);
             setActionInfo(null);
+            state.setActiveTab("model-config", { view: "form", model: targetModelId, mode: "create" });
           }}
           onEditAccount={loadAccountIntoEditor}
           onTestAccount={(acc) => void handleTestExistingAccount(acc)}
@@ -4099,8 +4095,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     );
                   })()}
                 </div>
-              ))
-            )}
+              );
+            })
+          )}
           </div>
         </div>
         )}
