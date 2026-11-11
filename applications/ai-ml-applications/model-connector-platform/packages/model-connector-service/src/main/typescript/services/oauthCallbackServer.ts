@@ -356,7 +356,9 @@ export class OAuthCallbackServer {
     }
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
     res.setHeader("Referrer-Policy", "no-referrer");
-    res.redirect(`${descriptor.authorizationEndpoint}?${params.toString()}`);
+    const targetUrl = new URL(descriptor.authorizationEndpoint);
+    params.forEach((val, key) => targetUrl.searchParams.set(key, val));
+    res.redirect(targetUrl.toString());
   }
 
   private parseStateMetadata(stateStr: string): { modelId: string; provider: string; returnUrl: string } {

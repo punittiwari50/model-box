@@ -537,6 +537,8 @@
         gap: 12px;
         padding-bottom: 12px;
         border-bottom: 1px solid var(--theme-border-subtle);
+        width: 100%;
+        box-sizing: border-box;
 
         .card-header-title {
           display: flex;
@@ -556,6 +558,13 @@
           align-items: center;
           gap: 8px;
           flex-wrap: wrap;
+          margin-left: auto;
+
+          @media (max-width: 640px) {
+            margin-left: 0;
+            width: 100%;
+            justify-content: space-between;
+          }
         }
 
         .btn-group {
@@ -599,16 +608,14 @@
         gap: var(--space-2);
 
       .credentials-table-header {
-        min-width: 0;
-        width: 100%;
-        box-sizing: border-box;
-        grid-template-columns: minmax(82px, 0.85fr) minmax(100px, 1.25fr) auto auto;
+        display: none !important;
+      }
+
+      .credentials-list-container {
+        display: flex;
+        flex-direction: column;
         gap: 8px;
-        background: var(--theme-bg-table-header);
-        border: 1px solid var(--theme-border-subtle);
-        color: var(--theme-text-secondary);
-        font-size: 0.69rem;
-        padding: 8px 10px;
+        width: 100%;
       }
 
       .credential-list-row,
@@ -634,15 +641,163 @@
       }
 
       .credential-list-row {
-        grid-template-columns: minmax(82px, 0.85fr) minmax(100px, 1.25fr) auto auto;
-        gap: 8px;
-        padding: 9px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 16px;
+        border-radius: var(--radius-md);
 
-        @media (max-width: 960px) {
+        .account-row-info {
           display: flex;
           flex-direction: column;
+          gap: 4px;
+          min-width: 0;
+          flex: 1;
+
+          .account-row-name {
+            .account-name-val {
+              font-size: 0.95rem;
+              font-weight: 700;
+              color: var(--theme-text-primary);
+              letter-spacing: -0.01em;
+            }
+          }
+
+          .account-row-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 0.78rem;
+            color: var(--theme-text-secondary);
+
+            .account-owner-val {
+              color: var(--theme-text-secondary);
+            }
+
+            .meta-sep {
+              color: var(--theme-text-muted);
+              font-weight: 700;
+            }
+
+            .model-name-text {
+              font-weight: 600;
+              color: var(--theme-text-primary);
+            }
+
+            .auth-badge {
+              font-size: 0.7rem;
+              font-weight: 700;
+              padding: 2px 7px;
+              border-radius: 9999px;
+              background: rgba(99, 102, 241, 0.12);
+              color: var(--theme-primary);
+              border: 1px solid rgba(99, 102, 241, 0.25);
+            }
+
+            .masked-cred-code {
+              font-family: monospace;
+              font-size: 0.72rem;
+              background: var(--theme-bg-muted);
+              padding: 2px 6px;
+              border-radius: 4px;
+              color: var(--theme-text-muted);
+            }
+          }
+        }
+
+        .account-row-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+
+          .col-status {
+            display: flex;
+            align-items: center;
+          }
+
+          .col-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            .action-btn {
+              height: 32px;
+              padding: 0 12px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: var(--radius-md);
+              font-size: 0.8rem;
+              font-weight: 600;
+              cursor: pointer;
+              border: 1px solid var(--theme-border-default);
+              background: var(--theme-bg-surface);
+              color: var(--theme-text-primary);
+              transition: all 0.15s ease;
+
+              &:hover:not(:disabled) {
+                background: var(--theme-bg-muted);
+                border-color: var(--theme-text-secondary);
+              }
+
+              &.test-btn {
+                color: var(--theme-primary);
+                border-color: var(--theme-primary-border);
+                background: var(--theme-primary-soft);
+
+                &:hover:not(:disabled) {
+                  background: var(--theme-primary);
+                  color: #fff;
+                }
+              }
+
+              &.select-btn {
+                color: var(--theme-text-primary);
+              }
+
+              &.delete-btn {
+                color: #ef4444;
+                border-color: rgba(239, 68, 68, 0.3);
+                background: rgba(239, 68, 68, 0.05);
+
+                &:hover:not(:disabled) {
+                  background: #ef4444;
+                  color: #fff;
+                }
+              }
+            }
+          }
+        }
+
+        @media (max-width: 768px) {
+          flex-direction: column;
           align-items: stretch;
-          gap: 8px;
+          gap: 10px;
+          padding: 12px;
+
+          .account-row-actions {
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            border-top: 1px solid var(--theme-border-subtle);
+            padding-top: 8px;
+
+            .col-status {
+              width: 100%;
+              justify-content: space-between;
+            }
+
+            .col-actions {
+              width: 100%;
+
+              .action-btn {
+                flex: 1;
+              }
+            }
+          }
         }
 
         .col-model .model-name-text,

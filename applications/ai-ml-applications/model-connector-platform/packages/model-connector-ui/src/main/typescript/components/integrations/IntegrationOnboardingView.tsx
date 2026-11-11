@@ -860,11 +860,18 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
     }
     if (
       selectedProtocol === "oauth" &&
-      !oauthClientId.trim() &&
-      !authUrl.trim() &&
-      !credentialSecret.trim()
+      (accountCategory || "individual") === "enterprise" &&
+      !oauthClientId.trim()
     ) {
-      return "Enter an OAuth Client ID, Authorization Endpoint, or complete OAuth Redirect before adding an OAuth account.";
+      return "OAuth Client ID and Client Secret are mandatory for Enterprise OAuth.";
+    }
+    if (
+      selectedProtocol === "oauth" &&
+      (accountCategory || "individual") === "individual" &&
+      !credentialSecret.trim() &&
+      !oauthAuthCodeInput.trim()
+    ) {
+      return "Complete Browser Sign-In or paste the Authorization Code to add account.";
     }
     if (selectedProtocol === "cli" && !cliExecutable.trim()) {
       return "Enter a CLI Executable / Command before adding a CLI account.";
@@ -1101,13 +1108,17 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
         <div className="onb-vcs-audit-bar" data-testid="onb-vcs-audit-bar">
           <div className="vcs-bar-top">
             <div className="vcs-meta-group">
-              <span>📁</span>
-              <code>{vcsAuditState.directoryPath}</code>
+              <span className="vcs-lead-icon">📁</span>
+              <code className="vcs-dir-code">{vcsAuditState.directoryPath}</code>
+              <span className="vcs-sep-bullet">•</span>
               <span className="badge badge-subtle theme-info">
                 {vcsAuditState.isGitRepo ? "Git Tracking Active (In-Container)" : "Snapshot VCS"}
               </span>
               {vcsAuditState.commitHash && (
-                <span className="badge badge-subtle theme-secondary">commit: {vcsAuditState.commitHash.slice(0, 7)}</span>
+                <>
+                  <span className="vcs-sep-bullet">•</span>
+                  <span className="badge badge-subtle theme-secondary">commit: {vcsAuditState.commitHash.slice(0, 7)}</span>
+                </>
               )}
             </div>
             <button
@@ -1724,92 +1735,96 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                             (accountCategory || "individual") === "individual" &&
                             renderGeminiCliToolSelector()}
 
-                          <div className="row g-3">
-                            <div className="col-12 md:col-6">
-                              <label className="form-label" htmlFor="onb-oauth-client-id">
-                                OAuth Client ID
-                              </label>
-                              <input
-                                id="onb-oauth-client-id"
-                                type="text"
-                                className="form-control"
-                                disabled={!canMutate || isSubmitting}
-                                placeholder="client_id_..."
-                                value={oauthClientId}
-                                onChange={(e) => setOauthClientId(e.target.value)}
-                              />
+                          {(accountCategory || "individual") === "enterprise" && (
+                            <div className="row g-3">
+                              <div className="col-12 md:col-6">
+                                <label className="form-label" htmlFor="onb-oauth-client-id">
+                                  OAuth Client ID <span className="text-danger">*</span>
+                                </label>
+                                <input
+                                  id="onb-oauth-client-id"
+                                  type="text"
+                                  className="form-control"
+                                  disabled={!canMutate || isSubmitting}
+                                  placeholder="client_id_..."
+                                  value={oauthClientId}
+                                  onChange={(e) => setOauthClientId(e.target.value)}
+                                  required
+                                />
+                              </div>
+                              <div className="col-12 md:col-6">
+                                <label className="form-label" htmlFor="onb-oauth-client-secret">
+                                  OAuth Client Secret <span className="text-danger">*</span>
+                                </label>
+                                <input
+                                  id="onb-oauth-client-secret"
+                                  type="password"
+                                  className="form-control"
+                                  disabled={!canMutate || isSubmitting}
+                                  placeholder="Optional client secret"
+                                  value={oauthClientSecret}
+                                  onChange={(e) => setOauthClientSecret(e.target.value)}
+                                  required
+                                />
+                              </div>
+                              <div className="col-12 md:col-6">
+                                <label className="form-label" htmlFor="onb-auth-url">
+                                  Authorization Endpoint URL
+                                </label>
+                                <input
+                                  id="onb-auth-url"
+                                  type="url"
+                                  className="form-control"
+                                  disabled={!canMutate || isSubmitting}
+                                  placeholder="https://auth.provider.com/oauth/authorize"
+                                  value={authUrl}
+                                  onChange={(e) => setAuthUrl(e.target.value)}
+                                />
+                              </div>
+                              <div className="col-12 md:col-6">
+                                <label className="form-label" htmlFor="onb-token-url">
+                                  Token Endpoint URL
+                                </label>
+                                <input
+                                  id="onb-token-url"
+                                  type="url"
+                                  className="form-control"
+                                  disabled={!canMutate || isSubmitting}
+                                  placeholder="https://auth.provider.com/oauth/token"
+                                  value={tokenUrl}
+                                  onChange={(e) => setTokenUrl(e.target.value)}
+                                />
+                              </div>
+                              <div className="col-12 md:col-6">
+                                <label className="form-label" htmlFor="onb-oauth-scopes">
+                                  OAuth Scopes
+                                </label>
+                                <input
+                                  id="onb-oauth-scopes"
+                                  type="text"
+                                  className="form-control"
+                                  disabled={!canMutate || isSubmitting}
+                                  placeholder="e.g. openid profile email"
+                                  value={oauthScopes}
+                                  onChange={(e) => setOauthScopes(e.target.value)}
+                                />
+                              </div>
+                              <div className="col-12 md:col-6">
+                                <label className="form-label" htmlFor="onb-redirect-uri">
+                                  Callback Redirect URI
+                                </label>
+                                <input
+                                  id="onb-redirect-uri"
+                                  type="url"
+                                  className="form-control"
+                                  disabled={!canMutate || isSubmitting}
+                                  placeholder="http://localhost:8085/oauth2callback"
+                                  value={redirectUri}
+                                  onChange={(e) => setRedirectUri(e.target.value)}
+                                />
+                              </div>
                             </div>
-                            <div className="col-12 md:col-6">
-                              <label className="form-label" htmlFor="onb-oauth-client-secret">
-                                OAuth Client Secret
-                              </label>
-                              <input
-                                id="onb-oauth-client-secret"
-                                type="password"
-                                className="form-control"
-                                disabled={!canMutate || isSubmitting}
-                                placeholder="Optional client secret"
-                                value={oauthClientSecret}
-                                onChange={(e) => setOauthClientSecret(e.target.value)}
-                              />
-                            </div>
-                            <div className="col-12 md:col-6">
-                              <label className="form-label" htmlFor="onb-auth-url">
-                                Authorization Endpoint URL
-                              </label>
-                              <input
-                                id="onb-auth-url"
-                                type="url"
-                                className="form-control"
-                                disabled={!canMutate || isSubmitting}
-                                placeholder="https://auth.provider.com/oauth/authorize"
-                                value={authUrl}
-                                onChange={(e) => setAuthUrl(e.target.value)}
-                              />
-                            </div>
-                            <div className="col-12 md:col-6">
-                              <label className="form-label" htmlFor="onb-token-url">
-                                Token Endpoint URL
-                              </label>
-                              <input
-                                id="onb-token-url"
-                                type="url"
-                                className="form-control"
-                                disabled={!canMutate || isSubmitting}
-                                placeholder="https://auth.provider.com/oauth/token"
-                                value={tokenUrl}
-                                onChange={(e) => setTokenUrl(e.target.value)}
-                              />
-                            </div>
-                            <div className="col-12 md:col-6">
-                              <label className="form-label" htmlFor="onb-oauth-scopes">
-                                OAuth Scopes
-                              </label>
-                              <input
-                                id="onb-oauth-scopes"
-                                type="text"
-                                className="form-control"
-                                disabled={!canMutate || isSubmitting}
-                                placeholder="e.g. openid profile email"
-                                value={oauthScopes}
-                                onChange={(e) => setOauthScopes(e.target.value)}
-                              />
-                            </div>
-                            <div className="col-12 md:col-6">
-                              <label className="form-label" htmlFor="onb-redirect-uri">
-                                Callback Redirect URI
-                              </label>
-                              <input
-                                id="onb-redirect-uri"
-                                type="url"
-                                className="form-control"
-                                disabled={!canMutate || isSubmitting}
-                                placeholder="http://localhost:8085/oauth2callback"
-                                value={redirectUri}
-                                onChange={(e) => setRedirectUri(e.target.value)}
-                              />
-                            </div>
-                          </div>
+                          )}
 
                           {renderBrowserConsentAndAuthCodeBox()}
                         </>

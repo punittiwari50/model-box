@@ -1010,9 +1010,29 @@
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 8px;
       font-size: var(--font-xs);
       color: var(--theme-text-primary);
+
+      .vcs-lead-icon {
+        font-size: 1rem;
+        flex-shrink: 0;
+      }
+
+      .vcs-dir-code {
+        font-family: monospace;
+        font-weight: 600;
+        color: var(--theme-text-primary);
+        background: var(--theme-bg-muted);
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--theme-border-subtle);
+      }
+
+      .vcs-sep-bullet {
+        color: var(--theme-text-muted);
+        font-weight: 700;
+      }
     }
 
     .vcs-changed-files {

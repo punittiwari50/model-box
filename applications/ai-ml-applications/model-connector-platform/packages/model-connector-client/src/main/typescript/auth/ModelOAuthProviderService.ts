@@ -445,7 +445,9 @@ export class ModelOAuthProviderService {
       params.set("code_challenge", pkce.codeChallenge);
       params.set("code_challenge_method", "S256");
     }
-    return `${descriptor.authorizationEndpoint}?${params.toString()}`;
+    const targetUrl = new URL(descriptor.authorizationEndpoint);
+    params.forEach((val, key) => targetUrl.searchParams.set(key, val));
+    return targetUrl.toString();
   }
 
   private preparePkceChallenge(state: string): { codeChallenge: string } {

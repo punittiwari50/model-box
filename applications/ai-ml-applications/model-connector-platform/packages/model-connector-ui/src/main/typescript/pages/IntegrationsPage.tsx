@@ -282,9 +282,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   // Requirement 3 & 4: Only show registered models and models available in use like Ollama
   // When not yet authenticated, shows current target with pending state until auth unlocks available models
   const availableConfigModels = useMemo(() => {
-    const hasConfiguredAccount = state.modelAccounts.some((a) => a.modelId === targetModelId);
+    const hasConfiguredAccount = state.modelAccounts.some(
+      (a) => a.modelId.toLowerCase() === targetModelId.toLowerCase(),
+    );
     if (!isAuthSuccessful && !hasConfiguredAccount) {
-      const selectedModelObj = state.models.find((m) => m.id === targetModelId);
+      const selectedModelObj = state.models.find(
+        (m) => m.id.toLowerCase() === targetModelId.toLowerCase(),
+      );
       return selectedModelObj
         ? [{ ...selectedModelObj, name: `${selectedModelObj.name} (Pending Authentication)` }]
         : [{ id: targetModelId, name: `${targetModelId} (Pending Authentication)`, family: "Pending Auth" }];
@@ -348,6 +352,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     } else if (acc.authType === "oauth" || acc.authType === "cli_oauth") {
       const accStrategy = oauthProviderRegistry.findStrategyForModel(acc.modelId);
       setSelectedProtocol("oauth");
+      setAccountCategory(acc.authType === "cli_oauth" ? "individual" : "enterprise");
       setOauthSession({
         providerId: accStrategy.id,
         providerName: accStrategy.name,
@@ -359,6 +364,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       });
     } else if (acc.authType === "cli") {
       setSelectedProtocol("cli");
+      setAccountCategory("individual");
     } else if (acc.authType === "cookie") {
       setSelectedProtocol("cookie");
       setCookieString(acc.credentialValue);
@@ -2094,8 +2100,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 <label className="form-label-inline-split">
                   <span>Target Model</span>
                   {(() => {
-                    const hasActive = state.modelAccounts.some((a) => a.modelId === targetModelId && a.isActive);
-                    const hasConfigured = state.modelAccounts.some((a) => a.modelId === targetModelId);
+                    const normTarget = targetModelId.toLowerCase();
+                    const hasActive = state.modelAccounts.some((a) => a.modelId.toLowerCase() === normTarget && a.isActive);
+                    const hasConfigured = state.modelAccounts.some((a) => a.modelId.toLowerCase() === normTarget);
                     const pillClass = hasActive ? "verified" : hasConfigured ? "configured" : isAuthSuccessful ? "verified" : "pending";
                     const pillText = hasActive ? "Active" : hasConfigured ? "Configured" : isAuthSuccessful ? "Discovered" : "Pending Auth";
                     return (
@@ -3780,79 +3787,90 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 )}
               </div>
             ) : accountsViewMode === "list" ? (
-              /* LIST MODE: Compact Table View (Default) */
-              <>
-                <div className="credentials-table-header">
-                  <span>Model</span>
-                  <span>Account & Owner</span>
-                  <span>Status</span>
-                  <span style={{ textAlign: "right" }}>Actions</span>
-                </div>
+              /* LIST MODE: Clean Professional List View matching Image 7 */
+              <div className="credentials-list-container">
                 {displayedAccounts.map((acc) => (
                   <div key={acc.accountId} className={`credential-list-row ${acc.isActive ? "active" : ""}`}>
-                    <div className="col-model">
-                      <span className="model-name-text" title={acc.modelId}>{acc.modelId}</span>
-                      <span className={`auth-badge ${acc.authType}`}>
-                        {acc.authType === "api" || acc.authType === "api_key"
-                          ? "REST API"
-                          : acc.authType === "cli" || acc.authType === "cli_oauth"
-                          ? "CLI"
-                          : acc.authType === "oauth"
-                          ? "OAuth 2.0"
-                          : "Cookie"}
-                      </span>
-                    </div>
-
-                    <div className="col-label">
-                      <span className="account-name-val" title={cleanAccountDisplayName(acc.accountName, acc.userEmail)}>{cleanAccountDisplayName(acc.accountName, acc.userEmail)}</span>
-                      <span className="account-owner-val" title={acc.userEmail}>{acc.userEmail}</span>
-                      <code className="masked-cred-code" title={acc.maskedCredential}>{acc.maskedCredential}</code>
-                    </div>
-
-                    <div className="col-status">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={acc.isActive}
-                        className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
-                        onClick={() => handleToggleAccountStatus(acc)}
-                        title={acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate."}
-                      >
-                        <span className="switch-slider">
-                          <span className="switch-knob" />
+                    <div className="account-row-info">
+                      <div className="account-row-name">
+                        <span
+                          className="account-name-val"
+                          title={cleanAccountDisplayName(acc.accountName, acc.userEmail)}
+                        >
+                          {cleanAccountDisplayName(acc.accountName, acc.userEmail)}
                         </span>
-                        <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
-                      </button>
+                      </div>
+                      <div className="account-row-meta">
+                        <span className="account-owner-val" title={acc.userEmail}>
+                          {acc.userEmail}
+                        </span>
+                        <span className="meta-sep">•</span>
+                        <span className="model-name-text" title={acc.modelId}>
+                          {acc.modelId}
+                        </span>
+                        <span className="meta-sep">•</span>
+                        <span className={`auth-badge ${acc.authType}`}>
+                          {acc.authType === "api" || acc.authType === "api_key"
+                            ? "REST API"
+                            : acc.authType === "cli" || acc.authType === "cli_oauth"
+                            ? "CLI OAuth"
+                            : acc.authType === "oauth"
+                            ? "OAuth 2.0"
+                            : "Cookie"}
+                        </span>
+                        <span className="meta-sep">•</span>
+                        <code className="masked-cred-code" title={acc.maskedCredential}>
+                          {acc.maskedCredential}
+                        </code>
+                      </div>
                     </div>
 
-                    <div className="col-actions">
-                      <button
-                        type="button"
-                        className="action-btn test-btn"
-                        onClick={() => handleTestExistingAccount(acc)}
-                        disabled={testingAccountId === acc.accountId}
-                        title="Test connection for this account"
-                      >
-                        {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
-                      </button>
+                    <div className="account-row-actions">
+                      <div className="col-status">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={acc.isActive}
+                          className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
+                          onClick={() => handleToggleAccountStatus(acc)}
+                          title={acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate."}
+                        >
+                          <span className="switch-slider">
+                            <span className="switch-knob" />
+                          </span>
+                          <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
+                        </button>
+                      </div>
 
-                      <button
-                        type="button"
-                        className="action-btn select-btn"
-                        onClick={() => loadAccountIntoEditor(acc)}
-                        title="Load this account into the form editor"
-                      >
-                        ✏️ Edit
-                      </button>
+                      <div className="col-actions">
+                        <button
+                          type="button"
+                          className="action-btn test-btn"
+                          onClick={() => handleTestExistingAccount(acc)}
+                          disabled={testingAccountId === acc.accountId}
+                          title="Test connection for this account"
+                        >
+                          {testingAccountId === acc.accountId ? "Testing..." : "Test"}
+                        </button>
 
-                      <button
-                        type="button"
-                        className="action-btn delete-btn"
-                        onClick={() => handleOpenDeleteModal(acc)}
-                        title="Delete this credential"
-                      >
-                        🗑️
-                      </button>
+                        <button
+                          type="button"
+                          className="action-btn select-btn"
+                          onClick={() => loadAccountIntoEditor(acc)}
+                          title="Load this account into the form editor"
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          className="action-btn delete-btn"
+                          onClick={() => handleOpenDeleteModal(acc)}
+                          title="Delete this credential"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
 
                     {accountTestResults[acc.accountId] && (() => {
@@ -3888,7 +3906,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     })()}
                   </div>
                 ))}
-              </>
+              </div>
             ) : (
               /* CARD MODE: Expanded Kanban Cards */
               displayedAccounts.map((acc) => (

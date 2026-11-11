@@ -195,7 +195,9 @@ abstract class BaseModelOAuthProviderStrategy implements IModelOAuthProviderStra
     const cfg = this.configRegistry.getProviderConfig(this.providerId);
     const params = this.buildCommonQueryParams(request, clientId, redirectUri, scope, state);
     this.appendProviderSpecificParams(params, request);
-    return `${cfg.authEndpoint}?${params.toString()}`;
+    const targetUrl = new URL(cfg.authEndpoint);
+    params.forEach((val, key) => targetUrl.searchParams.set(key, val));
+    return targetUrl.toString();
   }
 
   protected buildCommonQueryParams(
