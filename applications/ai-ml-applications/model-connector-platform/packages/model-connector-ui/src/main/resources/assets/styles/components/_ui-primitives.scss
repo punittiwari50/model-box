@@ -219,12 +219,28 @@
   flex-wrap: wrap;
 }
 
-// 4. Reusable KPI Stat Card Grid (Never breaks mid-word!)
+// 4. Reusable KPI Stat Card Grid (Consistent Size & Balanced Information Density)
 .ui-stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-4);
   width: 100%;
+  align-items: stretch;
+
+  // On desktop viewports (>= 1100px), cleanly balance 5-card and 4-card grids into equal-width columns
+  @media (min-width: 1100px) {
+    &:has(> :nth-child(5):last-child) {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    &:has(> :nth-child(4):last-child) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1099px) {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-3);
+  }
 
   @include respond-to("sm") {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -238,15 +254,25 @@
 
 .ui-stat-card {
   @include theme-card;
-  padding: var(--space-4);
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: flex-start;
   text-align: left;
   gap: var(--space-2);
   min-width: 0;
   width: 100%;
-  transition: all var(--transition-base);
+  height: 100%;
+  min-height: 110px;
+  box-sizing: border-box;
+  appearance: none;
+  background: var(--theme-bg-surface);
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--theme-shadow-xs);
+  font-family: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), background-color var(--transition-fast);
 
   &.interactive {
     cursor: pointer;
@@ -255,6 +281,7 @@
       border-color: var(--theme-primary-border);
       background: var(--theme-bg-card-hover);
       box-shadow: var(--theme-shadow-md);
+      transform: translateY(-2px);
     }
   }
 
@@ -268,6 +295,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    min-height: 32px;
     gap: var(--space-2);
 
     .stat-card-icon {
@@ -285,24 +313,36 @@
     .stat-card-arrow {
       font-size: var(--font-xs);
       color: var(--theme-text-muted);
+      opacity: 0.6;
+      transition: transform var(--transition-fast), opacity var(--transition-fast), color var(--transition-fast);
     }
+  }
+
+  &.interactive:hover .stat-card-arrow {
+    transform: translate(2px, -2px);
+    opacity: 1;
+    color: var(--theme-primary);
   }
 
   .stat-card-value {
     font-family: var(--font-family-display);
-    font-size: 1.55rem;
+    font-size: 1.45rem;
     font-weight: 800;
     color: var(--theme-text-primary);
-    line-height: 1.15;
+    line-height: 1.2;
+    margin-top: 2px;
     max-width: 100%;
     @include text-truncate;
   }
 
   .stat-card-label {
-    font-size: var(--font-sm);
-    font-weight: 500;
+    font-size: 0.8125rem;
+    font-weight: 600;
     color: var(--theme-text-secondary);
     line-height: 1.35;
+    min-height: 2.7em;
+    display: flex;
+    align-items: flex-start;
     word-break: normal;
     overflow-wrap: break-word;
   }

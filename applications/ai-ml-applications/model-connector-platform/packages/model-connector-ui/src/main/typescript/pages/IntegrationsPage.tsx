@@ -40,7 +40,7 @@ import {
   ProviderId,
 } from "@/constants/providerConfigConstants";
 import { DeleteRecordModal } from "@/components/common/DeleteRecordModal";
-import { PageHeader, StatCard, StatCardGrid, StatusBadge } from "@/components/common";
+import { PageHeader, StatCard, StatCardGrid } from "@/components/common";
 import {
   IntegrationDetailView,
   type IntegrationDetailTab,
@@ -1788,8 +1788,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: "12px",
               padding: "10px 16px",
               background: "var(--theme-bg-surface)",
               border: "1px solid var(--theme-border-subtle)",
@@ -1801,16 +1799,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             <span style={{ fontSize: "var(--font-sm)", fontWeight: 600, color: "var(--theme-text-primary)" }}>
               🛡️ RBAC Governance · {rbac.roleName}
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              <StatusBadge
-                label={rbac.accessTierLabel}
-                tone={rbac.canDelete ? "success" : rbac.canCreate ? "info" : "warning"}
-              />
-              <span style={{ fontSize: "var(--font-xs)", color: "var(--theme-text-muted)" }}>
-                Read: {rbac.canRead ? "✓" : "✕"} · Create: {rbac.canCreate ? "✓" : "✕"} · Update:{" "}
-                {rbac.canUpdate ? "✓" : "✕"} · Delete: {rbac.canDelete ? "✓" : "✕"}
-              </span>
-            </div>
           </div>
 
           <StatCardGrid>
@@ -1863,6 +1851,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
               value={integrationMetrics.activeConnections}
               icon="🔗"
               tone="info"
+              active={connectionStatusFilter === "connected"}
+              onClick={() =>
+                setConnectionStatusFilter(
+                  connectionStatusFilter === "connected" ? "all" : "connected",
+                )
+              }
             />
           </StatCardGrid>
         </>
