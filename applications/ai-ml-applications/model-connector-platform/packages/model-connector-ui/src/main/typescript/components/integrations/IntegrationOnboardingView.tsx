@@ -448,15 +448,14 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
       setOwnerEmail(resolvedEmail);
     }
     if (!accountLabel.trim()) {
-      const labelTarget = resolvedEmail || providerName.trim() || activeModelSlug;
-      setAccountLabel(`OAuth 2.0 (${labelTarget})`);
+      setAccountLabel(providerName.trim() || "OAuth 2.0");
     }
     setIsWaitingOAuthCallback(false);
     setOauthRedirectNotice({
       tone: "success",
       message: resolvedEmail
-        ? `OAuth redirect verified for ${resolvedEmail}. Click 'Add Account to Pool' to attach it.`
-        : "OAuth redirect verified and credential captured. Click 'Add Account to Pool' to attach it.",
+        ? `OAuth redirect verified for ${resolvedEmail}. Click 'Save Integration' below to save it.`
+        : "OAuth redirect verified and credential captured. Click 'Save Integration' below to save it.",
     });
   };
 
@@ -2020,7 +2019,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                       >
                         {editingAccountId ? <SymbolCheck size={14} /> : <SymbolPlus size={14} />}
                         <span>
-                          {editingAccountId ? "Update Account Entry" : "Add Account to Pool"}
+                          {editingAccountId ? "Update Account" : "Add Account"}
                         </span>
                       </button>
                     </div>
@@ -2089,7 +2088,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                         <p className="fw-semibold mb-1 text-body">No accounts in pool yet</p>
                         <p className="small mb-0">
                           Configure credentials on the left and click{" "}
-                          <strong>Add Account to Pool</strong> to register multiple accounts.
+                          <strong>Add Account</strong> to register multiple accounts.
                         </p>
                       </div>
                     ) : accountsViewMode === "list" ? (

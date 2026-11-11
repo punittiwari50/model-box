@@ -502,8 +502,21 @@ export class OAuthProviderRegistry {
 export function sanitizeOAuthRedirectUrl(rawUrl?: string): string {
   if (!rawUrl) return "";
   let cleaned = rawUrl.trim();
-  const ctrlIdx = cleaned.search(/[\u0000-\u001F\u007F]/);
-  if (ctrlIdx >= 0) cleaned = cleaned.slice(0, ctrlIdx).trim();
+  // Strip ANSI / OSC-8 sequences (e.g. \x1b]8;; or \x1b[...m)
+  cleaned = cleaned.replace(/\x1b\]8;;/g, "").replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "").replace(/\x1b\\/g, " ");
+  // Strip ASCII control characters except printable
+  cleaned = cleaned.replace(/[\u0000-\u001F\u007F]/g, " ").trim();
+  // Find valid URL start
+  const httpsIdx = cleaned.indexOf("https://");
+  const httpIdx = cleaned.indexOf("http://");
+  const startIdx = httpsIdx >= 0 && httpIdx >= 0 ? Math.min(httpsIdx, httpIdx) : httpsIdx >= 0 ? httpsIdx : httpIdx;
+  if (startIdx >= 0) {
+    cleaned = cleaned.slice(startIdx);
+  }
+  const spaceIdx = cleaned.indexOf(" ");
+  if (spaceIdx > 0) {
+    cleaned = cleaned.slice(0, spaceIdx);
+  }
   const secondHttpsIdx = cleaned.indexOf("https://", 8);
   if (secondHttpsIdx > 0) cleaned = cleaned.slice(0, secondHttpsIdx).trim();
   const secondHttpIdx = cleaned.indexOf("http://", 7);

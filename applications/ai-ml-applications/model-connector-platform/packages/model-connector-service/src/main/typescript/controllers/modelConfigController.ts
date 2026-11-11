@@ -303,9 +303,12 @@ export class ModelConfigController {
         userEmail,
       });
       const resolvedEmail = result.userEmail || userEmail || "authenticated-user";
+      const cleanName = accountName
+        ? accountName.replace(new RegExp(`\\s*\\(?${resolvedEmail}\\)?`, "gi"), "").replace(/\s*\([^)]*@[^)]*\)/g, "").trim()
+        : descriptor.providerName;
       const savedAccount = accountRepository.createAccount({
         modelId,
-        accountName: accountName || `${descriptor.providerName} (${resolvedEmail})`,
+        accountName: cleanName || descriptor.providerName,
         userEmail: resolvedEmail,
         authType: "cli_oauth",
         credentialValue: result.accessToken,

@@ -163,6 +163,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const [isSavingToken, setIsSavingToken] = useState<boolean>(false);
   const [tokenSaveSuccess, setTokenSaveSuccess] = useState<string | null>(null);
   const [cliTimeoutSecondsRemaining, setCliTimeoutSecondsRemaining] = useState<number | null>(null);
+  const [timerOriginTab, setTimerOriginTab] = useState<string | null>(null);
+
+  const cleanAccountDisplayName = (name: string, email?: string): string => {
+    if (!name) return name;
+    if (!email) return name.replace(/\s*\([^)]*@[^)]*\)/g, "").trim();
+    return name.replace(new RegExp(`\\s*\\(?${email}\\)?`, "gi"), "").replace(/\s*\([^)]*@[^)]*\)/g, "").trim() || name;
+  };
 
   useEffect(() => {
     if (cliTimeoutSecondsRemaining === null) return;
@@ -766,7 +773,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const effectiveClientId = (oauthClientId || resolvedDefaultClientId).trim();
   const requiresRegisteredClient = Boolean(resolvedOAuthConfig?.requiresClientRegistration);
   const requiresClientRegistration = Boolean(resolvedOAuthConfig?.requiresClientRegistration && !resolvedDefaultClientId);
-  const isClientIdMissingForRedirect = requiresClientRegistration && effectiveClientId.length === 0;
 
   const isUsableOAuthUrl = (url?: string): url is string => {
     if (!url || (!url.startsWith("http://") && !url.startsWith("https://"))) return false;
@@ -891,7 +897,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           setOauthSession(newSession);
           if (incomingEmail) {
             setUserEmail(incomingEmail);
-            setAccountName(`${selectedStrategy.name} (${incomingEmail})`);
+            setAccountName(selectedStrategy.name);
           }
           setIsWaitingForCallback(false);
           setActionSuccess(`Successfully connected and verified OAuth 2.0 session for ${incomingEmail || selectedStrategy.name}!`);
@@ -947,7 +953,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           };
           setOauthSession(newSession);
           setUserEmail(session.email);
-          setAccountName(`${selectedStrategy.name} (${session.email})`);
+          setAccountName(selectedStrategy.name);
           setIsWaitingForCallback(false);
           setTestResult(null);
           setActiveOAuthStep(3);
@@ -994,7 +1000,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       const authCode = params.get("code") || params.get("auth_code");
       if (email) {
         setUserEmail(email);
-        setAccountName(`${selectedStrategy.name} (${email})`);
+        setAccountName(selectedStrategy.name);
       }
       if (authCode) {
         setRedirectAuthCode(authCode);
@@ -1174,6 +1180,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
       setIsWaitingForCallback(true);
       setActiveOAuthStep(2);
+      setTimerOriginTab(selectedProtocol === "cli" ? "cli" : selectedProtocol === "oauth" && accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise");
       setCliTimeoutSecondsRemaining(300);
 
       if (authPopup && !authPopup.closed) {
@@ -1204,6 +1211,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const handleInitiateBrowserRedirect = async () => {
     setIsRedirecting(true);
     setIsWaitingForCallback(true);
+    setTimerOriginTab(selectedProtocol === "cli" ? "cli" : selectedProtocol === "oauth" && accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise");
+    setCliTimeoutSecondsRemaining(300);
     setActionError(null);
     void triggerDirectoryVerification("pre-browser-redirect");
     setActionSuccess(`Redirecting to ${selectedStrategy.name} Authorization Portal in a new window...`);
@@ -1311,7 +1320,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           });
           if (session.email) {
             setUserEmail(session.email);
-            setAccountName(`${strategy.name} (${session.email})`);
+            setAccountName(strategy.name);
           }
           setRedirectAuthCode("");
           setTestResult(null);
@@ -1341,7 +1350,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         });
         if (session.email) {
           setUserEmail(session.email);
-          setAccountName(`${strategy.name} (${session.email})`);
+          setAccountName(strategy.name);
         }
         setTestResult(null);
         setActiveOAuthStep(3);
@@ -1471,7 +1480,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         setEditableAccessToken(tokenValue);
       }
       const currentEmail = userEmail.trim() || "punittiwari58@gmail.com";
-      const currentName = accountName.trim() || `${selectedStrategy.name} (${currentEmail})`;
+      const currentName = accountName.trim() || selectedStrategy.name;
 
       if (activeAcc) {
         await ApiService.updateModelAccount(targetModelId, activeAcc.accountId, {
@@ -2138,32 +2147,53 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 <div className="oauth-step-progress">
                   <button
                     type="button"
-                    className={`step-item-btn ${effectiveOAuthStep === 1 ? "active" : oauthSession ? "completed" : ""}`}
+                    className={`step-item-btn ${effectiveOAuthStep === 1 ? "active" : effectiveOAuthStep > 1 ? "completed" : "pending"}`}
                     onClick={() => setActiveOAuthStep(1)}
                   >
-                    <span className="step-circle">{oauthSession && effectiveOAuthStep !== 1 ? "✔" : "1"}</span>
+                    <span className="step-circle">{effectiveOAuthStep > 1 ? "✔" : "1"}</span>
                     <span className="step-label">Select Identity Provider</span>
+                    {effectiveOAuthStep > 1 ? (
+                      <span className="step-status-chip completed">Done</span>
+                    ) : effectiveOAuthStep === 1 ? (
+                      <span className="step-status-chip active">In Progress</span>
+                    ) : (
+                      <span className="step-status-chip pending">Pending</span>
+                    )}
                   </button>
-                  <div className="step-connector"></div>
+                  <div className={`step-connector ${effectiveOAuthStep >= 2 ? "completed" : "pending"}`}></div>
                   <button
                     type="button"
-                    className={`step-item-btn ${effectiveOAuthStep === 2 ? "active" : oauthSession ? "completed" : ""}`}
+                    className={`step-item-btn ${effectiveOAuthStep === 2 ? "active" : Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "completed" : "pending"}`}
                     onClick={() => setActiveOAuthStep(2)}
                   >
-                    <span className="step-circle">{oauthSession && effectiveOAuthStep !== 2 ? "✔" : "2"}</span>
+                    <span className="step-circle">{Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "✔" : "2"}</span>
                     <span className="step-label">Browser Redirect & Consent</span>
+                    {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? (
+                      <span className="step-status-chip completed">Done</span>
+                    ) : effectiveOAuthStep === 2 ? (
+                      <span className="step-status-chip active">In Progress</span>
+                    ) : (
+                      <span className="step-status-chip pending">Pending</span>
+                    )}
                   </button>
-                  <div className="step-connector"></div>
+                  <div className={`step-connector ${Boolean(oauthSession?.accessToken) ? "completed" : "pending"}`}></div>
                   <button
                     type="button"
-                    className={`step-item-btn ${effectiveOAuthStep === 3 ? (isOAuthVerificationFailed ? "active active-failed" : "active active-success") : "pending"}`}
+                    className={`step-item-btn ${effectiveOAuthStep === 3 ? (isOAuthVerificationFailed ? "active active-failed" : "active active-success") : Boolean(oauthSession?.accessToken) ? "completed" : "pending"}`}
                     onClick={() => setActiveOAuthStep(3)}
                     disabled={!oauthSession}
                   >
-                    <span className="step-circle">{isOAuthVerificationFailed ? "⚠️" : "3"}</span>
+                    <span className="step-circle">{isOAuthVerificationFailed ? "⚠️" : Boolean(oauthSession?.accessToken) && effectiveOAuthStep !== 3 ? "✔" : "3"}</span>
                     <span className="step-label">
                       {isOAuthVerificationFailed ? "Token Verification Failed" : "Authenticated Token Vault"}
                     </span>
+                    {Boolean(oauthSession?.accessToken) ? (
+                      <span className="step-status-chip completed">Active</span>
+                    ) : effectiveOAuthStep === 3 ? (
+                      <span className="step-status-chip active">In Progress</span>
+                    ) : (
+                      <span className="step-status-chip pending">Pending</span>
+                    )}
                   </button>
                 </div>
 
@@ -2274,7 +2304,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           <div>
                             <div className="title-with-badge">
                               <h4>OAuth 2.0 Authorization</h4>
-                              <span className="verified-status-chip">✔ {selectedStrategy.verifiedStatus}</span>
+                              {Boolean(oauthSession?.accessToken) && (
+                                <span className="verified-status-chip">✔ {selectedStrategy.verifiedStatus}</span>
+                              )}
                             </div>
                             <p className="handshake-desc">
                               Authenticate with <strong>{selectedStrategy.name}</strong> for <strong>{targetModelId}</strong>.
@@ -2297,7 +2329,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                       <div className="account-mode-container">
                         <div className="mode-header-label">
                           <span>Authentication Mode ({selectedStrategy.name})</span>
-                          <span className="mode-subtag">OAuth 2.0 PKCE</span>
+                          <span className="mode-subtag">
+                            {accountCategory === "individual" ? "CLI Binary Session" : "Enterprise Web OAuth"}
+                          </span>
                         </div>
 
                         <div className="mode-cards-grid">
@@ -2311,7 +2345,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                               <strong>Individual Account (CLI)</strong>
                             </div>
                             <div className="mode-card-desc">
-                              Personal account bearer sign-in without a cloud project ID.
+                              Personal account bearer sign-in via host CLI (Antigravity or Gemini). No cloud project ID needed.
                             </div>
                           </button>
 
@@ -2322,15 +2356,16 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           >
                             <div className="mode-card-title">
                               <span>🏢</span>
-                              <strong>Enterprise Project (Web)</strong>
+                              <strong>Enterprise Project (Web OAuth)</strong>
                             </div>
                             <div className="mode-card-desc">
-                              Corporate OAuth consent with Client ID and Redirect URI.
+                              Corporate consent flow. OAuth Client ID and Client Secret are mandatory.
                             </div>
                           </button>
                         </div>
 
-                        {selectedStrategy.id === "google" && accountCategory === "individual" && (
+                        {/* If Individual: Show CLI Tool Choice */}
+                        {accountCategory === "individual" && selectedStrategy.id === "google" && (
                           <div className="google-cli-selector-panel">
                             <div className="cli-selector-text">
                               <strong>CLI Binary</strong>
@@ -2360,16 +2395,70 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             </div>
                           </div>
                         )}
-                      </div>
 
-                      {isClientIdMissingForRedirect && (
-                        <div className="alert-banner error" style={{ marginTop: 8, marginBottom: 4 }}>
-                          <span className="alert-icon">ℹ️</span>
-                          <span className="alert-text">
-                            Client ID is required for Enterprise Web OAuth. Add it under OAuth Parameters below, or use Individual Account (CLI).
-                          </span>
-                        </div>
-                      )}
+                        {/* If Enterprise: Mandatory Client ID & Client Secret form */}
+                        {accountCategory === "enterprise" && (
+                          <div className="enterprise-oauth-credentials-card" data-testid="enterprise-oauth-card">
+                            <div className="card-intro-note">
+                              <span>🏢</span>
+                              <span><strong>Enterprise OAuth 2.0 Credentials:</strong> Client ID and Client Secret are mandatory for corporate federation. Authorization code input is not required.</span>
+                            </div>
+
+                            <div className="form-row-2">
+                              <div className="form-group">
+                                <label>OAuth Client ID <span className="required-star" style={{ color: "#ef4444" }}>*</span></label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com"
+                                  value={oauthClientId}
+                                  onChange={(e) => setOauthClientId(e.target.value)}
+                                  required
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label>OAuth Client Secret <span className="required-star" style={{ color: "#ef4444" }}>*</span></label>
+                                <input
+                                  type="password"
+                                  className="form-input"
+                                  placeholder="Enter corporate client secret"
+                                  value={oauthClientSecret}
+                                  onChange={(e) => setOauthClientSecret(e.target.value)}
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div className="form-row-2">
+                              <div className="form-group">
+                                <label>Authorization Endpoint</label>
+                                <input
+                                  type="url"
+                                  className="form-input"
+                                  value={oauthAuthUrl || selectedStrategy.authUrl}
+                                  onChange={(e) => setOauthAuthUrl(e.target.value)}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label>Callback Redirect URI</label>
+                                <input
+                                  type="url"
+                                  className="form-input"
+                                  value={computedAuthRedirectUri}
+                                  readOnly
+                                />
+                              </div>
+                            </div>
+
+                            {(!oauthClientId.trim() || !oauthClientSecret.trim()) && (
+                              <div className="alert-banner warning" style={{ margin: 0 }}>
+                                <span className="alert-icon">⚠️</span>
+                                <span className="alert-text">Client ID and Client Secret are mandatory to enable Enterprise OAuth consent.</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                       {/* Section 3: Computed Authorization URL */}
                       <div className="computed-url-box">
@@ -2394,56 +2483,75 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         </div>
                       </div>
 
-                      {/* Local Container VCS & Credentials Directory Verification */}
-                      <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card">
-                        <div className="vcs-audit-header">
-                          <div className="vcs-badge-group">
-                            <span className="vcs-icon">📁</span>
-                            <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
-                            <span className="vcs-status-tag">
-                              {vcsAudit.isGitRepo ? "Git Active" : "Snapshot VCS"}
-                            </span>
-                            {vcsAudit.currentCommitHash && (
-                              <span className="vcs-commit-tag">
-                                {vcsAudit.currentCommitHash.slice(0, 7)}
+                      {/* Local Container VCS & Credentials Directory Verification (Individual CLI only) */}
+                      {accountCategory === "individual" && (
+                        <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card">
+                          <div className="vcs-audit-header">
+                            <div className="vcs-badge-group">
+                              <span className="vcs-icon">📁</span>
+                              <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
+                              <span className="vcs-status-tag" style={{ marginLeft: "8px" }}>
+                                {vcsAudit.isGitRepo ? "Git Active" : "Snapshot VCS"}
                               </span>
-                            )}
+                              {vcsAudit.currentCommitHash && (
+                                <span className="vcs-commit-tag">
+                                  {vcsAudit.currentCommitHash.slice(0, 7)}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="btn-vcs-reverify"
+                              onClick={() => triggerDirectoryVerification("manual-reverify")}
+                              title="Verify credentials directory and check changes"
+                            >
+                              🔄 Verify Directory
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            className="btn-vcs-reverify"
-                            onClick={() => triggerDirectoryVerification("manual-reverify")}
-                            title="Verify credentials directory and check changes"
-                          >
-                            🔄 Verify Directory
-                          </button>
+                          {vcsAudit.changedFiles.length > 0 && (
+                            <div className="vcs-changed-files-row">
+                              <span className="changed-label">Changed Files:</span>
+                              {vcsAudit.changedFiles.map((f) => (
+                                <code key={f} className="changed-file-pill">{f}</code>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        {vcsAudit.changedFiles.length > 0 && (
-                          <div className="vcs-changed-files-row">
-                            <span className="changed-label">Changed Files:</span>
-                            {vcsAudit.changedFiles.map((f) => (
-                              <code key={f} className="changed-file-pill">{f}</code>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      )}
 
                       {/* Section 4: Action Buttons Toolbar */}
                       <div className="oauth-action-toolbar">
-                        <button
-                          type="button"
-                          className="btn-oauth-action btn-cli-auth btn-launch-primary"
-                          data-testid="btn-oauth-launch-browser"
-                          onClick={handleExecuteCliLogin}
-                          disabled={isCliLoggingIn || isRedirecting}
-                        >
-                          <span className="btn-icon">🌐</span>
-                          <span>
-                            {isCliLoggingIn || isRedirecting
-                              ? "Awaiting Browser Sign-In..."
-                              : `Browser Sign-In (${effectiveCliCommand})`}
-                          </span>
-                        </button>
+                        {accountCategory === "individual" ? (
+                          <button
+                            type="button"
+                            className="btn-oauth-action btn-cli-auth btn-launch-primary"
+                            data-testid="btn-oauth-launch-browser"
+                            onClick={handleExecuteCliLogin}
+                            disabled={isCliLoggingIn || isRedirecting}
+                          >
+                            <span className="btn-icon">🌐</span>
+                            <span>
+                              {isCliLoggingIn || isRedirecting
+                                ? "Awaiting Browser Sign-In..."
+                                : `Browser Sign-In (${effectiveCliCommand})`}
+                            </span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-oauth-action btn-cli-auth btn-launch-primary"
+                            data-testid="btn-oauth-launch-browser"
+                            onClick={handleInitiateBrowserRedirect}
+                            disabled={!oauthClientId.trim() || !oauthClientSecret.trim() || isRedirecting}
+                          >
+                            <span className="btn-icon">🚀</span>
+                            <span>
+                              {isRedirecting
+                                ? "Redirecting to Corporate OAuth..."
+                                : "Launch Enterprise OAuth Consent"}
+                            </span>
+                          </button>
+                        )}
 
                         {cliScriptError && (
                           <div className="alert-banner error" data-testid="cli-script-error-banner" style={{ marginTop: "0.5rem" }}>
@@ -2466,7 +2574,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                 <div style={{ marginTop: "6px" }}>
                                   <button
                                     type="button"
-                                    onClick={handleInitiateBrowserRedirect}
+                                    onClick={accountCategory === "individual" ? handleExecuteCliLogin : handleInitiateBrowserRedirect}
                                     style={{
                                       background: "none",
                                       border: "none",
@@ -2498,130 +2606,134 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         )}
                       </div>
 
-                      {/* Section: Authorization Code Capture */}
-                      <div className="browser-authcode-capture-card" data-testid="browser-authcode-card">
-                        <div className="authcode-card-header">
-                          <div className="header-title-row">
-                            <span className="card-icon">🔑</span>
-                            <div>
-                              <h5>Authorization Code</h5>
-                              <span className="card-subtext">
-                                Paste the code returned by the browser consent portal to exchange for a token.
-                              </span>
+                      {/* Section 5: Authorization Code Capture (ONLY Active when CLI mode is selected) */}
+                      {accountCategory === "individual" && (
+                        <div className="browser-authcode-capture-card" data-testid="browser-authcode-card">
+                          <div className="authcode-card-header">
+                            <div className="header-title-row">
+                              <span className="card-icon">🔑</span>
+                              <div>
+                                <h5>Authorization Code</h5>
+                                <span className="card-subtext">
+                                  Paste the code returned by the browser consent portal to exchange for a token.
+                                </span>
+                              </div>
+                            </div>
+                            <div className="authcode-header-badges">
+                              {timerOriginTab === (accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise") && cliTimeoutSecondsRemaining !== null && (
+                                <span
+                                  className={`cli-timeout-badge ${cliTimeoutSecondsRemaining === 0 ? "timed-out" : "active"}`}
+                                >
+                                  {cliTimeoutSecondsRemaining > 0
+                                    ? `⏱ ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
+                                    : "Timed Out (300s)"}
+                                </span>
+                              )}
+                              {redirectAuthCode ? (
+                                <span className="code-captured-tag">✔ Captured</span>
+                              ) : (
+                                <span className="code-waiting-tag">Awaiting Code</span>
+                              )}
                             </div>
                           </div>
-                          <div className="authcode-header-badges">
-                            {cliTimeoutSecondsRemaining !== null && (
-                              <span
-                                className={`cli-timeout-badge ${cliTimeoutSecondsRemaining === 0 ? "timed-out" : "active"}`}
-                              >
-                                {cliTimeoutSecondsRemaining > 0
-                                  ? `⏱ ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
-                                  : "Timed Out (300s)"}
-                              </span>
-                            )}
-                            {redirectAuthCode ? (
-                              <span className="code-captured-tag">✔ Captured</span>
-                            ) : (
-                              <span className="code-waiting-tag">Awaiting Code</span>
-                            )}
-                          </div>
-                        </div>
 
-                        {cliTimeoutSecondsRemaining === 0 && (
-                          <div className="authcode-timeout-warning">
-                            ⚠️ Session timed out (300s). Click Browser Sign-In to start a new session.
-                          </div>
-                        )}
+                          {timerOriginTab === (accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise") && cliTimeoutSecondsRemaining === 0 && (
+                            <div className="authcode-timeout-warning">
+                              ⚠️ Session timed out (300s). Click Browser Sign-In to start a new session.
+                            </div>
+                          )}
 
-                        <div className="authcode-input-container">
-                          <span className="authcode-lead-icon" title="OAuth Authorization Code">🔑</span>
-                          <input
-                            type="text"
-                            className="form-input authcode-text-input"
-                            placeholder="Paste authorization code (e.g. 4/0AUn6...)"
-                            value={redirectAuthCode}
-                            onChange={(e) => setRedirectAuthCode(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && redirectAuthCode.trim() && cliTimeoutSecondsRemaining !== 0 && !isVerifyingAuthCode) {
-                                handleCompleteOAuthExchange(redirectAuthCode);
-                              }
-                            }}
-                            spellCheck={false}
-                            autoComplete="off"
-                          />
-                          <div className="authcode-input-actions">
-                            {redirectAuthCode && (
+                          <div className="authcode-input-container">
+                            <span className="authcode-lead-icon" title="OAuth Authorization Code">🔑</span>
+                            <input
+                              type="text"
+                              className="form-input authcode-text-input"
+                              placeholder="Paste authorization code (e.g. 4/0AUn6...)"
+                              value={redirectAuthCode}
+                              onChange={(e) => setRedirectAuthCode(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && redirectAuthCode.trim() && cliTimeoutSecondsRemaining !== 0 && !isVerifyingAuthCode) {
+                                  handleCompleteOAuthExchange(redirectAuthCode);
+                                }
+                              }}
+                              spellCheck={false}
+                              autoComplete="off"
+                            />
+                            <div className="authcode-input-actions">
+                              {redirectAuthCode && (
+                                <button
+                                  type="button"
+                                  className="btn-clear-code"
+                                  onClick={() => setRedirectAuthCode("")}
+                                  title="Clear code"
+                                >
+                                  ✕
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                className="btn-clear-code"
-                                onClick={() => setRedirectAuthCode("")}
-                                title="Clear code"
+                                className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
+                                onClick={handlePasteAuthCode}
+                                title="Paste from clipboard"
                               >
-                                ✕
+                                <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
+                                <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
                               </button>
-                            )}
+                            </div>
+                          </div>
+
+                          <div className="authcode-actions-bar">
+                            <div className="authcode-meta-info">
+                              {redirectAuthCode ? (
+                                <span className="code-char-counter">
+                                  <span className="counter-dot"></span>
+                                  {redirectAuthCode.length} chars ready
+                                </span>
+                              ) : (
+                                <span className="code-hint-text">
+                                  Click Paste or press Enter after pasting the code.
+                                </span>
+                              )}
+                            </div>
                             <button
                               type="button"
-                              className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
-                              onClick={handlePasteAuthCode}
-                              title="Paste from clipboard"
+                              className={`btn-submit-authcode ${redirectAuthCode.trim() ? "ready-to-submit" : ""}`}
+                              disabled={!redirectAuthCode.trim() || cliTimeoutSecondsRemaining === 0 || isVerifyingAuthCode}
+                              onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
                             >
-                              <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
-                              <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
+                              <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "✔"}</span>
+                              <span>{isVerifyingAuthCode ? "Verifying..." : "Verify & Save Code"}</span>
                             </button>
                           </div>
-                        </div>
 
-                        <div className="authcode-actions-bar">
-                          <div className="authcode-meta-info">
-                            {redirectAuthCode ? (
-                              <span className="code-char-counter">
-                                <span className="counter-dot"></span>
-                                {redirectAuthCode.length} chars ready
-                              </span>
-                            ) : (
-                              <span className="code-hint-text">
-                                Click Paste or press Enter after pasting the code.
-                              </span>
-                            )}
+                          {redirectAuthCode && (
+                            <div className="authcode-synced-note">
+                              <span>✔ Code ready. Click Verify &amp; Save Code to store token.</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Section 6: Terminal CLI Hint (Individual CLI only) */}
+                      {accountCategory === "individual" && (
+                        <div className="cli-terminal-hint">
+                          <div className="terminal-prompt-row">
+                            <span className="terminal-icon">$</span>
+                            <code className="hint-command">{effectiveCliCommand}</code>
                           </div>
                           <button
                             type="button"
-                            className={`btn-submit-authcode ${redirectAuthCode.trim() ? "ready-to-submit" : ""}`}
-                            disabled={!redirectAuthCode.trim() || cliTimeoutSecondsRemaining === 0 || isVerifyingAuthCode}
-                            onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
+                            className="terminal-copy-btn"
+                            onClick={() => {
+                              navigator.clipboard.writeText(effectiveCliCommand);
+                              setCopiedCliCommand(true);
+                              setTimeout(() => setCopiedCliCommand(false), 2000);
+                            }}
                           >
-                            <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "✔"}</span>
-                            <span>{isVerifyingAuthCode ? "Verifying..." : "Verify & Save Code"}</span>
+                            {copiedCliCommand ? "✔ Copied" : "📋 Copy Command"}
                           </button>
                         </div>
-
-                        {redirectAuthCode && (
-                          <div className="authcode-synced-note">
-                            <span>✔ Code ready. Click Verify &amp; Save Code to store token.</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Section 5: Terminal CLI Hint */}
-                      <div className="cli-terminal-hint">
-                        <div className="terminal-prompt-row">
-                          <span className="terminal-icon">$</span>
-                          <code className="hint-command">{effectiveCliCommand}</code>
-                        </div>
-                        <button
-                          type="button"
-                          className="terminal-copy-btn"
-                          onClick={() => {
-                            navigator.clipboard.writeText(effectiveCliCommand);
-                            setCopiedCliCommand(true);
-                            setTimeout(() => setCopiedCliCommand(false), 2000);
-                          }}
-                        >
-                          {copiedCliCommand ? "✔ Copied" : "📋 Copy Command"}
-                        </button>
-                      </div>
+                      )}
                     </div>
 
                     {/* Collapsible Advanced OAuth Parameters */}
@@ -2758,8 +2870,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           <div className="vcs-badge-group">
                             <span className="vcs-icon">📁</span>
                             <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
-                            <span className="vcs-status-tag">
-                              {vcsAudit.isGitRepo ? "Git Tracking Active (In-Container)" : "Snapshot VCS Active"}
+                            <span className="vcs-status-tag" style={{ marginLeft: "8px" }}>
+                              {vcsAudit.isGitRepo ? "Git Active" : "Snapshot VCS Active"}
                             </span>
                             {vcsAudit.currentCommitHash && (
                               <span className="vcs-commit-tag">
@@ -3576,7 +3688,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 </p>
                 <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
                   {filterToCurrentModel
-                    ? "Configure authentication on the left and click 'Save & Activate Configuration' to register."
+                    ? "Configure authentication on the left and click 'Save' to register."
                     : "Select a model and configure credentials to get started."}
                 </p>
                 {filterToCurrentModel && state.modelAccounts.length > 0 && (
@@ -3615,7 +3727,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     </div>
 
                     <div className="col-label">
-                      <span className="account-name-val" title={acc.accountName}>{acc.accountName}</span>
+                      <span className="account-name-val" title={cleanAccountDisplayName(acc.accountName, acc.userEmail)}>{cleanAccountDisplayName(acc.accountName, acc.userEmail)}</span>
                       <span className="account-owner-val" title={acc.userEmail}>{acc.userEmail}</span>
                       <code className="masked-cred-code" title={acc.maskedCredential}>{acc.maskedCredential}</code>
                     </div>
@@ -3743,7 +3855,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                   <div className="account-details-grid">
                     <div className="detail-item">
                       <span className="detail-label">Account Label:</span>
-                      <span className="detail-val" title={acc.accountName}>{acc.accountName}</span>
+                      <span className="detail-val" title={cleanAccountDisplayName(acc.accountName, acc.userEmail)}>{cleanAccountDisplayName(acc.accountName, acc.userEmail)}</span>
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Owner:</span>

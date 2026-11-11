@@ -32,7 +32,7 @@ export class GeminiCliJsonCredentialExtractor implements ICredentialExtractorStr
 
       const userEmail = this.resolveEmail(data, filePath);
       const modelId = defaultModelId || "gemini-3.8-flash";
-      const accountName = `Google Gemini (${userEmail})`;
+      const accountName = "Google Cloud / Gemini CLI";
 
       return {
         userEmail,
@@ -99,7 +99,7 @@ export class ClaudeCredentialExtractor implements ICredentialExtractorStrategy {
       const email = (data.email || "developer@anthropic.user") as string;
       return {
         userEmail: email,
-        accountName: `Anthropic Claude (${email})`,
+        accountName: "Anthropic Claude",
         authType: "cli_oauth",
         credentialValue: token,
         configJson: content,
@@ -141,7 +141,7 @@ export class ChatGptCredentialExtractor implements ICredentialExtractorStrategy 
       const email = (data.email || "developer@openai.user") as string;
       return {
         userEmail: email,
-        accountName: `OpenAI ChatGPT (${email})`,
+        accountName: "OpenAI ChatGPT",
         authType: "cli_oauth",
         credentialValue: token,
         configJson: content,
@@ -184,7 +184,7 @@ export class GenericJsonOAuthExtractor implements ICredentialExtractorStrategy {
       const email = (data.email || data.userEmail || "user@modelbox.local") as string;
       return {
         userEmail: email,
-        accountName: `Account (${email})`,
+        accountName: "Generic OAuth",
         authType: "cli_oauth",
         credentialValue: token,
         configJson: content,

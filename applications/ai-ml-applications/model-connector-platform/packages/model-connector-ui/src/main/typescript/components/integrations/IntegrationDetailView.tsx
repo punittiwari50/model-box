@@ -409,54 +409,61 @@ export const IntegrationDetailView: React.FC<IntegrationDetailViewProps> = ({
               />
             ) : (
               <div className="configured-accounts-list">
-                {accounts.map((acc) => (
-                  <div key={acc.accountId} className="configured-account-row">
-                    <div className="account-row-info">
-                      <div className="account-row-name">{acc.accountName}</div>
-                      <div className="account-row-meta">
-                        <span>{acc.userEmail || "Engineering"}</span>
-                        <span>•</span>
-                        <span>{acc.modelId}</span>
-                        <span>•</span>
-                        <span>{formatAuthStrategies([acc.authType])}</span>
+                {accounts.map((acc) => {
+                  const cleanAccountName = acc.accountName
+                    .replace(new RegExp(`\\s*\\(?${acc.userEmail}\\)?`, "gi"), "")
+                    .replace(/\s*\([^)]*@[^)]*\)/g, "")
+                    .trim() || acc.accountName;
+
+                  return (
+                    <div key={acc.accountId} className="configured-account-row">
+                      <div className="account-row-info">
+                        <div className="account-row-name">{cleanAccountName}</div>
+                        <div className="account-row-meta">
+                          <span>{acc.userEmail || "Engineering"}</span>
+                          <span>•</span>
+                          <span>{acc.modelId}</span>
+                          <span>•</span>
+                          <span>{formatAuthStrategies([acc.authType])}</span>
+                        </div>
+                      </div>
+
+                      <div className="account-row-actions">
+                        <StatusBadge
+                          label={acc.isActive ? "Connected" : "Attention Required"}
+                          tone={acc.isActive ? "success" : "warning"}
+                        />
+                        <button
+                          type="button"
+                          className="btn-ui-secondary btn-sm"
+                          onClick={() => onTestAccount(acc)}
+                          disabled={testingAccountId === acc.accountId || !canUpdate}
+                          title={canUpdate ? "Verify account connection" : "RBAC: Missing integrations:update permission"}
+                        >
+                          {testingAccountId === acc.accountId ? "Testing..." : "Test"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ui-secondary btn-sm"
+                          onClick={() => onEditAccount(acc)}
+                          disabled={!canUpdate}
+                          title={canUpdate ? "Edit account settings" : "RBAC: Missing integrations:update permission"}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost-danger btn-sm"
+                          onClick={() => onDisconnectAccount(acc)}
+                          disabled={!canDelete}
+                          title={canDelete ? "Disconnect account" : "RBAC: Missing integrations:delete permission"}
+                        >
+                          Disconnect
+                        </button>
                       </div>
                     </div>
-
-                    <div className="account-row-actions">
-                      <StatusBadge
-                        label={acc.isActive ? "Connected" : "Attention Required"}
-                        tone={acc.isActive ? "success" : "warning"}
-                      />
-                      <button
-                        type="button"
-                        className="btn-ui-secondary btn-sm"
-                        onClick={() => onTestAccount(acc)}
-                        disabled={testingAccountId === acc.accountId || !canUpdate}
-                        title={canUpdate ? "Verify account connection" : "RBAC: Missing integrations:update permission"}
-                      >
-                        {testingAccountId === acc.accountId ? "Testing..." : "Test"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-ui-secondary btn-sm"
-                        onClick={() => onEditAccount(acc)}
-                        disabled={!canUpdate}
-                        title={canUpdate ? "Edit account settings" : "RBAC: Missing integrations:update permission"}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-ghost-danger btn-sm"
-                        onClick={() => onDisconnectAccount(acc)}
-                        disabled={!canDelete}
-                        title={canDelete ? "Disconnect account" : "RBAC: Missing integrations:delete permission"}
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>
