@@ -2518,7 +2518,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                       data-testid="btn-confirm-delete"
                     >
                       <SymbolTrash size={14} />
-                      <span>Confirm Permanent Delete</span>
+                      <span>Confirm Delete</span>
                     </button>
                   )
                 )}
@@ -2533,7 +2533,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                       setActiveTab(activeTab === "capabilities" ? "protocols" : "identity")
                     }
                   >
-                    ← Previous Tab
+                    ← Previous
                   </button>
                 )}
                 {activeTab !== "capabilities" && (
@@ -2544,7 +2544,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                       setActiveTab(activeTab === "identity" ? "protocols" : "capabilities")
                     }
                   >
-                    Next Tab →
+                    Next →
                   </button>
                 )}
                 <button
@@ -2561,10 +2561,10 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                   <SymbolCheck size={15} />
                   <span>
                     {isSubmitting
-                      ? "Saving Integration..."
+                      ? "Saving..."
                       : isEditMode
-                        ? `Save Integration (${stagedAccounts.length})`
-                        : `Onboard Integration (${stagedAccounts.length})`}
+                        ? "Save Changes"
+                        : "Save Integration"}
                   </span>
                 </button>
               </div>
