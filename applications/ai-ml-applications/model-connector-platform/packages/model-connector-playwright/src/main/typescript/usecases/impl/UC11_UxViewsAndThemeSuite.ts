@@ -27,7 +27,7 @@ export class UC11_UxViewsAndThemeSuite extends AbstractUsecaseTest {
     recordStep: (name: string, fn: () => Promise<string>) => Promise<void>,
   ): Promise<void> {
     await recordStep("Verify Integration Hub Card and List views", () => this.verifyCardAndListViews(page));
-    await recordStep("Verify Detail view, Connection Studio tabs & single Save button", () =>
+    await recordStep("Verify Detail view, Connection Studio tabs, single Save button & Accounts Card View", () =>
       this.verifyDetailAndConnectionStudio(page));
     await recordStep("Verify cli-sessions/latest 200 OK and single-scope Google OAuth URL", () =>
       this.verifyApiAndOAuthIntegrity(page));
@@ -61,7 +61,40 @@ export class UC11_UxViewsAndThemeSuite extends AbstractUsecaseTest {
     for (const label of ["REST API", "OAuth 2.0", "CLI Binary", "Cookie Vault"]) {
       await page.locator(ModelConfigSelectors.PROTOCOL_TAB_BTN).filter({ hasText: new RegExp(label, "i") }).first().click();
     }
-    return "Detail View tabs, 4 Protocol tabs, and single Save button verified";
+
+    await this.verifyConfiguredAccountsCardView(page);
+
+    return "Detail View tabs, 4 Protocol tabs, single Save button, and responsive Card/List modes verified";
+  }
+
+  private async verifyConfiguredAccountsCardView(page: Page): Promise<void> {
+    const cardModeBtn = page.locator('[data-testid="accounts-view-card"]').first();
+    if (await cardModeBtn.isVisible()) {
+      const filterAllBtn = page.locator('[data-testid="filter-all-models"]').first();
+      if (await filterAllBtn.isVisible()) {
+        await filterAllBtn.click();
+      }
+      await cardModeBtn.click();
+      const card = page.locator(".credential-item-card").first();
+      if (await card.isVisible({ timeout: 2000 })) {
+        const modelText = await card.locator(".model-name-text").textContent();
+        const hasSwitch = await card.locator(".status-switch").isVisible();
+        const hasDetails = await card.locator(".account-details-grid").isVisible();
+        const hasTestBtn = await card.locator(".action-btn.test-btn").isVisible();
+        const hasEditBtn = await card.locator(".action-btn.select-btn").isVisible();
+        const hasDeleteBtn = await card.locator(".action-btn.delete-btn").isVisible();
+
+        if (!modelText || !hasSwitch || !hasDetails || !hasTestBtn || !hasEditBtn || !hasDeleteBtn) {
+          throw new Error(
+            `Card view incomplete: model=${modelText}, switch=${hasSwitch}, details=${hasDetails}, test=${hasTestBtn}, edit=${hasEditBtn}, delete=${hasDeleteBtn}`,
+          );
+        }
+      }
+      const listModeBtn = page.locator('[data-testid="accounts-view-list"]').first();
+      if (await listModeBtn.isVisible()) {
+        await listModeBtn.click();
+      }
+    }
   }
 
   private async verifyApiAndOAuthIntegrity(page: Page): Promise<string> {

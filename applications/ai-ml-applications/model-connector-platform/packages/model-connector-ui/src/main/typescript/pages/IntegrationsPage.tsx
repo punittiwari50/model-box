@@ -3512,27 +3512,29 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
         {/* Right Column: Existing Configured Accounts Catalog */}
         <div className="config-catalog-card">
-          <div className="card-header" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="card-header">
+            <div className="card-header-title">
               <span className="card-icon">📂</span>
-              <h3 style={{ margin: 0 }}>Configured Accounts</h3>
+              <h3>Configured Accounts</h3>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <div className="card-header-actions">
               {/* Model Scope Filter Pills */}
               <div className="btn-group btn-group-sm" role="group" aria-label="Account scope filter">
                 <button
                   type="button"
+                  data-testid="filter-current-model"
                   onClick={() => setFilterToCurrentModel(true)}
-                  className={`btn btn-sm ${filterToCurrentModel ? "btn-solid theme-primary" : "btn-outline theme-secondary"}`}
+                  className={`btn btn-sm ${filterToCurrentModel ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
                   title={`Filter accounts registered to ${targetModelId}`}
                 >
                   Current Model ({currentModelAccountsCount})
                 </button>
                 <button
                   type="button"
+                  data-testid="filter-all-models"
                   onClick={() => setFilterToCurrentModel(false)}
-                  className={`btn btn-sm ${!filterToCurrentModel ? "btn-solid theme-primary" : "btn-outline theme-secondary"}`}
+                  className={`btn btn-sm ${!filterToCurrentModel ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
                   title="Show all registered accounts across all models"
                 >
                   All ({state.modelAccounts.length})
@@ -3543,16 +3545,18 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
               <div className="btn-group btn-group-sm" role="group" aria-label="Accounts view mode">
                 <button
                   type="button"
+                  data-testid="accounts-view-list"
                   onClick={() => setAccountsViewMode("list")}
-                  className={`btn btn-sm ${accountsViewMode === "list" ? "btn-solid theme-primary" : "btn-outline theme-secondary"}`}
+                  className={`btn btn-sm ${accountsViewMode === "list" ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
                   title="List Mode (Compact table)"
                 >
                   📋 List
                 </button>
                 <button
                   type="button"
+                  data-testid="accounts-view-card"
                   onClick={() => setAccountsViewMode("card")}
-                  className={`btn btn-sm ${accountsViewMode === "card" ? "btn-solid theme-primary" : "btn-outline theme-secondary"}`}
+                  className={`btn btn-sm ${accountsViewMode === "card" ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
                   title="Card Mode (Detailed cards)"
                 >
                   🗂️ Cards
@@ -3699,7 +3703,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             ) : (
               /* CARD MODE: Expanded Kanban Cards */
               displayedAccounts.map((acc) => (
-                <div key={acc.accountId} className={`credential-item-card ${acc.isActive ? "active" : ""}`}>
+                <div
+                  key={acc.accountId}
+                  className={`credential-item-card ${acc.isActive ? "active" : ""}`}
+                  data-testid={`credential-card-${acc.accountId}`}
+                >
                   <div className="card-top-row">
                     <div className="model-chip-title">
                       <span className="model-name-text">{acc.modelId}</span>
@@ -3719,6 +3727,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         type="button"
                         role="switch"
                         aria-checked={acc.isActive}
+                        data-testid={`status-toggle-${acc.accountId}`}
                         className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
                         onClick={() => handleToggleAccountStatus(acc)}
                         title={acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate."}
@@ -3750,6 +3759,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     <button
                       type="button"
                       className="action-btn test-btn"
+                      data-testid={`btn-test-card-${acc.accountId}`}
                       onClick={() => handleTestExistingAccount(acc)}
                       disabled={testingAccountId === acc.accountId}
                       title="Test connection for this account"
@@ -3760,6 +3770,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     <button
                       type="button"
                       className="action-btn select-btn"
+                      data-testid={`btn-edit-card-${acc.accountId}`}
                       onClick={() => loadAccountIntoEditor(acc)}
                       title="Load this account into the form editor"
                     >
@@ -3769,6 +3780,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     <button
                       type="button"
                       className="action-btn delete-btn"
+                      data-testid={`btn-delete-card-${acc.accountId}`}
                       onClick={() => handleOpenDeleteModal(acc)}
                       title="Delete this credential"
                     >
