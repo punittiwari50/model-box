@@ -2204,39 +2204,49 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             {selectedProtocol === "oauth" && (
               <div className="oauth-dedicated-container">
                 {/* Step Bar */}
-                <div className="oauth-step-progress">
+                <div className="oauth-step-progress" data-testid="oauth-step-progress">
                   <button
                     type="button"
                     className={`step-item-btn ${effectiveOAuthStep === 1 ? "active" : effectiveOAuthStep > 1 ? "completed" : "pending"}`}
                     onClick={() => setActiveOAuthStep(1)}
                   >
                     <span className="step-circle">{effectiveOAuthStep > 1 ? "✔" : "1"}</span>
-                    <span className="step-label">Select Identity Provider</span>
-                    {effectiveOAuthStep > 1 ? (
-                      <span className="step-status-chip completed">Done</span>
-                    ) : effectiveOAuthStep === 1 ? (
-                      <span className="step-status-chip active">In Progress</span>
-                    ) : (
-                      <span className="step-status-chip pending">Pending</span>
-                    )}
+                    <div className="step-info">
+                      <div className="step-meta-row">
+                        <span className="step-index">STEP 01</span>
+                        {effectiveOAuthStep > 1 ? (
+                          <span className="step-status-chip completed">Done</span>
+                        ) : effectiveOAuthStep === 1 ? (
+                          <span className="step-status-chip active">In Progress</span>
+                        ) : (
+                          <span className="step-status-chip pending">Pending</span>
+                        )}
+                      </div>
+                      <span className="step-label">Select Identity Provider</span>
+                    </div>
                   </button>
-                  <div className={`step-connector ${effectiveOAuthStep >= 2 ? "completed" : "pending"}`}></div>
+
                   <button
                     type="button"
                     className={`step-item-btn ${effectiveOAuthStep === 2 ? "active" : Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "completed" : "pending"}`}
                     onClick={() => setActiveOAuthStep(2)}
                   >
                     <span className="step-circle">{Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "✔" : "2"}</span>
-                    <span className="step-label">Browser Redirect & Consent</span>
-                    {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? (
-                      <span className="step-status-chip completed">Done</span>
-                    ) : effectiveOAuthStep === 2 ? (
-                      <span className="step-status-chip active">In Progress</span>
-                    ) : (
-                      <span className="step-status-chip pending">Pending</span>
-                    )}
+                    <div className="step-info">
+                      <div className="step-meta-row">
+                        <span className="step-index">STEP 02</span>
+                        {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? (
+                          <span className="step-status-chip completed">Done</span>
+                        ) : effectiveOAuthStep === 2 ? (
+                          <span className="step-status-chip active">In Progress</span>
+                        ) : (
+                          <span className="step-status-chip pending">Pending</span>
+                        )}
+                      </div>
+                      <span className="step-label">Browser Redirect & Consent</span>
+                    </div>
                   </button>
-                  <div className={`step-connector ${Boolean(oauthSession?.accessToken) ? "completed" : "pending"}`}></div>
+
                   <button
                     type="button"
                     className={`step-item-btn ${effectiveOAuthStep === 3 ? (isOAuthVerificationFailed ? "active active-failed" : "active active-success") : Boolean(oauthSession?.accessToken) ? "completed" : "pending"}`}
@@ -2244,16 +2254,21 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     disabled={!oauthSession}
                   >
                     <span className="step-circle">{isOAuthVerificationFailed ? "⚠️" : Boolean(oauthSession?.accessToken) && effectiveOAuthStep !== 3 ? "✔" : "3"}</span>
-                    <span className="step-label">
-                      {isOAuthVerificationFailed ? "Token Verification Failed" : "Authenticated Token Vault"}
-                    </span>
-                    {Boolean(oauthSession?.accessToken) ? (
-                      <span className="step-status-chip completed">Active</span>
-                    ) : effectiveOAuthStep === 3 ? (
-                      <span className="step-status-chip active">In Progress</span>
-                    ) : (
-                      <span className="step-status-chip pending">Pending</span>
-                    )}
+                    <div className="step-info">
+                      <div className="step-meta-row">
+                        <span className="step-index">STEP 03</span>
+                        {Boolean(oauthSession?.accessToken) ? (
+                          <span className="step-status-chip completed">Active</span>
+                        ) : effectiveOAuthStep === 3 ? (
+                          <span className="step-status-chip active">In Progress</span>
+                        ) : (
+                          <span className="step-status-chip pending">Pending</span>
+                        )}
+                      </div>
+                      <span className="step-label">
+                        {isOAuthVerificationFailed ? "Token Verification Failed" : "Authenticated Token Vault"}
+                      </span>
+                    </div>
                   </button>
                 </div>
 

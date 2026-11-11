@@ -332,6 +332,7 @@ extract_oauth_url_from_log() {
     | sed -E 's/\[[0-9;?]*[mK]//g; s/\]8;;//g' \
     | grep -oE 'https://accounts\.google\.com/o/oauth2/[A-Za-z0-9._~:/?#\[\]@!$&()*+,;=%-]+' \
     | head -n 1 \
+    | awk '{print $1}' \
     | awk '{p=index(substr($0,9),"https://"); if(p>0) print substr($0,1,p+7); else print $0}' \
     || true
 }
