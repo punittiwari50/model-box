@@ -98,18 +98,46 @@
       &:hover { opacity: 1; }
     }
 
-    &.success {
+    &.success,
+    &.alert-success {
       background: var(--theme-success-soft);
       border: 1px solid var(--theme-success-border);
       color: var(--theme-success-text);
       .alert-icon { color: var(--theme-success); }
     }
 
-    &.error {
+    &.warning,
+    &.alert-warning {
+      background: var(--theme-warning-soft);
+      border: 1px solid var(--theme-warning-border);
+      color: var(--theme-warning-text);
+      .alert-icon { color: var(--theme-warning); }
+    }
+
+    &.error,
+    &.danger,
+    &.alert-danger {
       background: var(--theme-danger-soft);
       border: 1px solid var(--theme-danger-border);
       color: var(--theme-danger-text);
       .alert-icon { color: var(--theme-danger); }
+    }
+
+    &.info,
+    &.alert-info {
+      background: var(--theme-info-soft);
+      border: 1px solid var(--theme-info-border);
+      color: var(--theme-info-text);
+      .alert-icon { color: var(--theme-info); }
+    }
+
+    &.disabled,
+    &.neutral,
+    &.alert-secondary {
+      background: var(--theme-neutral-soft);
+      border: 1px solid var(--theme-neutral-border);
+      color: var(--theme-neutral-text);
+      .alert-icon { color: var(--theme-neutral-text); }
     }
   }
 
@@ -125,12 +153,12 @@
     }
 
     .config-builder-card, .config-catalog-card {
-      background: rgba(17, 24, 39, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--theme-bg-surface);
+      border: 1px solid var(--theme-border-default);
       border-radius: $radius-xl;
       padding: 22px 24px 30px 24px;
       backdrop-filter: blur(12px);
-      box-shadow: $shadow-md;
+      box-shadow: var(--theme-shadow-sm);
       min-width: 0;
       box-sizing: border-box;
       margin-bottom: 24px;
@@ -147,16 +175,17 @@
         h3 {
           font-size: 1.15rem;
           font-weight: 600;
-          color: $color-text-primary;
+          color: var(--theme-text-primary);
           margin: 0;
         }
         .count-badge {
           margin-left: auto;
           font-size: 0.75rem;
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--theme-neutral-soft);
+          border: 1px solid var(--theme-neutral-border);
           padding: 2px 8px;
           border-radius: $radius-full;
-          color: $color-text-muted;
+          color: var(--theme-text-muted);
         }
       }
     }
@@ -173,10 +202,10 @@
         align-items: center;
         gap: 4px;
         padding: 8px 6px;
-        background: rgba(30, 41, 59, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--theme-bg-muted);
+        border: 1px solid var(--theme-border-subtle);
         border-radius: $radius-md;
-        color: $color-text-secondary;
+        color: var(--theme-text-secondary);
         font-size: 0.75rem;
         font-weight: 600;
         cursor: pointer;

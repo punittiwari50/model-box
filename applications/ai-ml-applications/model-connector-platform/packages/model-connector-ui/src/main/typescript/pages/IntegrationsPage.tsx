@@ -196,6 +196,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const [testPrompt, setTestPrompt] = useState<string>("Hi , whats date time now ?");
   const [modelEffortTier, setModelEffortTier] = useState<"low" | "medium" | "high">("medium");
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [actionInfo, setActionInfo] = useState<string | null>(null);
+  const [actionWarning, setActionWarning] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [cliScriptError, setCliScriptError] = useState<{ message: string; code?: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -259,10 +261,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     if (editingAccountId) return true;
     if (selectedProtocol === "oauth" && Boolean(oauthSession?.accessToken)) return true;
     if (testResult && testResult.status === "VERIFIED") return true;
-    if (state.modelAccounts.some((a) => a.modelId === targetModelId && a.isActive)) return true;
+    if (state.modelAccounts.some((a) => a.modelId === targetModelId)) return true;
     if (
       targetModelId.toLowerCase().includes("ollama") ||
       targetModelId.toLowerCase().includes("llama") ||
+      targetModelId.toLowerCase().includes("deepseek") ||
       targetModelId.toLowerCase().includes("comfyui")
     ) {
       return true;
@@ -279,7 +282,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   // Requirement 3 & 4: Only show registered models and models available in use like Ollama
   // When not yet authenticated, shows current target with pending state until auth unlocks available models
   const availableConfigModels = useMemo(() => {
-    if (!isAuthSuccessful) {
+    const hasConfiguredAccount = state.modelAccounts.some((a) => a.modelId === targetModelId);
+    if (!isAuthSuccessful && !hasConfiguredAccount) {
       const selectedModelObj = state.models.find((m) => m.id === targetModelId);
       return selectedModelObj
         ? [{ ...selectedModelObj, name: `${selectedModelObj.name} (Pending Authentication)` }]
@@ -969,27 +973,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     return () => clearInterval(interval);
   }, [isWaitingForCallback, targetModelId, selectedStrategy, state]);
 
-  // Sync existing active account from state.modelAccounts on load or model change
-  useEffect(() => {
-    const activeAcc = (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive);
-    if (activeAcc && activeAcc.credentialValue) {
-      setUserEmail(activeAcc.userEmail || userEmail);
-      setAccountName(activeAcc.accountName || accountName);
-      if (activeAcc.authType === "cli_oauth" || activeAcc.authType === "oauth") {
-        setOauthSession({
-          providerId: selectedStrategy.id,
-          providerName: selectedStrategy.name,
-          accessToken: activeAcc.credentialValue,
-          refreshToken: "rt_existing",
-          expiresInSeconds: 3600,
-          scopes: selectedStrategy.defaultScopes.split(" ").filter(Boolean),
-          authorizedUser: activeAcc.userEmail,
-          authorizedTimestamp: activeAcc.updatedTimestamp || new Date().toLocaleTimeString(),
-          authCode: (activeAcc as any).authCode || (activeAcc.config as any)?.authCode,
-        });
-      }
-    }
-  }, [targetModelId, state.modelAccounts]);
+  // Form population is explicitly decoupled from background account active/inactive updates.
+  // Form inputs are ONLY populated when the user explicitly clicks the "Edit" button (loadAccountIntoEditor).
 
   // Handle OAuth success query params on page load
   useEffect(() => {
@@ -1186,10 +1171,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       if (authPopup && !authPopup.closed) {
         try {
           authPopup.location.href = launchTarget.targetUrl;
-          setActionSuccess(`Redirecting to ${selectedStrategy.name} authorization portal in opened window...`);
+          setActionInfo(`Redirecting to ${selectedStrategy.name} authorization portal in opened window...`);
         } catch {
           window.open(launchTarget.targetUrl, "modelbox_oauth_popup", "width=640,height=760,scrollbars=yes,resizable=yes");
-          setActionSuccess(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
+          setActionInfo(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
         }
       } else {
         const opened = window.open(launchTarget.targetUrl, "modelbox_oauth_popup", "width=640,height=760,scrollbars=yes,resizable=yes");
@@ -1198,7 +1183,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           setActionError("Popup blocked by browser. Allow popups to open the OAuth sign-in window.");
           return;
         }
-        setActionSuccess(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
+        setActionInfo(`Browser opened for ${selectedStrategy.name} CLI authentication. Please complete sign-in.`);
       }
     } catch (err: unknown) {
       if (authPopup && !authPopup.closed) authPopup.close();
@@ -1215,7 +1200,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     setCliTimeoutSecondsRemaining(300);
     setActionError(null);
     void triggerDirectoryVerification("pre-browser-redirect");
-    setActionSuccess(`Redirecting to ${selectedStrategy.name} Authorization Portal in a new window...`);
+    setActionInfo(`Redirecting to ${selectedStrategy.name} Authorization Portal in a new window...`);
     try {
       const refreshedConfig = await ensureAppliedOAuthClientConfiguration();
       const fallbackConfig = refreshedConfig || (await ApiService.fetchModelOAuthConfig(targetModelId));
@@ -1372,7 +1357,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     setOauthSession(null);
     setTestResult(null);
     setActiveOAuthStep(2);
-    setActionSuccess("OAuth session revoked. Please authorize with your provider to link credentials.");
+    setActionWarning("OAuth session revoked. Please authorize with your provider to link credentials.");
   };
 
   const handleOnboardNewProvider = (e: React.FormEvent) => {
@@ -1531,6 +1516,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     setIsSaving(true);
     setActionError(null);
     setActionSuccess(null);
+    setActionInfo(null);
+    setActionWarning(null);
 
     try {
       const protocolStrategy = protocolConfigStrategyRegistry.resolve(selectedProtocol);
@@ -1555,7 +1542,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           isActive: true,
           config: cfg,
         });
-        setActionSuccess(`Successfully updated and activated configuration '${accountName}' for '${targetModelId}'!`);
+        setActionSuccess(`Successfully updated configuration '${accountName}' for '${targetModelId}'!`);
       } else {
         await ApiService.createModelAccount(targetModelId, {
           accountName: accountName.trim(),
@@ -1569,12 +1556,28 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       }
 
       setEditingAccountId(null);
+      setAccountName("");
+      setUserEmail("");
+      setApiKey("");
+      setCookieString("");
+      setRedirectAuthCode("");
       await state.refreshModelAccounts();
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Failed to save configuration");
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleDoneEditing = () => {
+    setEditingAccountId(null);
+    setAccountName("");
+    setUserEmail("");
+    setApiKey("");
+    setCookieString("");
+    setRedirectAuthCode("");
+    setActionInfo("Exited edit mode. Form is ready for new account registration.");
+    state.setActiveTab("model-config", { view: "form", model: targetModelId });
   };
 
   const handleActivateAccount = async (acc: UiModelAccount) => {
@@ -1590,7 +1593,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const handleDeactivateAccount = async (acc: UiModelAccount) => {
     try {
       await ApiService.deactivateModelAccount(acc.modelId, acc.accountId);
-      setActionSuccess(`Account '${acc.accountName}' is now INACTIVE for '${acc.modelId}'.`);
+      setActionWarning(`Account '${acc.accountName}' is now INACTIVE for '${acc.modelId}'.`);
       await state.refreshModelAccounts();
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Failed to deactivate account");
@@ -1867,8 +1870,24 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         />
       )}
 
+      {actionInfo && (
+        <div className="alert-banner info" data-testid="alert-banner-info">
+          <span className="alert-icon">ℹ️</span>
+          <span className="alert-text">{actionInfo}</span>
+          <button className="alert-close" onClick={() => setActionInfo(null)}>✕</button>
+        </div>
+      )}
+
+      {actionWarning && (
+        <div className="alert-banner warning" data-testid="alert-banner-warning">
+          <span className="alert-icon">⚠️</span>
+          <span className="alert-text">{actionWarning}</span>
+          <button className="alert-close" onClick={() => setActionWarning(null)}>✕</button>
+        </div>
+      )}
+
       {actionSuccess && (
-        <div className="alert-banner success">
+        <div className="alert-banner success" data-testid="alert-banner-success">
           <span className="alert-icon">✔</span>
           <span className="alert-text">{actionSuccess}</span>
           <button className="alert-close" onClick={() => setActionSuccess(null)}>✕</button>
@@ -1876,8 +1895,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       )}
 
       {actionError && (
-        <div className="alert-banner error">
-          <span className="alert-icon">⚠️</span>
+        <div className="alert-banner error" data-testid="alert-banner-error">
+          <span className="alert-icon">✕</span>
           <span className="alert-text">{actionError}</span>
           <button className="alert-close" onClick={() => setActionError(null)}>✕</button>
         </div>
@@ -1993,12 +2012,33 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             <h3>Protocol Configuration Engine</h3>
           </div>
 
+          {editingAccountId && (
+            <div className="alert-banner info d-flex align-items-center justify-content-between p-2 mb-3" data-testid="edit-mode-indicator">
+              <div className="d-flex align-items-center gap-2">
+                <span className="badge-pill info">Editing Mode</span>
+                <span>Editing account: <strong>{accountName || editingAccountId}</strong> ({targetModelId})</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline theme-secondary"
+                onClick={handleDoneEditing}
+                data-testid="btn-done-editing-top"
+              >
+                Done Editing
+              </button>
+            </div>
+          )}
+
           {/* Protocol Switcher Tabs */}
           <div className="protocol-selector-tabs">
             <button
               type="button"
               className={`protocol-tab-btn ${selectedProtocol === "api" ? "active" : ""}`}
-              onClick={() => setSelectedProtocol("api")}
+              onClick={() => {
+                setSelectedProtocol("api");
+                setActionError(null);
+                setActionInfo(null);
+              }}
             >
               <span className="tab-icon">🔑</span>
               <span className="tab-label">REST API</span>
@@ -2008,7 +2048,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             <button
               type="button"
               className={`protocol-tab-btn ${selectedProtocol === "oauth" ? "active" : ""}`}
-              onClick={() => setSelectedProtocol("oauth")}
+              onClick={() => {
+                setSelectedProtocol("oauth");
+                setActionError(null);
+                setActionInfo(null);
+              }}
             >
               <span className="tab-icon">🌐</span>
               <span className="tab-label">OAuth 2.0 Redirect</span>
@@ -2018,7 +2062,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             <button
               type="button"
               className={`protocol-tab-btn ${selectedProtocol === "cli" ? "active" : ""}`}
-              onClick={() => setSelectedProtocol("cli")}
+              onClick={() => {
+                setSelectedProtocol("cli");
+                setActionError(null);
+                setActionInfo(null);
+              }}
             >
               <span className="tab-icon">💻</span>
               <span className="tab-label">CLI Binary</span>
@@ -2028,7 +2076,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             <button
               type="button"
               className={`protocol-tab-btn ${selectedProtocol === "cookie" ? "active" : ""}`}
-              onClick={() => setSelectedProtocol("cookie")}
+              onClick={() => {
+                setSelectedProtocol("cookie");
+                setActionError(null);
+                setActionInfo(null);
+              }}
             >
               <span className="tab-icon">🍪</span>
               <span className="tab-label">Cookie Vault</span>
@@ -2041,9 +2093,17 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
               <div className="form-group">
                 <label className="form-label-inline-split">
                   <span>Target Model</span>
-                  <span className={`target-auth-pill ${isAuthSuccessful ? "verified" : "pending"}`}>
-                    {isAuthSuccessful ? "Discovered" : "Pending Auth"}
-                  </span>
+                  {(() => {
+                    const hasActive = state.modelAccounts.some((a) => a.modelId === targetModelId && a.isActive);
+                    const hasConfigured = state.modelAccounts.some((a) => a.modelId === targetModelId);
+                    const pillClass = hasActive ? "verified" : hasConfigured ? "configured" : isAuthSuccessful ? "verified" : "pending";
+                    const pillText = hasActive ? "Active" : hasConfigured ? "Configured" : isAuthSuccessful ? "Discovered" : "Pending Auth";
+                    return (
+                      <span className={`target-auth-pill ${pillClass}`} data-testid="target-auth-pill">
+                        {pillText}
+                      </span>
+                    );
+                  })()}
                 </label>
                 <select
                   className="form-select"
@@ -3413,34 +3473,36 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 {isTesting ? "Testing..." : "⚡ Test Connection"}
               </button>
 
-              {editingAccountId && (
+              {editingAccountId ? (
+                <>
+                  <button
+                    type="button"
+                    className="test-handshake-btn"
+                    title="Exit edit mode without saving changes"
+                    onClick={handleDoneEditing}
+                    data-testid="btn-done-editing"
+                  >
+                    Done Editing
+                  </button>
+                  <button
+                    type="submit"
+                    className="save-config-btn"
+                    disabled={isSaving}
+                    data-testid="btn-save"
+                  >
+                    {isSaving ? "Updating..." : "Update Configuration"}
+                  </button>
+                </>
+              ) : (
                 <button
-                  type="button"
-                  className="test-handshake-btn"
-                  title="Reset form and exit edit mode"
-                  onClick={() => {
-                    setEditingAccountId(null);
-                    setAccountName("");
-                    setUserEmail("");
-                    state.setActiveTab("model-config", { view: "form", model: targetModelId });
-                  }}
+                  type="submit"
+                  className="save-config-btn"
+                  disabled={isSaving}
+                  data-testid="btn-save"
                 >
-                  Reset
+                  {isSaving ? "Saving..." : "Save Configuration"}
                 </button>
               )}
-
-              <button
-                type="submit"
-                className="save-config-btn"
-                disabled={isSaving}
-                data-testid="btn-save"
-              >
-                {isSaving
-                  ? "Saving..."
-                  : editingAccountId
-                    ? "Update"
-                    : "Save"}
-              </button>
             </div>
           </form>
 

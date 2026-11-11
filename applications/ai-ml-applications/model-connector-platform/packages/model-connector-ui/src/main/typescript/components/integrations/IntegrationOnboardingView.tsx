@@ -1573,6 +1573,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                           onClick={() => {
                             setSelectedProtocol(proto.id);
                             setAccountValidationMsg(null);
+                            setOauthRedirectNotice(null);
                           }}
                         >
                           <span className="tab-icon">{renderProtocolSymbol(proto.id, 18)}</span>
@@ -2178,8 +2179,8 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
                                   </div>
                                 </div>
                                 <StatusBadge
-                                  label={acc.isActive ? "Active" : "Paused"}
-                                  tone={acc.isActive ? "success" : "warning"}
+                                  label={acc.isActive ? "Active" : "Inactive"}
+                                  tone={acc.isActive ? "success" : "neutral"}
                                 />
                               </div>
 

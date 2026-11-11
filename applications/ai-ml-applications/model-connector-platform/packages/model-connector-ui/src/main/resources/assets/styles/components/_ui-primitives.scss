@@ -322,7 +322,9 @@
 
 // 5. Semantic Status Badges & Pills
 .ui-badge,
-.glass-pill {
+.glass-pill,
+.badge-pill,
+.status-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -349,30 +351,52 @@
     flex-shrink: 0;
   }
 
-  &.tone-primary {
+  &.tone-primary,
+  &.primary {
     background: var(--theme-primary-soft);
     border-color: var(--theme-primary-border);
     color: var(--theme-primary);
   }
-  &.tone-success {
+  &.tone-success,
+  &.success,
+  &.active,
+  &.verified {
     background: var(--theme-success-soft);
     border-color: var(--theme-success-border);
     color: var(--theme-success-text);
   }
-  &.tone-warning {
+  &.tone-warning,
+  &.warning,
+  &.attention,
+  &.paused {
     background: var(--theme-warning-soft);
     border-color: var(--theme-warning-border);
     color: var(--theme-warning-text);
   }
-  &.tone-danger {
+  &.tone-danger,
+  &.danger,
+  &.error,
+  &.failed {
     background: var(--theme-danger-soft);
     border-color: var(--theme-danger-border);
     color: var(--theme-danger-text);
   }
-  &.tone-info {
+  &.tone-info,
+  &.info,
+  &.discovered,
+  &.configured {
     background: var(--theme-info-soft);
     border-color: var(--theme-info-border);
     color: var(--theme-info-text);
+  }
+  &.tone-neutral,
+  &.neutral,
+  &.disabled,
+  &.inactive,
+  &.pending {
+    background: var(--theme-neutral-soft);
+    border-color: var(--theme-neutral-border);
+    color: var(--theme-neutral-text);
   }
 }
 
@@ -578,47 +602,118 @@
   background: var(--theme-info-soft);
   color: var(--theme-info-text);
 
+  // Success
   &.tone-success,
-  &.success {
-    background: #ecfdf5;
-    border-color: #a7f3d0;
-    color: #065f46;
+  &.success,
+  &.alert-success {
+    background: var(--theme-success-soft);
+    border-color: var(--theme-success-border);
+    color: var(--theme-success-text);
 
     .alert-text,
     .ui-alert-body {
-      color: #065f46;
+      color: var(--theme-success-text);
       font-weight: 600;
     }
 
     .alert-icon {
-      color: #059669;
+      color: var(--theme-success);
     }
   }
 
-  &.tone-warning {
+  // Warning
+  &.tone-warning,
+  &.warning,
+  &.alert-warning {
     background: var(--theme-warning-soft);
     border-color: var(--theme-warning-border);
     color: var(--theme-warning-text);
+
+    .alert-text,
+    .ui-alert-body {
+      color: var(--theme-warning-text);
+      font-weight: 600;
+    }
+
+    .alert-icon {
+      color: var(--theme-warning);
+    }
   }
 
+  // Danger / Error / Alert
   &.tone-danger,
-  &.error {
+  &.danger,
+  &.error,
+  &.alert-danger {
     background: var(--theme-danger-soft);
     border-color: var(--theme-danger-border);
     color: var(--theme-danger-text);
+
+    .alert-text,
+    .ui-alert-body {
+      color: var(--theme-danger-text);
+      font-weight: 600;
+    }
+
+    .alert-icon {
+      color: var(--theme-danger);
+    }
   }
 
-  .ui-alert-body {
+  // Info
+  &.tone-info,
+  &.info,
+  &.alert-info {
+    background: var(--theme-info-soft);
+    border-color: var(--theme-info-border);
+    color: var(--theme-info-text);
+
+    .alert-text,
+    .ui-alert-body {
+      color: var(--theme-info-text);
+      font-weight: 600;
+    }
+
+    .alert-icon {
+      color: var(--theme-info);
+    }
+  }
+
+  // Disabled / Neutral / Secondary
+  &.tone-neutral,
+  &.disabled,
+  &.neutral,
+  &.alert-secondary {
+    background: var(--theme-neutral-soft);
+    border-color: var(--theme-neutral-border);
+    color: var(--theme-neutral-text);
+
+    .alert-text,
+    .ui-alert-body {
+      color: var(--theme-neutral-text);
+      font-weight: 500;
+    }
+
+    .alert-icon {
+      color: var(--theme-neutral-text);
+    }
+  }
+
+  .ui-alert-body,
+  .alert-text {
     flex: 1;
     min-width: 0;
   }
 
-  .ui-alert-close {
+  .ui-alert-close,
+  .alert-close {
     background: transparent;
+    border: none;
     color: currentColor;
     opacity: 0.75;
     padding: 2px 6px;
     border-radius: var(--radius-sm);
+    cursor: pointer;
 
     &:hover {
       opacity: 1;

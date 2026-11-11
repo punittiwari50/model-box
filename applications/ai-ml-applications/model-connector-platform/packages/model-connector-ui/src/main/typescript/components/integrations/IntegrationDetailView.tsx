@@ -430,8 +430,8 @@ export const IntegrationDetailView: React.FC<IntegrationDetailViewProps> = ({
 
                       <div className="account-row-actions">
                         <StatusBadge
-                          label={acc.isActive ? "Connected" : "Attention Required"}
-                          tone={acc.isActive ? "success" : "warning"}
+                          label={acc.isActive ? "Connected" : "Inactive"}
+                          tone={acc.isActive ? "success" : "neutral"}
                         />
                         <button
                           type="button"
