@@ -25,6 +25,7 @@ import {
 } from "@/components/views";
 import {
   oauthProviderRegistry,
+  sanitizeOAuthRedirectUrl,
   DynamicOnboardedOAuthStrategy,
   type IOAuthProviderStrategy,
   type ProviderCategory,
@@ -831,7 +832,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     url: string,
   ): { targetUrl: string; usingEdgeProtocol: boolean; requiresExternalBrowser: boolean } => {
     return {
-      targetUrl: url,
+      targetUrl: sanitizeOAuthRedirectUrl(url) || url,
       usingEdgeProtocol: false,
       requiresExternalBrowser: false,
     };

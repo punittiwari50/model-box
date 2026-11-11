@@ -499,4 +499,27 @@ export class OAuthProviderRegistry {
   }
 }
 
+export function sanitizeOAuthRedirectUrl(rawUrl?: string): string {
+  if (!rawUrl) return "";
+  let cleaned = rawUrl.trim();
+  const ctrlIdx = cleaned.search(/[\u0000-\u001F\u007F]/);
+  if (ctrlIdx >= 0) cleaned = cleaned.slice(0, ctrlIdx).trim();
+  const secondHttpsIdx = cleaned.indexOf("https://", 8);
+  if (secondHttpsIdx > 0) cleaned = cleaned.slice(0, secondHttpsIdx).trim();
+  const secondHttpIdx = cleaned.indexOf("http://", 7);
+  if (secondHttpIdx > 0) cleaned = cleaned.slice(0, secondHttpIdx).trim();
+  if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) return "";
+  try {
+    const parsed = new URL(cleaned);
+    const deduped = new URLSearchParams();
+    parsed.searchParams.forEach((v, k) => {
+      if (!deduped.has(k)) deduped.set(k, v);
+    });
+    parsed.search = deduped.toString();
+    return parsed.toString();
+  } catch {
+    return cleaned;
+  }
+}
+
 export const oauthProviderRegistry = OAuthProviderRegistry.getInstance();

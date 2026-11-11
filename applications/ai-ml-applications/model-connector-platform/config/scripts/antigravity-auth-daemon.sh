@@ -325,10 +325,21 @@ resolve_binary() {
 # ==============================================================================
 # Module: PureShellJsonService (Strict Shell Regex & Syntax Validation)
 # ==============================================================================
+extract_oauth_url_from_log() {
+  local log_file="$1"
+  [ -f "$log_file" ] || return 0
+  tr '\000-\037\177' ' ' < "$log_file" 2>/dev/null \
+    | sed -E 's/\[[0-9;?]*[mK]//g; s/\]8;;//g' \
+    | grep -oE 'https://accounts\.google\.com/o/oauth2/[A-Za-z0-9._~:/?#\[\]@!$&()*+,;=%-]+' \
+    | head -n 1 \
+    | awk '{p=index(substr($0,9),"https://"); if(p>0) print substr($0,1,p+7); else print $0}' \
+    || true
+}
+
 extract_url_param() {
   local url="$1"
   local param="$2"
-  echo "$url" | sed -n 's/.*[?&]'"$param"'=\([^&#]*\).*/\1/p' | head -n 1
+  echo "$url" | tr -d '\000-\037\177' | sed -n 's/.*[?&]'"$param"'=\([^&#]*\).*/\1/p' | head -n 1
 }
 
 validate_json_syntax() {
@@ -518,11 +529,11 @@ run_oauth_daemon() {
     printf '\r\n' >&3
   fi
 
-  # Extract Google OAuth URL using pure shell / grep regex
+  # Extract clean Google OAuth URL (strip OSC-8 hyperlinks and ASCII control chars)
   local oauth_url=""
   for ((i=1; i<=URL_DISCOVERY_TIMEOUT; i++)); do
     if [ -f "$CLI_LOG" ]; then
-      oauth_url=$(grep -oE "https://accounts\.google\.com/o/oauth2/[^[:space:]'\"]+" "$CLI_LOG" 2>/dev/null | head -n 1 || true)
+      oauth_url=$(extract_oauth_url_from_log "$CLI_LOG")
       if [ -n "$oauth_url" ]; then break; fi
     fi
     sleep 0.5

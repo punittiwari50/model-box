@@ -16,6 +16,7 @@ import { UC07_TenantRbacGovernanceMatrix } from "@/usecases/impl/UC07_TenantRbac
 import { UC08_TelemetryAndAuditTrail } from "@/usecases/impl/UC08_TelemetryAndAuditTrail.js";
 import { UC09_ResponsiveMultiDeviceContinuity } from "@/usecases/impl/UC09_ResponsiveMultiDeviceContinuity.js";
 import { UC10_RealOllamaDockerExecution } from "@/usecases/impl/UC10_RealOllamaDockerExecution.js";
+import { UC11_UxViewsAndThemeSuite } from "@/usecases/impl/UC11_UxViewsAndThemeSuite.js";
 
 export function createDefaultUsecases() {
   return Object.freeze([
@@ -29,6 +30,7 @@ export function createDefaultUsecases() {
     new UC08_TelemetryAndAuditTrail(),
     new UC09_ResponsiveMultiDeviceContinuity(),
     new UC10_RealOllamaDockerExecution(),
+    new UC11_UxViewsAndThemeSuite(),
   ]);
 }
 

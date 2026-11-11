@@ -863,3 +863,20 @@
     overflow-y: visible;
   }
 }
+
+.desktop-nav-item {
+  .default-indicator {
+    color: var(--theme-warning);
+    font-size: 0.85rem;
+    margin-left: auto;
+    margin-right: 4px;
+  }
+
+  .menu-count-tag {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-full);
+    color: var(--theme-sidebar-text-muted);
+  }
+}

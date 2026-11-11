@@ -348,7 +348,7 @@ export class CliOAuthSessionRepository {
       provider: String(r.provider || CliOAuthConstants.DEFAULT_PROVIDER),
       modelId: String(r.modelId || CliOAuthConstants.DEFAULT_MODEL_ID),
       authMode: String(r.authMode || CliOAuthConstants.AUTH_MODE_OAUTH),
-      oauthUrl: String(r.oauthUrl || ""),
+      oauthUrl: this.sanitizeStoredOAuthUrl(r.oauthUrl),
       clientId: r.clientId ? String(r.clientId) : undefined,
       state: r.state ? String(r.state) : undefined,
       codeChallenge: r.codeChallenge ? String(r.codeChallenge) : undefined,
@@ -449,13 +449,35 @@ export class CliOAuthSessionRepository {
     };
   }
 
+  private sanitizeStoredOAuthUrl(rawUrl: unknown): string {
+    let cleaned = String(rawUrl || "").trim();
+    const ctrlIdx = cleaned.search(/[\u0000-\u001F\u007F]/);
+    if (ctrlIdx >= 0) cleaned = cleaned.slice(0, ctrlIdx).trim();
+    const secondHttpsIdx = cleaned.indexOf("https://", 8);
+    if (secondHttpsIdx > 0) cleaned = cleaned.slice(0, secondHttpsIdx).trim();
+    const secondHttpIdx = cleaned.indexOf("http://", 7);
+    if (secondHttpIdx > 0) cleaned = cleaned.slice(0, secondHttpIdx).trim();
+    if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) return "";
+    try {
+      const parsed = new URL(cleaned);
+      const deduped = new URLSearchParams();
+      parsed.searchParams.forEach((v, k) => {
+        if (!deduped.has(k)) deduped.set(k, v);
+      });
+      parsed.search = deduped.toString();
+      return parsed.toString();
+    } catch {
+      return cleaned;
+    }
+  }
+
   private mapRowToSession(row: Record<string, unknown>): CliOAuthSession {
     return {
       sessionId: String(row.SESSION_ID ?? ""),
       provider: String(row.PROVIDER ?? ""),
       modelId: String(row.MODEL_ID ?? ""),
       authMode: String(row.AUTH_MODE ?? ""),
-      oauthUrl: String(row.OAUTH_URL ?? ""),
+      oauthUrl: this.sanitizeStoredOAuthUrl(row.OAUTH_URL),
       clientId: row.CLIENT_ID ? String(row.CLIENT_ID) : undefined,
       state: row.STATE ? String(row.STATE) : undefined,
       codeChallenge: row.CODE_CHALLENGE ? String(row.CODE_CHALLENGE) : undefined,

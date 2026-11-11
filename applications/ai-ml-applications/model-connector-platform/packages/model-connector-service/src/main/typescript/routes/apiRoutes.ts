@@ -154,6 +154,12 @@ apiRouter.post("/models/:modelId/cli-auth-complete", (req, res) =>
 apiRouter.get("/auth/cli-session/latest", (req, res) =>
   modelConfigController.getLatestCliSession(req, res),
 );
+apiRouter.get("/models/cli-sessions/latest", (req, res) =>
+  modelConfigController.getLatestCliSession(req, res),
+);
+apiRouter.get("/models/:modelId/cli-sessions/latest", (req, res) =>
+  modelConfigController.getLatestCliSession(req, res),
+);
 apiRouter.post("/auth/cli-session/submit-code", (req, res) =>
   modelConfigController.submitCliAuthCode(req, res),
 );

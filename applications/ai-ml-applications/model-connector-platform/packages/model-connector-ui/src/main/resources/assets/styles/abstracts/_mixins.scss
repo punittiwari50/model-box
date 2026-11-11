@@ -72,3 +72,115 @@
   border-color: var(--theme-border-focus);
   box-shadow: 0 0 0 3px var(--theme-primary-soft);
 }
+
+@mixin control-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  font-size: var(--font-sm);
+  color: var(--theme-text-primary);
+  background: var(--theme-bg-input);
+  border: 1px solid var(--theme-border-default);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+
+  &:hover:not(:disabled):not(:focus) {
+    border-color: var(--theme-border-hover);
+  }
+
+  &:focus {
+    @include focus-ring;
+  }
+
+  &::placeholder {
+    color: var(--theme-text-muted);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+@mixin button-primary {
+  @include button-base;
+  background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
+  border-color: var(--theme-primary);
+  color: #ffffff;
+  box-shadow: var(--theme-shadow-xs);
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5e50ee 0%, #4b3fd6 100%);
+    border-color: var(--theme-primary-hover);
+    box-shadow: var(--theme-shadow-sm);
+  }
+}
+
+@mixin button-secondary {
+  @include button-base;
+  background: var(--theme-bg-surface);
+  border-color: var(--theme-border-default);
+  color: var(--theme-text-primary);
+  box-shadow: var(--theme-shadow-xs);
+
+  &:hover:not(:disabled) {
+    background: var(--theme-bg-muted);
+    border-color: var(--theme-primary-border);
+    color: var(--theme-primary-hover);
+  }
+}
+
+@mixin modal-backdrop($z: 1050) {
+  position: fixed;
+  inset: 0;
+  background: var(--theme-bg-overlay);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: $z;
+  padding: var(--space-4);
+}
+
+@mixin modal-surface($max-width: 640px) {
+  background: var(--theme-bg-surface);
+  border: 1px solid var(--theme-border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--theme-shadow-lg);
+  width: 100%;
+  max-width: $max-width;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--card-padding);
+  @include custom-scrollbar;
+}

@@ -9,7 +9,7 @@ import type {
 } from "@/types/ui.types";
 import type { IntegrationCrudAccess } from "@/utils/auth/rbacPermissions";
 import { ApiService } from "@/utils/services/apiService";
-import { oauthProviderRegistry } from "@/utils/services/oauthProviderRegistry";
+import { oauthProviderRegistry, sanitizeOAuthRedirectUrl } from "@/utils/services/oauthProviderRegistry";
 import { StatusBadge } from "@/components/common";
 import {
   renderProtocolSymbol,
@@ -780,6 +780,7 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
         }
       }
 
+      targetUrl = sanitizeOAuthRedirectUrl(targetUrl) || targetUrl;
       setOauthRedirectUrl(targetUrl);
       setIsWaitingOAuthCallback(true);
       popup.location.href = targetUrl;

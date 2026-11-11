@@ -154,31 +154,60 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
   }
 
   private isValidOAuthUrl(url?: string): boolean {
-    if (!url) return false;
-    const trimmed = url.trim();
-    return (trimmed.startsWith("http://") || trimmed.startsWith("https://")) && trimmed.length > 20;
+    const cleaned = AbstractCliAuthStrategy.sanitizeOAuthRedirectUrl(url);
+    return cleaned.length > 20;
+  }
+
+  /**
+   * Removes OSC-8 hyperlinks, ASCII control chars, concatenated second URLs,
+   * and duplicate OAuth query parameters (such as repeated `scope`).
+   */
+  public static sanitizeOAuthRedirectUrl(rawUrl?: string): string {
+    if (!rawUrl) return "";
+    let cleaned = rawUrl.trim();
+    const ctrlIdx = cleaned.search(/[\u0000-\u001F\u007F]/);
+    if (ctrlIdx >= 0) cleaned = cleaned.slice(0, ctrlIdx).trim();
+    const secondHttpsIdx = cleaned.indexOf("https://", 8);
+    if (secondHttpsIdx > 0) cleaned = cleaned.slice(0, secondHttpsIdx).trim();
+    const secondHttpIdx = cleaned.indexOf("http://", 7);
+    if (secondHttpIdx > 0) cleaned = cleaned.slice(0, secondHttpIdx).trim();
+    if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) return "";
+    try {
+      const parsed = new URL(cleaned);
+      const uniqueParams = new URLSearchParams();
+      parsed.searchParams.forEach((val, key) => {
+        if (!uniqueParams.has(key)) uniqueParams.set(key, val);
+      });
+      parsed.search = uniqueParams.toString();
+      return parsed.toString();
+    } catch {
+      return cleaned;
+    }
   }
 
   private adaptSessionWithAppCallback(
     session: CliOAuthSession,
     appCallbackUrl: string,
   ): CliOAuthSession {
-    if (!session.oauthUrl) return session;
+    const sanitizedUrl = AbstractCliAuthStrategy.sanitizeOAuthRedirectUrl(session.oauthUrl);
+    if (!sanitizedUrl) return session;
 
     try {
-      const parsed = new URL(session.oauthUrl);
+      const parsed = new URL(sanitizedUrl);
       const originalCliRedirect = parsed.searchParams.get("redirect_uri") || session.cliRedirectUri || "";
+      const cleanState = parsed.searchParams.get("state") || session.state;
 
       const adapted: CliOAuthSession = {
         ...session,
-        oauthUrl: session.oauthUrl,
+        oauthUrl: sanitizedUrl,
+        state: cleanState,
         cliRedirectUri: originalCliRedirect,
         appRedirectUri: appCallbackUrl,
       };
       cliOAuthSessionRepository.upsertSession(adapted);
       return adapted;
     } catch {
-      return session;
+      return { ...session, oauthUrl: sanitizedUrl };
     }
   }
 

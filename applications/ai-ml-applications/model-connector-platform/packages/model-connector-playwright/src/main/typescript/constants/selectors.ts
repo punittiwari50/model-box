@@ -113,6 +113,14 @@ export const EnterpriseViewSelectors = Object.freeze({
   MODEL_ROW: '[data-testid^="model-card-"], tr.model-list-row, [data-testid="model-row"], .resource-card',
 });
 
+export const ProfileThemeSelectors = Object.freeze({
+  PROFILE_TRIGGER: ".header-profile-trigger",
+  PROFILE_POPOVER: ".header-profile-popover",
+  THEME_SWITCHER: '[data-testid="profile-theme-switcher"]',
+  BTN_THEME_LIGHT: '[data-testid="btn-theme-light"]',
+  BTN_THEME_DARK: '[data-testid="btn-theme-dark"]',
+});
+
 export const OdooSelectors = EnterpriseViewSelectors;
 
 

@@ -202,8 +202,8 @@
   --theme-border-subtle: rgba(255, 255, 255, 0.08);
   --theme-border-default: rgba(255, 255, 255, 0.14);
   --theme-border-hover: rgba(255, 255, 255, 0.24);
-  --theme-border-focus: #38bdf8;
-  --theme-border-glow: rgba(56, 189, 248, 0.3);
+  --theme-border-focus: #7367f0;
+  --theme-border-glow: rgba(115, 103, 240, 0.3);
 
   // Typography Colors
   --theme-text-primary: #f8fafc;
@@ -211,15 +211,15 @@
   --theme-text-muted: #94a3b8;
   --theme-text-inverse: #0f172a;
 
-  // Brand & Primary Actions
-  --theme-primary: #3b82f6;
-  --theme-primary-hover: #2563eb;
-  --theme-primary-soft: rgba(59, 130, 246, 0.16);
-  --theme-primary-border: rgba(59, 130, 246, 0.4);
-  --theme-primary-glow: rgba(59, 130, 246, 0.35);
-  --theme-accent: #38bdf8;
-  --theme-cta-dark: #2563eb;
-  --theme-cta-dark-hover: #1d4ed8;
+  // Brand & Primary Actions (Cohesive Vuexy Indigo Across Light & Dark)
+  --theme-primary: #7367f0;
+  --theme-primary-hover: #867bf3;
+  --theme-primary-soft: rgba(115, 103, 240, 0.2);
+  --theme-primary-border: rgba(115, 103, 240, 0.42);
+  --theme-primary-glow: rgba(115, 103, 240, 0.32);
+  --theme-accent: #7367f0;
+  --theme-cta-dark: #7367f0;
+  --theme-cta-dark-hover: #867bf3;
   --theme-cta-dark-text: #ffffff;
 
   // Semantic Status Tokens
@@ -290,6 +290,8 @@
   --font-family-base: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-family-display: "Outfit", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-family-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-family-base);
+  --font-mono: var(--font-family-mono);
 
   --font-xs: 0.75rem; // 12px
   --font-sm: 0.8125rem; // 13px

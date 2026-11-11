@@ -10,27 +10,30 @@
   $enable-transitions: true
 );
 
-// 1. Abstracts (Design Tokens & Mixins)
+// 1. Abstracts (Design Tokens & Reusable Mixins)
 @use "@/styles/abstracts/tokens" as *;
 @use "@/styles/abstracts/mixins" as *;
 
-// 2. Base Styles
+// 2. Base Normalization & Typography
 @use "@/styles/base/reset";
 @use "@/styles/base/typography";
 
-// 3. Layout Shell & Responsive Chrome
+// 3. Layout Shell, Header, Profile & Mobile Navigation
 @use "@/styles/layout/app-shell";
+@use "@/styles/layout/header-and-profile";
 @use "@/styles/layout/mobile-navigation";
 
-// 4. Reusable Components
+// 4. Reusable UI Components & Overlays
 @use "@/styles/components/ui-primitives";
 @use "@/styles/components/pagination";
 @use "@/styles/components/catalog-controls";
+@use "@/styles/components/modals";
 @use "@/styles/components/integration-onboarding";
 
-// 5. Feature Workspaces
+// 5. Domain Pages
 @use "@/styles/pages/workspace-views";
-@use "@/styles/pages/administration-and-config";
+@use "@/styles/pages/integrations-hub";
+@use "@/styles/pages/access-rbac";
 
-// 6. Theme Polarity & High-Contrast Overrides
-@use "@/styles/themes/contrast-overrides";
+// 6. Theme Polarity & Cross-Surface Parity
+@use "@/styles/themes/theme-parity";

@@ -608,17 +608,21 @@ export class ModelConfigController {
   }
 
   public getLatestCliSession(req: Request, res: Response): void {
-    const { modelId } = req.query as { modelId?: string };
+    const rawModelId = req.params.modelId || req.query.modelId;
+    const modelId = typeof rawModelId === "string" && rawModelId.trim().length > 0 ? rawModelId.trim() : undefined;
     cliOAuthSessionRepository.syncAll();
     const session =
       cliOAuthSessionRepository.getLatestPendingSession(modelId) ??
       cliOAuthSessionRepository.getLatestSession(modelId);
     res.status(HttpStatus.OK).json({
-      success: Boolean(session),
-      session,
+      success: true,
+      found: Boolean(session),
+      status: session?.status ?? "NONE",
+      modelId: modelId ?? null,
+      session: session ?? null,
       message: session
         ? `CLI OAuth session found with status ${session.status}.`
-        : "No CLI OAuth session found.",
+        : "No CLI OAuth session recorded for this model yet.",
       correlationId: req.correlationId,
     });
   }

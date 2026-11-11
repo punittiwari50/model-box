@@ -9,4 +9,5 @@ export * from "@/usecases/impl/UC07_TenantRbacGovernanceMatrix.js";
 export * from "@/usecases/impl/UC08_TelemetryAndAuditTrail.js";
 export * from "@/usecases/impl/UC09_ResponsiveMultiDeviceContinuity.js";
 export * from "@/usecases/impl/UC10_RealOllamaDockerExecution.js";
+export * from "@/usecases/impl/UC11_UxViewsAndThemeSuite.js";
 

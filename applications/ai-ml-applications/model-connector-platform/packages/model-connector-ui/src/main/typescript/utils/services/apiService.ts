@@ -493,6 +493,7 @@ export class ApiService {
 
   public static async fetchLatestCliSession(modelId?: string): Promise<{
     success: boolean;
+    found?: boolean;
     session: {
       sessionId: string;
       provider: string;
@@ -502,7 +503,7 @@ export class ApiService {
       cliRedirectUri?: string;
       appRedirectUri?: string;
       authCode?: string;
-      status: "PENDING" | "COMPLETED" | "FAILED";
+      status: "PENDING" | "COMPLETED" | "FAILED" | "NONE";
       errorMessage?: string;
       errorCode?: string;
       createdAt: string;
@@ -513,7 +514,14 @@ export class ApiService {
     const params = new URLSearchParams();
     if (modelId) params.append("modelId", modelId);
     const res = await fetch(`${API_BASE}/models/cli-sessions/latest?${params.toString()}`);
-    if (!res.ok) throw new Error("Failed to fetch latest CLI OAuth session");
+    if (!res.ok) {
+      return {
+        success: false,
+        found: false,
+        session: null,
+        message: `CLI session query responded with HTTP ${res.status}`,
+      };
+    }
     return await res.json();
   }
 

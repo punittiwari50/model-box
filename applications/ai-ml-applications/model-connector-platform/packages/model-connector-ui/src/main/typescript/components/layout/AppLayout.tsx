@@ -27,7 +27,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   isMobileMode,
   onSwitchDeviceMode,
 }) => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme, toggleTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
@@ -53,6 +53,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           globalSearch={globalSearch}
           onGlobalSearchChange={setGlobalSearch}
           onToggleTheme={toggleTheme}
+          onSetTheme={setTheme}
           onOpenMobileDrawer={() => setMobileDrawerOpen(true)}
           onOpenModelPicker={() => setModelPickerOpen(true)}
           onSwitchDeviceMode={onSwitchDeviceMode}

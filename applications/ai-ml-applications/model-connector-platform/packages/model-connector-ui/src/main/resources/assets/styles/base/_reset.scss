@@ -64,4 +64,25 @@
     display: block;
     max-width: 100%;
   }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--theme-border-focus);
+    outline-offset: 2px;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px var(--theme-bg-input) inset !important;
+    box-shadow: 0 0 0 1000px var(--theme-bg-input) inset !important;
+    -webkit-text-fill-color: var(--theme-text-primary) !important;
+    color: var(--theme-text-primary) !important;
+    caret-color: var(--theme-text-primary) !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }

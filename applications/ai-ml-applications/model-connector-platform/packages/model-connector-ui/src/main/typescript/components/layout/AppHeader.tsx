@@ -11,6 +11,7 @@ export interface AppHeaderProps {
   readonly globalSearch: string;
   readonly onGlobalSearchChange: (value: string) => void;
   readonly onToggleTheme: () => void;
+  readonly onSetTheme?: (theme: UiTheme) => void;
   readonly onOpenMobileDrawer: () => void;
   readonly onOpenModelPicker?: () => void;
   readonly onSwitchDeviceMode?: () => void;
@@ -23,6 +24,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   globalSearch,
   onGlobalSearchChange,
   onToggleTheme,
+  onSetTheme,
   onOpenMobileDrawer,
   onOpenModelPicker,
   onSwitchDeviceMode,
@@ -183,6 +185,41 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     <span className="company-badge">🏢 {state.currentUser?.companyName || "Acme Global"}</span>
                     <span className="role-badge">🛡️ {state.currentUser?.roleName || "Administrator"}</span>
                   </div>
+                </div>
+              </div>
+
+              <div className="popover-divider" />
+
+              <div className="popover-theme-section" data-testid="profile-theme-switcher">
+                <div className="theme-section-label">
+                  <span>Appearance Theme</span>
+                  <span className="theme-current-pill">{theme === "dark" ? "Dark" : "Light"}</span>
+                </div>
+                <div className="theme-choice-group" role="group" aria-label="Select interface theme">
+                  <button
+                    type="button"
+                    data-testid="btn-theme-light"
+                    className={`theme-choice-btn ${theme === "light" ? "active" : ""}`}
+                    onClick={() => {
+                      if (onSetTheme) onSetTheme("light");
+                      else if (theme !== "light") onToggleTheme();
+                    }}
+                  >
+                    <span aria-hidden="true">☀️</span>
+                    <span>Light</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="btn-theme-dark"
+                    className={`theme-choice-btn ${theme === "dark" ? "active" : ""}`}
+                    onClick={() => {
+                      if (onSetTheme) onSetTheme("dark");
+                      else if (theme !== "dark") onToggleTheme();
+                    }}
+                  >
+                    <span aria-hidden="true">🌙</span>
+                    <span>Dark</span>
+                  </button>
                 </div>
               </div>
 

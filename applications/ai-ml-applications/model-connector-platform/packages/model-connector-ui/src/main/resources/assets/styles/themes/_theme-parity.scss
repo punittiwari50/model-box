@@ -1,21 +1,9 @@
 // ==============================================================================
-// Theme & Responsive Consistency Overrides for Config Studio & Modals
-// Path: src/main/resources/assets/styles/themes/_contrast-overrides.scss
+// Theme Polarity & Cross-Surface Parity Styles
+// Path: src/main/resources/assets/styles/themes/_theme-parity.scss
 // ==============================================================================
 @use "@/styles/abstracts/tokens" as *;
 @use "@/styles/abstracts/mixins" as *;
-
-// Ensure browser autofill respects active theme tokens
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px var(--theme-bg-input) inset !important;
-  box-shadow: 0 0 0 1000px var(--theme-bg-input) inset !important;
-  -webkit-text-fill-color: var(--theme-text-primary) !important;
-  color: var(--theme-text-primary) !important;
-  caret-color: var(--theme-text-primary) !important;
-}
 
 // Consistent page padding across Model Config Studio & RBAC
 .desktop-model-config-page {
@@ -624,9 +612,9 @@ input:-webkit-autofill:active {
           }
 
           &.oauth {
-            background: rgba(90, 141, 238, 0.14);
-            color: #1d4ed8;
-            border-color: rgba(90, 141, 238, 0.35);
+            background: var(--theme-info-soft);
+            color: var(--theme-info-text);
+            border-color: var(--theme-info-border);
           }
         }
 
@@ -661,12 +649,13 @@ input:-webkit-autofill:active {
             border-radius: var(--radius-sm);
 
             &.test-btn {
-              background: rgba(90, 141, 238, 0.14);
-              border: 1px solid rgba(90, 141, 238, 0.35);
-              color: #1d4ed8;
+              background: var(--theme-info-soft);
+              border: 1px solid var(--theme-info-border);
+              color: var(--theme-info-text);
 
               &:hover:not(:disabled) {
-                background: #1d4ed8;
+                background: var(--theme-info);
+                border-color: var(--theme-info);
                 color: #ffffff;
               }
             }
@@ -709,9 +698,9 @@ input:-webkit-autofill:active {
 
         .card-action-bar .action-btn {
           &.test-btn {
-            background: rgba(90, 141, 238, 0.14);
-            border: 1px solid rgba(90, 141, 238, 0.35);
-            color: #1d4ed8;
+            background: var(--theme-info-soft);
+            border: 1px solid var(--theme-info-border);
+            color: var(--theme-info-text);
           }
 
           &.toggle-status-btn.btn-active-state {
@@ -736,152 +725,3 @@ input:-webkit-autofill:active {
     }
   }
 }
-
-// Theme-aware Login Modal
-.login-modal-backdrop {
-  background: var(--theme-bg-overlay);
-}
-
-.login-modal-card {
-  background: var(--theme-bg-surface);
-  border: 1px solid var(--theme-border-default);
-  box-shadow: var(--theme-shadow-lg);
-  padding: var(--card-padding);
-
-  .login-modal-header .header-title-group {
-    h3 {
-      color: var(--theme-text-primary);
-    }
-
-    .login-subtitle {
-      color: var(--theme-text-secondary);
-    }
-  }
-
-  .login-form .form-group {
-    label {
-      color: var(--theme-text-secondary);
-    }
-
-    .form-input {
-      background: var(--theme-bg-input);
-      border-color: var(--theme-border-default);
-      color: var(--theme-text-primary);
-    }
-  }
-
-  .demo-accounts-grid .demo-user-card {
-    background: var(--theme-bg-muted);
-    border-color: var(--theme-border-subtle);
-
-    .demo-user-details .demo-name-row .demo-name {
-      color: var(--theme-text-primary);
-    }
-
-    .demo-user-details .demo-email {
-      color: var(--theme-text-muted);
-    }
-  }
-}
-
-// Theme-aware Delete Confirmation Modal
-.delete-modal-backdrop {
-  background: var(--theme-bg-overlay);
-
-  .delete-modal-dialog {
-    background: var(--theme-bg-surface);
-    border: 1px solid var(--theme-danger-border);
-    box-shadow: var(--theme-shadow-lg);
-
-    .delete-modal-header {
-      background: var(--theme-danger-soft);
-      border-bottom-color: var(--theme-danger-border);
-
-      .header-text-block h3 {
-        color: var(--theme-text-primary);
-      }
-
-      .header-text-block .header-subtitle {
-        color: var(--theme-danger-text);
-      }
-    }
-
-    .delete-modal-body {
-      .delete-warning-message {
-        color: var(--theme-text-secondary);
-
-        strong {
-          color: var(--theme-danger-text);
-        }
-      }
-
-      .delete-record-card {
-        background: var(--theme-bg-muted);
-        border-color: var(--theme-border-subtle);
-
-        .record-grid .record-field .field-value {
-          color: var(--theme-text-primary);
-        }
-
-        .record-grid .record-field .field-credential-code {
-          background: var(--theme-bg-surface);
-          color: var(--theme-text-secondary);
-        }
-      }
-
-      .delete-impact-callout {
-        background: var(--theme-warning-soft);
-        border-color: var(--theme-warning-border);
-
-        .callout-text {
-          color: var(--theme-warning-text);
-        }
-      }
-    }
-
-    .delete-modal-footer {
-      background: var(--theme-bg-muted);
-      border-top-color: var(--theme-border-subtle);
-
-      .btn-modal-cancel {
-        background: var(--theme-bg-surface);
-        border-color: var(--theme-border-default);
-        color: var(--theme-text-primary);
-      }
-    }
-  }
-}
-
-// Theme-aware Onboard Provider Modal
-.onboard-provider-modal-overlay {
-  background: var(--theme-bg-overlay);
-
-  .onboard-provider-modal-card {
-    background: var(--theme-bg-surface);
-    border: 1px solid var(--theme-border-default);
-    box-shadow: var(--theme-shadow-lg);
-    padding: var(--card-padding);
-
-    .modal-header .title-group h3 {
-      color: var(--theme-text-primary);
-    }
-
-    .modal-desc {
-      color: var(--theme-text-secondary);
-    }
-
-    .onboard-form .form-group {
-      label {
-        color: var(--theme-text-secondary);
-      }
-
-      .form-input,
-      .form-select {
-        background: var(--theme-bg-input);
-        border-color: var(--theme-border-default);
-        color: var(--theme-text-primary);
-      }
-    }
-  }
-}
-
