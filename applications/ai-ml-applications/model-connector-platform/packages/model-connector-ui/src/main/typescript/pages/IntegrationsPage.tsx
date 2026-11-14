@@ -2999,32 +2999,35 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
                       {/* Session Action Toolbar for On-Demand Re-Authentication */}
                       <div className="authenticated-session-toolbar">
-                        <button
-                          type="button"
-                          className="btn-oauth-action btn-browser-auth"
-                          onClick={handleInitiateBrowserRedirect}
-                          disabled={isRedirecting}
-                          title="Open browser to acquire a fresh OAuth 2.0 token"
-                          data-testid="btn-oauth-browser-auth"
-                        >
-                          <span className="btn-icon">🌐</span>
-                          <span>
-                            {isRedirecting
-                              ? "Opening Browser..."
-                              : "Browser Sign-In"}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-oauth-action btn-cli-auth"
-                          onClick={handleExecuteCliLogin}
-                          disabled={isCliLoggingIn}
-                          title="Trigger CLI process to generate OAuth token"
-                          data-testid="btn-oauth-cli-auth"
-                        >
-                          <span className="btn-icon">⚡</span>
-                          <span>{isCliLoggingIn ? "Running CLI Auth..." : "CLI Auth"}</span>
-                        </button>
+                        {accountCategory === "individual" ? (
+                          <button
+                            type="button"
+                            className="btn-oauth-action btn-cli-auth btn-launch-primary"
+                            onClick={handleExecuteCliLogin}
+                            disabled={isCliLoggingIn}
+                            title="Execute CLI login to refresh OAuth 2.0 token"
+                            data-testid="btn-oauth-cli-auth"
+                          >
+                            <span className="btn-icon">⚡</span>
+                            <span>{isCliLoggingIn ? "Re-Authenticating via CLI..." : "Re-Authenticate"}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-oauth-action btn-cli-auth btn-launch-primary"
+                            onClick={handleInitiateBrowserRedirect}
+                            disabled={isRedirecting}
+                            title="Open browser to acquire a fresh OAuth 2.0 token"
+                            data-testid="btn-oauth-browser-auth"
+                          >
+                            <span className="btn-icon">🌐</span>
+                            <span>
+                              {isRedirecting
+                                ? "Opening Browser..."
+                                : "Re-Authenticate"}
+                            </span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="token-display-box">
