@@ -420,9 +420,9 @@
 
         .oauth-step-progress,
         .oauth-sequential-pipeline {
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
           padding: 8px 10px;
           background: var(--theme-bg-muted);
           border: 1px solid var(--theme-border-subtle);
@@ -431,52 +431,9 @@
           width: 100%;
           box-sizing: border-box;
 
-          @container (max-width: 520px) {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 6px;
-
-            .pipeline-connector {
-              transform: rotate(90deg);
-              margin: -2px 0;
-              padding: 0;
-            }
-          }
-
-          @media (max-width: 640px) {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 6px;
-
-            .pipeline-connector {
-              transform: rotate(90deg);
-              margin: -2px 0;
-              padding: 0;
-            }
-          }
-
-          .pipeline-connector {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 4px;
-            user-select: none;
-            transition: all 0.2s ease;
-
-            .connector-arrow {
-              font-size: 1.15rem;
-              font-weight: 700;
-              line-height: 1;
-              color: var(--theme-text-muted);
-              opacity: 0.45;
-              transition: color 0.2s ease, opacity 0.2s ease;
-            }
-
-            &.completed .connector-arrow {
-              color: var(--theme-success-text);
-              opacity: 1;
-            }
+          @media (max-width: 480px) {
+            grid-template-columns: 1fr;
+            gap: 8px;
           }
 
           .step-item,
@@ -485,19 +442,30 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 9px 12px;
+            padding: 10px 12px;
+            min-height: 52px;
             background: var(--theme-bg-surface);
             border: 1px solid var(--theme-border-subtle);
             border-radius: var(--radius-md);
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             text-align: left;
-            flex: 1 1 0;
-            min-width: 0;
             width: 100%;
+            min-width: 0;
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
+
+            &::before {
+              content: "";
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 3px;
+              background: var(--theme-border-subtle);
+              transition: background 0.2s ease;
+            }
 
             &:hover:not(:disabled) {
               border-color: var(--theme-primary-border);
@@ -517,12 +485,6 @@
               box-shadow: 0 0 0 1px var(--theme-primary-soft), 0 2px 10px rgba(99, 102, 241, 0.08);
 
               &::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 2.5px;
                 background: var(--theme-primary);
               }
 
@@ -556,12 +518,6 @@
               box-shadow: 0 0 0 1px var(--theme-danger-soft);
 
               &::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 2.5px;
                 background: var(--theme-danger);
               }
 
@@ -588,6 +544,10 @@
               border-color: var(--theme-success-border);
               background: var(--theme-bg-surface);
 
+              &::before {
+                background: var(--theme-success);
+              }
+
               .step-circle,
               .stage-indicator {
                 background: var(--theme-success-soft);
@@ -612,6 +572,10 @@
               border-color: var(--theme-border-subtle);
               background: var(--theme-bg-surface);
 
+              &::before {
+                background: var(--theme-border-subtle);
+              }
+
               .step-circle,
               .stage-indicator {
                 background: var(--theme-bg-muted);
@@ -631,6 +595,7 @@
 
               .stage-state {
                 color: var(--theme-text-muted);
+                font-weight: 500;
               }
             }
 
@@ -672,14 +637,18 @@
                 font-weight: 600;
                 color: var(--theme-text-primary);
                 line-height: 1.25;
-                white-space: normal;
-                word-break: normal;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
               }
 
               .stage-state {
                 font-size: 0.67rem;
                 font-weight: 500;
                 line-height: 1.2;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
               }
             }
           }

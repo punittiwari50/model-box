@@ -2256,10 +2256,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     </div>
                   </button>
 
-                  <div className={`pipeline-connector ${effectiveOAuthStep > 1 ? "completed" : ""}`} aria-hidden="true">
-                    <span className="connector-arrow">›</span>
-                  </div>
-
                   <button
                     type="button"
                     className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 2 ? "active" : Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "completed" : "pending"}`}
@@ -2275,10 +2271,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                       </span>
                     </div>
                   </button>
-
-                  <div className={`pipeline-connector ${Boolean(oauthSession?.accessToken) ? "completed" : ""}`} aria-hidden="true">
-                    <span className="connector-arrow">›</span>
-                  </div>
 
                   <button
                     type="button"

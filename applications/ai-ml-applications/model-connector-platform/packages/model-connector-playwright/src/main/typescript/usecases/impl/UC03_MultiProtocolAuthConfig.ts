@@ -129,7 +129,7 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
 
   private async stepVerifyOAuthSecurity(page: Page): Promise<string> {
     await page.locator(ModelConfigSelectors.PROTOCOL_TAB_BTN).filter({ hasText: /OAuth 2\.0 Redirect/i }).first().click();
-    const step2Btn = page.locator(".oauth-step-progress .step-item-btn").filter({ hasText: /Redirect & Consent/i }).first();
+    const step2Btn = page.locator(".oauth-step-progress .step-item-btn").filter({ hasText: /Consent/i }).first();
     if ((await step2Btn.count()) > 0) await step2Btn.click();
 
     const computedUrl = await page.locator(ModelConfigSelectors.COMPUTED_AUTH_URL_INPUT).first().inputValue();
