@@ -2631,12 +2631,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             data-testid="btn-oauth-launch-browser"
                             onClick={handleExecuteCliLogin}
                             disabled={isCliLoggingIn || isRedirecting}
+                            title={`Launch browser OAuth sign-in using ${effectiveCliCommand}`}
                           >
                             <span className="btn-icon">🌐</span>
                             <span>
                               {isCliLoggingIn || isRedirecting
-                                ? "Awaiting Browser Sign-In..."
-                                : `Browser Sign-In (${effectiveCliCommand})`}
+                                ? "Opening Browser..."
+                                : "Browser Sign-In"}
                             </span>
                           </button>
                         ) : (
@@ -2646,12 +2647,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             data-testid="btn-oauth-launch-browser"
                             onClick={handleInitiateBrowserRedirect}
                             disabled={!oauthClientId.trim() || !oauthClientSecret.trim() || isRedirecting}
+                            title="Initiate Corporate OAuth authorization"
                           >
                             <span className="btn-icon">🚀</span>
                             <span>
                               {isRedirecting
-                                ? "Redirecting to Corporate OAuth..."
-                                : "Launch Enterprise OAuth Consent"}
+                                ? "Redirecting..."
+                                : "Enterprise Sign-In"}
                             </span>
                           </button>
                         )}
@@ -2702,9 +2704,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             type="button"
                             className="btn-oauth-action btn-return-vault"
                             onClick={() => setActiveOAuthStep(3)}
+                            title="Navigate to Authenticated Token Vault"
                           >
                             <span className="btn-icon">🔒</span>
-                            <span>View Token Vault</span>
+                            <span>Token Vault</span>
                           </button>
                         )}
                       </div>

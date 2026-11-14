@@ -1287,13 +1287,18 @@
             .failure-alert-actions {
               display: flex;
               align-items: center;
-              flex-wrap: wrap;
               gap: 10px;
               width: 100%;
+              box-sizing: border-box;
+
+              @media (max-width: 520px) {
+                flex-direction: column;
+              }
 
               .btn-oauth-action {
                 flex: 1 1 0;
                 min-width: 0;
+                width: 100%;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
@@ -1302,7 +1307,7 @@
                 min-height: 40px;
                 height: 40px;
                 border-radius: 8px;
-                font-size: 0.82rem;
+                font-size: 0.84rem;
                 font-weight: 600;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -1329,16 +1334,16 @@
                   }
 
                   &.btn-launch-primary {
-                    font-size: 0.88rem;
-                    padding: 0 18px;
-                    min-height: 44px;
-                    height: 44px;
-                    width: 100%;
+                    font-size: 0.84rem;
+                    padding: 0 16px;
+                    min-height: 40px;
+                    height: 40px;
                     justify-content: center;
                   }
                 }
 
-                &.btn-browser-auth {
+                &.btn-browser-auth,
+                &.btn-return-vault {
                   background: var(--theme-primary-soft);
                   border: 1px solid var(--theme-primary-border);
                   color: var(--theme-primary-hover);
