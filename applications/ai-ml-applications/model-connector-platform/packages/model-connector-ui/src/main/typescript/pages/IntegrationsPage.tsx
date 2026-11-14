@@ -2834,8 +2834,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                         setCopiedCliCommand(true);
                                         setTimeout(() => setCopiedCliCommand(false), 2000);
                                       }}
+                                      title="Copy CLI command to clipboard"
                                     >
-                                      {copiedCliCommand ? "✔ Copied" : "📋 Copy Command"}
+                                      {copiedCliCommand ? "✔ Copied" : "📋 Copy"}
                                     </button>
                                   </div>
                                 )}
@@ -3039,13 +3040,14 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
                                 <div className="token-display-box">
                                   <div className="token-header-row">
-                                    <label>Issued Bearer Access Token (ya29...)</label>
+                                    <label>Access Token</label>
                                     <button
                                       type="button"
                                       className="toggle-token-btn"
                                       onClick={() => setShowAccessToken(!showAccessToken)}
+                                      title={showAccessToken ? "Hide access token" : "Show access token"}
                                     >
-                                      {showAccessToken ? "🙈 Hide" : "👁 Show Token"}
+                                      {showAccessToken ? "🙈 Hide" : "👁 Show"}
                                     </button>
                                   </div>
                                   {editableAccessToken.startsWith("4/0") && (
@@ -3078,11 +3080,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                     <button
                                       type="button"
                                       className="token-save-btn"
-                                      title="Save edited token to database"
+                                      title="Save access token"
                                       disabled={isSavingToken || !editableAccessToken.trim()}
                                       onClick={handleSaveEditedToken}
                                     >
-                                      {isSavingToken ? "Saving..." : "💾 Save Token"}
+                                      {isSavingToken ? "Saving..." : "Save"}
                                     </button>
                                   </div>
                                   {tokenSaveSuccess && (
@@ -3246,7 +3248,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                               title="Run CLI login in container"
                             >
                               <span className="btn-icon">⚡</span>
-                              <span>{isCliLoggingIn ? "Running Auth..." : "CLI Auth"}</span>
+                              <span>{isCliLoggingIn ? "Authenticating..." : "CLI Auth"}</span>
                             </button>
                             <button
                               type="button"
@@ -3256,7 +3258,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                               title="Launch browser OAuth consent"
                             >
                               <span className="btn-icon">🌐</span>
-                              <span>{isRedirecting ? "Opening..." : "Browser Sign-In"}</span>
+                              <span>{isRedirecting ? "Opening..." : "Browser Auth"}</span>
                             </button>
                             <button
                               type="button"
@@ -3266,10 +3268,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                 setCopiedCliCommand(true);
                                 setTimeout(() => setCopiedCliCommand(false), 2000);
                               }}
-                              title="Copy CLI command"
+                              title="Copy CLI command to clipboard"
                             >
                               <span className="btn-icon">{copiedCliCommand ? "✔" : "📋"}</span>
-                              <span>{copiedCliCommand ? "Copied" : "Copy Command"}</span>
+                              <span>{copiedCliCommand ? "Copied" : "Copy"}</span>
                             </button>
                           </div>
 
@@ -3365,8 +3367,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                   type="button"
                                   className="toggle-token-btn"
                                   onClick={() => setShowAccessToken(!showAccessToken)}
+                                  title={showAccessToken ? "Hide access token" : "Show access token"}
                                 >
-                                  {showAccessToken ? "Hide" : "Show"}
+                                  {showAccessToken ? "🙈 Hide" : "👁 Show"}
                                 </button>
                               </div>
                               <div className="token-value-wrapper">
@@ -3383,7 +3386,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                 <button
                                   type="button"
                                   className="token-copy-btn"
-                                  title="Copy token"
+                                  title="Copy token to clipboard"
                                   onClick={() => {
                                     navigator.clipboard.writeText(editableAccessToken);
                                   }}
@@ -3393,11 +3396,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                 <button
                                   type="button"
                                   className="token-save-btn"
-                                  title="Save edited token"
+                                  title="Save access token"
                                   disabled={isSavingToken || !editableAccessToken.trim()}
                                   onClick={handleSaveEditedToken}
                                 >
-                                  {isSavingToken ? "Saving..." : "Save Token"}
+                                  {isSavingToken ? "Saving..." : "Save"}
                                 </button>
                               </div>
                               {tokenSaveSuccess && (
