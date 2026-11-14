@@ -3009,7 +3009,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         )}
                       </div>
 
-                      {/* Session Action Toolbar for On-Demand Browser Re-Authentication */}
+                      {/* Session Action Toolbar for On-Demand Re-Authentication */}
                       <div className="authenticated-session-toolbar">
                         <button
                           type="button"
@@ -3017,12 +3017,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           onClick={handleInitiateBrowserRedirect}
                           disabled={isRedirecting}
                           title="Open browser to acquire a fresh OAuth 2.0 token"
+                          data-testid="btn-oauth-browser-auth"
                         >
                           <span className="btn-icon">🌐</span>
                           <span>
                             {isRedirecting
                               ? "Opening Browser..."
-                              : `Launch Browser & Redirect (${selectedStrategy.name})`}
+                              : "Browser Sign-In"}
                           </span>
                         </button>
                         <button
@@ -3031,18 +3032,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           onClick={handleExecuteCliLogin}
                           disabled={isCliLoggingIn}
                           title="Trigger CLI process to generate OAuth token"
+                          data-testid="btn-oauth-cli-auth"
                         >
                           <span className="btn-icon">⚡</span>
-                          <span>{isCliLoggingIn ? "Running CLI Auth..." : "Run CLI Auth"}</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-oauth-action btn-step2-redirect"
-                          onClick={() => setActiveOAuthStep(2)}
-                          title="View redirect URL, OAuth parameters, and consent step"
-                        >
-                          <span className="btn-icon">📋</span>
-                          <span>Redirect & Consent Step</span>
+                          <span>{isCliLoggingIn ? "Running CLI Auth..." : "CLI Auth"}</span>
                         </button>
                       </div>
 
@@ -3255,7 +3248,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     title="Run CLI login in container"
                   >
                     <span className="btn-icon">⚡</span>
-                    <span>{isCliLoggingIn ? "Running Auth..." : "Run CLI Auth"}</span>
+                    <span>{isCliLoggingIn ? "Running Auth..." : "CLI Auth"}</span>
                   </button>
                   <button
                     type="button"

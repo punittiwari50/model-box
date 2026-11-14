@@ -1148,11 +1148,12 @@ export const IntegrationOnboardingView: React.FC<IntegrationOnboardingViewProps>
               className="btn btn-solid theme-primary btn-sm"
               disabled={!canMutate || isSubmitting || isOAuthRedirecting}
               onClick={() => void handleLaunchOAuthRedirect()}
+              title={`Launch browser OAuth consent flow for ${cliLabel}`}
               data-testid="btn-oauth-redirect"
             >
               {renderProtocolSymbol("oauth", 14)}
               <span>
-                {isOAuthRedirecting ? "Opening Browser Sign-In..." : `Launch Browser Sign-In (${cliLabel})`}
+                {isOAuthRedirecting ? "Opening Browser..." : "Browser Sign-In"}
               </span>
             </button>
             {oauthRedirectUrl && isWaitingOAuthCallback && (

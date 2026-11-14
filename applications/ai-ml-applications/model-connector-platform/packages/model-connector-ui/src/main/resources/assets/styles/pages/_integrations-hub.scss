@@ -1254,18 +1254,19 @@
               width: 100%;
 
               .btn-oauth-action {
-                flex: 1 1 180px;
+                flex: 1 1 130px;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
                 gap: 8px;
-                padding: 10px 16px;
+                padding: 9px 14px;
                 border-radius: 8px;
                 font-size: 0.82rem;
                 font-weight: 600;
                 cursor: pointer;
                 transition: all 0.2s ease;
                 white-space: nowrap;
+                box-sizing: border-box;
 
                 .btn-icon {
                   font-size: 0.95rem;
@@ -1891,7 +1892,7 @@
               box-sizing: border-box;
 
               .btn-oauth-action {
-                flex: 1 1 160px;
+                flex: 1 1 130px;
                 min-width: 0;
               }
             }
