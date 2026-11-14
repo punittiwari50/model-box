@@ -2223,13 +2223,20 @@
 
       .form-action-row {
         display: flex;
+        align-items: center;
         flex-wrap: wrap;
         gap: $spacing-sm;
         margin-top: $spacing-sm;
 
         .test-handshake-btn {
           flex: 1;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
+          height: 40px;
           min-height: 40px;
+          box-sizing: border-box;
           padding: 9px 14px;
           background: var(--theme-bg-surface);
           border: 1px solid var(--theme-border-default);
@@ -2252,8 +2259,14 @@
         }
 
         .save-config-btn {
-          flex: 1.5;
+          flex: 1.2;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
+          height: 40px;
           min-height: 40px;
+          box-sizing: border-box;
           padding: 9px 16px;
           background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
           border: 1px solid #7367f0;

@@ -170,7 +170,6 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
     });
 
     await page.locator(ModelConfigSelectors.OAUTH_LAUNCH_BROWSER_BTN).first().click();
-    await page.locator(ModelConfigSelectors.OAUTH_WAITING_INDICATOR).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
     await page.waitForFunction(
       () => {
         const u = (window as any).__lastOpenedOAuthUrl;
@@ -178,6 +177,7 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
       },
       { timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS },
     );
+    await page.locator(ModelConfigSelectors.OAUTH_WAITING_INDICATOR).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
     const launchedUrl = await page.evaluate(() => String((window as any).__lastOpenedOAuthUrl));
     if (!launchedUrl.includes("accounts.google.com") && !launchedUrl.includes("/oauth2/authorize")) {
       throw new Error(`Unexpected OAuth launch target: ${launchedUrl}`);
@@ -189,7 +189,6 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
     }
 
     await this.assertLoopbackOAuthHeaders(page);
-    await page.locator(ModelConfigSelectors.OAUTH_WAITING_INDICATOR).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
     return `OAuth URL verified (${launchedUrl.substring(0, 48)}...) + Gemini CLI discovery + CSP/DENY security headers verified`;
   }
 

@@ -519,14 +519,23 @@
       }
 
       .form-action-row {
+        display: flex;
+        align-items: center;
         gap: var(--space-3);
         margin-top: var(--space-2);
 
         .test-handshake-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
+          height: 40px;
+          min-height: 40px;
+          box-sizing: border-box;
+          text-align: center;
           background: var(--theme-bg-surface);
           border: 1px solid var(--theme-border-default);
           color: var(--theme-text-primary);
-          min-height: 40px;
 
           &:hover:not(:disabled) {
             background: var(--theme-bg-muted);
@@ -537,9 +546,16 @@
         }
 
         .save-config-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
+          height: 40px;
+          min-height: 40px;
+          box-sizing: border-box;
+          text-align: center;
           background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
           color: #ffffff;
-          min-height: 40px;
           box-shadow: var(--theme-shadow-sm);
         }
       }

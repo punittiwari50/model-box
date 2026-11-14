@@ -3510,8 +3510,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           className="test-handshake-btn"
                           onClick={handleTestCurrentConfig}
                           disabled={isTesting}
+                          title="Test connection with current parameters"
                         >
-                          {isTesting ? "Testing..." : "⚡ Test Connection"}
+                          {isTesting ? "Testing..." : "⚡ Test"}
                         </button>
 
                         {editingAccountId ? (
@@ -3523,15 +3524,16 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                               onClick={handleDoneEditing}
                               data-testid="btn-done-editing"
                             >
-                              Done Editing
+                              Cancel
                             </button>
                             <button
                               type="submit"
                               className="save-config-btn"
                               disabled={isSaving}
                               data-testid="btn-save"
+                              title="Update connection configuration"
                             >
-                              {isSaving ? "Updating..." : "Update Configuration"}
+                              {isSaving ? "Updating..." : "Update"}
                             </button>
                           </>
                         ) : (
@@ -3540,8 +3542,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             className="save-config-btn"
                             disabled={isSaving}
                             data-testid="btn-save"
+                            title="Save connection configuration"
                           >
-                            {isSaving ? "Saving..." : "Save Configuration"}
+                            {isSaving ? "Saving..." : "Save"}
                           </button>
                         )}
                       </div>
