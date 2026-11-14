@@ -1,5 +1,5 @@
 import React from "react";
-import type { UiAuditRecord, UiIntegration, UiModel, UiModelAccount } from "@/types/ui.types";
+import type { UiAuditRecord, UiIntegration, UiModel, UiModelAccount, TestConnectionResult } from "@/types/ui.types";
 import { TimeComparisonFormatter } from "@/utils";
 import { EmptyState, StatCard, StatCardGrid, StatusBadge, type BadgeTone } from "@/components/common";
 
@@ -30,6 +30,7 @@ export interface IntegrationDetailViewProps {
   readonly editingAccountId?: string | null;
   readonly onSaveAccount?: () => void;
   readonly onToggleAccountStatus?: (account: UiModelAccount) => void;
+  readonly accountTestResults?: Record<string, TestConnectionResult>;
 }
 
 const PROVIDER_DISPLAY: Record<string, { name: string; category: string; monogram: string }> = {
@@ -134,6 +135,7 @@ export const IntegrationDetailView: React.FC<IntegrationDetailViewProps> = ({
   editingAccountId,
   onSaveAccount,
   onToggleAccountStatus,
+  accountTestResults,
 }) => {
   const fam = (model?.family || customIntegration?.integrationId || targetModelId.split("-")[0] || "gemini").toLowerCase();
   const meta = PROVIDER_DISPLAY[fam];
@@ -496,6 +498,51 @@ export const IntegrationDetailView: React.FC<IntegrationDetailViewProps> = ({
                           Disconnect
                         </button>
                       </div>
+
+                      {accountTestResults?.[acc.accountId] && (
+                        <div
+                          className={`account-test-result-inline ${accountTestResults[acc.accountId].status.toLowerCase()}`}
+                          style={{
+                            width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            fontSize: "0.78rem",
+                            marginTop: "6px",
+                            background: accountTestResults[acc.accountId].status === "VERIFIED"
+                              ? "var(--theme-success-soft, #f0fdf4)"
+                              : "var(--theme-danger-soft, #fef2f2)",
+                            border: `1px solid ${
+                              accountTestResults[acc.accountId].status === "VERIFIED"
+                                ? "var(--theme-success-border, #86efac)"
+                                : "var(--theme-danger-border, #fca5a5)"
+                            }`,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              padding: "1px 6px",
+                              borderRadius: "100px",
+                              fontSize: "0.70rem",
+                              background: accountTestResults[acc.accountId].status === "VERIFIED"
+                                ? "var(--theme-success, #22c55e)"
+                                : "var(--theme-danger, #ef4444)",
+                              color: "#ffffff",
+                            }}
+                          >
+                            {accountTestResults[acc.accountId].status}
+                          </span>
+                          <span style={{ color: "var(--theme-text-muted)", fontFamily: "monospace" }}>
+                            ⚡ {accountTestResults[acc.accountId].latencyMs}ms
+                          </span>
+                          <span style={{ color: "var(--theme-text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {accountTestResults[acc.accountId].message || accountTestResults[acc.accountId].errorMessage}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

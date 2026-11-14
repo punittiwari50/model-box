@@ -141,19 +141,20 @@
 }
 
 // 3. Balanced Protocol Selector Tabs (74px Height Parity)
+.protocol-selector-tabs,
 .protocol-tab-nav {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin-bottom: var(--space-2, 6px);
+  margin-bottom: var(--space-3, 12px);
   width: 100%;
   box-sizing: border-box;
 
-  @media (max-width: 720px) {
+  @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  @media (max-width: 420px) {
+  @media (max-width: 480px) {
     grid-template-columns: 1fr;
   }
 
@@ -176,25 +177,29 @@
     box-sizing: border-box;
     transition: all 0.2s ease;
 
-    .proto-icon {
+    .proto-icon,
+    .tab-icon {
       font-size: 1.15rem;
       line-height: 1;
-      margin-bottom: 1px;
+      margin-bottom: 2px;
+      display: block;
     }
 
-    .proto-name {
-      font-size: 0.78rem;
+    .proto-name,
+    .tab-label {
+      font-size: 0.82rem;
       font-weight: 700;
-      color: var(--theme-text-primary);
-      line-height: 1.15;
-      white-space: nowrap;
+      color: inherit;
+      line-height: 1.2;
+      display: block;
     }
 
-    .proto-sub {
-      font-size: 0.68rem;
+    .proto-sub,
+    .tab-hint {
+      font-size: 0.70rem;
       color: var(--theme-text-muted);
-      line-height: 1.15;
-      white-space: nowrap;
+      line-height: 1.2;
+      display: block;
     }
 
     &:hover:not(.active) {
@@ -210,7 +215,9 @@
       box-shadow: var(--theme-shadow-sm);
 
       .proto-name,
-      .proto-sub {
+      .tab-label,
+      .proto-sub,
+      .tab-hint {
         color: #ffffff;
       }
     }
@@ -470,6 +477,18 @@
   margin-top: var(--space-2, 6px);
   width: 100%;
   box-sizing: border-box;
+
+  @media (max-width: 580px) {
+    flex-direction: column;
+    gap: 8px;
+
+    .test-handshake-btn,
+    .cancel-edit-btn,
+    .save-config-btn {
+      width: 100%;
+      flex: none;
+    }
+  }
 
   .test-handshake-btn {
     flex: 1;
