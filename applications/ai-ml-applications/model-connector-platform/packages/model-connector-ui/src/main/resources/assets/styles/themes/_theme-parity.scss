@@ -64,24 +64,31 @@
     }
 
     .protocol-selector-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
+
       @include respond-to("sm") {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
       }
 
       .protocol-tab-btn {
-        background: var(--theme-bg-muted);
-        border-color: var(--theme-border-subtle);
-        color: var(--theme-text-secondary);
-
-        &:hover {
-          background: var(--theme-bg-subtle);
-          color: var(--theme-text-primary);
-        }
+        min-height: 74px;
+        height: 74px;
 
         &.active {
-          background: var(--theme-primary);
-          border-color: var(--theme-primary);
+          background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
+          border-color: #7367f0;
           color: #ffffff;
+
+          .tab-icon,
+          .tab-label,
+          .tab-hint {
+            color: #ffffff;
+          }
         }
       }
     }

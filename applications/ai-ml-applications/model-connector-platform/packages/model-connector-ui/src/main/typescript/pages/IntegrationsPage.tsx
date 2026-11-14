@@ -814,50 +814,50 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
   const computedAuthorizationUrl =
     effectiveClientId &&
-    (!resolvedOAuthConfig?.authorizationUrl ||
-      !isUsableOAuthUrl(resolvedOAuthConfig.authorizationUrl) ||
-      effectiveClientId !== resolvedDefaultClientId)
+      (!resolvedOAuthConfig?.authorizationUrl ||
+        !isUsableOAuthUrl(resolvedOAuthConfig.authorizationUrl) ||
+        effectiveClientId !== resolvedDefaultClientId)
       ? selectedStrategy.buildAuthorizationUrl({
+        clientId: effectiveClientId,
+        redirectUri: computedAuthRedirectUri,
+        scopes: oauthScopes,
+        modelId: targetModelId,
+        userEmail: userEmail,
+      })
+      : (isUsableOAuthUrl(resolvedOAuthConfig?.authorizationUrl)
+        ? resolvedOAuthConfig.authorizationUrl
+        : resolvedOAuthConfig?.executableLaunchUrl) ||
+      (effectiveClientId
+        ? selectedStrategy.buildAuthorizationUrl({
           clientId: effectiveClientId,
           redirectUri: computedAuthRedirectUri,
           scopes: oauthScopes,
           modelId: targetModelId,
           userEmail: userEmail,
         })
-      : (isUsableOAuthUrl(resolvedOAuthConfig?.authorizationUrl)
-          ? resolvedOAuthConfig.authorizationUrl
-          : resolvedOAuthConfig?.executableLaunchUrl) ||
-        (effectiveClientId
-          ? selectedStrategy.buildAuthorizationUrl({
-              clientId: effectiveClientId,
-              redirectUri: computedAuthRedirectUri,
-              scopes: oauthScopes,
-              modelId: targetModelId,
-              userEmail: userEmail,
-            })
-          : selectedStrategy.buildAuthorizationUrl({
-              clientId: effectiveClientId,
-              redirectUri: computedAuthRedirectUri,
-              scopes: oauthScopes,
-              modelId: targetModelId,
-              userEmail: userEmail,
-            }) || resolvedOAuthConfig?.authorizationEndpoint || selectedStrategy.authUrl);
+        : selectedStrategy.buildAuthorizationUrl({
+          clientId: effectiveClientId,
+          redirectUri: computedAuthRedirectUri,
+          scopes: oauthScopes,
+          modelId: targetModelId,
+          userEmail: userEmail,
+        }) || resolvedOAuthConfig?.authorizationEndpoint || selectedStrategy.authUrl);
 
   const executableLaunchUrl =
     effectiveClientId &&
-    (!resolvedOAuthConfig?.executableLaunchUrl ||
-      !isUsableOAuthUrl(resolvedOAuthConfig.executableLaunchUrl) ||
-      effectiveClientId !== resolvedDefaultClientId)
+      (!resolvedOAuthConfig?.executableLaunchUrl ||
+        !isUsableOAuthUrl(resolvedOAuthConfig.executableLaunchUrl) ||
+        effectiveClientId !== resolvedDefaultClientId)
       ? selectedStrategy.buildAuthorizationUrl({
-          clientId: effectiveClientId,
-          redirectUri: computedAuthRedirectUri,
-          scopes: oauthScopes,
-          modelId: targetModelId,
-          userEmail: userEmail,
-        })
+        clientId: effectiveClientId,
+        redirectUri: computedAuthRedirectUri,
+        scopes: oauthScopes,
+        modelId: targetModelId,
+        userEmail: userEmail,
+      })
       : (isUsableOAuthUrl(resolvedOAuthConfig?.executableLaunchUrl)
-          ? resolvedOAuthConfig.executableLaunchUrl
-          : "");
+        ? resolvedOAuthConfig.executableLaunchUrl
+        : "");
 
   const buildOAuthScopes = (): readonly string[] =>
     oauthScopes
@@ -895,6 +895,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   }, [availableStrategies]);
 
   const [isWaitingForCallback, setIsWaitingForCallback] = useState<boolean>(false);
+  const [authSessionStartedAt, setAuthSessionStartedAt] = useState<number>(0);
 
   // Cross-window postMessage listener from OAuth callback page
   useEffect(() => {
@@ -970,7 +971,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         if (session?.code) {
           setRedirectAuthCode(session.code);
         }
-        if (session?.accessToken && session.email) {
+        if (
+          session?.accessToken &&
+          session.email &&
+          (!session.timestamp || session.timestamp >= authSessionStartedAt)
+        ) {
           const newSession: AuthenticatedOAuthSession = {
             providerId: session.provider || selectedStrategy.id,
             providerName: selectedStrategy.name,
@@ -1086,6 +1091,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
   const handleExecuteCliLogin = async () => {
     setIsCliLoggingIn(true);
+    setAuthSessionStartedAt(Date.now());
     setActionError(null);
 
     // Open blank window immediately on user gesture to avoid browser popup blockers
@@ -1161,7 +1167,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       const setupGuide = cliResponse.loginResult?.config?.setupGuide;
       const needsRegistration = Boolean(
         (cliResponse.loginResult?.config?.requiresClientRegistration || requiresClientRegistration) &&
-          !effectiveClientId,
+        !effectiveClientId,
       );
 
       if (needsRegistration && !launchUrl) {
@@ -1223,6 +1229,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const handleInitiateBrowserRedirect = async () => {
     setIsRedirecting(true);
     setIsWaitingForCallback(true);
+    setAuthSessionStartedAt(Date.now());
     setTimerOriginTab(selectedProtocol === "cli" ? "cli" : selectedProtocol === "oauth" && accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise");
     setCliTimeoutSecondsRemaining(300);
     setActionError(null);
@@ -1692,7 +1699,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         try {
           await ApiService.deactivateModelAccount(acc.modelId, acc.accountId);
           await state.refreshModelAccounts();
-        } catch {}
+        } catch { }
       }
       setActionError(
         `⚠️ Authentication Error (401 Unauthorized): Account '${acc.accountName}' failed verification and was converted to INACTIVE.`,
@@ -2033,2054 +2040,2054 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                   </div>
                 </div>
 
-          <div className={`config-studio-grid ${formMode === "create" ? "single-column" : ""}`}>
-        {/* Left Column: Interactive Protocol Configuration Form */}
-        <div className="config-builder-card">
-          <div className="card-header">
-            <span className="card-icon">⚡</span>
-            <h3>Protocol Configuration Engine</h3>
-          </div>
-
-          {editingAccountId && (
-            <div className="alert-banner info d-flex align-items-center justify-content-between p-2 mb-3" data-testid="edit-mode-indicator">
-              <div className="d-flex align-items-center gap-2">
-                <span className="badge-pill info">Editing Mode</span>
-                <span>Editing account: <strong>{accountName || editingAccountId}</strong> ({targetModelId})</span>
-              </div>
-              <button
-                type="button"
-                className="btn btn-sm btn-outline theme-secondary"
-                onClick={handleDoneEditing}
-                data-testid="btn-done-editing-top"
-              >
-                Done Editing
-              </button>
-            </div>
-          )}
-
-          {/* Protocol Switcher Tabs */}
-          <div className="protocol-selector-tabs">
-            <button
-              type="button"
-              className={`protocol-tab-btn ${selectedProtocol === "api" ? "active" : ""}`}
-              onClick={() => {
-                setSelectedProtocol("api");
-                setActionError(null);
-                setActionInfo(null);
-              }}
-            >
-              <span className="tab-icon">🔑</span>
-              <span className="tab-label">REST API</span>
-              <span className="tab-hint">Static Key</span>
-            </button>
-
-            <button
-              type="button"
-              className={`protocol-tab-btn ${selectedProtocol === "oauth" ? "active" : ""}`}
-              onClick={() => {
-                setSelectedProtocol("oauth");
-                setActionError(null);
-                setActionInfo(null);
-              }}
-            >
-              <span className="tab-icon">🌐</span>
-              <span className="tab-label">OAuth 2.0 Redirect</span>
-              <span className="tab-hint">Web Consent</span>
-            </button>
-
-            <button
-              type="button"
-              className={`protocol-tab-btn ${selectedProtocol === "cli" ? "active" : ""}`}
-              onClick={() => {
-                setSelectedProtocol("cli");
-                setActionError(null);
-                setActionInfo(null);
-              }}
-            >
-              <span className="tab-icon">💻</span>
-              <span className="tab-label">CLI Binary</span>
-              <span className="tab-hint">Host Terminal</span>
-            </button>
-
-            <button
-              type="button"
-              className={`protocol-tab-btn ${selectedProtocol === "cookie" ? "active" : ""}`}
-              onClick={() => {
-                setSelectedProtocol("cookie");
-                setActionError(null);
-                setActionInfo(null);
-              }}
-            >
-              <span className="tab-icon">🍪</span>
-              <span className="tab-label">Cookie Vault</span>
-              <span className="tab-hint">Session Lineage</span>
-            </button>
-          </div>
-
-          <form className="protocol-config-form" onSubmit={handleSaveConfiguration}>
-            <div className="form-row-2">
-              <div className="form-group">
-                <label className="form-label-inline-split">
-                  <span>Target Model</span>
-                  {(() => {
-                    const isEditing = Boolean(editingAccountId);
-                    const editingAccount = isEditing
-                      ? state.modelAccounts.find((a) => a.accountId === editingAccountId)
-                      : null;
-                    const pillClass = isEditing
-                      ? (editingAccount?.isActive ? "verified" : "pending")
-                      : (isAuthSuccessful ? "verified" : "pending");
-                    const pillText = isEditing
-                      ? (editingAccount?.isActive ? "Active" : "Inactive")
-                      : (isAuthSuccessful ? "Discovered" : "Pending Auth");
-                    return (
-                      <span className={`target-auth-pill ${pillClass}`} data-testid="target-auth-pill">
-                        {pillText}
-                      </span>
-                    );
-                  })()}
-                </label>
-                <select
-                  className="form-select"
-                  value={targetModelId}
-                  onChange={(e) => {
-                    setTargetModelId(e.target.value);
-                    state.setSelectedModel(e.target.value);
-                  }}
-                  data-testid="select-target-model"
-                >
-                  {availableConfigModels.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.family})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label-inline-split">
-                  <span>Account Label</span>
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Production Gemini CLI"
-                  value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-group" style={{ marginTop: "4px" }}>
-              <label>Owner Email</label>
-              <input
-                type="email"
-                className="form-input"
-                value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
-                autoComplete="off"
-                data-lpignore="true"
-                placeholder="user@example.com"
-                required
-              />
-            </div>
-
-            {/* ============================================================= */}
-            {/* 1. REST API PROTOCOL TAB                                      */}
-            {/* ============================================================= */}
-            {selectedProtocol === "api" && (
-              <div className="protocol-fields-container">
-                <div className="protocol-badge-intro api-intro">
-                  <span className="badge-icon">🔑</span>
-                  <div>
-                    <strong>REST API Authentication</strong>
-                    <p>Header-based bearer token or API key configuration.</p>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>API Key</label>
-                  <input
-                    type="password"
-                    className="form-input code-font"
-                    placeholder="Enter API key"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    required={selectedProtocol === "api"}
-                  />
-                </div>
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>Endpoint URL</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={apiBaseUrl}
-                      onChange={(e) => setApiBaseUrl(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>API Version</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={apiVersion}
-                      onChange={(e) => setApiVersion(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ============================================================= */}
-            {/* 2. OAUTH 2.0 / CLI REDIRECT WORKFLOW (100+ PROVIDERS)        */}
-            {/* ============================================================= */}
-            {selectedProtocol === "oauth" && (
-              <div className="oauth-dedicated-container">
-                {/* Sequential Authentication Pipeline */}
-                <div className="oauth-step-progress oauth-sequential-pipeline" data-testid="oauth-step-progress">
-                  <button
-                    type="button"
-                    className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 1 ? "active" : effectiveOAuthStep > 1 ? "completed" : "pending"}`}
-                    onClick={() => setActiveOAuthStep(1)}
-                  >
-                    <span className="step-circle stage-indicator">
-                      {effectiveOAuthStep > 1 ? "✔" : <span className="stage-dot" />}
-                    </span>
-                    <div className="step-info stage-content">
-                      <span className="step-label stage-title">Select Provider</span>
-                      <span className="stage-state">
-                        {effectiveOAuthStep > 1 ? "Completed" : effectiveOAuthStep === 1 ? "In Progress" : "Pending"}
-                      </span>
+                <div className={`config-studio-grid ${formMode === "create" ? "single-column" : ""}`}>
+                  {/* Left Column: Interactive Protocol Configuration Form */}
+                  <div className="config-builder-card">
+                    <div className="card-header">
+                      <span className="card-icon">⚡</span>
+                      <h3>Protocol Configuration Engine</h3>
                     </div>
-                  </button>
 
-                  <button
-                    type="button"
-                    className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 2 ? "active" : Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "completed" : "pending"}`}
-                    onClick={() => setActiveOAuthStep(2)}
-                  >
-                    <span className="step-circle stage-indicator">
-                      {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "✔" : <span className="stage-dot" />}
-                    </span>
-                    <div className="step-info stage-content">
-                      <span className="step-label stage-title">Browser Consent</span>
-                      <span className="stage-state">
-                        {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "Completed" : effectiveOAuthStep === 2 ? "In Progress" : "Pending"}
-                      </span>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 3 ? (isOAuthVerificationFailed ? "active active-failed" : "active active-success") : Boolean(oauthSession?.accessToken) ? "completed" : "pending"}`}
-                    onClick={() => setActiveOAuthStep(3)}
-                    disabled={!oauthSession}
-                  >
-                    <span className="step-circle stage-indicator">
-                      {isOAuthVerificationFailed ? "⚠️" : Boolean(oauthSession?.accessToken) ? "✔" : <span className="stage-dot" />}
-                    </span>
-                    <div className="step-info stage-content">
-                      <span className="step-label stage-title">
-                        {isOAuthVerificationFailed ? "Verification Failed" : "Token Vault"}
-                      </span>
-                      <span className="stage-state">
-                        {isOAuthVerificationFailed ? "Action Required" : Boolean(oauthSession?.accessToken) ? "Ready" : "Pending"}
-                      </span>
-                    </div>
-                  </button>
-                </div>
-
-                {/* Step 1: Provider Catalog */}
-                {effectiveOAuthStep === 1 && (
-                  <div className="oauth-pre-auth-view">
-                    {/* Enterprise 100+ Providers Ecosystem Catalog */}
-                    <div className="oauth-provider-picker">
-                      <div className="picker-header-row">
-                        <div>
-                          <label className="picker-title">Select Model Provider</label>
-                          <span className="picker-subtext">Configure across 100+ enterprise AI model ecosystems</span>
+                    {editingAccountId && (
+                      <div className="alert-banner info d-flex align-items-center justify-content-between p-2 mb-3" data-testid="edit-mode-indicator">
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="badge-pill info">Editing Mode</span>
+                          <span>Editing account: <strong>{accountName || editingAccountId}</strong> ({targetModelId})</span>
                         </div>
                         <button
                           type="button"
-                          className="btn-onboard-provider"
-                          onClick={() => setIsOnboardingModalOpen(true)}
+                          className="btn btn-sm btn-outline theme-secondary"
+                          onClick={handleDoneEditing}
+                          data-testid="btn-done-editing-top"
                         >
-                          <span>➕ Onboard Custom Provider</span>
+                          Done Editing
                         </button>
                       </div>
+                    )}
 
-                      {/* Search & Category Filter Toolbar */}
-                      <div className="provider-filter-toolbar">
-                        <div className="provider-search-box">
-                          <span className="search-icon">🔍</span>
+                    {/* Protocol Switcher Tabs */}
+                    <div className="protocol-selector-tabs">
+                      <button
+                        type="button"
+                        className={`protocol-tab-btn ${selectedProtocol === "api" ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedProtocol("api");
+                          setActionError(null);
+                          setActionInfo(null);
+                        }}
+                      >
+                        <span className="tab-icon">🔑</span>
+                        <span className="tab-label">REST API</span>
+                        <span className="tab-hint">Static Key</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`protocol-tab-btn ${selectedProtocol === "oauth" ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedProtocol("oauth");
+                          setActionError(null);
+                          setActionInfo(null);
+                        }}
+                      >
+                        <span className="tab-icon">🌐</span>
+                        <span className="tab-label">OAuth 2.0 Redirect</span>
+                        <span className="tab-hint">Web Consent</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`protocol-tab-btn ${selectedProtocol === "cli" ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedProtocol("cli");
+                          setActionError(null);
+                          setActionInfo(null);
+                        }}
+                      >
+                        <span className="tab-icon">💻</span>
+                        <span className="tab-label">CLI Binary</span>
+                        <span className="tab-hint">Host Terminal</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`protocol-tab-btn ${selectedProtocol === "cookie" ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedProtocol("cookie");
+                          setActionError(null);
+                          setActionInfo(null);
+                        }}
+                      >
+                        <span className="tab-icon">🍪</span>
+                        <span className="tab-label">Cookie Vault</span>
+                        <span className="tab-hint">Session Lineage</span>
+                      </button>
+                    </div>
+
+                    <form className="protocol-config-form" onSubmit={handleSaveConfiguration}>
+                      <div className="form-row-2">
+                        <div className="form-group">
+                          <label className="form-label-inline-split">
+                            <span>Target Model</span>
+                            {(() => {
+                              const isEditing = Boolean(editingAccountId);
+                              const editingAccount = isEditing
+                                ? state.modelAccounts.find((a) => a.accountId === editingAccountId)
+                                : null;
+                              const pillClass = isEditing
+                                ? (editingAccount?.isActive ? "verified" : "pending")
+                                : (isAuthSuccessful ? "verified" : "pending");
+                              const pillText = isEditing
+                                ? (editingAccount?.isActive ? "Active" : "Inactive")
+                                : (isAuthSuccessful ? "Discovered" : "Pending Auth");
+                              return (
+                                <span className={`target-auth-pill ${pillClass}`} data-testid="target-auth-pill">
+                                  {pillText}
+                                </span>
+                              );
+                            })()}
+                          </label>
+                          <select
+                            className="form-select"
+                            value={targetModelId}
+                            onChange={(e) => {
+                              setTargetModelId(e.target.value);
+                              state.setSelectedModel(e.target.value);
+                            }}
+                            data-testid="select-target-model"
+                          >
+                            {availableConfigModels.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name} ({m.family})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label-inline-split">
+                            <span>Account Label</span>
+                          </label>
                           <input
                             type="text"
-                            className="provider-search-input"
-                            placeholder="Search 100+ providers by name, family, CLI..."
-                            value={providerSearchQuery}
-                            onChange={(e) => setProviderSearchQuery(e.target.value)}
+                            className="form-input"
+                            placeholder="e.g. Production Gemini CLI"
+                            value={accountName}
+                            onChange={(e) => setAccountName(e.target.value)}
+                            required
                           />
-                          {providerSearchQuery && (
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ marginTop: "4px" }}>
+                        <label>Owner Email</label>
+                        <input
+                          type="email"
+                          className="form-input"
+                          value={userEmail}
+                          onChange={(e) => setUserEmail(e.target.value)}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          placeholder="user@example.com"
+                          required
+                        />
+                      </div>
+
+                      {/* ============================================================= */}
+                      {/* 1. REST API PROTOCOL TAB                                      */}
+                      {/* ============================================================= */}
+                      {selectedProtocol === "api" && (
+                        <div className="protocol-fields-container">
+                          <div className="protocol-badge-intro api-intro">
+                            <span className="badge-icon">🔑</span>
+                            <div>
+                              <strong>REST API Authentication</strong>
+                              <p>Header-based bearer token or API key configuration.</p>
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label>API Key</label>
+                            <input
+                              type="password"
+                              className="form-input code-font"
+                              placeholder="Enter API key"
+                              value={apiKey}
+                              onChange={(e) => setApiKey(e.target.value)}
+                              required={selectedProtocol === "api"}
+                            />
+                          </div>
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label>Endpoint URL</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={apiBaseUrl}
+                                onChange={(e) => setApiBaseUrl(e.target.value)}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>API Version</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={apiVersion}
+                                onChange={(e) => setApiVersion(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ============================================================= */}
+                      {/* 2. OAUTH 2.0 / CLI REDIRECT WORKFLOW (100+ PROVIDERS)        */}
+                      {/* ============================================================= */}
+                      {selectedProtocol === "oauth" && (
+                        <div className="oauth-dedicated-container">
+                          {/* Sequential Authentication Pipeline */}
+                          <div className="oauth-step-progress oauth-sequential-pipeline" data-testid="oauth-step-progress">
                             <button
                               type="button"
-                              className="clear-search-btn"
-                              onClick={() => setProviderSearchQuery("")}
+                              className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 1 ? "active" : effectiveOAuthStep > 1 ? "completed" : "pending"}`}
+                              onClick={() => setActiveOAuthStep(1)}
                             >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="category-chips-row">
-                          {categories.map((cat) => (
-                            <button
-                              key={cat.id}
-                              type="button"
-                              className={`category-chip-btn ${selectedCategory === cat.id ? "active" : ""}`}
-                              onClick={() => setSelectedCategory(cat.id)}
-                            >
-                              <span className="cat-icon">{cat.icon}</span>
-                              <span className="cat-name">{cat.name}</span>
-                              <span className="cat-count">({cat.count})</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Responsive Grid of Providers */}
-                      <div className="provider-cards-grid">
-                        {filteredStrategies.map((preset) => (
-                          <div
-                            key={preset.id}
-                            className={`provider-card ${selectedProviderId === preset.id ? "selected" : ""}`}
-                            onClick={() => {
-                              setSelectedProviderId(preset.id);
-                              setActiveOAuthStep(2);
-                            }}
-                          >
-                            <span className="provider-icon">{preset.icon}</span>
-                            <div className="provider-info">
-                              <span className="provider-name">{preset.name}</span>
-                              <span className="provider-category-tag">{preset.category.toUpperCase()}</span>
-                            </div>
-                            {selectedProviderId === preset.id && <span className="provider-check">✔</span>}
-                          </div>
-                        ))}
-                        {filteredStrategies.length === 0 && (
-                          <div className="no-providers-match">
-                            <span>No providers match "{providerSearchQuery}". Click "+ Onboard Custom Provider" to register a new one.</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "14px" }}>
-                        <button
-                          type="button"
-                          className="btn-oauth-action btn-browser-auth"
-                          onClick={() => setActiveOAuthStep(2)}
-                        >
-                          <span>Next: Authorization Setup</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 2: Browser Redirect & Handshake */}
-                {effectiveOAuthStep === 2 && (
-                  <div className="oauth-pre-auth-view">
-                    <div className="oauth-redirect-callout enterprise-handshake-panel">
-                      {/* Section 1: Handshake Header */}
-                      <div className="handshake-header-row">
-                        <div className="handshake-title-group">
-                          <span className="callout-icon">{selectedStrategy.icon}</span>
-                          <div>
-                            <div className="title-with-badge">
-                              <h4>OAuth 2.0 Authorization</h4>
-                              {Boolean(oauthSession?.accessToken) && (
-                                <span className="verified-status-chip">✔ {selectedStrategy.verifiedStatus}</span>
-                              )}
-                            </div>
-                            <p className="handshake-desc">
-                              Authenticate with <strong>{selectedStrategy.name}</strong> for <strong>{targetModelId}</strong>.
-                            </p>
-                          </div>
-                        </div>
-                        {selectedStrategy.docsUrl && (
-                          <a
-                            href={selectedStrategy.docsUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="upstream-docs-link"
-                          >
-                            📖 Docs ↗
-                          </a>
-                        )}
-                      </div>
-
-                      {/* Section 2: Account Category Selector (Individual vs Enterprise) */}
-                      <div className="account-mode-container">
-                        <div className="mode-header-label">
-                          <span>Authentication Mode ({selectedStrategy.name})</span>
-                          <span className="mode-subtag">
-                            {accountCategory === "individual" ? "CLI Binary Session" : "Enterprise Web OAuth"}
-                          </span>
-                        </div>
-
-                        <div className="mode-cards-grid">
-                          <button
-                            type="button"
-                            onClick={() => setAccountCategory("individual")}
-                            className={`mode-card-btn ${accountCategory === "individual" ? "active" : ""}`}
-                          >
-                            <div className="mode-card-title">
-                              <span>👤</span>
-                              <strong>Individual Account (CLI)</strong>
-                            </div>
-                            <div className="mode-card-desc">
-                              Personal account bearer sign-in via host CLI (Antigravity or Gemini). No cloud project ID needed.
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setAccountCategory("enterprise")}
-                            className={`mode-card-btn ${accountCategory === "enterprise" ? "active" : ""}`}
-                          >
-                            <div className="mode-card-title">
-                              <span>🏢</span>
-                              <strong>Enterprise Project (Web OAuth)</strong>
-                            </div>
-                            <div className="mode-card-desc">
-                              Corporate consent flow. OAuth Client ID and Client Secret are mandatory.
-                            </div>
-                          </button>
-                        </div>
-
-                        {/* If Individual: Show CLI Tool Choice */}
-                        {accountCategory === "individual" && selectedStrategy.id === "google" && (
-                          <div className="google-cli-selector-panel">
-                            <div className="cli-selector-text">
-                              <strong>CLI Binary</strong>
-                              <span>Choose tool used for OAuth PKCE session</span>
-                            </div>
-                            <div className="cli-selector-buttons">
-                              <button
-                                type="button"
-                                className={`cli-tool-choice-btn ${selectedGoogleCli === "antigravity" ? "active" : ""}`}
-                                onClick={() => {
-                                  setSelectedGoogleCli("antigravity");
-                                  setCliExecutable("antigravity");
-                                }}
-                              >
-                                ⚡ Antigravity CLI
-                              </button>
-                              <button
-                                type="button"
-                                className={`cli-tool-choice-btn ${selectedGoogleCli === "gemini" ? "active" : ""}`}
-                                onClick={() => {
-                                  setSelectedGoogleCli("gemini");
-                                  setCliExecutable("gemini");
-                                }}
-                              >
-                                ✦ Gemini CLI
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* If Enterprise: Mandatory Client ID & Client Secret form */}
-                        {accountCategory === "enterprise" && (
-                          <div className="enterprise-oauth-credentials-card" data-testid="enterprise-oauth-card">
-                            <div className="card-intro-note">
-                              <span>🏢</span>
-                              <span><strong>Enterprise OAuth 2.0 Credentials:</strong> Client ID and Client Secret are mandatory for corporate federation. Authorization code input is not required.</span>
-                            </div>
-
-                            <div className="form-row-2">
-                              <div className="form-group">
-                                <label>OAuth Client ID <span className="required-star" style={{ color: "#ef4444" }}>*</span></label>
-                                <input
-                                  type="text"
-                                  className="form-input"
-                                  placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com"
-                                  value={oauthClientId}
-                                  onChange={(e) => setOauthClientId(e.target.value)}
-                                  required
-                                />
-                              </div>
-                              <div className="form-group">
-                                <label>OAuth Client Secret <span className="required-star" style={{ color: "#ef4444" }}>*</span></label>
-                                <input
-                                  type="password"
-                                  className="form-input"
-                                  placeholder="Enter corporate client secret"
-                                  value={oauthClientSecret}
-                                  onChange={(e) => setOauthClientSecret(e.target.value)}
-                                  required
-                                />
-                              </div>
-                            </div>
-
-                            <div className="form-row-2">
-                              <div className="form-group">
-                                <label>Authorization Endpoint</label>
-                                <input
-                                  type="url"
-                                  className="form-input"
-                                  value={oauthAuthUrl || selectedStrategy.authUrl}
-                                  onChange={(e) => setOauthAuthUrl(e.target.value)}
-                                />
-                              </div>
-                              <div className="form-group">
-                                <label>Callback Redirect URI</label>
-                                <input
-                                  type="url"
-                                  className="form-input"
-                                  value={computedAuthRedirectUri}
-                                  readOnly
-                                />
-                              </div>
-                            </div>
-
-                            {(!oauthClientId.trim() || !oauthClientSecret.trim()) && (
-                              <div className="alert-banner warning" style={{ margin: 0 }}>
-                                <span className="alert-icon">⚠️</span>
-                                <span className="alert-text">Client ID and Client Secret are mandatory to enable Enterprise OAuth consent.</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Section 3: Computed Authorization URL */}
-                      <div className="computed-url-box">
-                        <div className="url-label-row">
-                          <label>Authorization URL</label>
-                          <span className="url-info-tag">Endpoint: {oauthAuthUrl || selectedStrategy.authUrl}</span>
-                        </div>
-                        <div className="url-preview-wrapper">
-                          <input type="text" className="url-preview-input" readOnly value={computedAuthorizationUrl} />
-                          <button
-                            type="button"
-                            className="url-copy-btn"
-                            disabled={!effectiveClientId}
-                            onClick={() => {
-                              navigator.clipboard.writeText(computedAuthorizationUrl);
-                              setCopiedUrl(true);
-                              setTimeout(() => setCopiedUrl(false), 2000);
-                            }}
-                          >
-                            {copiedUrl ? "✔ Copied" : "📋 Copy"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Local Container VCS & Credentials Directory Verification (Individual CLI only) */}
-                      {accountCategory === "individual" && (
-                        <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card">
-                          <div className="vcs-audit-header">
-                            <div className="vcs-badge-group">
-                              <span className="vcs-icon">📁</span>
-                              <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
-                              <span className="vcs-status-tag" style={{ marginLeft: "8px" }}>
-                                {vcsAudit.isGitRepo ? "Git Active" : "Snapshot VCS"}
+                              <span className="step-circle stage-indicator">
+                                {effectiveOAuthStep > 1 ? "✔" : <span className="stage-dot" />}
                               </span>
-                              {vcsAudit.currentCommitHash && (
-                                <span className="vcs-commit-tag">
-                                  {vcsAudit.currentCommitHash.slice(0, 7)}
+                              <div className="step-info stage-content">
+                                <span className="step-label stage-title">Select Provider</span>
+                                <span className="stage-state">
+                                  {effectiveOAuthStep > 1 ? "Completed" : effectiveOAuthStep === 1 ? "In Progress" : "Pending"}
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            </button>
+
                             <button
                               type="button"
-                              className="btn-vcs-reverify"
-                              onClick={() => triggerDirectoryVerification("manual-reverify")}
-                              title="Verify credentials directory and check changes"
+                              className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 2 ? "active" : Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "completed" : "pending"}`}
+                              onClick={() => setActiveOAuthStep(2)}
                             >
-                              🔄 Verify Directory
+                              <span className="step-circle stage-indicator">
+                                {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "✔" : <span className="stage-dot" />}
+                              </span>
+                              <div className="step-info stage-content">
+                                <span className="step-label stage-title">Browser Consent</span>
+                                <span className="stage-state">
+                                  {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "Completed" : effectiveOAuthStep === 2 ? "In Progress" : "Pending"}
+                                </span>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 3 ? (isOAuthVerificationFailed ? "active active-failed" : "active active-success") : Boolean(oauthSession?.accessToken) ? "completed" : "pending"}`}
+                              onClick={() => setActiveOAuthStep(3)}
+                              disabled={!oauthSession}
+                            >
+                              <span className="step-circle stage-indicator">
+                                {isOAuthVerificationFailed ? "⚠️" : Boolean(oauthSession?.accessToken) ? "✔" : <span className="stage-dot" />}
+                              </span>
+                              <div className="step-info stage-content">
+                                <span className="step-label stage-title">
+                                  {isOAuthVerificationFailed ? "Verification Failed" : "Token Vault"}
+                                </span>
+                                <span className="stage-state">
+                                  {isOAuthVerificationFailed ? "Action Required" : Boolean(oauthSession?.accessToken) ? "Ready" : "Pending"}
+                                </span>
+                              </div>
                             </button>
                           </div>
-                          {vcsAudit.changedFiles.length > 0 && (
-                            <div className="vcs-changed-files-row">
-                              <span className="changed-label">Changed Files:</span>
-                              {vcsAudit.changedFiles.map((f) => (
-                                <code key={f} className="changed-file-pill">{f}</code>
-                              ))}
+
+                          {/* Step 1: Provider Catalog */}
+                          {effectiveOAuthStep === 1 && (
+                            <div className="oauth-pre-auth-view">
+                              {/* Enterprise 100+ Providers Ecosystem Catalog */}
+                              <div className="oauth-provider-picker">
+                                <div className="picker-header-row">
+                                  <div>
+                                    <label className="picker-title">Select Model Provider</label>
+                                    <span className="picker-subtext">Configure across 100+ enterprise AI model ecosystems</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btn-onboard-provider"
+                                    onClick={() => setIsOnboardingModalOpen(true)}
+                                  >
+                                    <span>➕ Onboard Custom Provider</span>
+                                  </button>
+                                </div>
+
+                                {/* Search & Category Filter Toolbar */}
+                                <div className="provider-filter-toolbar">
+                                  <div className="provider-search-box">
+                                    <span className="search-icon">🔍</span>
+                                    <input
+                                      type="text"
+                                      className="provider-search-input"
+                                      placeholder="Search 100+ providers by name, family, CLI..."
+                                      value={providerSearchQuery}
+                                      onChange={(e) => setProviderSearchQuery(e.target.value)}
+                                    />
+                                    {providerSearchQuery && (
+                                      <button
+                                        type="button"
+                                        className="clear-search-btn"
+                                        onClick={() => setProviderSearchQuery("")}
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  <div className="category-chips-row">
+                                    {categories.map((cat) => (
+                                      <button
+                                        key={cat.id}
+                                        type="button"
+                                        className={`category-chip-btn ${selectedCategory === cat.id ? "active" : ""}`}
+                                        onClick={() => setSelectedCategory(cat.id)}
+                                      >
+                                        <span className="cat-icon">{cat.icon}</span>
+                                        <span className="cat-name">{cat.name}</span>
+                                        <span className="cat-count">({cat.count})</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Responsive Grid of Providers */}
+                                <div className="provider-cards-grid">
+                                  {filteredStrategies.map((preset) => (
+                                    <div
+                                      key={preset.id}
+                                      className={`provider-card ${selectedProviderId === preset.id ? "selected" : ""}`}
+                                      onClick={() => {
+                                        setSelectedProviderId(preset.id);
+                                        setActiveOAuthStep(2);
+                                      }}
+                                    >
+                                      <span className="provider-icon">{preset.icon}</span>
+                                      <div className="provider-info">
+                                        <span className="provider-name">{preset.name}</span>
+                                        <span className="provider-category-tag">{preset.category.toUpperCase()}</span>
+                                      </div>
+                                      {selectedProviderId === preset.id && <span className="provider-check">✔</span>}
+                                    </div>
+                                  ))}
+                                  {filteredStrategies.length === 0 && (
+                                    <div className="no-providers-match">
+                                      <span>No providers match "{providerSearchQuery}". Click "+ Onboard Custom Provider" to register a new one.</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "14px" }}>
+                                  <button
+                                    type="button"
+                                    className="btn-oauth-action btn-browser-auth"
+                                    onClick={() => setActiveOAuthStep(2)}
+                                  >
+                                    <span>Next: Authorization Setup</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Step 2: Browser Redirect & Handshake */}
+                          {effectiveOAuthStep === 2 && (
+                            <div className="oauth-pre-auth-view">
+                              <div className="oauth-redirect-callout enterprise-handshake-panel">
+                                {/* Section 1: Handshake Header */}
+                                <div className="handshake-header-row">
+                                  <div className="handshake-title-group">
+                                    <span className="callout-icon">{selectedStrategy.icon}</span>
+                                    <div>
+                                      <div className="title-with-badge">
+                                        <h4>OAuth 2.0 Authorization</h4>
+                                        {Boolean(oauthSession?.accessToken) && (
+                                          <span className="verified-status-chip">✔ {selectedStrategy.verifiedStatus}</span>
+                                        )}
+                                      </div>
+                                      <p className="handshake-desc">
+                                        Authenticate with <strong>{selectedStrategy.name}</strong> for <strong>{targetModelId}</strong>.
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {selectedStrategy.docsUrl && (
+                                    <a
+                                      href={selectedStrategy.docsUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="upstream-docs-link"
+                                    >
+                                      📖 Docs ↗
+                                    </a>
+                                  )}
+                                </div>
+
+                                {/* Section 2: Account Category Selector (Individual vs Enterprise) */}
+                                <div className="account-mode-container">
+                                  <div className="mode-header-label">
+                                    <span>Authentication Mode ({selectedStrategy.name})</span>
+                                    <span className="mode-subtag">
+                                      {accountCategory === "individual" ? "CLI Binary Session" : "Enterprise Web OAuth"}
+                                    </span>
+                                  </div>
+
+                                  <div className="mode-cards-grid">
+                                    <button
+                                      type="button"
+                                      onClick={() => setAccountCategory("individual")}
+                                      className={`mode-card-btn ${accountCategory === "individual" ? "active" : ""}`}
+                                    >
+                                      <div className="mode-card-title">
+                                        <span>👤</span>
+                                        <strong>Individual Account (CLI)</strong>
+                                      </div>
+                                      <div className="mode-card-desc">
+                                        Personal account bearer sign-in via host CLI (Antigravity or Gemini). No cloud project ID needed.
+                                      </div>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setAccountCategory("enterprise")}
+                                      className={`mode-card-btn ${accountCategory === "enterprise" ? "active" : ""}`}
+                                    >
+                                      <div className="mode-card-title">
+                                        <span>🏢</span>
+                                        <strong>Enterprise Project (Web OAuth)</strong>
+                                      </div>
+                                      <div className="mode-card-desc">
+                                        Corporate consent flow. OAuth Client ID and Client Secret are mandatory.
+                                      </div>
+                                    </button>
+                                  </div>
+
+                                  {/* If Individual: Show CLI Tool Choice */}
+                                  {accountCategory === "individual" && selectedStrategy.id === "google" && (
+                                    <div className="google-cli-selector-panel">
+                                      <div className="cli-selector-text">
+                                        <strong>CLI Binary</strong>
+                                        <span>Choose tool used for OAuth PKCE session</span>
+                                      </div>
+                                      <div className="cli-selector-buttons">
+                                        <button
+                                          type="button"
+                                          className={`cli-tool-choice-btn ${selectedGoogleCli === "antigravity" ? "active" : ""}`}
+                                          onClick={() => {
+                                            setSelectedGoogleCli("antigravity");
+                                            setCliExecutable("antigravity");
+                                          }}
+                                        >
+                                          ⚡ Antigravity CLI
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className={`cli-tool-choice-btn ${selectedGoogleCli === "gemini" ? "active" : ""}`}
+                                          onClick={() => {
+                                            setSelectedGoogleCli("gemini");
+                                            setCliExecutable("gemini");
+                                          }}
+                                        >
+                                          ✦ Gemini CLI
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* If Enterprise: Mandatory Client ID & Client Secret form */}
+                                  {accountCategory === "enterprise" && (
+                                    <div className="enterprise-oauth-credentials-card" data-testid="enterprise-oauth-card">
+                                      <div className="card-intro-note">
+                                        <span>🏢</span>
+                                        <span><strong>Enterprise OAuth 2.0 Credentials:</strong> Client ID and Client Secret are mandatory for corporate federation. Authorization code input is not required.</span>
+                                      </div>
+
+                                      <div className="form-row-2">
+                                        <div className="form-group">
+                                          <label>OAuth Client ID <span className="required-star" style={{ color: "#ef4444" }}>*</span></label>
+                                          <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com"
+                                            value={oauthClientId}
+                                            onChange={(e) => setOauthClientId(e.target.value)}
+                                            required
+                                          />
+                                        </div>
+                                        <div className="form-group">
+                                          <label>OAuth Client Secret <span className="required-star" style={{ color: "#ef4444" }}>*</span></label>
+                                          <input
+                                            type="password"
+                                            className="form-input"
+                                            placeholder="Enter corporate client secret"
+                                            value={oauthClientSecret}
+                                            onChange={(e) => setOauthClientSecret(e.target.value)}
+                                            required
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="form-row-2">
+                                        <div className="form-group">
+                                          <label>Authorization Endpoint</label>
+                                          <input
+                                            type="url"
+                                            className="form-input"
+                                            value={oauthAuthUrl || selectedStrategy.authUrl}
+                                            onChange={(e) => setOauthAuthUrl(e.target.value)}
+                                          />
+                                        </div>
+                                        <div className="form-group">
+                                          <label>Callback Redirect URI</label>
+                                          <input
+                                            type="url"
+                                            className="form-input"
+                                            value={computedAuthRedirectUri}
+                                            readOnly
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {(!oauthClientId.trim() || !oauthClientSecret.trim()) && (
+                                        <div className="alert-banner warning" style={{ margin: 0 }}>
+                                          <span className="alert-icon">⚠️</span>
+                                          <span className="alert-text">Client ID and Client Secret are mandatory to enable Enterprise OAuth consent.</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Section 3: Computed Authorization URL */}
+                                <div className="computed-url-box">
+                                  <div className="url-label-row">
+                                    <label>Authorization URL</label>
+                                    <span className="url-info-tag">Endpoint: {oauthAuthUrl || selectedStrategy.authUrl}</span>
+                                  </div>
+                                  <div className="url-preview-wrapper">
+                                    <input type="text" className="url-preview-input" readOnly value={computedAuthorizationUrl} />
+                                    <button
+                                      type="button"
+                                      className="url-copy-btn"
+                                      disabled={!effectiveClientId}
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(computedAuthorizationUrl);
+                                        setCopiedUrl(true);
+                                        setTimeout(() => setCopiedUrl(false), 2000);
+                                      }}
+                                    >
+                                      {copiedUrl ? "✔ Copied" : "📋 Copy"}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Local Container VCS & Credentials Directory Verification (Individual CLI only) */}
+                                {accountCategory === "individual" && (
+                                  <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card">
+                                    <div className="vcs-audit-header">
+                                      <div className="vcs-badge-group">
+                                        <span className="vcs-icon">📁</span>
+                                        <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
+                                        <span className="vcs-status-tag" style={{ marginLeft: "8px" }}>
+                                          {vcsAudit.isGitRepo ? "Git Active" : "Snapshot VCS"}
+                                        </span>
+                                        {vcsAudit.currentCommitHash && (
+                                          <span className="vcs-commit-tag">
+                                            {vcsAudit.currentCommitHash.slice(0, 7)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="btn-vcs-reverify"
+                                        onClick={() => triggerDirectoryVerification("manual-reverify")}
+                                        title="Verify credentials directory and check changes"
+                                      >
+                                        🔄 Verify Directory
+                                      </button>
+                                    </div>
+                                    {vcsAudit.changedFiles.length > 0 && (
+                                      <div className="vcs-changed-files-row">
+                                        <span className="changed-label">Changed Files:</span>
+                                        {vcsAudit.changedFiles.map((f) => (
+                                          <code key={f} className="changed-file-pill">{f}</code>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Section 4: Action Buttons Toolbar */}
+                                <div className="oauth-action-toolbar">
+                                  {accountCategory === "individual" ? (
+                                    <button
+                                      type="button"
+                                      className="btn-oauth-action btn-cli-auth btn-launch-primary"
+                                      data-testid="btn-oauth-launch-browser"
+                                      onClick={handleExecuteCliLogin}
+                                      disabled={isCliLoggingIn || isRedirecting}
+                                      title={`Launch browser OAuth sign-in using ${effectiveCliCommand}`}
+                                    >
+                                      <span className="btn-icon">🌐</span>
+                                      <span>
+                                        {isCliLoggingIn || isRedirecting
+                                          ? "Opening Browser..."
+                                          : "Browser Sign-In"}
+                                      </span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="btn-oauth-action btn-cli-auth btn-launch-primary"
+                                      data-testid="btn-oauth-launch-browser"
+                                      onClick={handleInitiateBrowserRedirect}
+                                      disabled={!oauthClientId.trim() || !oauthClientSecret.trim() || isRedirecting}
+                                      title="Initiate Corporate OAuth authorization"
+                                    >
+                                      <span className="btn-icon">🚀</span>
+                                      <span>
+                                        {isRedirecting
+                                          ? "Redirecting..."
+                                          : "Enterprise Sign-In"}
+                                      </span>
+                                    </button>
+                                  )}
+
+                                  {cliScriptError && (
+                                    <div className="alert-banner error" data-testid="cli-script-error-banner" style={{ marginTop: "0.5rem" }}>
+                                      <span className="alert-icon">⚠️</span>
+                                      <div className="alert-text">
+                                        <strong>CLI Error ({cliScriptError.code || "FAILURE"}):</strong>
+                                        <div style={{ fontSize: "0.82rem", marginTop: "0.2rem", fontFamily: "monospace" }}>{cliScriptError.message}</div>
+                                      </div>
+                                      <button className="alert-close" onClick={() => setCliScriptError(null)}>×</button>
+                                    </div>
+                                  )}
+
+                                  {isWaitingForCallback && (
+                                    <div className="oauth-waiting-banner" data-testid="oauth-waiting-indicator">
+                                      <span className="waiting-spinner">⏳</span>
+                                      <div className="waiting-text">
+                                        <strong>Browser Sign-In Opened</strong>
+                                        <span>Complete sign-in in the browser tab. Listening on port 8085...</span>
+                                        {isUsableOAuthUrl(executableLaunchUrl || computedAuthorizationUrl) && (
+                                          <div style={{ marginTop: "6px" }}>
+                                            <button
+                                              type="button"
+                                              onClick={accountCategory === "individual" ? handleExecuteCliLogin : handleInitiateBrowserRedirect}
+                                              style={{
+                                                background: "none",
+                                                border: "none",
+                                                padding: 0,
+                                                cursor: "pointer",
+                                                color: "var(--theme-primary-hover)",
+                                                textDecoration: "underline",
+                                                fontWeight: 600,
+                                                fontSize: "0.84rem",
+                                              }}
+                                            >
+                                              Re-open Sign-In Window
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {oauthSession && (
+                                    <button
+                                      type="button"
+                                      className="btn-oauth-action btn-return-vault"
+                                      onClick={() => setActiveOAuthStep(3)}
+                                      title="Navigate to Authenticated Token Vault"
+                                    >
+                                      <span className="btn-icon">🔒</span>
+                                      <span>Token Vault</span>
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Section 5: Authorization Code Capture (ONLY Active when CLI mode is selected) */}
+                                {accountCategory === "individual" && (
+                                  <div className="browser-authcode-capture-card" data-testid="browser-authcode-card">
+                                    <div className="authcode-card-header">
+                                      <div className="header-title-row">
+                                        <span className="card-icon">🔑</span>
+                                        <div>
+                                          <h5>Authorization Code</h5>
+                                          <span className="card-subtext">
+                                            Paste the code returned by the browser consent portal to exchange for a token.
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="authcode-header-badges">
+                                        {timerOriginTab === (accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise") && cliTimeoutSecondsRemaining !== null && (
+                                          <span
+                                            className={`cli-timeout-badge ${cliTimeoutSecondsRemaining === 0 ? "timed-out" : "active"}`}
+                                          >
+                                            {cliTimeoutSecondsRemaining > 0
+                                              ? `⏱ ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
+                                              : "Timed Out (300s)"}
+                                          </span>
+                                        )}
+                                        {redirectAuthCode ? (
+                                          <span className="code-captured-tag">✔ Captured</span>
+                                        ) : (
+                                          <span className="code-waiting-tag">Awaiting Code</span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {timerOriginTab === (accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise") && cliTimeoutSecondsRemaining === 0 && (
+                                      <div className="authcode-timeout-warning">
+                                        ⚠️ Session timed out (300s). Click Browser Sign-In to start a new session.
+                                      </div>
+                                    )}
+
+                                    <div className="authcode-input-container">
+                                      <span className="authcode-lead-icon" title="OAuth Authorization Code">🔑</span>
+                                      <input
+                                        type="text"
+                                        className="form-input authcode-text-input"
+                                        placeholder="Paste authorization code (e.g. 4/0AUn6...)"
+                                        value={redirectAuthCode}
+                                        onChange={(e) => setRedirectAuthCode(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" && redirectAuthCode.trim() && cliTimeoutSecondsRemaining !== 0 && !isVerifyingAuthCode) {
+                                            handleCompleteOAuthExchange(redirectAuthCode);
+                                          }
+                                        }}
+                                        spellCheck={false}
+                                        autoComplete="off"
+                                      />
+                                      <div className="authcode-input-actions">
+                                        {redirectAuthCode && (
+                                          <button
+                                            type="button"
+                                            className="btn-clear-code"
+                                            onClick={() => setRedirectAuthCode("")}
+                                            title="Clear code"
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
+                                          onClick={handlePasteAuthCode}
+                                          title="Paste from clipboard"
+                                        >
+                                          <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
+                                          <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="authcode-actions-bar">
+                                      <div className="authcode-meta-info">
+                                        {redirectAuthCode ? (
+                                          <span className="code-char-counter">
+                                            <span className="counter-dot"></span>
+                                            {redirectAuthCode.length} chars ready
+                                          </span>
+                                        ) : (
+                                          <span className="code-hint-text">
+                                            Click Paste or press Enter after pasting the code.
+                                          </span>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className={`btn-submit-authcode ${redirectAuthCode.trim() ? "ready-to-submit" : ""}`}
+                                        disabled={!redirectAuthCode.trim() || cliTimeoutSecondsRemaining === 0 || isVerifyingAuthCode}
+                                        onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
+                                      >
+                                        <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "✔"}</span>
+                                        <span>{isVerifyingAuthCode ? "Verifying..." : "Verify & Save Code"}</span>
+                                      </button>
+                                    </div>
+
+                                    {redirectAuthCode && (
+                                      <div className="authcode-synced-note">
+                                        <span>✔ Code ready. Click Verify &amp; Save Code to store token.</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Section 6: Terminal CLI Hint (Individual CLI only) */}
+                                {accountCategory === "individual" && (
+                                  <div className="cli-terminal-hint">
+                                    <div className="terminal-prompt-row">
+                                      <span className="terminal-icon">$</span>
+                                      <code className="hint-command">{effectiveCliCommand}</code>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="terminal-copy-btn"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(effectiveCliCommand);
+                                        setCopiedCliCommand(true);
+                                        setTimeout(() => setCopiedCliCommand(false), 2000);
+                                      }}
+                                    >
+                                      {copiedCliCommand ? "✔ Copied" : "📋 Copy Command"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Collapsible Advanced OAuth Parameters */}
+                              <details className="oauth-advanced-details">
+                                <summary>OAuth Parameters (Client ID, Secret, Endpoints)</summary>
+                                <div className="advanced-fields-box">
+                                  <div className="form-row-2">
+                                    <div className="form-group">
+                                      <label>OAuth Client ID</label>
+                                      <input
+                                        type="text"
+                                        className="form-input"
+                                        value={oauthClientId}
+                                        onChange={(e) => setOauthClientId(e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="form-group">
+                                      <label>OAuth Client Secret (Optional for PKCE)</label>
+                                      <input
+                                        type="password"
+                                        className="form-input"
+                                        placeholder="Leave blank for public PKCE apps"
+                                        value={oauthClientSecret}
+                                        onChange={(e) => setOauthClientSecret(e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="form-row-2">
+                                    <div className="form-group">
+                                      <label>Authorization Endpoint</label>
+                                      <input
+                                        type="text"
+                                        className="form-input"
+                                        value={oauthAuthUrl}
+                                        onChange={(e) => setOauthAuthUrl(e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="form-group">
+                                      <label>Token Endpoint</label>
+                                      <input
+                                        type="text"
+                                        className="form-input"
+                                        value={oauthTokenUrl}
+                                        onChange={(e) => setOauthTokenUrl(e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="form-group">
+                                    <label>Configured Scopes</label>
+                                    <input
+                                      type="text"
+                                      className="form-input"
+                                      value={oauthScopes}
+                                      onChange={(e) => setOauthScopes(e.target.value)}
+                                    />
+                                  </div>
+
+                                  <div className="form-action-row">
+                                    <button
+                                      type="button"
+                                      className="save-config-btn"
+                                      onClick={handleApplyOAuthClientConfiguration}
+                                      disabled={isApplyingOAuthClientConfig}
+                                    >
+                                      {isApplyingOAuthClientConfig ? "Applying OAuth Client Settings..." : "Apply OAuth Client Settings"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </details>
+                            </div>
+                          )}
+
+                          {/* Step 3: Authenticated Token Vault */}
+                          {effectiveOAuthStep === 3 && oauthSession && (
+                            <div className="oauth-authenticated-view">
+                              <div className={`auth-success-card ${isOAuthVerificationFailed ? "verification-failed" : ""}`}>
+                                <div className="auth-success-header">
+                                  <div className={`success-badge-pill ${isOAuthVerificationFailed ? "failed" : ""}`}>
+                                    <span className={`dot ${isOAuthVerificationFailed ? "failed-dot" : ""}`}></span>
+                                    <span>
+                                      {isOAuthVerificationFailed
+                                        ? "Authentication Verification Failed (HTTP 400)"
+                                        : "OAuth Session Active & Verified"}
+                                    </span>
+                                  </div>
+                                  <div className="header-action-group">
+                                    <button
+                                      type="button"
+                                      className="step-switch-btn"
+                                      onClick={() => setActiveOAuthStep(2)}
+                                      title="Return to Browser Redirect & Consent controls"
+                                    >
+                                      ↩ Redirect Controls
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="revoke-btn"
+                                      onClick={handleDisconnectOAuth}
+                                    >
+                                      Disconnect / Revoke
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Re-Authentication Alert Callout when Test Connection / Verification Fails */}
+                                {isOAuthVerificationFailed && (
+                                  <div className="oauth-failure-alert-box">
+                                    <div className="failure-alert-title-row">
+                                      <span className="alert-icon">⚠️</span>
+                                      <strong>Identity Server Verification Failed</strong>
+                                    </div>
+                                    <p className="failure-alert-desc">
+                                      {testResult?.message || "Token rejected by identity server."}
+                                      {testResult?.errorMessage ? ` Diagnostic: ${testResult.errorMessage}` : ""}
+                                      {" "}Please re-authenticate below using Browser Redirect or CLI to acquire a fresh, valid bearer token.
+                                    </p>
+                                  </div>
+                                )}
+
+                                <div className="identity-banner">
+                                  <span className="provider-brand-icon">{selectedStrategy.icon}</span>
+                                  <div className="identity-info">
+                                    <span className="identity-provider">{oauthSession.providerName}</span>
+                                    <span className="identity-email">{oauthSession.authorizedUser}</span>
+                                    <span className="identity-sub">Authenticated Principal • Handshake at {oauthSession.authorizedTimestamp}</span>
+                                  </div>
+                                </div>
+
+                                {/* Local Container VCS & Credentials Directory Verification (Enabled by default) */}
+                                <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card-step3">
+                                  <div className="vcs-audit-header">
+                                    <div className="vcs-badge-group">
+                                      <span className="vcs-icon">📁</span>
+                                      <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
+                                      <span className="vcs-status-tag" style={{ marginLeft: "8px" }}>
+                                        {vcsAudit.isGitRepo ? "Git Active" : "Snapshot VCS Active"}
+                                      </span>
+                                      {vcsAudit.currentCommitHash && (
+                                        <span className="vcs-commit-tag">
+                                          commit: {vcsAudit.currentCommitHash.slice(0, 7)}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="btn-vcs-reverify"
+                                      onClick={() => triggerDirectoryVerification("manual-reverify")}
+                                      title="Verify directory state and check changed files locally"
+                                    >
+                                      🔄 Verify Directory & Diff
+                                    </button>
+                                  </div>
+                                  {vcsAudit.changedFiles.length > 0 && (
+                                    <div className="vcs-changed-files-row">
+                                      <span className="changed-label">Detected Changed File(s):</span>
+                                      {vcsAudit.changedFiles.map((f) => (
+                                        <code key={f} className="changed-file-pill">{f}</code>
+                                      ))}
+                                      <span className="vcs-sync-note">Synced to database for multi-account interaction</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Session Action Toolbar for On-Demand Re-Authentication */}
+                                <div className="authenticated-session-toolbar">
+                                  {accountCategory === "individual" ? (
+                                    <button
+                                      type="button"
+                                      className="btn-oauth-action btn-cli-auth btn-reauth-action"
+                                      onClick={handleExecuteCliLogin}
+                                      disabled={isCliLoggingIn}
+                                      title="Execute CLI login to refresh OAuth 2.0 token"
+                                      data-testid="btn-oauth-cli-auth"
+                                    >
+                                      <span className="btn-icon">⚡</span>
+                                      <span>{isCliLoggingIn ? "Re-Authenticating via CLI..." : "Re-Authenticate"}</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="btn-oauth-action btn-cli-auth btn-reauth-action"
+                                      onClick={handleInitiateBrowserRedirect}
+                                      disabled={isRedirecting}
+                                      title="Open browser to acquire a fresh OAuth 2.0 token"
+                                      data-testid="btn-oauth-browser-auth"
+                                    >
+                                      <span className="btn-icon">🌐</span>
+                                      <span>
+                                        {isRedirecting
+                                          ? "Opening Browser..."
+                                          : "Re-Authenticate"}
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="token-display-box">
+                                  <div className="token-header-row">
+                                    <label>Issued Bearer Access Token (ya29...)</label>
+                                    <button
+                                      type="button"
+                                      className="toggle-token-btn"
+                                      onClick={() => setShowAccessToken(!showAccessToken)}
+                                    >
+                                      {showAccessToken ? "🙈 Hide" : "👁 Show Token"}
+                                    </button>
+                                  </div>
+                                  {editableAccessToken.startsWith("4/0") && (
+                                    <div style={{ fontSize: "0.82rem", color: "#60a5fa", margin: "4px 0" }}>
+                                      ℹ Authorization code detected — will auto-format as Bearer access token upon saving.
+                                    </div>
+                                  )}
+                                  <div className="token-value-wrapper">
+                                    <input
+                                      type={showAccessToken ? "text" : "password"}
+                                      className="token-input"
+                                      value={editableAccessToken}
+                                      onChange={(e) => {
+                                        setEditableAccessToken(e.target.value);
+                                        setTokenSaveSuccess(null);
+                                      }}
+                                      placeholder="Enter or paste Bearer access token..."
+                                    />
+                                    <button
+                                      type="button"
+                                      className="token-copy-btn"
+                                      title="Copy Token to clipboard"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(editableAccessToken);
+                                        alert("Access token copied to clipboard!");
+                                      }}
+                                    >
+                                      📋
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="token-save-btn"
+                                      title="Save edited token to database"
+                                      disabled={isSavingToken || !editableAccessToken.trim()}
+                                      onClick={handleSaveEditedToken}
+                                    >
+                                      {isSavingToken ? "Saving..." : "💾 Save Token"}
+                                    </button>
+                                  </div>
+                                  {tokenSaveSuccess && (
+                                    <div className="token-save-status-msg">
+                                      ✔ {tokenSaveSuccess}
+                                    </div>
+                                  )}
+                                  {oauthSession.authCode && (
+                                    <div className="authcode-meta-box">
+                                      <div className="authcode-header">
+                                        <label>Captured Authorization Code</label>
+                                        <span className="authcode-badge">Saved in DB Against Account</span>
+                                      </div>
+                                      <div className="authcode-wrapper">
+                                        <input
+                                          type="text"
+                                          className="authcode-input"
+                                          readOnly
+                                          value={oauthSession.authCode}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="token-copy-btn"
+                                          title="Copy Authorization Code"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(oauthSession.authCode || "");
+                                            alert("Authorization code copied to clipboard!");
+                                          }}
+                                        >
+                                          📋
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="token-meta-row">
+                                  <div className="meta-card">
+                                    <span className="meta-label">Refresh Token</span>
+                                    <span className="meta-value valid">Active (Auto-refresh enabled)</span>
+                                  </div>
+                                  <div className="meta-card">
+                                    <span className="meta-label">Expires In</span>
+                                    <span className="meta-value timer">59m 58s (3600s)</span>
+                                  </div>
+                                  <div className="meta-card">
+                                    <span className="meta-label">Token Type</span>
+                                    <span className="meta-value">Bearer (HTTP RFC 6750)</span>
+                                  </div>
+                                </div>
+
+                                <div className="granted-scopes-section">
+                                  <label className="scopes-title">Granted OAuth Scopes</label>
+                                  <div className="scopes-chips-list">
+                                    {oauthSession.scopes.map((s, idx) => (
+                                      <span key={idx} className="scope-chip">
+                                        ✔ {s}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* Section 4: Action Buttons Toolbar */}
-                      <div className="oauth-action-toolbar">
-                        {accountCategory === "individual" ? (
-                          <button
-                            type="button"
-                            className="btn-oauth-action btn-cli-auth btn-launch-primary"
-                            data-testid="btn-oauth-launch-browser"
-                            onClick={handleExecuteCliLogin}
-                            disabled={isCliLoggingIn || isRedirecting}
-                            title={`Launch browser OAuth sign-in using ${effectiveCliCommand}`}
-                          >
-                            <span className="btn-icon">🌐</span>
-                            <span>
-                              {isCliLoggingIn || isRedirecting
-                                ? "Opening Browser..."
-                                : "Browser Sign-In"}
-                            </span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn-oauth-action btn-cli-auth btn-launch-primary"
-                            data-testid="btn-oauth-launch-browser"
-                            onClick={handleInitiateBrowserRedirect}
-                            disabled={!oauthClientId.trim() || !oauthClientSecret.trim() || isRedirecting}
-                            title="Initiate Corporate OAuth authorization"
-                          >
-                            <span className="btn-icon">🚀</span>
-                            <span>
-                              {isRedirecting
-                                ? "Redirecting..."
-                                : "Enterprise Sign-In"}
-                            </span>
-                          </button>
-                        )}
-
-                        {cliScriptError && (
-                          <div className="alert-banner error" data-testid="cli-script-error-banner" style={{ marginTop: "0.5rem" }}>
-                            <span className="alert-icon">⚠️</span>
-                            <div className="alert-text">
-                              <strong>CLI Error ({cliScriptError.code || "FAILURE"}):</strong>
-                              <div style={{ fontSize: "0.82rem", marginTop: "0.2rem", fontFamily: "monospace" }}>{cliScriptError.message}</div>
+                      {/* ============================================================= */}
+                      {/* 3. CLI BINARY TAB                                             */}
+                      {/* ============================================================= */}
+                      {selectedProtocol === "cli" && (
+                        <div className="protocol-fields-container">
+                          <div className="protocol-badge-intro cli-intro">
+                            <span className="badge-icon">💻</span>
+                            <div>
+                              <strong>Local CLI Execution</strong>
+                              <p>Execute queries using native binaries configured on the runtime PATH.</p>
                             </div>
-                            <button className="alert-close" onClick={() => setCliScriptError(null)}>×</button>
                           </div>
-                        )}
 
-                        {isWaitingForCallback && (
-                          <div className="oauth-waiting-banner" data-testid="oauth-waiting-indicator">
-                            <span className="waiting-spinner">⏳</span>
-                            <div className="waiting-text">
-                              <strong>Browser Sign-In Opened</strong>
-                              <span>Complete sign-in in the browser tab. Listening on port 8085...</span>
-                              {isUsableOAuthUrl(executableLaunchUrl || computedAuthorizationUrl) && (
-                                <div style={{ marginTop: "6px" }}>
+                          {selectedStrategy.id === "google" && (
+                            <div className="google-cli-selector-panel">
+                              <div className="cli-selector-text">
+                                <strong>CLI Tool</strong>
+                                <span>Select Antigravity or Gemini binary</span>
+                              </div>
+                              <div className="cli-selector-buttons">
+                                <button
+                                  type="button"
+                                  className={`cli-tool-choice-btn ${selectedGoogleCli === "antigravity" ? "active" : ""}`}
+                                  onClick={() => {
+                                    setSelectedGoogleCli("antigravity");
+                                    setCliExecutable("antigravity");
+                                  }}
+                                >
+                                  ⚡ Antigravity CLI
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`cli-tool-choice-btn ${selectedGoogleCli === "gemini" ? "active" : ""}`}
+                                  onClick={() => {
+                                    setSelectedGoogleCli("gemini");
+                                    setCliExecutable("gemini");
+                                  }}
+                                >
+                                  ✦ Gemini CLI
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="cli-terminal-status-card">
+                            <div className="status-row">
+                              <span className="cli-name">Binary: <code>{cliExecutable}</code></span>
+                              <span className="cli-path-badge">/opt/model-connector/npm/bin/{cliExecutable}</span>
+                              <span className="cli-status-badge">Available</span>
+                            </div>
+                            <div className="cli-code-preview">
+                              <code>$ {cliExecutable} {cliArgs}</code>
+                            </div>
+                          </div>
+
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label>CLI Command</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                placeholder="e.g. antigravity, gemini"
+                                value={cliExecutable}
+                                onChange={(e) => setCliExecutable(e.target.value)}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Arguments</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                placeholder={`e.g. --model ${ModelConstants.DEFAULT_MODEL_ID}`}
+                                value={cliArgs}
+                                onChange={(e) => setCliArgs(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="form-group">
+                            <label>Working Directory</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={cliWorkingDir}
+                              onChange={(e) => setCliWorkingDir(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="authenticated-session-toolbar">
+                            <button
+                              type="button"
+                              className="btn-oauth-action btn-cli-auth"
+                              onClick={handleExecuteCliLogin}
+                              disabled={isCliLoggingIn}
+                              title="Run CLI login in container"
+                            >
+                              <span className="btn-icon">⚡</span>
+                              <span>{isCliLoggingIn ? "Running Auth..." : "CLI Auth"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-oauth-action btn-browser-auth"
+                              onClick={handleInitiateBrowserRedirect}
+                              disabled={isRedirecting}
+                              title="Launch browser OAuth consent"
+                            >
+                              <span className="btn-icon">🌐</span>
+                              <span>{isRedirecting ? "Opening..." : "Browser Sign-In"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-oauth-action btn-step2-redirect"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${cliExecutable} ${cliArgs}`);
+                                setCopiedCliCommand(true);
+                                setTimeout(() => setCopiedCliCommand(false), 2000);
+                              }}
+                              title="Copy CLI command"
+                            >
+                              <span className="btn-icon">{copiedCliCommand ? "✔" : "📋"}</span>
+                              <span>{copiedCliCommand ? "Copied" : "Copy Command"}</span>
+                            </button>
+                          </div>
+
+                          {(isWaitingForCallback || isCliLoggingIn || redirectAuthCode) && (
+                            <div className="oauth-step-card step-interactive active-step">
+                              <div className="step-card-header">
+                                <div className="step-num-badge">🔐</div>
+                                <div>
+                                  <h4>Authorization Code</h4>
+                                  <p>Paste the code from browser consent to complete CLI authentication.</p>
+                                </div>
+                              </div>
+
+                              <div className="auth-code-wrapper-v2">
+                                <div className="code-input-row">
+                                  <input
+                                    type="text"
+                                    className="form-input code-input"
+                                    placeholder="Paste authorization code (e.g., 4/0AUn6...)"
+                                    value={redirectAuthCode}
+                                    onChange={(e) => setRedirectAuthCode(e.target.value.trim())}
+                                  />
                                   <button
                                     type="button"
-                                    onClick={accountCategory === "individual" ? handleExecuteCliLogin : handleInitiateBrowserRedirect}
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      padding: 0,
-                                      cursor: "pointer",
-                                      color: "var(--theme-primary-hover)",
-                                      textDecoration: "underline",
-                                      fontWeight: 600,
-                                      fontSize: "0.84rem",
+                                    className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
+                                    onClick={handlePasteAuthCode}
+                                    title="Paste code from clipboard"
+                                  >
+                                    <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
+                                    <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="authcode-actions-bar">
+                                <div className="authcode-meta-info">
+                                  {redirectAuthCode ? (
+                                    <span className="code-char-counter">
+                                      <span className="counter-dot"></span>
+                                      {redirectAuthCode.length} chars ready
+                                    </span>
+                                  ) : (
+                                    <span className="code-hint-text">
+                                      Click Paste or press Enter after pasting the code.
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  className={`btn-submit-authcode ${redirectAuthCode.trim() ? "ready-to-submit" : ""}`}
+                                  disabled={!redirectAuthCode.trim() || isVerifyingAuthCode}
+                                  onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
+                                >
+                                  <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "✔"}</span>
+                                  <span>{isVerifyingAuthCode ? "Verifying..." : "Verify & Save Code"}</span>
+                                </button>
+                              </div>
+
+                              {redirectAuthCode && (
+                                <div className="authcode-synced-note">
+                                  <span>✔ Code ready. Click Verify &amp; Save Code to store token.</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {vcsAudit.isTracking && (
+                            <div className="vcs-sync-card">
+                              <div className="vcs-header-row">
+                                <span className="vcs-folder-icon">📁</span>
+                                <span className="vcs-path">{vcsAudit.directoryPath}</span>
+                                <span className="vcs-badge-git">Git Active</span>
+                                {vcsAudit.currentCommitHash && (
+                                  <span className="vcs-commit-badge">{vcsAudit.currentCommitHash.substring(0, 7)}</span>
+                                )}
+                              </div>
+                              {vcsAudit.changedFiles.length > 0 && (
+                                <div className="vcs-detected-files">
+                                  <span>Changed Files:</span>
+                                  {vcsAudit.changedFiles.map((file, i) => (
+                                    <span key={i} className="vcs-file-chip">{file}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {editableAccessToken && (
+                            <div className="token-display-box">
+                              <div className="token-header-row">
+                                <label>Access Token</label>
+                                <button
+                                  type="button"
+                                  className="toggle-token-btn"
+                                  onClick={() => setShowAccessToken(!showAccessToken)}
+                                >
+                                  {showAccessToken ? "Hide" : "Show"}
+                                </button>
+                              </div>
+                              <div className="token-value-wrapper">
+                                <input
+                                  type={showAccessToken ? "text" : "password"}
+                                  className="token-input"
+                                  value={editableAccessToken}
+                                  onChange={(e) => {
+                                    setEditableAccessToken(e.target.value);
+                                    setTokenSaveSuccess(null);
+                                  }}
+                                  placeholder="Bearer access token..."
+                                />
+                                <button
+                                  type="button"
+                                  className="token-copy-btn"
+                                  title="Copy token"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(editableAccessToken);
+                                  }}
+                                >
+                                  📋
+                                </button>
+                                <button
+                                  type="button"
+                                  className="token-save-btn"
+                                  title="Save edited token"
+                                  disabled={isSavingToken || !editableAccessToken.trim()}
+                                  onClick={handleSaveEditedToken}
+                                >
+                                  {isSavingToken ? "Saving..." : "Save Token"}
+                                </button>
+                              </div>
+                              {tokenSaveSuccess && (
+                                <div className="token-save-status-msg">
+                                  ✔ {tokenSaveSuccess}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ============================================================= */}
+                      {/* 4. COOKIE VAULT TAB                                           */}
+                      {/* ============================================================= */}
+                      {selectedProtocol === "cookie" && (
+                        <div className="protocol-fields-container">
+                          <div className="protocol-badge-intro cookie-intro">
+                            <span className="badge-icon">🍪</span>
+                            <div>
+                              <strong>Encrypted Cookie Session Lineage</strong>
+                              <p>Inject HTTP cookie headers to maintain stateful authorization sessions.</p>
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label>Raw Cookie String / Session Tokens</label>
+                            <textarea
+                              className="form-textarea code-font"
+                              rows={4}
+                              placeholder="session_id=...; auth_token=...; __Secure-1PSID=..."
+                              value={cookieString}
+                              onChange={(e) => setCookieString(e.target.value)}
+                              required={selectedProtocol === "cookie"}
+                            />
+                          </div>
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label>Target Domain</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={cookieDomain}
+                                onChange={(e) => setCookieDomain(e.target.value)}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Path</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={cookiePath}
+                                onChange={(e) => setCookiePath(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Reasoning Effort Tier Selector */}
+                      <div className="effort-tier-selector-container" style={{ marginTop: "14px" }}>
+                        <div className="tier-header-row">
+                          <label className="tier-label">Reasoning Effort</label>
+                          <span className="tier-badge-current">
+                            {modelEffortTier.toUpperCase()}{modelEffortTier === "medium" ? " (Default)" : ""}
+                          </span>
+                        </div>
+                        <div className="effort-segmented-control">
+                          <button
+                            type="button"
+                            className={`tier-btn tier-low ${modelEffortTier === "low" ? "active" : ""}`}
+                            onClick={() => setModelEffortTier("low")}
+                            title="Fast response with minimal reasoning tokens"
+                          >
+                            Low
+                          </button>
+                          <button
+                            type="button"
+                            className={`tier-btn tier-medium ${modelEffortTier === "medium" ? "active" : ""}`}
+                            onClick={() => setModelEffortTier("medium")}
+                            title="Balanced reasoning and response time"
+                          >
+                            Medium
+                          </button>
+                          <button
+                            type="button"
+                            className={`tier-btn tier-high ${modelEffortTier === "high" ? "active" : ""}`}
+                            onClick={() => setModelEffortTier("high")}
+                            title="Deep reasoning and comprehensive output"
+                          >
+                            High
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Verification Prompt & Form Actions */}
+                      <div className="form-group" style={{ marginTop: "12px" }}>
+                        <label>Verification Prompt</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={testPrompt}
+                          onChange={(e) => setTestPrompt(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="form-action-row">
+                        <button
+                          type="button"
+                          className="test-handshake-btn"
+                          onClick={handleTestCurrentConfig}
+                          disabled={isTesting}
+                        >
+                          {isTesting ? "Testing..." : "⚡ Test Connection"}
+                        </button>
+
+                        {editingAccountId ? (
+                          <>
+                            <button
+                              type="button"
+                              className="test-handshake-btn"
+                              title="Exit edit mode without saving changes"
+                              onClick={handleDoneEditing}
+                              data-testid="btn-done-editing"
+                            >
+                              Done Editing
+                            </button>
+                            <button
+                              type="submit"
+                              className="save-config-btn"
+                              disabled={isSaving}
+                              data-testid="btn-save"
+                            >
+                              {isSaving ? "Updating..." : "Update Configuration"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="submit"
+                            className="save-config-btn"
+                            disabled={isSaving}
+                            data-testid="btn-save"
+                          >
+                            {isSaving ? "Saving..." : "Save Configuration"}
+                          </button>
+                        )}
+                      </div>
+                    </form>
+
+                    {/* Test Connection Results Feedback Panel */}
+                    {testResult && (() => {
+                      const parsed = parseStructuredModelOutput(testResult.modelOutput);
+                      return (
+                        <div className={`test-feedback-panel ${testResult.status.toLowerCase()}`}>
+                          <div className="feedback-header">
+                            <span className="feedback-status-pill status-badge">
+                              {testResult.status === "VERIFIED" ? "✓ VERIFIED" : "✕ FAILED"}
+                            </span>
+                            <span className="feedback-protocol protocol-badge">{testResult.protocol.toUpperCase()}</span>
+                            <span className={`feedback-effort tier-badge tier-${testResult.effortTier || modelEffortTier}`}>
+                              ⚖️ EFFORT: {(testResult.effortTier || modelEffortTier).toUpperCase()} {(testResult.effortTier || modelEffortTier) === "medium" ? "(DEFAULT)" : ""}
+                            </span>
+                            <span className="feedback-latency latency-badge">⚡ {testResult.latencyMs}ms</span>
+                          </div>
+                          <p className="feedback-msg feedback-message">{testResult.message}</p>
+
+                          {/* Model Name, CLI Binary, CLI Version, and Reasoning Effort Specs */}
+                          <div className="model-cli-specs-card">
+                            <div className="spec-item">
+                              <span className="spec-label">Model Name</span>
+                              <span className="spec-value highlight">🤖 {testResult.modelName || targetModelId}</span>
+                            </div>
+                            <div className="spec-item">
+                              <span className="spec-label">CLI Binary</span>
+                              <span className="spec-value">💻 {testResult.cliName || selectedStrategy.cliCommand || cliExecutable || "antigravity"}</span>
+                            </div>
+                            <div className="spec-item">
+                              <span className="spec-label">CLI Version</span>
+                              <span className="spec-value">🏷️ {testResult.cliVersion || "v1.4.12"}</span>
+                            </div>
+                            <div className="spec-item">
+                              <span className="spec-label">Reasoning Effort</span>
+                              <span className={`spec-value tier-pill tier-${testResult.effortTier || modelEffortTier}`}>
+                                {(testResult.effortTier || modelEffortTier).toUpperCase()} {(testResult.effortTier || modelEffortTier) === "medium" ? "(Default)" : ""}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Token Consumption, % Consumed, and % Left Quota Meter */}
+                          {testResult.tokenMetrics && (
+                            <div className="token-quota-meter-card">
+                              <div className="meter-header">
+                                <span className="meter-title">⚡ Token Consumption & Quota Telemetry</span>
+                                <span className="meter-total">{testResult.tokenMetrics.totalTokens} Tokens Consumed</span>
+                              </div>
+                              <div className="token-breakdown-row">
+                                <span className="token-chip prompt-chip">Prompt: <strong>{testResult.tokenMetrics.promptTokens}</strong></span>
+                                <span className="token-chip response-chip">Response: <strong>{testResult.tokenMetrics.completionTokens}</strong></span>
+                                <span className="token-chip context-chip">Context Limit: <strong>{testResult.tokenMetrics.contextLimit.toLocaleString()}</strong></span>
+                                <span className="token-chip quota-chip">Used: <strong>{testResult.tokenMetrics.percentConsumed}%</strong> ({testResult.tokenMetrics.percentLeft}% left)</span>
+                              </div>
+                              <div className="quota-progress-bar-wrapper">
+                                <div
+                                  className="quota-progress-bar"
+                                  style={{ width: `${Math.max(2, Math.min(100, testResult.tokenMetrics.percentConsumed * 10))}%` }}
+                                  title={`${testResult.tokenMetrics.percentConsumed}% of context window consumed`}
+                                ></div>
+                              </div>
+                              <div className="meter-footer-note">
+                                <span>✔ <strong>{testResult.tokenMetrics.percentLeft}%</strong> context window available ({((testResult.tokenMetrics.contextLimit - testResult.tokenMetrics.totalTokens)).toLocaleString()} tokens left)</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {parsed && parsed.hasSplit ? (
+                            <div className="feedback-model-output model-output-box structured">
+                              {parsed.metaText && (
+                                <div className="output-meta-banner">
+                                  <pre className="meta-text">{parsed.metaText}</pre>
+                                </div>
+                              )}
+                              <div className="output-split-view">
+                                <div className="split-block request-block">
+                                  <div className="split-label">
+                                    <span className="split-icon">⚡</span>
+                                    <span>Prompt (Request)</span>
+                                  </div>
+                                  <div className="split-body">{parsed.promptText}</div>
+                                </div>
+                                <div className="split-block response-block">
+                                  <div className="split-label">
+                                    <span className="split-icon">🤖</span>
+                                    <span>Model Verification Response</span>
+                                  </div>
+                                  <div className="split-body">{parsed.responseText}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : testResult.modelOutput ? (
+                            <div className="feedback-model-output model-output-box">
+                              <div className="output-header output-label">
+                                <span className="output-title-badge">🤖 MODEL VERIFICATION RESPONSE</span>
+                              </div>
+                              <pre className="output-content">{testResult.modelOutput}</pre>
+                            </div>
+                          ) : null}
+
+                          {testResult.errorMessage && (
+                            <div className="feedback-error-output error-box">
+                              <div className="error-header error-label">
+                                <span>⚠️ Execution Diagnostic Error:</span>
+                              </div>
+                              <p className="error-content">{testResult.errorMessage}</p>
+                            </div>
+                          )}
+
+                          {/* Distributed Telemetry & Investigation Bar */}
+                          {(testResult.traceId || testResult.correlationId || testResult.spanId) && (
+                            <div className="telemetry-investigation-bar">
+                              <div className="telemetry-header">
+                                <span className="telemetry-icon">📡</span>
+                                <span className="telemetry-title">Distributed Trace Telemetry (W3C OpenTelemetry)</span>
+                              </div>
+                              <div className="telemetry-grid">
+                                {testResult.traceId && (
+                                  <div
+                                    className="telemetry-item"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(testResult.traceId || "");
+                                      alert("Trace ID copied!");
+                                    }}
+                                    title="Click to copy Trace ID"
+                                  >
+                                    <span className="telemetry-key">Trace ID</span>
+                                    <span className="telemetry-val">{testResult.traceId} 📋</span>
+                                  </div>
+                                )}
+                                {testResult.spanId && (
+                                  <div
+                                    className="telemetry-item"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(testResult.spanId || "");
+                                      alert("Span ID copied!");
+                                    }}
+                                    title="Click to copy Span ID"
+                                  >
+                                    <span className="telemetry-key">Span ID</span>
+                                    <span className="telemetry-val">{testResult.spanId} 📋</span>
+                                  </div>
+                                )}
+                                {testResult.correlationId && (
+                                  <div
+                                    className="telemetry-item"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(testResult.correlationId || "");
+                                      alert("Correlation ID copied!");
+                                    }}
+                                    title="Click to copy Correlation ID"
+                                  >
+                                    <span className="telemetry-key">Correlation ID</span>
+                                    <span className="telemetry-val">{testResult.correlationId} 📋</span>
+                                  </div>
+                                )}
+                              </div>
+                              {testResult.traceId && (
+                                <div className="docker-investigation-row">
+                                  <span className="docker-label">Docker Log Filter:</span>
+                                  <code className="docker-cmd">docker logs model-connector-service 2&gt;&amp;1 | grep {testResult.traceId}</code>
+                                  <button
+                                    type="button"
+                                    className="copy-docker-btn"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`docker logs model-connector-service 2>&1 | grep ${testResult.traceId}`);
+                                      alert("Docker log filter command copied to clipboard!");
                                     }}
                                   >
-                                    Re-open Sign-In Window
+                                    📋 Copy Docker Filter
                                   </button>
                                 </div>
                               )}
                             </div>
-                          </div>
-                        )}
-
-                        {oauthSession && (
-                          <button
-                            type="button"
-                            className="btn-oauth-action btn-return-vault"
-                            onClick={() => setActiveOAuthStep(3)}
-                            title="Navigate to Authenticated Token Vault"
-                          >
-                            <span className="btn-icon">🔒</span>
-                            <span>Token Vault</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Section 5: Authorization Code Capture (ONLY Active when CLI mode is selected) */}
-                      {accountCategory === "individual" && (
-                        <div className="browser-authcode-capture-card" data-testid="browser-authcode-card">
-                          <div className="authcode-card-header">
-                            <div className="header-title-row">
-                              <span className="card-icon">🔑</span>
-                              <div>
-                                <h5>Authorization Code</h5>
-                                <span className="card-subtext">
-                                  Paste the code returned by the browser consent portal to exchange for a token.
-                                </span>
-                              </div>
-                            </div>
-                            <div className="authcode-header-badges">
-                              {timerOriginTab === (accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise") && cliTimeoutSecondsRemaining !== null && (
-                                <span
-                                  className={`cli-timeout-badge ${cliTimeoutSecondsRemaining === 0 ? "timed-out" : "active"}`}
-                                >
-                                  {cliTimeoutSecondsRemaining > 0
-                                    ? `⏱ ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
-                                    : "Timed Out (300s)"}
-                                </span>
-                              )}
-                              {redirectAuthCode ? (
-                                <span className="code-captured-tag">✔ Captured</span>
-                              ) : (
-                                <span className="code-waiting-tag">Awaiting Code</span>
-                              )}
-                            </div>
-                          </div>
-
-                          {timerOriginTab === (accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise") && cliTimeoutSecondsRemaining === 0 && (
-                            <div className="authcode-timeout-warning">
-                              ⚠️ Session timed out (300s). Click Browser Sign-In to start a new session.
-                            </div>
                           )}
-
-                          <div className="authcode-input-container">
-                            <span className="authcode-lead-icon" title="OAuth Authorization Code">🔑</span>
-                            <input
-                              type="text"
-                              className="form-input authcode-text-input"
-                              placeholder="Paste authorization code (e.g. 4/0AUn6...)"
-                              value={redirectAuthCode}
-                              onChange={(e) => setRedirectAuthCode(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && redirectAuthCode.trim() && cliTimeoutSecondsRemaining !== 0 && !isVerifyingAuthCode) {
-                                  handleCompleteOAuthExchange(redirectAuthCode);
-                                }
-                              }}
-                              spellCheck={false}
-                              autoComplete="off"
-                            />
-                            <div className="authcode-input-actions">
-                              {redirectAuthCode && (
-                                <button
-                                  type="button"
-                                  className="btn-clear-code"
-                                  onClick={() => setRedirectAuthCode("")}
-                                  title="Clear code"
-                                >
-                                  ✕
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
-                                onClick={handlePasteAuthCode}
-                                title="Paste from clipboard"
-                              >
-                                <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
-                                <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="authcode-actions-bar">
-                            <div className="authcode-meta-info">
-                              {redirectAuthCode ? (
-                                <span className="code-char-counter">
-                                  <span className="counter-dot"></span>
-                                  {redirectAuthCode.length} chars ready
-                                </span>
-                              ) : (
-                                <span className="code-hint-text">
-                                  Click Paste or press Enter after pasting the code.
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              className={`btn-submit-authcode ${redirectAuthCode.trim() ? "ready-to-submit" : ""}`}
-                              disabled={!redirectAuthCode.trim() || cliTimeoutSecondsRemaining === 0 || isVerifyingAuthCode}
-                              onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
-                            >
-                              <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "✔"}</span>
-                              <span>{isVerifyingAuthCode ? "Verifying..." : "Verify & Save Code"}</span>
-                            </button>
-                          </div>
-
-                          {redirectAuthCode && (
-                            <div className="authcode-synced-note">
-                              <span>✔ Code ready. Click Verify &amp; Save Code to store token.</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Section 6: Terminal CLI Hint (Individual CLI only) */}
-                      {accountCategory === "individual" && (
-                        <div className="cli-terminal-hint">
-                          <div className="terminal-prompt-row">
-                            <span className="terminal-icon">$</span>
-                            <code className="hint-command">{effectiveCliCommand}</code>
-                          </div>
-                          <button
-                            type="button"
-                            className="terminal-copy-btn"
-                            onClick={() => {
-                              navigator.clipboard.writeText(effectiveCliCommand);
-                              setCopiedCliCommand(true);
-                              setTimeout(() => setCopiedCliCommand(false), 2000);
-                            }}
-                          >
-                            {copiedCliCommand ? "✔ Copied" : "📋 Copy Command"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Collapsible Advanced OAuth Parameters */}
-                    <details className="oauth-advanced-details">
-                      <summary>OAuth Parameters (Client ID, Secret, Endpoints)</summary>
-                      <div className="advanced-fields-box">
-                        <div className="form-row-2">
-                          <div className="form-group">
-                            <label>OAuth Client ID</label>
-                            <input
-                              type="text"
-                              className="form-input"
-                              value={oauthClientId}
-                              onChange={(e) => setOauthClientId(e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>OAuth Client Secret (Optional for PKCE)</label>
-                            <input
-                              type="password"
-                              className="form-input"
-                              placeholder="Leave blank for public PKCE apps"
-                              value={oauthClientSecret}
-                              onChange={(e) => setOauthClientSecret(e.target.value)}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="form-row-2">
-                          <div className="form-group">
-                            <label>Authorization Endpoint</label>
-                            <input
-                              type="text"
-                              className="form-input"
-                              value={oauthAuthUrl}
-                              onChange={(e) => setOauthAuthUrl(e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>Token Endpoint</label>
-                            <input
-                              type="text"
-                              className="form-input"
-                              value={oauthTokenUrl}
-                              onChange={(e) => setOauthTokenUrl(e.target.value)}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="form-group">
-                          <label>Configured Scopes</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={oauthScopes}
-                            onChange={(e) => setOauthScopes(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-action-row">
-                          <button
-                            type="button"
-                            className="save-config-btn"
-                            onClick={handleApplyOAuthClientConfiguration}
-                            disabled={isApplyingOAuthClientConfig}
-                          >
-                            {isApplyingOAuthClientConfig ? "Applying OAuth Client Settings..." : "Apply OAuth Client Settings"}
-                          </button>
-                        </div>
-                      </div>
-                    </details>
-                  </div>
-                )}
-
-                {/* Step 3: Authenticated Token Vault */}
-                {effectiveOAuthStep === 3 && oauthSession && (
-                  <div className="oauth-authenticated-view">
-                    <div className={`auth-success-card ${isOAuthVerificationFailed ? "verification-failed" : ""}`}>
-                      <div className="auth-success-header">
-                        <div className={`success-badge-pill ${isOAuthVerificationFailed ? "failed" : ""}`}>
-                          <span className={`dot ${isOAuthVerificationFailed ? "failed-dot" : ""}`}></span>
-                          <span>
-                            {isOAuthVerificationFailed
-                              ? "Authentication Verification Failed (HTTP 400)"
-                              : "OAuth Session Active & Verified"}
-                          </span>
-                        </div>
-                        <div className="header-action-group">
-                          <button
-                            type="button"
-                            className="step-switch-btn"
-                            onClick={() => setActiveOAuthStep(2)}
-                            title="Return to Browser Redirect & Consent controls"
-                          >
-                            ↩ Redirect Controls
-                          </button>
-                          <button
-                            type="button"
-                            className="revoke-btn"
-                            onClick={handleDisconnectOAuth}
-                          >
-                            Disconnect / Revoke
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Re-Authentication Alert Callout when Test Connection / Verification Fails */}
-                      {isOAuthVerificationFailed && (
-                        <div className="oauth-failure-alert-box">
-                          <div className="failure-alert-title-row">
-                            <span className="alert-icon">⚠️</span>
-                            <strong>Identity Server Verification Failed</strong>
-                          </div>
-                          <p className="failure-alert-desc">
-                            {testResult?.message || "Token rejected by identity server."}
-                            {testResult?.errorMessage ? ` Diagnostic: ${testResult.errorMessage}` : ""}
-                            {" "}Please re-authenticate below using Browser Redirect or CLI to acquire a fresh, valid bearer token.
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="identity-banner">
-                        <span className="provider-brand-icon">{selectedStrategy.icon}</span>
-                        <div className="identity-info">
-                          <span className="identity-provider">{oauthSession.providerName}</span>
-                          <span className="identity-email">{oauthSession.authorizedUser}</span>
-                          <span className="identity-sub">Authenticated Principal • Handshake at {oauthSession.authorizedTimestamp}</span>
-                        </div>
-                      </div>
-
-                      {/* Local Container VCS & Credentials Directory Verification (Enabled by default) */}
-                      <div className="vcs-container-audit-card" data-testid="vcs-container-audit-card-step3">
-                        <div className="vcs-audit-header">
-                          <div className="vcs-badge-group">
-                            <span className="vcs-icon">📁</span>
-                            <span className="vcs-dir-label">{vcsAudit.directoryPath}</span>
-                            <span className="vcs-status-tag" style={{ marginLeft: "8px" }}>
-                              {vcsAudit.isGitRepo ? "Git Active" : "Snapshot VCS Active"}
-                            </span>
-                            {vcsAudit.currentCommitHash && (
-                              <span className="vcs-commit-tag">
-                                commit: {vcsAudit.currentCommitHash.slice(0, 7)}
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-vcs-reverify"
-                            onClick={() => triggerDirectoryVerification("manual-reverify")}
-                            title="Verify directory state and check changed files locally"
-                          >
-                            🔄 Verify Directory & Diff
-                          </button>
-                        </div>
-                        {vcsAudit.changedFiles.length > 0 && (
-                          <div className="vcs-changed-files-row">
-                            <span className="changed-label">Detected Changed File(s):</span>
-                            {vcsAudit.changedFiles.map((f) => (
-                              <code key={f} className="changed-file-pill">{f}</code>
-                            ))}
-                            <span className="vcs-sync-note">Synced to database for multi-account interaction</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Session Action Toolbar for On-Demand Re-Authentication */}
-                      <div className="authenticated-session-toolbar">
-                        {accountCategory === "individual" ? (
-                          <button
-                            type="button"
-                            className="btn-oauth-action btn-cli-auth btn-launch-primary"
-                            onClick={handleExecuteCliLogin}
-                            disabled={isCliLoggingIn}
-                            title="Execute CLI login to refresh OAuth 2.0 token"
-                            data-testid="btn-oauth-cli-auth"
-                          >
-                            <span className="btn-icon">⚡</span>
-                            <span>{isCliLoggingIn ? "Re-Authenticating via CLI..." : "Re-Authenticate"}</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn-oauth-action btn-cli-auth btn-launch-primary"
-                            onClick={handleInitiateBrowserRedirect}
-                            disabled={isRedirecting}
-                            title="Open browser to acquire a fresh OAuth 2.0 token"
-                            data-testid="btn-oauth-browser-auth"
-                          >
-                            <span className="btn-icon">🌐</span>
-                            <span>
-                              {isRedirecting
-                                ? "Opening Browser..."
-                                : "Re-Authenticate"}
-                            </span>
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="token-display-box">
-                        <div className="token-header-row">
-                          <label>Issued Bearer Access Token (ya29...)</label>
-                          <button
-                            type="button"
-                            className="toggle-token-btn"
-                            onClick={() => setShowAccessToken(!showAccessToken)}
-                          >
-                            {showAccessToken ? "🙈 Hide" : "👁 Show Token"}
-                          </button>
-                        </div>
-                        {editableAccessToken.startsWith("4/0") && (
-                          <div style={{ fontSize: "0.82rem", color: "#60a5fa", margin: "4px 0" }}>
-                            ℹ Authorization code detected — will auto-format as Bearer access token upon saving.
-                          </div>
-                        )}
-                        <div className="token-value-wrapper">
-                          <input
-                            type={showAccessToken ? "text" : "password"}
-                            className="token-input"
-                            value={editableAccessToken}
-                            onChange={(e) => {
-                              setEditableAccessToken(e.target.value);
-                              setTokenSaveSuccess(null);
-                            }}
-                            placeholder="Enter or paste Bearer access token..."
-                          />
-                          <button
-                            type="button"
-                            className="token-copy-btn"
-                            title="Copy Token to clipboard"
-                            onClick={() => {
-                              navigator.clipboard.writeText(editableAccessToken);
-                              alert("Access token copied to clipboard!");
-                            }}
-                          >
-                            📋
-                          </button>
-                          <button
-                            type="button"
-                            className="token-save-btn"
-                            title="Save edited token to database"
-                            disabled={isSavingToken || !editableAccessToken.trim()}
-                            onClick={handleSaveEditedToken}
-                          >
-                            {isSavingToken ? "Saving..." : "💾 Save Token"}
-                          </button>
-                        </div>
-                        {tokenSaveSuccess && (
-                          <div className="token-save-status-msg">
-                            ✔ {tokenSaveSuccess}
-                          </div>
-                        )}
-                        {oauthSession.authCode && (
-                          <div className="authcode-meta-box">
-                            <div className="authcode-header">
-                              <label>Captured Authorization Code</label>
-                              <span className="authcode-badge">Saved in DB Against Account</span>
-                            </div>
-                            <div className="authcode-wrapper">
-                              <input
-                                type="text"
-                                className="authcode-input"
-                                readOnly
-                                value={oauthSession.authCode}
-                              />
-                              <button
-                                type="button"
-                                className="token-copy-btn"
-                                title="Copy Authorization Code"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(oauthSession.authCode || "");
-                                  alert("Authorization code copied to clipboard!");
-                                }}
-                              >
-                                📋
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="token-meta-row">
-                        <div className="meta-card">
-                          <span className="meta-label">Refresh Token</span>
-                          <span className="meta-value valid">Active (Auto-refresh enabled)</span>
-                        </div>
-                        <div className="meta-card">
-                          <span className="meta-label">Expires In</span>
-                          <span className="meta-value timer">59m 58s (3600s)</span>
-                        </div>
-                        <div className="meta-card">
-                          <span className="meta-label">Token Type</span>
-                          <span className="meta-value">Bearer (HTTP RFC 6750)</span>
-                        </div>
-                      </div>
-
-                      <div className="granted-scopes-section">
-                        <label className="scopes-title">Granted OAuth Scopes</label>
-                        <div className="scopes-chips-list">
-                          {oauthSession.scopes.map((s, idx) => (
-                            <span key={idx} className="scope-chip">
-                              ✔ {s}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ============================================================= */}
-            {/* 3. CLI BINARY TAB                                             */}
-            {/* ============================================================= */}
-            {selectedProtocol === "cli" && (
-              <div className="protocol-fields-container">
-                <div className="protocol-badge-intro cli-intro">
-                  <span className="badge-icon">💻</span>
-                  <div>
-                    <strong>Local CLI Execution</strong>
-                    <p>Execute queries using native binaries configured on the runtime PATH.</p>
-                  </div>
-                </div>
-
-                {selectedStrategy.id === "google" && (
-                  <div className="google-cli-selector-panel">
-                    <div className="cli-selector-text">
-                      <strong>CLI Tool</strong>
-                      <span>Select Antigravity or Gemini binary</span>
-                    </div>
-                    <div className="cli-selector-buttons">
-                      <button
-                        type="button"
-                        className={`cli-tool-choice-btn ${selectedGoogleCli === "antigravity" ? "active" : ""}`}
-                        onClick={() => {
-                          setSelectedGoogleCli("antigravity");
-                          setCliExecutable("antigravity");
-                        }}
-                      >
-                        ⚡ Antigravity CLI
-                      </button>
-                      <button
-                        type="button"
-                        className={`cli-tool-choice-btn ${selectedGoogleCli === "gemini" ? "active" : ""}`}
-                        onClick={() => {
-                          setSelectedGoogleCli("gemini");
-                          setCliExecutable("gemini");
-                        }}
-                      >
-                        ✦ Gemini CLI
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="cli-terminal-status-card">
-                  <div className="status-row">
-                    <span className="cli-name">Binary: <code>{cliExecutable}</code></span>
-                    <span className="cli-path-badge">/opt/model-connector/npm/bin/{cliExecutable}</span>
-                    <span className="cli-status-badge">Available</span>
-                  </div>
-                  <div className="cli-code-preview">
-                    <code>$ {cliExecutable} {cliArgs}</code>
-                  </div>
-                </div>
-
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>CLI Command</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. antigravity, gemini"
-                      value={cliExecutable}
-                      onChange={(e) => setCliExecutable(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Arguments</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder={`e.g. --model ${ModelConstants.DEFAULT_MODEL_ID}`}
-                      value={cliArgs}
-                      onChange={(e) => setCliArgs(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Working Directory</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={cliWorkingDir}
-                    onChange={(e) => setCliWorkingDir(e.target.value)}
-                  />
-                </div>
-
-                <div className="authenticated-session-toolbar">
-                  <button
-                    type="button"
-                    className="btn-oauth-action btn-cli-auth"
-                    onClick={handleExecuteCliLogin}
-                    disabled={isCliLoggingIn}
-                    title="Run CLI login in container"
-                  >
-                    <span className="btn-icon">⚡</span>
-                    <span>{isCliLoggingIn ? "Running Auth..." : "CLI Auth"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-oauth-action btn-browser-auth"
-                    onClick={handleInitiateBrowserRedirect}
-                    disabled={isRedirecting}
-                    title="Launch browser OAuth consent"
-                  >
-                    <span className="btn-icon">🌐</span>
-                    <span>{isRedirecting ? "Opening..." : "Browser Sign-In"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-oauth-action btn-step2-redirect"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${cliExecutable} ${cliArgs}`);
-                      setCopiedCliCommand(true);
-                      setTimeout(() => setCopiedCliCommand(false), 2000);
-                    }}
-                    title="Copy CLI command"
-                  >
-                    <span className="btn-icon">{copiedCliCommand ? "✔" : "📋"}</span>
-                    <span>{copiedCliCommand ? "Copied" : "Copy Command"}</span>
-                  </button>
-                </div>
-
-                {(isWaitingForCallback || isCliLoggingIn || redirectAuthCode) && (
-                  <div className="oauth-step-card step-interactive active-step">
-                    <div className="step-card-header">
-                      <div className="step-num-badge">🔐</div>
-                      <div>
-                        <h4>Authorization Code</h4>
-                        <p>Paste the code from browser consent to complete CLI authentication.</p>
-                      </div>
-                    </div>
-
-                    <div className="auth-code-wrapper-v2">
-                      <div className="code-input-row">
-                        <input
-                          type="text"
-                          className="form-input code-input"
-                          placeholder="Paste authorization code (e.g., 4/0AUn6...)"
-                          value={redirectAuthCode}
-                          onChange={(e) => setRedirectAuthCode(e.target.value.trim())}
-                        />
-                        <button
-                          type="button"
-                          className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
-                          onClick={handlePasteAuthCode}
-                          title="Paste code from clipboard"
-                        >
-                          <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
-                          <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="authcode-actions-bar">
-                      <div className="authcode-meta-info">
-                        {redirectAuthCode ? (
-                          <span className="code-char-counter">
-                            <span className="counter-dot"></span>
-                            {redirectAuthCode.length} chars ready
-                          </span>
-                        ) : (
-                          <span className="code-hint-text">
-                            Click Paste or press Enter after pasting the code.
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        className={`btn-submit-authcode ${redirectAuthCode.trim() ? "ready-to-submit" : ""}`}
-                        disabled={!redirectAuthCode.trim() || isVerifyingAuthCode}
-                        onClick={() => handleCompleteOAuthExchange(redirectAuthCode)}
-                      >
-                        <span className="submit-icon">{isVerifyingAuthCode ? "⏳" : "✔"}</span>
-                        <span>{isVerifyingAuthCode ? "Verifying..." : "Verify & Save Code"}</span>
-                      </button>
-                    </div>
-
-                    {redirectAuthCode && (
-                      <div className="authcode-synced-note">
-                        <span>✔ Code ready. Click Verify &amp; Save Code to store token.</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {vcsAudit.isTracking && (
-                  <div className="vcs-sync-card">
-                    <div className="vcs-header-row">
-                      <span className="vcs-folder-icon">📁</span>
-                      <span className="vcs-path">{vcsAudit.directoryPath}</span>
-                      <span className="vcs-badge-git">Git Active</span>
-                      {vcsAudit.currentCommitHash && (
-                        <span className="vcs-commit-badge">{vcsAudit.currentCommitHash.substring(0, 7)}</span>
-                      )}
-                    </div>
-                    {vcsAudit.changedFiles.length > 0 && (
-                      <div className="vcs-detected-files">
-                        <span>Changed Files:</span>
-                        {vcsAudit.changedFiles.map((file, i) => (
-                          <span key={i} className="vcs-file-chip">{file}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {editableAccessToken && (
-                  <div className="token-display-box">
-                    <div className="token-header-row">
-                      <label>Access Token</label>
-                      <button
-                        type="button"
-                        className="toggle-token-btn"
-                        onClick={() => setShowAccessToken(!showAccessToken)}
-                      >
-                        {showAccessToken ? "Hide" : "Show"}
-                      </button>
-                    </div>
-                    <div className="token-value-wrapper">
-                      <input
-                        type={showAccessToken ? "text" : "password"}
-                        className="token-input"
-                        value={editableAccessToken}
-                        onChange={(e) => {
-                          setEditableAccessToken(e.target.value);
-                          setTokenSaveSuccess(null);
-                        }}
-                        placeholder="Bearer access token..."
-                      />
-                      <button
-                        type="button"
-                        className="token-copy-btn"
-                        title="Copy token"
-                        onClick={() => {
-                          navigator.clipboard.writeText(editableAccessToken);
-                        }}
-                      >
-                        📋
-                      </button>
-                      <button
-                        type="button"
-                        className="token-save-btn"
-                        title="Save edited token"
-                        disabled={isSavingToken || !editableAccessToken.trim()}
-                        onClick={handleSaveEditedToken}
-                      >
-                        {isSavingToken ? "Saving..." : "Save Token"}
-                      </button>
-                    </div>
-                    {tokenSaveSuccess && (
-                      <div className="token-save-status-msg">
-                        ✔ {tokenSaveSuccess}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ============================================================= */}
-            {/* 4. COOKIE VAULT TAB                                           */}
-            {/* ============================================================= */}
-            {selectedProtocol === "cookie" && (
-              <div className="protocol-fields-container">
-                <div className="protocol-badge-intro cookie-intro">
-                  <span className="badge-icon">🍪</span>
-                  <div>
-                    <strong>Encrypted Cookie Session Lineage</strong>
-                    <p>Inject HTTP cookie headers to maintain stateful authorization sessions.</p>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Raw Cookie String / Session Tokens</label>
-                  <textarea
-                    className="form-textarea code-font"
-                    rows={4}
-                    placeholder="session_id=...; auth_token=...; __Secure-1PSID=..."
-                    value={cookieString}
-                    onChange={(e) => setCookieString(e.target.value)}
-                    required={selectedProtocol === "cookie"}
-                  />
-                </div>
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>Target Domain</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={cookieDomain}
-                      onChange={(e) => setCookieDomain(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Path</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={cookiePath}
-                      onChange={(e) => setCookiePath(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Reasoning Effort Tier Selector */}
-            <div className="effort-tier-selector-container" style={{ marginTop: "14px" }}>
-              <div className="tier-header-row">
-                <label className="tier-label">Reasoning Effort</label>
-                <span className="tier-badge-current">
-                  {modelEffortTier.toUpperCase()}{modelEffortTier === "medium" ? " (Default)" : ""}
-                </span>
-              </div>
-              <div className="effort-segmented-control">
-                <button
-                  type="button"
-                  className={`tier-btn tier-low ${modelEffortTier === "low" ? "active" : ""}`}
-                  onClick={() => setModelEffortTier("low")}
-                  title="Fast response with minimal reasoning tokens"
-                >
-                  Low
-                </button>
-                <button
-                  type="button"
-                  className={`tier-btn tier-medium ${modelEffortTier === "medium" ? "active" : ""}`}
-                  onClick={() => setModelEffortTier("medium")}
-                  title="Balanced reasoning and response time"
-                >
-                  Medium
-                </button>
-                <button
-                  type="button"
-                  className={`tier-btn tier-high ${modelEffortTier === "high" ? "active" : ""}`}
-                  onClick={() => setModelEffortTier("high")}
-                  title="Deep reasoning and comprehensive output"
-                >
-                  High
-                </button>
-              </div>
-            </div>
-
-            {/* Verification Prompt & Form Actions */}
-            <div className="form-group" style={{ marginTop: "12px" }}>
-              <label>Verification Prompt</label>
-              <input
-                type="text"
-                className="form-input"
-                value={testPrompt}
-                onChange={(e) => setTestPrompt(e.target.value)}
-              />
-            </div>
-
-            <div className="form-action-row">
-              <button
-                type="button"
-                className="test-handshake-btn"
-                onClick={handleTestCurrentConfig}
-                disabled={isTesting}
-              >
-                {isTesting ? "Testing..." : "⚡ Test Connection"}
-              </button>
-
-              {editingAccountId ? (
-                <>
-                  <button
-                    type="button"
-                    className="test-handshake-btn"
-                    title="Exit edit mode without saving changes"
-                    onClick={handleDoneEditing}
-                    data-testid="btn-done-editing"
-                  >
-                    Done Editing
-                  </button>
-                  <button
-                    type="submit"
-                    className="save-config-btn"
-                    disabled={isSaving}
-                    data-testid="btn-save"
-                  >
-                    {isSaving ? "Updating..." : "Update Configuration"}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="submit"
-                  className="save-config-btn"
-                  disabled={isSaving}
-                  data-testid="btn-save"
-                >
-                  {isSaving ? "Saving..." : "Save Configuration"}
-                </button>
-              )}
-            </div>
-          </form>
-
-          {/* Test Connection Results Feedback Panel */}
-          {testResult && (() => {
-            const parsed = parseStructuredModelOutput(testResult.modelOutput);
-            return (
-              <div className={`test-feedback-panel ${testResult.status.toLowerCase()}`}>
-                <div className="feedback-header">
-                  <span className="feedback-status-pill status-badge">
-                    {testResult.status === "VERIFIED" ? "✓ VERIFIED" : "✕ FAILED"}
-                  </span>
-                  <span className="feedback-protocol protocol-badge">{testResult.protocol.toUpperCase()}</span>
-                  <span className={`feedback-effort tier-badge tier-${testResult.effortTier || modelEffortTier}`}>
-                    ⚖️ EFFORT: {(testResult.effortTier || modelEffortTier).toUpperCase()} {(testResult.effortTier || modelEffortTier) === "medium" ? "(DEFAULT)" : ""}
-                  </span>
-                  <span className="feedback-latency latency-badge">⚡ {testResult.latencyMs}ms</span>
-                </div>
-                <p className="feedback-msg feedback-message">{testResult.message}</p>
-
-                {/* Model Name, CLI Binary, CLI Version, and Reasoning Effort Specs */}
-                <div className="model-cli-specs-card">
-                  <div className="spec-item">
-                    <span className="spec-label">Model Name</span>
-                    <span className="spec-value highlight">🤖 {testResult.modelName || targetModelId}</span>
-                  </div>
-                  <div className="spec-item">
-                    <span className="spec-label">CLI Binary</span>
-                    <span className="spec-value">💻 {testResult.cliName || selectedStrategy.cliCommand || cliExecutable || "antigravity"}</span>
-                  </div>
-                  <div className="spec-item">
-                    <span className="spec-label">CLI Version</span>
-                    <span className="spec-value">🏷️ {testResult.cliVersion || "v1.4.12"}</span>
-                  </div>
-                  <div className="spec-item">
-                    <span className="spec-label">Reasoning Effort</span>
-                    <span className={`spec-value tier-pill tier-${testResult.effortTier || modelEffortTier}`}>
-                      {(testResult.effortTier || modelEffortTier).toUpperCase()} {(testResult.effortTier || modelEffortTier) === "medium" ? "(Default)" : ""}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Token Consumption, % Consumed, and % Left Quota Meter */}
-                {testResult.tokenMetrics && (
-                  <div className="token-quota-meter-card">
-                    <div className="meter-header">
-                      <span className="meter-title">⚡ Token Consumption & Quota Telemetry</span>
-                      <span className="meter-total">{testResult.tokenMetrics.totalTokens} Tokens Consumed</span>
-                    </div>
-                    <div className="token-breakdown-row">
-                      <span className="token-chip prompt-chip">Prompt: <strong>{testResult.tokenMetrics.promptTokens}</strong></span>
-                      <span className="token-chip response-chip">Response: <strong>{testResult.tokenMetrics.completionTokens}</strong></span>
-                      <span className="token-chip context-chip">Context Limit: <strong>{testResult.tokenMetrics.contextLimit.toLocaleString()}</strong></span>
-                      <span className="token-chip quota-chip">Used: <strong>{testResult.tokenMetrics.percentConsumed}%</strong> ({testResult.tokenMetrics.percentLeft}% left)</span>
-                    </div>
-                    <div className="quota-progress-bar-wrapper">
-                      <div
-                        className="quota-progress-bar"
-                        style={{ width: `${Math.max(2, Math.min(100, testResult.tokenMetrics.percentConsumed * 10))}%` }}
-                        title={`${testResult.tokenMetrics.percentConsumed}% of context window consumed`}
-                      ></div>
-                    </div>
-                    <div className="meter-footer-note">
-                      <span>✔ <strong>{testResult.tokenMetrics.percentLeft}%</strong> context window available ({((testResult.tokenMetrics.contextLimit - testResult.tokenMetrics.totalTokens)).toLocaleString()} tokens left)</span>
-                    </div>
-                  </div>
-                )}
-
-                {parsed && parsed.hasSplit ? (
-                  <div className="feedback-model-output model-output-box structured">
-                    {parsed.metaText && (
-                      <div className="output-meta-banner">
-                        <pre className="meta-text">{parsed.metaText}</pre>
-                      </div>
-                    )}
-                    <div className="output-split-view">
-                      <div className="split-block request-block">
-                        <div className="split-label">
-                          <span className="split-icon">⚡</span>
-                          <span>Prompt (Request)</span>
-                        </div>
-                        <div className="split-body">{parsed.promptText}</div>
-                      </div>
-                      <div className="split-block response-block">
-                        <div className="split-label">
-                          <span className="split-icon">🤖</span>
-                          <span>Model Verification Response</span>
-                        </div>
-                        <div className="split-body">{parsed.responseText}</div>
-                      </div>
-                    </div>
-                  </div>
-                ) : testResult.modelOutput ? (
-                  <div className="feedback-model-output model-output-box">
-                    <div className="output-header output-label">
-                      <span className="output-title-badge">🤖 MODEL VERIFICATION RESPONSE</span>
-                    </div>
-                    <pre className="output-content">{testResult.modelOutput}</pre>
-                  </div>
-                ) : null}
-
-                {testResult.errorMessage && (
-                  <div className="feedback-error-output error-box">
-                    <div className="error-header error-label">
-                      <span>⚠️ Execution Diagnostic Error:</span>
-                    </div>
-                    <p className="error-content">{testResult.errorMessage}</p>
-                  </div>
-                )}
-
-                {/* Distributed Telemetry & Investigation Bar */}
-                {(testResult.traceId || testResult.correlationId || testResult.spanId) && (
-                  <div className="telemetry-investigation-bar">
-                    <div className="telemetry-header">
-                      <span className="telemetry-icon">📡</span>
-                      <span className="telemetry-title">Distributed Trace Telemetry (W3C OpenTelemetry)</span>
-                    </div>
-                    <div className="telemetry-grid">
-                      {testResult.traceId && (
-                        <div
-                          className="telemetry-item"
-                          onClick={() => {
-                            navigator.clipboard.writeText(testResult.traceId || "");
-                            alert("Trace ID copied!");
-                          }}
-                          title="Click to copy Trace ID"
-                        >
-                          <span className="telemetry-key">Trace ID</span>
-                          <span className="telemetry-val">{testResult.traceId} 📋</span>
-                        </div>
-                      )}
-                      {testResult.spanId && (
-                        <div
-                          className="telemetry-item"
-                          onClick={() => {
-                            navigator.clipboard.writeText(testResult.spanId || "");
-                            alert("Span ID copied!");
-                          }}
-                          title="Click to copy Span ID"
-                        >
-                          <span className="telemetry-key">Span ID</span>
-                          <span className="telemetry-val">{testResult.spanId} 📋</span>
-                        </div>
-                      )}
-                      {testResult.correlationId && (
-                        <div
-                          className="telemetry-item"
-                          onClick={() => {
-                            navigator.clipboard.writeText(testResult.correlationId || "");
-                            alert("Correlation ID copied!");
-                          }}
-                          title="Click to copy Correlation ID"
-                        >
-                          <span className="telemetry-key">Correlation ID</span>
-                          <span className="telemetry-val">{testResult.correlationId} 📋</span>
-                        </div>
-                      )}
-                    </div>
-                    {testResult.traceId && (
-                      <div className="docker-investigation-row">
-                        <span className="docker-label">Docker Log Filter:</span>
-                        <code className="docker-cmd">docker logs model-connector-service 2&gt;&amp;1 | grep {testResult.traceId}</code>
-                        <button
-                          type="button"
-                          className="copy-docker-btn"
-                          onClick={() => {
-                            navigator.clipboard.writeText(`docker logs model-connector-service 2>&1 | grep ${testResult.traceId}`);
-                            alert("Docker log filter command copied to clipboard!");
-                          }}
-                        >
-                          📋 Copy Docker Filter
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Right Column: Existing Configured Accounts Catalog - Hidden when adding an account since list view exists at top */}
-        {formMode !== "create" && (
-          <div className="config-catalog-card">
-          <div className="card-header">
-            <div className="card-header-title">
-              <span className="card-icon">📂</span>
-              <h3>Configured Accounts</h3>
-            </div>
-
-            <div className="card-header-actions">
-              {/* Model Scope Filter Pills */}
-              <div className="btn-group btn-group-sm" role="group" aria-label="Account scope filter">
-                <button
-                  type="button"
-                  data-testid="filter-current-model"
-                  onClick={() => setFilterToCurrentModel(true)}
-                  className={`btn btn-sm ${filterToCurrentModel ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
-                  title={`Filter accounts registered to ${targetModelId}`}
-                >
-                  Current Model ({currentModelAccountsCount})
-                </button>
-                <button
-                  type="button"
-                  data-testid="filter-all-models"
-                  onClick={() => setFilterToCurrentModel(false)}
-                  className={`btn btn-sm ${!filterToCurrentModel ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
-                  title="Show all registered accounts across all models"
-                >
-                  All ({state.modelAccounts.length})
-                </button>
-              </div>
-
-              {/* View Mode Switcher: List vs Card */}
-              <div className="btn-group btn-group-sm" role="group" aria-label="Accounts view mode">
-                <button
-                  type="button"
-                  data-testid="accounts-view-list"
-                  onClick={() => setAccountsViewMode("list")}
-                  className={`btn btn-sm ${accountsViewMode === "list" ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
-                  title="List Mode (Compact table)"
-                >
-                  📋 List
-                </button>
-                <button
-                  type="button"
-                  data-testid="accounts-view-card"
-                  onClick={() => setAccountsViewMode("card")}
-                  className={`btn btn-sm ${accountsViewMode === "card" ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
-                  title="Card Mode (Detailed cards)"
-                >
-                  🗂️ Cards
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="credentials-list">
-            {displayedAccounts.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "36px 16px", color: "var(--theme-text-muted)" }}>
-                <div style={{ fontSize: "2rem", marginBottom: "8px" }}>📭</div>
-                <p style={{ margin: "0 0 6px 0", fontSize: "0.88rem", color: "var(--theme-text-primary)", fontWeight: 600 }}>
-                  {filterToCurrentModel
-                    ? `No accounts registered for '${targetModelId}'`
-                    : "No accounts configured yet"}
-                </p>
-                <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
-                  {filterToCurrentModel
-                    ? "Configure authentication on the left and click 'Save' to register."
-                    : "Select a model and configure credentials to get started."}
-                </p>
-                {filterToCurrentModel && state.modelAccounts.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-outline theme-primary btn-sm"
-                    style={{ marginTop: "12px" }}
-                    onClick={() => setFilterToCurrentModel(false)}
-                  >
-                    View All {state.modelAccounts.length} Registered Accounts
-                  </button>
-                )}
-              </div>
-            ) : accountsViewMode === "list" ? (
-              /* LIST MODE: Clean Professional List View matching Image 7 */
-              <div className="credentials-list-container">
-                {displayedAccounts.map((acc) => {
-                  const isEditingThis = editingAccountId === acc.accountId;
-                  const isEditingOther = Boolean(editingAccountId && editingAccountId !== acc.accountId);
-
-                  return (
-                    <div
-                      key={acc.accountId}
-                      className={`credential-list-row ${acc.isActive ? "active" : ""} ${isEditingOther ? "account-row-blurred" : isEditingThis ? "account-row-editing" : ""}`}
-                    >
-                      <div className="account-row-info">
-                        <div className="account-row-name">
-                          <span
-                            className="account-name-val"
-                            title={cleanAccountDisplayName(acc.accountName, acc.userEmail)}
-                          >
-                            {cleanAccountDisplayName(acc.accountName, acc.userEmail)}
-                          </span>
-                        </div>
-                        <div className="account-row-meta">
-                          <span className="account-owner-val" title={acc.userEmail}>
-                            {acc.userEmail}
-                          </span>
-                          <span className="meta-sep">•</span>
-                          <span className="model-name-text" title={acc.modelId}>
-                            {acc.modelId}
-                          </span>
-                          <span className="meta-sep">•</span>
-                          <span className={`auth-badge ${acc.authType}`}>
-                            {acc.authType === "api" || acc.authType === "api_key"
-                              ? "REST API"
-                              : acc.authType === "cli" || acc.authType === "cli_oauth"
-                              ? "CLI OAuth"
-                              : acc.authType === "oauth"
-                              ? "OAuth 2.0"
-                              : "Cookie"}
-                          </span>
-                          <span className="meta-sep">•</span>
-                          <code className="masked-cred-code" title={acc.maskedCredential}>
-                            {acc.maskedCredential}
-                          </code>
-                        </div>
-                      </div>
-
-                      <div className="account-row-actions">
-                        <div className="col-status">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={acc.isActive}
-                            disabled={!isEditingThis}
-                            className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
-                            onClick={() => handleToggleAccountStatus(acc)}
-                            title={
-                              isEditingThis
-                                ? (acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate.")
-                                : "Click 'Edit' on this account to toggle Active/Inactive status"
-                            }
-                          >
-                            <span className="switch-slider">
-                              <span className="switch-knob" />
-                            </span>
-                            <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
-                          </button>
-                        </div>
-
-                        <div className="col-actions">
-                          <button
-                            type="button"
-                            className="action-btn test-btn"
-                            onClick={() => handleTestExistingAccount(acc)}
-                            disabled={testingAccountId === acc.accountId}
-                            title="Test connection for this account"
-                          >
-                            {testingAccountId === acc.accountId ? "Testing..." : "Test"}
-                          </button>
-
-                          <button
-                            type="button"
-                            className={`action-btn select-btn ${isEditingThis ? "save-btn active-save" : ""}`}
-                            onClick={(e) => {
-                              if (isEditingThis) {
-                                void handleSaveConfiguration(e);
-                              } else {
-                                loadAccountIntoEditor(acc);
-                              }
-                            }}
-                            title={isEditingThis ? "Save modifications to this account" : "Load this account into the form editor"}
-                          >
-                            {isEditingThis ? "💾 Save" : "Edit"}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="action-btn delete-btn"
-                            onClick={() => handleOpenDeleteModal(acc)}
-                            title="Delete this credential"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-
-                    {accountTestResults[acc.accountId] && (() => {
-                      const r = accountTestResults[acc.accountId];
-                      const parsed = parseStructuredModelOutput(r.modelOutput);
-                      return (
-                        <div
-                          className={`account-test-result-panel ${r.status.toLowerCase()}`}
-                          style={{ gridColumn: "1 / -1", marginTop: "6px" }}
-                        >
-                          <div className="res-header">
-                            <span className="res-pill">{r.status}</span>
-                            <span className="res-latency">⚡ {r.latencyMs}ms</span>
-                          </div>
-                          <div className="res-msg">{r.message}</div>
-                          {parsed && parsed.hasSplit ? (
-                            <div className="output-split-view mini">
-                              <div className="split-block request-block">
-                                <div className="split-label">⚡ Prompt:</div>
-                                <div className="split-body">{parsed.promptText}</div>
-                              </div>
-                              <div className="split-block response-block">
-                                <div className="split-label">🤖 Response:</div>
-                                <div className="split-body">{parsed.responseText}</div>
-                              </div>
-                            </div>
-                          ) : r.modelOutput ? (
-                            <pre className="res-output">{r.modelOutput}</pre>
-                          ) : null}
-                          {r.errorMessage && <div className="res-error">{r.errorMessage}</div>}
                         </div>
                       );
                     })()}
                   </div>
-                );
-              })}
-            </div>
-            ) : (
-              /* CARD MODE: Expanded Kanban Cards */
-              displayedAccounts.map((acc) => {
-                const isEditingThis = editingAccountId === acc.accountId;
-                const isEditingOther = Boolean(editingAccountId && editingAccountId !== acc.accountId);
 
-                return (
-                  <div
-                    key={acc.accountId}
-                    className={`credential-item-card ${acc.isActive ? "active" : ""} ${isEditingOther ? "card-blurred" : isEditingThis ? "card-editing" : ""}`}
-                    data-testid={`credential-card-${acc.accountId}`}
-                  >
-                    <div className="card-top-row">
-                      <div className="model-chip-title">
-                        <span className="model-name-text">{acc.modelId}</span>
-                        <span className={`auth-badge ${acc.authType}`}>
-                          {acc.authType === "api" || acc.authType === "api_key"
-                            ? "REST API"
-                            : acc.authType === "cli" || acc.authType === "cli_oauth"
-                            ? "CLI"
-                            : acc.authType === "oauth"
-                            ? "OAuth 2.0"
-                            : "Cookie"}
-                        </span>
-                      </div>
-
-                      <div className="account-status-toggle-wrapper">
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={acc.isActive}
-                          disabled={!isEditingThis}
-                          data-testid={`status-toggle-${acc.accountId}`}
-                          className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
-                          onClick={() => handleToggleAccountStatus(acc)}
-                          title={
-                            isEditingThis
-                              ? (acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate.")
-                              : "Click 'Edit' on this account to toggle Active/Inactive status"
-                          }
-                        >
-                          <span className="switch-slider">
-                            <span className="switch-knob" />
-                          </span>
-                          <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="account-details-grid">
-                      <div className="detail-item">
-                        <span className="detail-label">Account Label:</span>
-                        <span className="detail-val" title={cleanAccountDisplayName(acc.accountName, acc.userEmail)}>
-                          {cleanAccountDisplayName(acc.accountName, acc.userEmail)}
-                        </span>
-                      </div>
-                      <div className="detail-item">
-                        <span className="detail-label">Owner:</span>
-                        <span className="detail-val" title={acc.userEmail}>{acc.userEmail}</span>
-                      </div>
-                      <div className="detail-item full-span">
-                        <span className="detail-label">Credential:</span>
-                        <code className="credential-code-val" title={acc.maskedCredential}>{acc.maskedCredential}</code>
-                      </div>
-                    </div>
-
-                    <div className="card-action-bar">
-                      <button
-                        type="button"
-                        className="action-btn test-btn"
-                        data-testid={`btn-test-card-${acc.accountId}`}
-                        onClick={() => handleTestExistingAccount(acc)}
-                        disabled={testingAccountId === acc.accountId}
-                        title="Test connection for this account"
-                      >
-                        {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
-                      </button>
-
-                      <button
-                        type="button"
-                        className={`action-btn select-btn ${isEditingThis ? "save-btn active-save" : ""}`}
-                        data-testid={`btn-edit-card-${acc.accountId}`}
-                        onClick={(e) => {
-                          if (isEditingThis) {
-                            void handleSaveConfiguration(e);
-                          } else {
-                            loadAccountIntoEditor(acc);
-                          }
-                        }}
-                        title={isEditingThis ? "Save modifications to this account" : "Load this account into the form editor"}
-                      >
-                        {isEditingThis ? "💾 Save" : "✏️ Edit"}
-                      </button>
-
-                      <button
-                        type="button"
-                        className="action-btn delete-btn"
-                        data-testid={`btn-delete-card-${acc.accountId}`}
-                        onClick={() => handleOpenDeleteModal(acc)}
-                        title="Delete this credential"
-                      >
-                        🗑️ Delete
-                      </button>
-                    </div>
-
-                  {accountTestResults[acc.accountId] && (() => {
-                    const r = accountTestResults[acc.accountId];
-                    const parsed = parseStructuredModelOutput(r.modelOutput);
-                    return (
-                      <div className={`account-test-result-panel ${r.status.toLowerCase()}`}>
-                        <div className="res-header">
-                          <span className="res-pill">{r.status}</span>
-                          <span className="res-latency">⚡ {r.latencyMs}ms</span>
+                  {/* Right Column: Existing Configured Accounts Catalog - Hidden when adding an account since list view exists at top */}
+                  {formMode !== "create" && (
+                    <div className="config-catalog-card">
+                      <div className="card-header">
+                        <div className="card-header-title">
+                          <span className="card-icon">📂</span>
+                          <h3>Configured Accounts</h3>
                         </div>
-                        <div className="res-msg">{r.message}</div>
-                        {parsed && parsed.hasSplit ? (
-                          <div className="output-split-view mini">
-                            <div className="split-block request-block">
-                              <div className="split-label">⚡ Prompt:</div>
-                              <div className="split-body">{parsed.promptText}</div>
-                            </div>
-                            <div className="split-block response-block">
-                              <div className="split-label">🤖 Response:</div>
-                              <div className="split-body">{parsed.responseText}</div>
-                            </div>
+
+                        <div className="card-header-actions">
+                          {/* Model Scope Filter Pills */}
+                          <div className="btn-group btn-group-sm" role="group" aria-label="Account scope filter">
+                            <button
+                              type="button"
+                              data-testid="filter-current-model"
+                              onClick={() => setFilterToCurrentModel(true)}
+                              className={`btn btn-sm ${filterToCurrentModel ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
+                              title={`Filter accounts registered to ${targetModelId}`}
+                            >
+                              Current Model ({currentModelAccountsCount})
+                            </button>
+                            <button
+                              type="button"
+                              data-testid="filter-all-models"
+                              onClick={() => setFilterToCurrentModel(false)}
+                              className={`btn btn-sm ${!filterToCurrentModel ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
+                              title="Show all registered accounts across all models"
+                            >
+                              All ({state.modelAccounts.length})
+                            </button>
                           </div>
-                        ) : r.modelOutput ? (
-                          <pre className="res-output">{r.modelOutput}</pre>
-                        ) : null}
-                        {r.errorMessage && <div className="res-error">{r.errorMessage}</div>}
+
+                          {/* View Mode Switcher: List vs Card */}
+                          <div className="btn-group btn-group-sm" role="group" aria-label="Accounts view mode">
+                            <button
+                              type="button"
+                              data-testid="accounts-view-list"
+                              onClick={() => setAccountsViewMode("list")}
+                              className={`btn btn-sm ${accountsViewMode === "list" ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
+                              title="List Mode (Compact table)"
+                            >
+                              📋 List
+                            </button>
+                            <button
+                              type="button"
+                              data-testid="accounts-view-card"
+                              onClick={() => setAccountsViewMode("card")}
+                              className={`btn btn-sm ${accountsViewMode === "card" ? "btn-solid theme-primary active" : "btn-outline theme-secondary"}`}
+                              title="Card Mode (Detailed cards)"
+                            >
+                              🗂️ Cards
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    );
-                  })()}
+
+                      <div className="credentials-list">
+                        {displayedAccounts.length === 0 ? (
+                          <div style={{ textAlign: "center", padding: "36px 16px", color: "var(--theme-text-muted)" }}>
+                            <div style={{ fontSize: "2rem", marginBottom: "8px" }}>📭</div>
+                            <p style={{ margin: "0 0 6px 0", fontSize: "0.88rem", color: "var(--theme-text-primary)", fontWeight: 600 }}>
+                              {filterToCurrentModel
+                                ? `No accounts registered for '${targetModelId}'`
+                                : "No accounts configured yet"}
+                            </p>
+                            <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>
+                              {filterToCurrentModel
+                                ? "Configure authentication on the left and click 'Save' to register."
+                                : "Select a model and configure credentials to get started."}
+                            </p>
+                            {filterToCurrentModel && state.modelAccounts.length > 0 && (
+                              <button
+                                type="button"
+                                className="btn btn-outline theme-primary btn-sm"
+                                style={{ marginTop: "12px" }}
+                                onClick={() => setFilterToCurrentModel(false)}
+                              >
+                                View All {state.modelAccounts.length} Registered Accounts
+                              </button>
+                            )}
+                          </div>
+                        ) : accountsViewMode === "list" ? (
+                          /* LIST MODE: Clean Professional List View matching Image 7 */
+                          <div className="credentials-list-container">
+                            {displayedAccounts.map((acc) => {
+                              const isEditingThis = editingAccountId === acc.accountId;
+                              const isEditingOther = Boolean(editingAccountId && editingAccountId !== acc.accountId);
+
+                              return (
+                                <div
+                                  key={acc.accountId}
+                                  className={`credential-list-row ${acc.isActive ? "active" : ""} ${isEditingOther ? "account-row-blurred" : isEditingThis ? "account-row-editing" : ""}`}
+                                >
+                                  <div className="account-row-info">
+                                    <div className="account-row-name">
+                                      <span
+                                        className="account-name-val"
+                                        title={cleanAccountDisplayName(acc.accountName, acc.userEmail)}
+                                      >
+                                        {cleanAccountDisplayName(acc.accountName, acc.userEmail)}
+                                      </span>
+                                    </div>
+                                    <div className="account-row-meta">
+                                      <span className="account-owner-val" title={acc.userEmail}>
+                                        {acc.userEmail}
+                                      </span>
+                                      <span className="meta-sep">•</span>
+                                      <span className="model-name-text" title={acc.modelId}>
+                                        {acc.modelId}
+                                      </span>
+                                      <span className="meta-sep">•</span>
+                                      <span className={`auth-badge ${acc.authType}`}>
+                                        {acc.authType === "api" || acc.authType === "api_key"
+                                          ? "REST API"
+                                          : acc.authType === "cli" || acc.authType === "cli_oauth"
+                                            ? "CLI OAuth"
+                                            : acc.authType === "oauth"
+                                              ? "OAuth 2.0"
+                                              : "Cookie"}
+                                      </span>
+                                      <span className="meta-sep">•</span>
+                                      <code className="masked-cred-code" title={acc.maskedCredential}>
+                                        {acc.maskedCredential}
+                                      </code>
+                                    </div>
+                                  </div>
+
+                                  <div className="account-row-actions">
+                                    <div className="col-status">
+                                      <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={acc.isActive}
+                                        disabled={!isEditingThis}
+                                        className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
+                                        onClick={() => handleToggleAccountStatus(acc)}
+                                        title={
+                                          isEditingThis
+                                            ? (acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate.")
+                                            : "Click 'Edit' on this account to toggle Active/Inactive status"
+                                        }
+                                      >
+                                        <span className="switch-slider">
+                                          <span className="switch-knob" />
+                                        </span>
+                                        <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
+                                      </button>
+                                    </div>
+
+                                    <div className="col-actions">
+                                      <button
+                                        type="button"
+                                        className="action-btn test-btn"
+                                        onClick={() => handleTestExistingAccount(acc)}
+                                        disabled={testingAccountId === acc.accountId}
+                                        title="Test connection for this account"
+                                      >
+                                        {testingAccountId === acc.accountId ? "Testing..." : "Test"}
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        className={`action-btn select-btn ${isEditingThis ? "save-btn active-save" : ""}`}
+                                        onClick={(e) => {
+                                          if (isEditingThis) {
+                                            void handleSaveConfiguration(e);
+                                          } else {
+                                            loadAccountIntoEditor(acc);
+                                          }
+                                        }}
+                                        title={isEditingThis ? "Save modifications to this account" : "Load this account into the form editor"}
+                                      >
+                                        {isEditingThis ? "💾 Save" : "Edit"}
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        className="action-btn delete-btn"
+                                        onClick={() => handleOpenDeleteModal(acc)}
+                                        title="Delete this credential"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {accountTestResults[acc.accountId] && (() => {
+                                    const r = accountTestResults[acc.accountId];
+                                    const parsed = parseStructuredModelOutput(r.modelOutput);
+                                    return (
+                                      <div
+                                        className={`account-test-result-panel ${r.status.toLowerCase()}`}
+                                        style={{ gridColumn: "1 / -1", marginTop: "6px" }}
+                                      >
+                                        <div className="res-header">
+                                          <span className="res-pill">{r.status}</span>
+                                          <span className="res-latency">⚡ {r.latencyMs}ms</span>
+                                        </div>
+                                        <div className="res-msg">{r.message}</div>
+                                        {parsed && parsed.hasSplit ? (
+                                          <div className="output-split-view mini">
+                                            <div className="split-block request-block">
+                                              <div className="split-label">⚡ Prompt:</div>
+                                              <div className="split-body">{parsed.promptText}</div>
+                                            </div>
+                                            <div className="split-block response-block">
+                                              <div className="split-label">🤖 Response:</div>
+                                              <div className="split-body">{parsed.responseText}</div>
+                                            </div>
+                                          </div>
+                                        ) : r.modelOutput ? (
+                                          <pre className="res-output">{r.modelOutput}</pre>
+                                        ) : null}
+                                        {r.errorMessage && <div className="res-error">{r.errorMessage}</div>}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          /* CARD MODE: Expanded Kanban Cards */
+                          displayedAccounts.map((acc) => {
+                            const isEditingThis = editingAccountId === acc.accountId;
+                            const isEditingOther = Boolean(editingAccountId && editingAccountId !== acc.accountId);
+
+                            return (
+                              <div
+                                key={acc.accountId}
+                                className={`credential-item-card ${acc.isActive ? "active" : ""} ${isEditingOther ? "card-blurred" : isEditingThis ? "card-editing" : ""}`}
+                                data-testid={`credential-card-${acc.accountId}`}
+                              >
+                                <div className="card-top-row">
+                                  <div className="model-chip-title">
+                                    <span className="model-name-text">{acc.modelId}</span>
+                                    <span className={`auth-badge ${acc.authType}`}>
+                                      {acc.authType === "api" || acc.authType === "api_key"
+                                        ? "REST API"
+                                        : acc.authType === "cli" || acc.authType === "cli_oauth"
+                                          ? "CLI"
+                                          : acc.authType === "oauth"
+                                            ? "OAuth 2.0"
+                                            : "Cookie"}
+                                    </span>
+                                  </div>
+
+                                  <div className="account-status-toggle-wrapper">
+                                    <button
+                                      type="button"
+                                      role="switch"
+                                      aria-checked={acc.isActive}
+                                      disabled={!isEditingThis}
+                                      data-testid={`status-toggle-${acc.accountId}`}
+                                      className={`status-switch ${acc.isActive ? "is-active" : "is-inactive"}`}
+                                      onClick={() => handleToggleAccountStatus(acc)}
+                                      title={
+                                        isEditingThis
+                                          ? (acc.isActive ? "Account is ACTIVE. Click to deactivate." : "Account is INACTIVE. Click to activate.")
+                                          : "Click 'Edit' on this account to toggle Active/Inactive status"
+                                      }
+                                    >
+                                      <span className="switch-slider">
+                                        <span className="switch-knob" />
+                                      </span>
+                                      <span className="switch-text">{acc.isActive ? "Active" : "Inactive"}</span>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="account-details-grid">
+                                  <div className="detail-item">
+                                    <span className="detail-label">Account Label:</span>
+                                    <span className="detail-val" title={cleanAccountDisplayName(acc.accountName, acc.userEmail)}>
+                                      {cleanAccountDisplayName(acc.accountName, acc.userEmail)}
+                                    </span>
+                                  </div>
+                                  <div className="detail-item">
+                                    <span className="detail-label">Owner:</span>
+                                    <span className="detail-val" title={acc.userEmail}>{acc.userEmail}</span>
+                                  </div>
+                                  <div className="detail-item full-span">
+                                    <span className="detail-label">Credential:</span>
+                                    <code className="credential-code-val" title={acc.maskedCredential}>{acc.maskedCredential}</code>
+                                  </div>
+                                </div>
+
+                                <div className="card-action-bar">
+                                  <button
+                                    type="button"
+                                    className="action-btn test-btn"
+                                    data-testid={`btn-test-card-${acc.accountId}`}
+                                    onClick={() => handleTestExistingAccount(acc)}
+                                    disabled={testingAccountId === acc.accountId}
+                                    title="Test connection for this account"
+                                  >
+                                    {testingAccountId === acc.accountId ? "Testing..." : "⚡ Test"}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className={`action-btn select-btn ${isEditingThis ? "save-btn active-save" : ""}`}
+                                    data-testid={`btn-edit-card-${acc.accountId}`}
+                                    onClick={(e) => {
+                                      if (isEditingThis) {
+                                        void handleSaveConfiguration(e);
+                                      } else {
+                                        loadAccountIntoEditor(acc);
+                                      }
+                                    }}
+                                    title={isEditingThis ? "Save modifications to this account" : "Load this account into the form editor"}
+                                  >
+                                    {isEditingThis ? "💾 Save" : "✏️ Edit"}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className="action-btn delete-btn"
+                                    data-testid={`btn-delete-card-${acc.accountId}`}
+                                    onClick={() => handleOpenDeleteModal(acc)}
+                                    title="Delete this credential"
+                                  >
+                                    🗑️ Delete
+                                  </button>
+                                </div>
+
+                                {accountTestResults[acc.accountId] && (() => {
+                                  const r = accountTestResults[acc.accountId];
+                                  const parsed = parseStructuredModelOutput(r.modelOutput);
+                                  return (
+                                    <div className={`account-test-result-panel ${r.status.toLowerCase()}`}>
+                                      <div className="res-header">
+                                        <span className="res-pill">{r.status}</span>
+                                        <span className="res-latency">⚡ {r.latencyMs}ms</span>
+                                      </div>
+                                      <div className="res-msg">{r.message}</div>
+                                      {parsed && parsed.hasSplit ? (
+                                        <div className="output-split-view mini">
+                                          <div className="split-block request-block">
+                                            <div className="split-label">⚡ Prompt:</div>
+                                            <div className="split-body">{parsed.promptText}</div>
+                                          </div>
+                                          <div className="split-block response-block">
+                                            <div className="split-label">🤖 Response:</div>
+                                            <div className="split-body">{parsed.responseText}</div>
+                                          </div>
+                                        </div>
+                                      ) : r.modelOutput ? (
+                                        <pre className="res-output">{r.modelOutput}</pre>
+                                      ) : null}
+                                      {r.errorMessage && <div className="res-error">{r.errorMessage}</div>}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              );
-            })
-          )}
-          </div>
-        </div>
-        )}
-      </div>
-        </div>
+              </div>
             ) : undefined
           }
         />

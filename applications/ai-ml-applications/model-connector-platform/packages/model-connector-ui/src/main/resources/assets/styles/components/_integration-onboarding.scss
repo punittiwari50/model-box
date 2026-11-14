@@ -799,24 +799,63 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       text-align: center;
-      gap: 3px;
-      padding: 10px 8px;
-      border-radius: var(--radius-lg);
+      gap: 4px;
+      padding: 9px 8px;
+      min-height: 74px;
+      height: 74px;
+      border-radius: var(--radius-lg, 10px);
       border: 1px solid var(--theme-border-default);
       background: var(--theme-bg-muted);
       color: var(--theme-text-primary);
       transition: all var(--transition-fast);
+      box-sizing: border-box;
 
-      .tab-icon { font-size: 1.1rem; }
-      .tab-label { font-size: var(--font-xs); font-weight: 700; }
-      .tab-hint { font-size: 0.68rem; color: var(--theme-text-muted); }
+      .tab-icon {
+        font-size: 1.15rem;
+        line-height: 1;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .tab-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--theme-text-primary);
+        text-align: center;
+        height: 26px;
+        min-height: 26px;
+        max-height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      .tab-hint {
+        font-size: 0.67rem;
+        line-height: 1.1;
+        color: var(--theme-text-muted);
+        text-align: center;
+        margin-top: auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+      }
 
       &:hover:not(:disabled):not(.active) {
         border-color: var(--theme-primary-border);
         background: var(--theme-primary-soft);
         color: var(--theme-text-primary);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
       }
 
       &.active,
@@ -824,12 +863,16 @@
         background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
         border-color: #7367f0;
         color: #ffffff;
-        box-shadow: var(--theme-shadow-sm);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 
         .tab-hint,
         .tab-label,
         .tab-icon {
           color: #ffffff;
+        }
+
+        .tab-hint {
+          opacity: 0.9;
         }
       }
     }

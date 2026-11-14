@@ -170,6 +170,7 @@ export class UC03_MultiProtocolAuthConfig extends AbstractUsecaseTest {
     });
 
     await page.locator(ModelConfigSelectors.OAUTH_LAUNCH_BROWSER_BTN).first().click();
+    await page.locator(ModelConfigSelectors.OAUTH_WAITING_INDICATOR).first().waitFor({ state: "visible", timeout: SanityTimeouts.DEFAULT_TIMEOUT_MS });
     await page.waitForFunction(
       () => {
         const u = (window as any).__lastOpenedOAuthUrl;
