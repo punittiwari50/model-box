@@ -1,0 +1,528 @@
+// ==============================================================================
+// Integrations Hub: Interactive OAuth 2.0 Pipeline & Workflow Steps
+// Path: src/main/resources/assets/styles/pages/integrations/_oauth-flow.scss
+// Conforms to node.md Section 21: Modular SCSS, Design Tokens, Max Nesting <= 3
+// ==============================================================================
+@use "@/styles/abstracts/tokens" as *;
+@use "@/styles/abstracts/mixins" as *;
+
+// 1. Dedicated OAuth Flow Container (Single Canonical Definition)
+.oauth-dedicated-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  width: 100%;
+  box-sizing: border-box;
+
+  .oauth-section-heading {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--theme-text-primary);
+    margin: 4px 0 2px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// 2. OAuth Pipeline Step Progression
+.oauth-step-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--theme-bg-muted);
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: var(--radius-lg, 10px);
+  box-sizing: border-box;
+}
+
+.oauth-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.step-item-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--theme-bg-surface);
+  border: 1px solid var(--theme-border-default);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+
+  .step-circle {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.76rem;
+    font-weight: 700;
+    background: var(--theme-bg-muted);
+    color: var(--theme-text-muted);
+    flex-shrink: 0;
+  }
+
+  .step-text-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+
+    .step-title-text {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--theme-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-badge-tag {
+      font-size: 0.68rem;
+      color: var(--theme-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+  }
+
+  &.active {
+    border-color: #7367f0;
+    background: var(--theme-primary-soft);
+
+    .step-circle {
+      background: #7367f0;
+      color: #ffffff;
+    }
+
+    .step-title-text {
+      color: var(--theme-primary-hover);
+    }
+  }
+
+  &.done {
+    border-color: var(--theme-success-border);
+    background: var(--theme-success-soft);
+
+    .step-circle {
+      background: var(--theme-success);
+      color: #ffffff;
+    }
+
+    .step-title-text {
+      color: var(--theme-success-text);
+    }
+  }
+}
+
+// 3. Provider Selection Cards Grid
+.provider-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+
+  .provider-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 14px 10px;
+    background: var(--theme-bg-surface);
+    border: 1px solid var(--theme-border-default);
+    border-radius: var(--radius-md, 8px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+
+    .provider-icon {
+      font-size: 1.5rem;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .provider-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--theme-text-primary);
+    }
+
+    .provider-badge {
+      margin-top: 4px;
+      font-size: 0.68rem;
+      padding: 1px 6px;
+      border-radius: var(--radius-full, 100px);
+      background: var(--theme-bg-muted);
+      color: var(--theme-text-secondary);
+    }
+
+    &:hover:not(.active) {
+      background: var(--theme-bg-muted);
+      border-color: var(--theme-primary-border);
+    }
+
+    &.active {
+      background: var(--theme-primary-soft);
+      border-color: var(--theme-primary);
+      box-shadow: var(--theme-shadow-sm);
+
+      .provider-label {
+        color: var(--theme-primary-hover);
+      }
+    }
+  }
+}
+
+// 4. Account Mode Container (Individual vs Corporate)
+.account-mode-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .mode-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+
+    @media (max-width: 520px) {
+      grid-template-columns: 1fr;
+    }
+
+    .mode-card-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 12px 14px;
+      border-radius: var(--radius-md, 8px);
+      background: var(--theme-bg-surface);
+      border: 1px solid var(--theme-border-default);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+
+      .mode-card-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--theme-text-primary);
+      }
+
+      .mode-card-desc {
+        font-size: 0.72rem;
+        color: var(--theme-text-secondary);
+        line-height: 1.35;
+      }
+
+      &:hover:not(.active) {
+        background: var(--theme-bg-muted);
+      }
+
+      &.active {
+        background: var(--theme-primary-soft);
+        border-color: var(--theme-primary);
+
+        .mode-card-title {
+          color: var(--theme-primary-hover);
+        }
+      }
+    }
+  }
+}
+
+// 5. VCS Container Audit Card & Sync Indicators
+.vcs-container-audit-card,
+.vcs-sync-card {
+  background: var(--theme-bg-surface);
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+
+  .vcs-header-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.78rem;
+
+    .vcs-folder-icon {
+      font-size: 1rem;
+    }
+
+    .vcs-path {
+      font-family: var(--font-mono, monospace);
+      font-weight: 600;
+      color: var(--theme-text-primary);
+    }
+
+    .vcs-badge-git {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-full, 100px);
+      background: var(--theme-success-soft);
+      border: 1px solid var(--theme-success-border);
+      color: var(--theme-success-text);
+    }
+
+    .vcs-commit-badge {
+      font-size: 0.7rem;
+      font-family: var(--font-mono, monospace);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm, 4px);
+      background: var(--theme-bg-muted);
+      color: var(--theme-text-secondary);
+    }
+  }
+
+  .vcs-detected-files {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.74rem;
+    color: var(--theme-text-secondary);
+
+    .vcs-file-chip {
+      background: var(--theme-bg-muted);
+      border: 1px solid var(--theme-border-default);
+      padding: 1px 6px;
+      border-radius: var(--radius-sm, 4px);
+      font-family: var(--font-mono, monospace);
+      color: var(--theme-text-primary);
+    }
+  }
+}
+
+// 6. OAuth Action Toolbar & Launch Button
+.oauth-action-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 580px) {
+    flex-direction: column;
+  }
+
+  .btn-launch-primary {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 16px;
+    background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
+    border: 1px solid #7367f0;
+    border-radius: var(--radius-md, 8px);
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: var(--theme-shadow-sm);
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg, #5e50ee 0%, #4b3fd6 100%);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .url-preview-input {
+    flex: 1.5;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 12px;
+    background: var(--theme-bg-input);
+    border: 1px solid var(--theme-border-default);
+    border-radius: var(--radius-md, 8px);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.76rem;
+    color: var(--theme-text-secondary);
+    box-sizing: border-box;
+  }
+}
+
+// 7. OAuth Waiting Banner
+.oauth-waiting-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--theme-primary-soft);
+  border: 1px solid var(--theme-primary-border);
+  border-radius: var(--radius-md, 8px);
+  color: var(--theme-primary-hover);
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-sizing: border-box;
+
+  .waiting-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--theme-primary-border);
+    border-top-color: var(--theme-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+}
+
+// 8. Authorization Code Capture Card
+.browser-authcode-capture-card {
+  background: var(--theme-bg-surface);
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: var(--radius-md, 8px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+
+  .authcode-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+
+    .card-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+
+    h4 {
+      margin: 0 0 2px 0;
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: var(--theme-text-primary);
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.74rem;
+      color: var(--theme-text-secondary);
+    }
+  }
+
+  .authcode-input-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+
+    @media (max-width: 480px) {
+      flex-wrap: wrap;
+    }
+
+    .authcode-text-input {
+      flex: 1 1 0;
+      min-width: 0;
+      height: 40px;
+      min-height: 40px;
+      padding: 0 12px;
+      background: var(--theme-bg-input);
+      border: 1px solid var(--theme-border-default);
+      border-radius: var(--radius-md, 8px);
+      font-family: var(--font-mono, monospace);
+      font-size: 0.8rem;
+      color: var(--theme-text-primary);
+      box-sizing: border-box;
+
+      &:focus {
+        border-color: var(--theme-primary);
+        outline: none;
+      }
+    }
+
+    .btn-paste-code {
+      height: 40px;
+      min-height: 40px;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--theme-bg-muted);
+      border: 1px solid var(--theme-border-default);
+      border-radius: var(--radius-md, 8px);
+      color: var(--theme-text-primary);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: var(--theme-bg-surface);
+        border-color: var(--theme-primary);
+      }
+    }
+
+    .btn-submit-authcode {
+      height: 40px;
+      min-height: 40px;
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
+      border: 1px solid #7367f0;
+      border-radius: var(--radius-md, 8px);
+      color: #ffffff;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: var(--theme-shadow-sm);
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, #5e50ee 0%, #4b3fd6 100%);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .authcode-synced-note {
+    font-size: 0.74rem;
+    color: var(--theme-success-text);
+    margin-top: 2px;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

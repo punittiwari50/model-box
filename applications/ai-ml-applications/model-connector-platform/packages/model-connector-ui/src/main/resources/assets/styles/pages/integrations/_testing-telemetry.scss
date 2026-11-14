@@ -1,0 +1,220 @@
+// ==============================================================================
+// Integrations Hub: Model Specs, Live Quota Meters & Handshake Previews
+// Path: src/main/resources/assets/styles/pages/integrations/_testing-telemetry.scss
+// Conforms to node.md Section 21: Modular SCSS, Design Tokens, Max Nesting <= 3
+// ==============================================================================
+@use "@/styles/abstracts/tokens" as *;
+@use "@/styles/abstracts/mixins" as *;
+
+// 1. Model CLI Specs Card
+.model-cli-specs-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--theme-bg-muted);
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: var(--radius-md, 8px);
+  box-sizing: border-box;
+
+  .spec-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .spec-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--theme-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .spec-value {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--theme-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      &.highlight {
+        color: var(--theme-primary-hover);
+        font-family: var(--font-mono, monospace);
+      }
+
+      &.tier-pill {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm, 4px);
+        display: inline-block;
+        width: fit-content;
+        background: var(--theme-primary-soft);
+        color: var(--theme-primary-hover);
+      }
+    }
+  }
+}
+
+// 2. Token Quota Meter Card
+.token-quota-meter-card {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: var(--theme-bg-muted);
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: var(--radius-md, 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+
+  .meter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .meter-title {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--theme-text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .meter-total {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--theme-success-text);
+      background: var(--theme-success-soft);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm, 4px);
+      border: 1px solid var(--theme-success-border);
+    }
+  }
+
+  .token-breakdown-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .token-chip {
+      font-size: 0.72rem;
+      color: var(--theme-text-secondary);
+      background: var(--theme-bg-surface);
+      border: 1px solid var(--theme-border-subtle);
+      border-radius: var(--radius-sm, 4px);
+      padding: 3px 8px;
+
+      strong {
+        color: var(--theme-text-primary);
+      }
+
+      &.quota-chip {
+        color: var(--theme-primary-hover);
+        strong {
+          color: var(--theme-primary-hover);
+        }
+      }
+    }
+  }
+
+  .quota-progress-bar-wrapper {
+    width: 100%;
+    height: 8px;
+    background: var(--theme-bg-surface);
+    border: 1px solid var(--theme-border-subtle);
+    border-radius: var(--radius-sm, 4px);
+    overflow: hidden;
+    position: relative;
+
+    .quota-progress-bar {
+      height: 100%;
+      background: var(--theme-primary);
+      border-radius: var(--radius-sm, 4px);
+      transition: width 0.5s ease;
+    }
+  }
+
+  .meter-footer-note {
+    font-size: 0.72rem;
+    color: var(--theme-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    strong {
+      color: var(--theme-text-primary);
+    }
+  }
+}
+
+// 3. Feedback Output Box & Split Views
+.feedback-model-output,
+.model-output-box {
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: var(--theme-bg-muted);
+  border: 1px solid var(--theme-border-subtle);
+  border-radius: var(--radius-md, 8px);
+  box-sizing: border-box;
+
+  .output-meta-banner {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: var(--theme-bg-surface);
+    border: 1px solid var(--theme-border-subtle);
+    border-radius: var(--radius-md, 6px);
+
+    .meta-text {
+      font-size: 0.74rem;
+      color: var(--theme-text-secondary);
+      font-family: var(--font-mono, monospace);
+      margin: 0;
+      line-height: 1.45;
+    }
+  }
+
+  .output-split-view {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    .split-block {
+      border-radius: var(--radius-md, 8px);
+      padding: 10px 12px;
+      border: 1px solid var(--theme-border-subtle);
+      background: var(--theme-bg-surface);
+
+      .split-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--theme-primary-hover);
+      }
+
+      .split-body {
+        font-size: 0.82rem;
+        line-height: 1.55;
+        word-break: break-word;
+        color: var(--theme-text-primary);
+        font-family: var(--font-mono, monospace);
+        background: var(--theme-bg-muted);
+        padding: 8px 12px;
+        border-radius: var(--radius-md, 6px);
+        border: 1px solid var(--theme-border-subtle);
+      }
+
+      &.response-block .split-label {
+        color: var(--theme-success-text);
+      }
+    }
+  }
+}
