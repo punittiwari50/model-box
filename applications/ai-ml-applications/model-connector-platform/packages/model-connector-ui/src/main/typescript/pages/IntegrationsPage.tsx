@@ -2238,70 +2238,63 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             {/* ============================================================= */}
             {selectedProtocol === "oauth" && (
               <div className="oauth-dedicated-container">
-                {/* Step Bar */}
-                <div className="oauth-step-progress" data-testid="oauth-step-progress">
+                {/* Sequential Authentication Pipeline */}
+                <div className="oauth-step-progress oauth-sequential-pipeline" data-testid="oauth-step-progress">
                   <button
                     type="button"
-                    className={`step-item-btn ${effectiveOAuthStep === 1 ? "active" : effectiveOAuthStep > 1 ? "completed" : "pending"}`}
+                    className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 1 ? "active" : effectiveOAuthStep > 1 ? "completed" : "pending"}`}
                     onClick={() => setActiveOAuthStep(1)}
                   >
-                    <span className="step-circle">{effectiveOAuthStep > 1 ? "✔" : "1"}</span>
-                    <div className="step-info">
-                      <div className="step-meta-row">
-                        <span className="step-index">STEP 01</span>
-                        {effectiveOAuthStep > 1 ? (
-                          <span className="step-status-chip completed">Done</span>
-                        ) : effectiveOAuthStep === 1 ? (
-                          <span className="step-status-chip active">In Progress</span>
-                        ) : (
-                          <span className="step-status-chip pending">Pending</span>
-                        )}
-                      </div>
-                      <span className="step-label">Select Provider</span>
+                    <span className="step-circle stage-indicator">
+                      {effectiveOAuthStep > 1 ? "✔" : <span className="stage-dot" />}
+                    </span>
+                    <div className="step-info stage-content">
+                      <span className="step-label stage-title">Select Provider</span>
+                      <span className="stage-state">
+                        {effectiveOAuthStep > 1 ? "Completed" : effectiveOAuthStep === 1 ? "In Progress" : "Pending"}
+                      </span>
                     </div>
                   </button>
 
+                  <div className={`pipeline-connector ${effectiveOAuthStep > 1 ? "completed" : ""}`} aria-hidden="true">
+                    <span className="connector-arrow">›</span>
+                  </div>
+
                   <button
                     type="button"
-                    className={`step-item-btn ${effectiveOAuthStep === 2 ? "active" : Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "completed" : "pending"}`}
+                    className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 2 ? "active" : Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "completed" : "pending"}`}
                     onClick={() => setActiveOAuthStep(2)}
                   >
-                    <span className="step-circle">{Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "✔" : "2"}</span>
-                    <div className="step-info">
-                      <div className="step-meta-row">
-                        <span className="step-index">STEP 02</span>
-                        {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? (
-                          <span className="step-status-chip completed">Done</span>
-                        ) : effectiveOAuthStep === 2 ? (
-                          <span className="step-status-chip active">In Progress</span>
-                        ) : (
-                          <span className="step-status-chip pending">Pending</span>
-                        )}
-                      </div>
-                      <span className="step-label">Browser Consent</span>
+                    <span className="step-circle stage-indicator">
+                      {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "✔" : <span className="stage-dot" />}
+                    </span>
+                    <div className="step-info stage-content">
+                      <span className="step-label stage-title">Browser Consent</span>
+                      <span className="stage-state">
+                        {Boolean(oauthSession?.accessToken) || effectiveOAuthStep > 2 ? "Completed" : effectiveOAuthStep === 2 ? "In Progress" : "Pending"}
+                      </span>
                     </div>
                   </button>
 
+                  <div className={`pipeline-connector ${Boolean(oauthSession?.accessToken) ? "completed" : ""}`} aria-hidden="true">
+                    <span className="connector-arrow">›</span>
+                  </div>
+
                   <button
                     type="button"
-                    className={`step-item-btn ${effectiveOAuthStep === 3 ? (isOAuthVerificationFailed ? "active active-failed" : "active active-success") : Boolean(oauthSession?.accessToken) ? "completed" : "pending"}`}
+                    className={`step-item-btn pipeline-stage-btn ${effectiveOAuthStep === 3 ? (isOAuthVerificationFailed ? "active active-failed" : "active active-success") : Boolean(oauthSession?.accessToken) ? "completed" : "pending"}`}
                     onClick={() => setActiveOAuthStep(3)}
                     disabled={!oauthSession}
                   >
-                    <span className="step-circle">{isOAuthVerificationFailed ? "⚠️" : Boolean(oauthSession?.accessToken) && effectiveOAuthStep !== 3 ? "✔" : "3"}</span>
-                    <div className="step-info">
-                      <div className="step-meta-row">
-                        <span className="step-index">STEP 03</span>
-                        {Boolean(oauthSession?.accessToken) ? (
-                          <span className="step-status-chip completed">Active</span>
-                        ) : effectiveOAuthStep === 3 ? (
-                          <span className="step-status-chip active">In Progress</span>
-                        ) : (
-                          <span className="step-status-chip pending">Pending</span>
-                        )}
-                      </div>
-                      <span className="step-label">
+                    <span className="step-circle stage-indicator">
+                      {isOAuthVerificationFailed ? "⚠️" : Boolean(oauthSession?.accessToken) ? "✔" : <span className="stage-dot" />}
+                    </span>
+                    <div className="step-info stage-content">
+                      <span className="step-label stage-title">
                         {isOAuthVerificationFailed ? "Verification Failed" : "Token Vault"}
+                      </span>
+                      <span className="stage-state">
+                        {isOAuthVerificationFailed ? "Action Required" : Boolean(oauthSession?.accessToken) ? "Ready" : "Pending"}
                       </span>
                     </div>
                   </button>
