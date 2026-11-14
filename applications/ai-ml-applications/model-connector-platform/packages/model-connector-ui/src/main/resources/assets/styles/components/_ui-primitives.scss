@@ -1273,18 +1273,31 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 9px 16px;
+  padding: 0 16px;
+  min-height: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
   font-size: var(--font-xs);
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
+  box-sizing: border-box;
+
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
 
   &.btn-cli-auth,
   &.btn-launch-primary {
     background: linear-gradient(135deg, #7367f0 0%, #5e50ee 100%);
     border: 1px solid #7367f0;
     color: #ffffff;
+    box-shadow: var(--theme-shadow-sm);
   }
 
   &.btn-browser-auth,
@@ -1292,6 +1305,7 @@
     background: var(--theme-primary-soft);
     border: 1px solid var(--theme-primary-border);
     color: var(--theme-primary-hover);
+    box-shadow: var(--theme-shadow-sm);
   }
 
   &.btn-step2-redirect,
@@ -1300,6 +1314,7 @@
     background: var(--theme-bg-surface);
     color: var(--theme-text-primary);
     border: 1px solid var(--theme-border-default);
+    box-shadow: var(--theme-shadow-sm);
   }
 }
 

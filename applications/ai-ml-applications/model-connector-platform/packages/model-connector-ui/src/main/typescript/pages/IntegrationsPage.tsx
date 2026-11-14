@@ -2257,7 +2257,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           <span className="step-status-chip pending">Pending</span>
                         )}
                       </div>
-                      <span className="step-label">Select Identity Provider</span>
+                      <span className="step-label">Select Provider</span>
                     </div>
                   </button>
 
@@ -2278,7 +2278,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           <span className="step-status-chip pending">Pending</span>
                         )}
                       </div>
-                      <span className="step-label">Browser Redirect & Consent</span>
+                      <span className="step-label">Browser Consent</span>
                     </div>
                   </button>
 
@@ -2301,7 +2301,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         )}
                       </div>
                       <span className="step-label">
-                        {isOAuthVerificationFailed ? "Token Verification Failed" : "Authenticated Token Vault"}
+                        {isOAuthVerificationFailed ? "Verification Failed" : "Token Vault"}
                       </span>
                     </div>
                   </button>
