@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "ModelConnector Platform (PostgreSQL)",
+      "Group": "Enterprise Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "model_connector_db",
+      "Username": "postgres",
+      "SSLMode": "prefer",
+      "Comment": "ModelConnector Platform Enterprise RDBMS managed via Docker Compose"
+    }
+  }
+}

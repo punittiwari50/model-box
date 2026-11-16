@@ -37,7 +37,10 @@ Thumbs.db
 *.log
 *.out
 *.err
-logs/
+/logs/
+/infra/logs/*
+!/infra/logs/.gitkeep
+!/infra/logs/README.md
 *.pid
 .tmp/
 tmp/
@@ -50,7 +53,16 @@ tmp/
 *.env
 !.env.example
 !.env.sample
-.envrc
+!*.env.example
+!model-box-service.env
+!model-box-ui.env
+!infra/ollama/docker/ollama-gpu.env
+!infra/ollama/docker/ollama-cpu.env
+*-secure.env
+*.secure.env
+*.vault
+.vault/
+vault/
 secrets/
 **/*.pem
 **/*.key
@@ -60,6 +72,8 @@ target/
 build/
 out/
 .gradle/
+.gradle-cache/
+.gradle-test-kit/
 .mvn/timing.properties
 *.class
 *.jar
@@ -67,6 +81,14 @@ out/
 *.ear
 hs_err_pid*
 replay_pid*
+
+# Go
+bin/
+pkg/
+*.test
+cover.out
+coverage.out
+go.work.sum
 
 # Python
 __pycache__/
@@ -83,6 +105,9 @@ ENV/
 .hypothesis/
 .tox/
 .nox/
+.pyre/
+.pytype/
+.dmypy.json
 .coverage
 .coverage.*
 htmlcov/
@@ -95,6 +120,8 @@ pip-wheel-metadata/
 
 # Node.js
 node_modules/
+**/browsers/**
+**/downloads/**
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -104,10 +131,13 @@ pnpm-debug.log*
 .yarn/
 .yarn/cache/
 .yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
 .parcel-cache/
 .next/
 .nuxt/
 .svelte-kit/
+.vite/
 coverage/
 dist-ssr/
 *.tsbuildinfo
@@ -115,6 +145,8 @@ dist-ssr/
 # Docker local data
 volumes/**
 !volumes/**/.gitkeep
+**/volumes/**
+!**/volumes/**/.gitkeep
 
 # Performance report/cache artifacts
 infra/performance/infra-gatling/docker/volumes/reports/*

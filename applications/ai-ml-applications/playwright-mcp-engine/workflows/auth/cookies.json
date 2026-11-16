@@ -1,0 +1,20 @@
+[
+  {
+    "name": "li_at",
+    "value": "AQEDATestCookieVal12345",
+    "domain": ".linkedin.com",
+    "path": "/",
+    "httpOnly": true,
+    "secure": true,
+    "expires": 1791122150.842
+  },
+  {
+    "name": "JSESSIONID",
+    "value": "ajax:123456789",
+    "domain": ".linkedin.com",
+    "path": "/",
+    "httpOnly": false,
+    "secure": true,
+    "expires": -1
+  }
+]

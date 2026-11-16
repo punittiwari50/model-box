@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "../../dist",
+    "rootDir": "../../src/main/typescript",
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["src/main/typescript/*"],
+      "@model-box/model-connector-core": ["../model-connector-core/dist/index.d.ts"],
+      "@model-box/model-connector-core/*": ["../model-connector-core/dist/*"],
+      "@constants/*": ["src/main/typescript/constants/*"],
+      "@contracts/*": ["src/main/typescript/contracts/*"],
+      "@browser/*": ["src/main/typescript/browser/*"],
+      "@factory/*": ["src/main/typescript/factory/*"],
+      "@pages/*": ["src/main/typescript/pages/*"],
+      "@usecases/*": ["src/main/typescript/usecases/*"],
+      "@reports/*": ["src/main/typescript/reports/*"],
+      "@runner/*": ["src/main/typescript/runner/*"],
+      "@cli/*": ["src/main/typescript/cli/*"],
+      "@test/*": ["src/test/typescript/*"]
+    },
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "inlineSources": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["../../src/main/typescript/**/*"],
+  "exclude": ["../../node_modules", "../../dist", "../../src/test/**/*"]
+}
+

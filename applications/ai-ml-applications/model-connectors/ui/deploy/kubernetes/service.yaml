@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-connectors-ui
+  namespace: model-box
+  labels:
+    app.kubernetes.io/name: model-connectors-ui
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  selector:
+    app.kubernetes.io/name: model-connectors-ui

@@ -24,6 +24,9 @@ model-box/
 ├── LICENSE
 ├── README.md
 ├── applications/
+│   ├── ai-ml-applications/
+│   │   ├── model-connectors/          # FastAPI backend, React dashboard, Vault, Postgres
+│   │   └── playwright-mcp-engine/     # JSON workflow engine, interactive noVNC codegen (6080), MCP server (8940)
 │   └── performance/
 │       └── infra-gatling/
 │           ├── config/
@@ -59,6 +62,7 @@ model-box/
 
 ## 3. Documentation map
 
+- End-to-end stack deployment procedures: [Docker Compose Deployment Guide](docs/docker-compose-deployment-guide.md)
 - Runtime operations and Docker commands: [Docker Operations Guide](docs/docker-operations.md)
 - Endpoint purpose, usage patterns, and model mapping: [Ollama Endpoint Guide](docs/ollama-endpoints.md)
 - Documentation scope and ownership: [Documentation Index](docs/README.md)
@@ -86,39 +90,67 @@ Use the repository root script for a single entry point that discovers every Com
 
 ```powershell
 # Run from the project root itself
-./Deploy-All-Compose.ps1
+./infra/scripts/Deploy-All-Compose.ps1
+```
+
+```bash
+# Run from the project root itself (Linux/macOS)
+./infra/scripts/Deploy-All-Compose.sh
 ```
 
 Default behavior:
 
 - Action: `BuildAndUp`
 - Stack selection: all discovered compose files
-- Logging: writes to `logs/docker-compose-orchestrator-<timestamp>.log`
+- Logging: writes to `infra/logs/docker-compose-orchestrator-<timestamp>.log`
 - Output: exact docker commands used, tabular queue, and final execution summary
 
 Common examples:
 
 ```powershell
 # Start all discovered stacks
-./Deploy-All-Compose.ps1
+./infra/scripts/Deploy-All-Compose.ps1
 
 # Start only the Ollama stack
-./Deploy-All-Compose.ps1 -Stacks 'ollama'
+./infra/scripts/Deploy-All-Compose.ps1 -Stacks 'ollama'
 
 # Start only the performance stack
-./Deploy-All-Compose.ps1 -Stacks 'performance'
+./infra/scripts/Deploy-All-Compose.ps1 -Stacks 'performance'
 
 # Start all stacks and build images first
-./Deploy-All-Compose.ps1 -Action BuildAndUp -Build
+./infra/scripts/Deploy-All-Compose.ps1 -Action BuildAndUp -Build
 
 # Stop all stacks
-./Deploy-All-Compose.ps1 -Action Down
+./infra/scripts/Deploy-All-Compose.ps1 -Action Down
 
 # Show status for all stacks
-./Deploy-All-Compose.ps1 -Action Status
+./infra/scripts/Deploy-All-Compose.ps1 -Action Status
 
 # Show logs for all stacks
-./Deploy-All-Compose.ps1 -Action Logs -FollowLogs
+./infra/scripts/Deploy-All-Compose.ps1 -Action Logs -FollowLogs
+```
+
+```bash
+# Start all discovered stacks
+./infra/scripts/Deploy-All-Compose.sh
+
+# Start only the Ollama stack
+./infra/scripts/Deploy-All-Compose.sh --stack ollama
+
+# Start only the performance stack
+./infra/scripts/Deploy-All-Compose.sh --stack performance
+
+# Build and then start all stacks
+./infra/scripts/Deploy-All-Compose.sh --action BuildAndUp --build
+
+# Stop all stacks
+./infra/scripts/Deploy-All-Compose.sh --action Down
+
+# Show status for all stacks
+./infra/scripts/Deploy-All-Compose.sh --action Status
+
+# Show logs for all stacks
+./infra/scripts/Deploy-All-Compose.sh --action Logs --follow-logs
 ```
 
 This script is designed to be the central operational entry point for repo-wide Compose orchestration, while preserving explicit stack-specific commands for targeted troubleshooting.
@@ -129,6 +161,8 @@ This script is designed to be the central operational entry point for repo-wide 
 |---|---|---|
 | Ollama CPU Compose runtime | Success | `docker compose --env-file infra/ollama/docker/ollama-cpu.env -f infra/ollama/docker/compose.cpu.yaml up -d` completed successfully |
 | Ollama GPU Compose runtime | Success | `docker compose --env-file infra/ollama/docker/ollama-gpu.env -f infra/ollama/docker/compose.gpu.yaml up -d` completed successfully |
+| Model Connectors Service & UI | Success | `model-connectors-service` (8000), `model-connectors-ui` (3000), Vault (8200), Postgres (5432) healthy |
+| Playwright MCP Engine | Success | `modelbox-playwright-mcp` (8940) MCP server, `/api/workflows`, noVNC (6080) interactive codegen recording, and Ollama-powered LinkedIn job requirement extraction (.md + Postgres) verified |
 | Ollama API smoke test | Success | API endpoint responded at `http://127.0.0.1:11435/api/tags` |
 | GitHub workflow validation | Configured | [.github/workflows/ollama-compose-validate.yml](.github/workflows/ollama-compose-validate.yml) added for CI checks |
 | Documentation integrity | Success | Centralized doc map maintained in [docs/README.md](docs/README.md) |

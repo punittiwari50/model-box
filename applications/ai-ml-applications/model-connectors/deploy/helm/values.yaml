@@ -1,0 +1,24 @@
+# Global values for Model-Connectors Umbrella Chart
+global:
+  environment: production
+  namespace: model-box
+
+model-connectors-service:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: model-connectors-service
+    tag: 2.0.0
+    pullPolicy: IfNotPresent
+  service:
+    port: 8000
+
+model-connectors-ui:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: model-connectors-ui
+    tag: 2.0.0
+    pullPolicy: IfNotPresent
+  service:
+    port: 80

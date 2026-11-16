@@ -1,0 +1,195 @@
+# Model Connector Client Configuration
+client:
+  name: "model-connector-client"
+  version: "1.0.0"
+  defaults:
+    model: "gemini-3.8-flash"
+    timeoutMs: 30000
+    retries: 3
+    retryBackoffMs: 1000
+    temperature: 0.7
+    maxOutputTokens: 2048
+
+  models:
+    gemini:
+      defaultModel: "gemini-3.8-flash"
+      apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta"
+      cliCommand: "gemini"
+    grok:
+      defaultModel: "grok-3"
+      apiBaseUrl: "https://api.x.ai/v1"
+      cliCommand: "grok"
+    copilot:
+      defaultModel: "copilot-gpt-4o"
+      apiBaseUrl: "https://api.githubcopilot.com"
+      cliCommand: "github-copilot-cli"
+    chatgpt:
+      defaultModel: "gpt-4o"
+      apiBaseUrl: "https://api.openai.com/v1"
+      cliCommand: "chatgpt"
+    claude:
+      defaultModel: "claude-3-7-sonnet"
+      apiBaseUrl: "https://api.anthropic.com/v1"
+      cliCommand: "claude"
+    ollama:
+      defaultModel: "llama3.2"
+      apiBaseUrl: "http://localhost:11435"
+      oauthBaseUrl: "http://localhost:11436/ollama-oauth"
+      dockerCandidateUrls:
+        - "http://localhost:11435"
+        - "http://host.docker.internal:11435"
+        - "http://127.0.0.1:11435"
+        - "http://ollama:11434"
+        - "http://host.docker.internal:11434"
+        - "http://localhost:11434"
+        - "http://127.0.0.1:11434"
+      cliCommand: "ollama"
+    fallback:
+      provider: "ollama"
+      defaultModel: "llama3.2"
+      apiBaseUrl: "http://localhost:11435"
+      cliCommand: "ollama"
+
+  strategies:
+    cli:
+      defaultArgs: ["--format", "json"]
+      idleTimeoutMs: 60000
+    api:
+      connectionTimeoutMs: 10000
+    cookie:
+      cookieHeaderName: "Authorization"
+      lineageTracking: true
+
+platform:
+  urls:
+    uiBaseUrl: "${UI_BASE_URL:http://localhost:3005}"
+    serviceBaseUrl: "${SERVICE_BASE_URL:http://localhost:8095}"
+    oauthCallbackUrl: "${OAUTH_CALLBACK_URL:http://localhost:8085/oauth2callback}"
+    oauthAuthorizeChooserUrl: "${OAUTH_CHOOSER_URL:http://localhost:8085/oauth2/authorize}"
+    ollamaOAuthBaseUrl: "${OLLAMA_OAUTH_BASE_URL:http://localhost:11436}"
+
+# Declarative Multi-Model Provider Master Configurations
+providers:
+  google:
+    name: "Google Cloud / Gemini"
+    icon: "✨"
+    authType: "oauth"
+    baseUrl: "${GEMINI_API_BASE_URL:https://generativelanguage.googleapis.com}"
+    apiVersion: "v1beta"
+    cliExecutable: "${GOOGLE_CLI_EXECUTABLE:antigravity}"
+    cliArgsTemplate: "--model {model} --prompt-interactive"
+    authEndpoint: "https://accounts.google.com/o/oauth2/v2/auth"
+    tokenEndpoint: "https://oauth2.googleapis.com/token"
+    userinfoEndpoint: "https://www.googleapis.com/oauth2/v2/userinfo"
+    tokeninfoEndpoint: "https://oauth2.googleapis.com/tokeninfo"
+    cliCommand: "${GOOGLE_CLI_COMMAND:antigravity}"
+    defaultRedirectUri: "http://localhost:8085/oauth2callback"
+    defaultScopes: "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+    apiHeader: "Authorization"
+    apiHeaderPrefix: "Bearer"
+    docsUrl: "https://antigravity.google"
+    modelKeywords: "gemini,antigravity"
+  anthropic:
+    name: "Anthropic Claude"
+    icon: "🧠"
+    authType: "api_key"
+    baseUrl: "${CLAUDE_API_BASE_URL:https://api.anthropic.com}"
+    messagesEndpoint: "https://api.anthropic.com/v1/messages"
+    apiVersion: "v1"
+    anthropicVersionHeader: "2023-06-01"
+    cliExecutable: "claude"
+    cliArgsTemplate: "--model {model} --print --output-format json"
+    authEndpoint: "https://claude.ai/oauth/authorize"
+    tokenEndpoint: "https://api.anthropic.com/v1/oauth/token"
+    userinfoEndpoint: "https://api.anthropic.com/v1/user"
+    tokeninfoEndpoint: "https://api.anthropic.com/v1/models"
+    cliCommand: "claude auth login"
+    defaultRedirectUri: "http://localhost:8085/oauth2callback"
+    defaultScopes: "user:read org:read"
+    apiHeader: "x-api-key"
+    apiHeaderPrefix: ""
+    docsUrl: "https://docs.anthropic.com/"
+    modelKeywords: "claude"
+  github:
+    name: "GitHub Copilot"
+    icon: "🐙"
+    authType: "oauth"
+    baseUrl: "${COPILOT_API_BASE_URL:https://api.githubcopilot.com}"
+    chatCompletionsEndpoint: "https://api.githubcopilot.com/chat/completions"
+    apiVersion: "v1"
+    cliExecutable: "github-copilot-cli"
+    cliArgsTemplate: "--model {model} --non-interactive"
+    authEndpoint: "https://github.com/login/oauth/authorize"
+    tokenEndpoint: "https://github.com/login/oauth/access_token"
+    userinfoEndpoint: "https://api.github.com/user"
+    tokeninfoEndpoint: "https://api.github.com/user"
+    cliCommand: "gh auth login --web"
+    defaultRedirectUri: "http://localhost:8085/oauth2callback"
+    defaultScopes: "read:user user:email copilot"
+    apiHeader: "Authorization"
+    apiHeaderPrefix: "token"
+    docsUrl: "https://docs.github.com/en/copilot"
+    modelKeywords: "copilot,github"
+  openai:
+    name: "OpenAI ChatGPT"
+    icon: "🤖"
+    authType: "api_key"
+    baseUrl: "${OPENAI_API_BASE_URL:https://api.openai.com}"
+    apiVersion: "v1"
+    cliExecutable: "openai"
+    cliArgsTemplate: "api chat.completions.create -m {model}"
+    authEndpoint: "https://auth0.openai.com/authorize"
+    tokenEndpoint: "https://auth0.openai.com/oauth/token"
+    userinfoEndpoint: "https://api.openai.com/v1/me"
+    tokeninfoEndpoint: "https://api.openai.com/v1/models"
+    cliCommand: "openai login"
+    defaultRedirectUri: "http://localhost:8085/oauth2callback"
+    defaultScopes: "openid profile email model.request"
+    apiHeader: "Authorization"
+    apiHeaderPrefix: "Bearer"
+    docsUrl: "https://platform.openai.com/docs/"
+    modelKeywords: "gpt,chatgpt,o1,o3,openai"
+  xai:
+    name: "xAI Grok"
+    icon: "⚡"
+    authType: "api_key"
+    baseUrl: "${GROK_API_BASE_URL:https://api.x.ai}"
+    apiVersion: "v1"
+    cliExecutable: "xai"
+    cliArgsTemplate: "chat -m {model}"
+    authEndpoint: "https://auth.x.ai/oauth/authorize"
+    tokenEndpoint: "https://api.x.ai/oauth/token"
+    userinfoEndpoint: "https://api.x.ai/v1/user"
+    tokeninfoEndpoint: "https://api.x.ai/v1/models"
+    cliCommand: "grok auth login"
+    defaultRedirectUri: "http://localhost:8085/oauth2callback"
+    defaultScopes: "openid email"
+    apiHeader: "Authorization"
+    apiHeaderPrefix: "Bearer"
+    docsUrl: "https://docs.x.ai/"
+    modelKeywords: "grok"
+  ollama:
+    name: "Ollama Local"
+    icon: "🦙"
+    authType: "none"
+    baseUrl: "${OLLAMA_BASE_URL:http://localhost:11435}"
+    oauthBaseUrl: "${OLLAMA_OAUTH_BASE_URL:http://localhost:11436}"
+    fallbackBaseUrls: "http://host.docker.internal:11435,http://127.0.0.1:11435,http://localhost:11434"
+    tagsPath: "/api/tags"
+    generatePath: "/api/generate"
+    cacheTtlHours: 24
+    cacheTtlMs: 86400000
+    apiVersion: "v1"
+    cliExecutable: "ollama"
+    cliArgsTemplate: "run {model}"
+    cliCommand: "ollama"
+    authEndpoint: "http://localhost:11436/ollama-oauth/authorize"
+    tokenEndpoint: "http://localhost:11436/ollama-oauth/token"
+    userinfoEndpoint: "http://localhost:11436/ollama-oauth/userinfo"
+    tokeninfoEndpoint: "http://localhost:11436/ollama-oauth/tokeninfo"
+    defaultRedirectUri: "http://localhost:8085/oauth2callback"
+    defaultScopes: "local:read local:generate"
+    apiHeader: "Authorization"
+    apiHeaderPrefix: "Bearer"
+    docsUrl: "https://ollama.com/"
+    modelKeywords: "ollama,llama,lfm3,qwen,phi,gemma,minicpm,nemotron,deepseek,mistral"

@@ -1,0 +1,39 @@
+{
+  "name": "@model-box/model-connector-playwright",
+  "version": "1.0.0",
+  "description": "Enterprise Playwright sanity and E2E verification module for Model Connector Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "bin": {
+    "model-connector-sanity": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p config/typescript/tsconfig.json && tsc-alias -p config/typescript/tsconfig.json --resolve-full-paths",
+    "test": "node --experimental-strip-types --test-concurrency=1 --import ./config/test/register-test-loader.mjs --test src/test/typescript/unit/*.test.ts",
+    "test:sanity": "node dist/cli/index.js",
+    "test:usecases": "node dist/cli/usecases.js",
+    "clean": "node -e \"import('node:fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\"",
+    "dev": "tsc -p config/typescript/tsconfig.json --watch"
+  },
+  "keywords": [
+    "model-connector",
+    "playwright",
+    "e2e",
+    "sanity",
+    "page-object-model",
+    "verification"
+  ],
+  "author": "ModelBox Enterprise Team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@model-box/model-connector-core": "*",
+    "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsc-alias": "^1.9.8",
+    "typescript": "^5.7.3"
+  }
+}
+

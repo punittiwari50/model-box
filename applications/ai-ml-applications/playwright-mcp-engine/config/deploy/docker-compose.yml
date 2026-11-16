@@ -1,0 +1,52 @@
+# ==============================================================================
+# Playwright MCP Engine - Docker Compose Orchestration
+# Location: config/deploy/docker-compose.yml
+# Connects to ModelBox ecosystem: Ollama (11434) and ComfyUI (8188) on model-box-net
+# ==============================================================================
+
+name: playwright-mcp-engine-parent
+
+services:
+  playwright-mcp-engine:
+    container_name: ${CONTAINER_NAME:-playwright-mcp-engine}
+    build:
+      context: ../..
+      dockerfile: config/deploy/Dockerfile
+    image: playwright-mcp-engine:latest
+    restart: unless-stopped
+    init: true
+    ipc: host
+    env_file:
+      - ./playwright-mcp.env
+    ports:
+      - "${PORT:-8940}:8940"
+      - "${MCP_PORT:-8941}:8941"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8940}
+      - MCP_PORT=${MCP_PORT:-8941}
+      - PLAYWRIGHT_HEADLESS=${PLAYWRIGHT_HEADLESS:-true}
+      - PLAYWRIGHT_MAX_CONCURRENCY=${PLAYWRIGHT_MAX_CONCURRENCY:-10}
+      - STEP_WATCHDOG_TIMEOUT_MS=${STEP_WATCHDOG_TIMEOUT_MS:-30000}
+      - WORKFLOW_WATCHDOG_TIMEOUT_MS=${WORKFLOW_WATCHDOG_TIMEOUT_MS:-180000}
+      - CIRCUIT_BREAKER_THRESHOLD=${CIRCUIT_BREAKER_THRESHOLD:-3}
+      - CIRCUIT_BREAKER_RESET_MS=${CIRCUIT_BREAKER_RESET_MS:-30000}
+      - RETRY_MAX_ATTEMPTS=${RETRY_MAX_ATTEMPTS:-3}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama-model-service-gpu:11434}
+      - COMFYUI_BASE_URL=${COMFYUI_BASE_URL:-http://comfyui-model-service-gpu:8188}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - model-box-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "const req = require('http').get('http://localhost:8940/health', (r) => { r.destroy(); process.exit(r.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1));"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  model-box-net:
+    name: ${SHARED_NETWORK_NAME:-model-box-net}
+    external: true

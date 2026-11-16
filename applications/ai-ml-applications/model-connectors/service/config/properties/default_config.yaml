@@ -1,0 +1,21 @@
+endpoints:
+  ollama_url: "http://127.0.0.1:11435"
+  ollama_docker_url: "http://ollama-model-service-gpu:11434"
+  comfyui_url: "http://127.0.0.1:8189"
+  comfyui_docker_url: "http://comfyui-model-service-gpu:8188"
+
+storage:
+  default_backend: "IN_MEMORY"
+  sqlite_db_path: ":memory:"
+  yaml_config_dir: "./config/connections"
+  postgres_dsn: "postgresql://postgres:postgres@localhost:5432/model_connectors"
+
+rate_limits:
+  default_token_capacity: 100000
+  default_refill_rate_per_sec: 1000.0
+  compaction_token_threshold: 4000
+  compaction_target_ratio: 0.35
+
+server:
+  host: "0.0.0.0"
+  port: 8000

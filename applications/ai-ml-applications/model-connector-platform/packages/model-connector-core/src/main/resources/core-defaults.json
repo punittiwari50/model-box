@@ -1,0 +1,13 @@
+{
+  "module": "@model-box/model-connector-core",
+  "version": "1.0.0",
+  "standard": "STD-COD-002",
+  "features": [
+    "Spring-Style Environment",
+    "ProcessUtils Encapsulation",
+    "Resilience4j Pipeline",
+    "Object Connection Pool",
+    "Protocol Configurations",
+    "Structured JSON Logging"
+  ]
+}

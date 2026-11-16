@@ -1,0 +1,97 @@
+services:
+  # ==============================================================================
+  # 1. Builder Service: Hermetic clean build inside Docker image
+  # ==============================================================================
+  model-connector-platform-builder:
+    image: model-connector-platform-builder:latest
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.builder
+    working_dir: /app
+    environment:
+      - CONTAINER_ROLE=builder
+      - IS_BUILDER=true
+      - ENABLE_SIMULATION_FALLBACK=true
+      - ALLOW_MOCK_FALLBACK=true
+    command: ["sh", "-c", "npm run clean && npm install && npm run build"]
+
+  # ==============================================================================
+  # 2. Verifier Service: Executes Python invariant verification inside Docker
+  # ==============================================================================
+  model-connector-platform-verifier:
+    image: model-connector-platform-builder:latest
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.builder
+    working_dir: /app
+    environment:
+      - CONTAINER_ROLE=builder
+      - IS_BUILDER=true
+      - ENABLE_SIMULATION_FALLBACK=true
+      - ALLOW_MOCK_FALLBACK=true
+    command: ["python3", "config/scripts/verification/verify_platform.py"]
+
+  # ==============================================================================
+  # 3. Tester Service: Executes all Node unit tests inside Docker
+  # ==============================================================================
+  model-connector-platform-tester:
+    image: model-connector-platform-builder:latest
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.builder
+    working_dir: /app
+    environment:
+      - CONTAINER_ROLE=builder
+      - IS_BUILDER=true
+      - ENABLE_SIMULATION_FALLBACK=true
+      - ALLOW_MOCK_FALLBACK=true
+    command: ["sh", "-c", "npm run build && npm run test:all"]
+
+  # ==============================================================================
+  # 4. Playwright Sanity & Use-Case Verification Service
+  # ==============================================================================
+  model-connector-platform-sanity:
+    image: model-connector-playwright:latest
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.playwright
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - UI_BASE_URL=http://model-connector-ui:80
+      - BACKEND_API_BASE_URL=http://model-connector-service:8095
+      - HEADLESS=true
+      - REPORT_OUTPUT_DIR=/app/packages/model-connector-playwright/reports
+    volumes:
+      - model-connector-playwright-browsers:/root/.cache/ms-playwright
+      - ./packages/model-connector-playwright/reports:/app/packages/model-connector-playwright/reports
+    networks:
+      - model-connector-net
+    command: ["npm", "run", "test:usecases", "--workspace=@model-box/model-connector-playwright"]
+
+  model-connector-playwright:
+    image: model-connector-playwright:latest
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.playwright
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - UI_BASE_URL=http://model-connector-ui:80
+      - BACKEND_API_BASE_URL=http://model-connector-service:8095
+      - HEADLESS=true
+      - REPORT_OUTPUT_DIR=/app/packages/model-connector-playwright/reports
+    volumes:
+      - model-connector-playwright-browsers:/root/.cache/ms-playwright
+      - ./packages/model-connector-playwright/reports:/app/packages/model-connector-playwright/reports
+    networks:
+      - model-connector-net
+    command: ["npm", "run", "test:usecases", "--workspace=@model-box/model-connector-playwright"]
+
+volumes:
+  model-connector-playwright-browsers:
+    name: model-connector-playwright-browsers
+
+networks:
+  model-connector-net:
+    external: true

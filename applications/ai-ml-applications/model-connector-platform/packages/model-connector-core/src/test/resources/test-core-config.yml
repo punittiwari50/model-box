@@ -1,0 +1,6 @@
+test:
+  profile: "test"
+  server:
+    port: 9999
+  resilience:
+    testCircuitWaitMs: 100

@@ -1,7 +1,7 @@
 # Ollama Baseline Runtime Compose Configuration (Generic)
 # 
 # Model Storage & Persistence:
-#   - Host volume: C:/DEV/WSB/CONFIG/volume/volume-docker_ollama (consolidated root)
+#   - Host volume: configured via COMPOSE_OLLAMA_MODELS_HOST (consolidated root)
 #   - Container mount: /models (read-write, bidirectional)
 #   - All 11 model manifests are stored in: /manifests/registry.ollama.ai/library/
 #   - Model blob data is stored in: /blobs/
@@ -28,7 +28,7 @@ name: model-box
 services:
   ollama:
     container_name: ollama-model-service
-    image: ${COMPOSE_OLLAMA_IMAGE:-ollama/ollama:latest}
+    image: ${COMPOSE_OLLAMA_IMAGE:-model-box-ollama:latest}
     init: true
     restart: unless-stopped
     stop_grace_period: 60s
@@ -59,7 +59,7 @@ services:
       - "${COMPOSE_BIND_IP:-127.0.0.1}:${COMPOSE_HOST_PORT:-11435}:${COMPOSE_CONTAINER_PORT:-11434}"
     volumes:
       - type: bind
-        source: ${COMPOSE_OLLAMA_MODELS_HOST:-C:/DEV/WSB/CONFIG/volume/volume-docker_ollama}
+        source: ${COMPOSE_OLLAMA_MODELS_HOST:-./volumes/ollama}
         target: ${COMPOSE_OLLAMA_MODELS_CONTAINER:-/models}
         bind:
           create_host_path: true
@@ -77,3 +77,8 @@ services:
         max-file: "3"
         mode: "non-blocking"
         max-buffer-size: "4m"
+    build:
+      context: ../../..
+      dockerfile: infra/ollama/docker/Dockerfile.ollama
+      args:
+        BASE_IMAGE: ${OLLAMA_BASE_IMAGE:-ollama/ollama:latest}

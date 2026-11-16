@@ -1,0 +1,33 @@
+{
+  "id": "wf-linkedin-navigate-mus92w1q",
+  "name": "Automated Workflow for https://www.linkedin.com",
+  "description": "Generated workflow with default schema attributes for Automated Workflow for https://www.linkedin.com",
+  "version": "1.0.0",
+  "baseUrl": "https://www.linkedin.com",
+  "variables": {},
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browserType": "chromium",
+  "headless": true,
+  "timeoutMs": 180000,
+  "stepTimeoutMs": 30000,
+  "retryConfig": {
+    "maxRetries": 3,
+    "initialDelayMs": 1000,
+    "backoffFactor": 2
+  },
+  "circuitBreakerDomain": "www.linkedin.com",
+  "steps": [
+    {
+      "id": "step-1",
+      "action": "navigate",
+      "targetUrl": "https://www.linkedin.com",
+      "description": "Navigate to https://www.linkedin.com",
+      "timeoutMs": 10000,
+      "continueOnError": false,
+      "optional": false
+    }
+  ]
+}

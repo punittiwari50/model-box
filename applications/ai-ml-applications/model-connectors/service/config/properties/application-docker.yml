@@ -1,0 +1,20 @@
+# ==============================================================================
+# ModelBox Connectors Application Configuration: DOCKER Profile
+# Overrides application.yml for container execution inside `model-box-net`
+# ==============================================================================
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+endpoints:
+  ollama_url: "http://ollama-model-service-gpu:11434"
+  comfyui_url: "http://comfyui-model-service-gpu:8188"
+  grpc_service_url: "grpc://grpc-serving-service:50051"
+  kafka_bootstrap_servers: "kafka:9092"
+  resolution_strategy: "docker"
+
+storage:
+  default_backend: "IN_MEMORY"
+  postgres:
+    dsn: "postgresql://postgres:postgres@postgres:5432/model_connectors"

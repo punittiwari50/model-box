@@ -1,0 +1,33 @@
+{
+  "id": "wf-example-navigate-mus7gr18",
+  "name": "Automated Workflow for https://example.com",
+  "description": "Generated workflow with default schema attributes for Automated Workflow for https://example.com",
+  "version": "1.0.0",
+  "baseUrl": "https://example.com",
+  "variables": {},
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browserType": "chromium",
+  "headless": true,
+  "timeoutMs": 180000,
+  "stepTimeoutMs": 30000,
+  "retryConfig": {
+    "maxRetries": 3,
+    "initialDelayMs": 1000,
+    "backoffFactor": 2
+  },
+  "circuitBreakerDomain": "example.com",
+  "steps": [
+    {
+      "id": "step-1",
+      "action": "navigate",
+      "targetUrl": "https://example.com",
+      "description": "Navigate to https://example.com",
+      "timeoutMs": 10000,
+      "continueOnError": false,
+      "optional": false
+    }
+  ]
+}

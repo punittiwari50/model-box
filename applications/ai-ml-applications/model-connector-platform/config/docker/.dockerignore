@@ -1,0 +1,15 @@
+# Root docker ignore file
+# Excludes development caches and temporary artifacts
+# NOTE: dist is included so runtime images can directly copy pre-built artifacts
+node_modules
+**/node_modules
+.git
+.github
+.cache
+*.log
+.env
+.env.local
+.DS_Store
+coverage
+build
+**/build

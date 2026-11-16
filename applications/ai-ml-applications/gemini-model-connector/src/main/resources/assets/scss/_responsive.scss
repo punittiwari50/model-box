@@ -1,0 +1,50 @@
+// ==============================================================================
+// ModelBox Enterprise SCSS Responsive Layout Rules
+// Breakpoint-driven media queries conforming to SCSS standard practices
+// ==============================================================================
+@use "@/assets/scss/variables" as *;
+
+@media (max-width: $breakpoint-tablet) {
+  .chat-layout {
+    grid-template-columns: 260px 1fr;
+  }
+
+  .agent-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .job-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: $breakpoint-mobile) {
+  header {
+    padding: 12px 16px;
+  }
+
+  .telemetry-bar {
+    display: none;
+  }
+
+  .chat-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .chat-sidebar {
+    max-height: 200px;
+  }
+
+  .messages-thread {
+    min-height: 350px;
+  }
+
+  .msg-row {
+    max-width: 95%;
+  }
+
+  main {
+    padding: 12px;
+  }
+}

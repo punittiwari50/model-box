@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "../../dist",
+    "rootDir": "../../src/main/typescript",
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["src/main/typescript/*"],
+      "@constants/*": ["src/main/typescript/constants/*"],
+      "@entities/*": ["src/main/typescript/entities/*"],
+      "@domain/*": ["src/main/typescript/domain/*"],
+      "@utils/*": ["src/main/typescript/utils/*"],
+      "@config/*": ["src/main/typescript/config/*"],
+      "@resilience/*": ["src/main/typescript/resilience/*"],
+      "@pool/*": ["src/main/typescript/pool/*"],
+      "@logging/*": ["src/main/typescript/logging/*"],
+      "@queue/*": ["src/main/typescript/queue/*"],
+      "@resources/*": ["src/main/resources/*"],
+      "@test/*": ["src/test/typescript/*"]
+    },
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "inlineSources": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["../../src/main/typescript/**/*"],
+  "exclude": ["../../node_modules", "../../dist", "../../src/test/**/*"]
+}

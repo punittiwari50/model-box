@@ -1,0 +1,135 @@
+-- ==============================================================================
+-- MODELBOX CONNECTORS SQLITE SCHEMA DDL (In-Memory / SQLite Engine)
+-- Enterprise DDL Script for Table Definitions, Foreign Keys, and Indexes
+-- ==============================================================================
+
+PRAGMA foreign_keys = ON;
+
+-- 1. Projects Table
+CREATE TABLE IF NOT EXISTS MB_PROJECTS (
+    PROJECT_ID TEXT PRIMARY KEY,
+    NAME TEXT NOT NULL,
+    DESCRIPTION TEXT NOT NULL,
+    TAGS_JSON TEXT NOT NULL DEFAULT '[]',
+    ASSIGNED_USERS_JSON TEXT NOT NULL DEFAULT '[]',
+    SYSTEM_PROMPT TEXT NOT NULL DEFAULT '',
+    CREATED_AT TEXT NOT NULL,
+    UPDATED_AT TEXT NOT NULL,
+    METADATA_JSON TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS IDX_MB_PROJECTS_NAME ON MB_PROJECTS (NAME);
+
+-- 2. Sessions Table
+CREATE TABLE IF NOT EXISTS MB_SESSIONS (
+    SESSION_ID TEXT PRIMARY KEY,
+    PROJECT_ID TEXT NOT NULL DEFAULT 'default',
+    USER_ID TEXT NOT NULL,
+    COOKIE_ID TEXT NOT NULL,
+    CREATED_AT TEXT NOT NULL,
+    UPDATED_AT TEXT NOT NULL,
+    METADATA_JSON TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS IDX_MB_SESSIONS_PROJECT_ID ON MB_SESSIONS (PROJECT_ID);
+CREATE INDEX IF NOT EXISTS IDX_MB_SESSIONS_USER_ID ON MB_SESSIONS (USER_ID);
+CREATE INDEX IF NOT EXISTS IDX_MB_SESSIONS_COOKIE_ID ON MB_SESSIONS (COOKIE_ID);
+CREATE INDEX IF NOT EXISTS IDX_MB_SESSIONS_UPDATED_AT ON MB_SESSIONS (UPDATED_AT);
+
+-- 3. Messages Table
+CREATE TABLE IF NOT EXISTS MB_MESSAGES (
+    MESSAGE_ID TEXT PRIMARY KEY,
+    SESSION_ID TEXT NOT NULL,
+    PROJECT_ID TEXT NOT NULL DEFAULT 'default',
+    USER_TAG TEXT NOT NULL DEFAULT 'general',
+    ROLE TEXT NOT NULL,
+    CONTENT TEXT NOT NULL,
+    TOKEN_COUNT INTEGER NOT NULL DEFAULT 0,
+    TIMESTAMP TEXT NOT NULL,
+    MODEL_NAME TEXT NOT NULL,
+    CONNECTOR_PROTOCOL TEXT NOT NULL,
+    METADATA_JSON TEXT NOT NULL DEFAULT '{}',
+    FOREIGN KEY(SESSION_ID) REFERENCES MB_SESSIONS(SESSION_ID) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IDX_MB_MESSAGES_SESSION_ID ON MB_MESSAGES (SESSION_ID);
+CREATE INDEX IF NOT EXISTS IDX_MB_MESSAGES_PROJECT_ID ON MB_MESSAGES (PROJECT_ID);
+CREATE INDEX IF NOT EXISTS IDX_MB_MESSAGES_TIMESTAMP ON MB_MESSAGES (TIMESTAMP);
+
+-- 4. Compactions Table
+CREATE TABLE IF NOT EXISTS MB_COMPACTIONS (
+    COMPACTION_ID TEXT PRIMARY KEY,
+    SESSION_ID TEXT NOT NULL,
+    SUMMARY_CONTENT TEXT NOT NULL,
+    COMPACTED_MESSAGE_IDS_JSON TEXT NOT NULL,
+    ORIGINAL_TOKEN_COUNT INTEGER NOT NULL,
+    COMPACTED_TOKEN_COUNT INTEGER NOT NULL,
+    COMPACTION_RATIO REAL NOT NULL,
+    TIMESTAMP TEXT NOT NULL,
+    FOREIGN KEY(SESSION_ID) REFERENCES MB_SESSIONS(SESSION_ID) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IDX_MB_COMPACTIONS_SESSION_ID ON MB_COMPACTIONS (SESSION_ID);
+
+-- 5. Connection Configurations Table
+CREATE TABLE IF NOT EXISTS MB_CONNECTION_CONFIGS (
+    CONNECTION_ID TEXT PRIMARY KEY,
+    NAME TEXT NOT NULL,
+    PROTOCOL TEXT NOT NULL,
+    ENDPOINT_URL TEXT NOT NULL,
+    MODEL_NAME TEXT NOT NULL,
+    AUTH_METHOD TEXT NOT NULL,
+    AUTH_PAYLOAD_JSON TEXT NOT NULL DEFAULT '{}',
+    TIMEOUT_SECONDS REAL NOT NULL DEFAULT 60.0,
+    MAX_RETRIES INTEGER NOT NULL DEFAULT 3,
+    RATE_LIMIT_RPM INTEGER NOT NULL DEFAULT 60,
+    TOKEN_CAPACITY INTEGER NOT NULL DEFAULT 100000,
+    TOKEN_REFILL_RATE_PER_SEC REAL NOT NULL DEFAULT 1000.0,
+    STORAGE_BACKEND TEXT NOT NULL DEFAULT 'IN_MEMORY'
+);
+
+-- 6. Token Metrics Table
+CREATE TABLE IF NOT EXISTS MB_TOKEN_METRICS (
+    METRIC_ID TEXT PRIMARY KEY,
+    SESSION_ID TEXT NOT NULL,
+    CONNECTION_ID TEXT NOT NULL,
+    TOKENS_CONSUMED INTEGER NOT NULL,
+    AVAILABLE_TOKENS INTEGER NOT NULL,
+    RECORDED_AT TEXT NOT NULL,
+    FOREIGN KEY(SESSION_ID) REFERENCES MB_SESSIONS(SESSION_ID) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IDX_MB_TOKEN_METRICS_SESSION_ID ON MB_TOKEN_METRICS (SESSION_ID);
+CREATE INDEX IF NOT EXISTS IDX_MB_TOKEN_METRICS_RECORDED_AT ON MB_TOKEN_METRICS (RECORDED_AT);
+
+-- ==============================================================================
+-- 7. Initial Seed Data (Requirement 4)
+-- ==============================================================================
+INSERT OR IGNORE INTO MB_PROJECTS (
+    PROJECT_ID, NAME, DESCRIPTION, TAGS_JSON, ASSIGNED_USERS_JSON, SYSTEM_PROMPT, CREATED_AT, UPDATED_AT, METADATA_JSON
+) VALUES (
+    'linkedin-job-hunter',
+    'LinkedIn Job Hunter & Job Preparation',
+    'AI-powered LinkedIn optimization, job hunting strategies, interview simulation, and executive resume crafting.',
+    '["career", "linkedin", "job-hunting", "interview-prep", "resume-ai"]',
+    '["job-seeker", "career-coach", "recruiter", "tech-lead"]',
+    'You are an elite LinkedIn Career Coach and Executive Job Search Strategist. Assist users with profile optimization, interview preparation, and outreach.',
+    datetime('now'),
+    datetime('now'),
+    '{"category": "career-development", "priority": "high"}'
+);
+
+INSERT OR IGNORE INTO MB_PROJECTS (
+    PROJECT_ID, NAME, DESCRIPTION, TAGS_JSON, ASSIGNED_USERS_JSON, SYSTEM_PROMPT, CREATED_AT, UPDATED_AT, METADATA_JSON
+) VALUES (
+    'animation-films-creation',
+    'Animation Films & Stories Creation',
+    'Generative storytelling, cinematic concept art direction, 3D storyboard synthesis, and animation pipeline orchestration.',
+    '["cinematic", "storyboarding", "pixar-3d", "animation", "generative-media"]',
+    '["film-director", "lead-animator", "screenwriter", "art-director"]',
+    'You are a Pixar and Studio Ghibli-grade Animation Story Director and Screenwriter. Orchestrate rich visual narratives, storyboards, and emotional arcs.',
+    datetime('now'),
+    datetime('now'),
+    '{"category": "creative-media", "priority": "high"}'
+);
+
