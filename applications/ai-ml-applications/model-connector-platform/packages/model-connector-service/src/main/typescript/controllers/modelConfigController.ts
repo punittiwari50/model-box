@@ -439,7 +439,7 @@ export class ModelConfigController {
         latencyMs: req.startTime ? Date.now() - req.startTime : 50,
         executionStatus: "SUCCESS",
         clientIp: req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1",
-        promptMessage: `Initiate CLI OAuth flow for ${modelId} (${userEmail || "<user-email>"})`,
+        promptMessage: `Initiate CLI OAuth flow for ${modelId} (${userEmail || "admin@modelbox.internal"})`,
         errorMessage: undefined,
       });
 
@@ -673,13 +673,13 @@ export class ModelConfigController {
         bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
           modelId,
           provider: isGoogle ? ProviderId.GOOGLE : modelId,
-          userEmail: userEmail || "<user-email>",
+          userEmail: userEmail || "admin@modelbox.internal",
           accountCategory: "individual",
           authCode: cleanAuthCode,
           outcome: {
             accessToken: resolvedToken,
             refreshToken: `rt_${modelId}_${Date.now()}`,
-            userEmail: userEmail || "<user-email>",
+            userEmail: userEmail || "admin@modelbox.internal",
             authorizedTimestamp: new Date().toISOString(),
             expiresInSeconds: 3600,
             scopes: GoogleAuthConstants.DEFAULT_SCOPES as unknown as string[],
@@ -711,7 +711,7 @@ export class ModelConfigController {
           latencyMs: req.startTime ? Date.now() - req.startTime : 120,
           executionStatus: "FAILED",
           clientIp: req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1",
-          promptMessage: `OAuth Verification for ${modelId} (${userEmail || "<user-email>"})`,
+          promptMessage: `OAuth Verification for ${modelId} (${userEmail || "admin@modelbox.internal"})`,
           errorMessage: verification.error || "Antigravity CLI verification failed.",
         });
         res.status(HttpStatus.BAD_REQUEST).json({
@@ -745,7 +745,7 @@ export class ModelConfigController {
         latencyMs: req.startTime ? Date.now() - req.startTime : 120,
         executionStatus: "SUCCESS",
         clientIp: req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1",
-        promptMessage: `OAuth Verification for ${modelId} (${session.email || userEmail || "<user-email>"})`,
+        promptMessage: `OAuth Verification for ${modelId} (${session.email || userEmail || "admin@modelbox.internal"})`,
         errorMessage: undefined,
       });
 
@@ -777,7 +777,7 @@ export class ModelConfigController {
         latencyMs: req.startTime ? Date.now() - req.startTime : 120,
         executionStatus: "FAILED",
         clientIp: req.ip || (req.headers["x-forwarded-for"] as string) || "127.0.0.1",
-        promptMessage: `OAuth Verification for ${modelId} (${userEmail || "<user-email>"})`,
+        promptMessage: `OAuth Verification for ${modelId} (${userEmail || "admin@modelbox.internal"})`,
         errorMessage: err instanceof Error ? err.message : "Manual verification failed",
       });
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
@@ -883,7 +883,7 @@ export class ModelConfigController {
     const { userEmail, accessToken, refreshToken, authMode, accountCategory } = req.body || {};
     const descriptor = modelOAuthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
     const provider = descriptor.provider;
-    const email = (userEmail && String(userEmail).trim()) || "<user-email>";
+    const email = (userEmail && String(userEmail).trim() && !String(userEmail).includes("<")) ? String(userEmail).trim() : "admin@modelbox.internal";
     const token = (accessToken && String(accessToken).trim()) || `ya29.pkce_cli_${Date.now()}`;
     const rToken = (refreshToken && String(refreshToken).trim()) || `rt_${provider}_${Date.now()}`;
 
@@ -1029,7 +1029,7 @@ export class ModelConfigController {
 
     // 3. Persist credentials to bidirectional volume and database via modelAuthenticationFlowCoordinator
     const mid = modelId || "gemini-3.8-flash";
-    const email = userEmail || session?.userEmail || "<user-email>";
+    const email = (userEmail && !String(userEmail).includes("<")) ? userEmail : session?.userEmail || "admin@modelbox.internal";
     let savedAccount: any = null;
     let credentialsFilePath = "";
     let responseFilePath = "";

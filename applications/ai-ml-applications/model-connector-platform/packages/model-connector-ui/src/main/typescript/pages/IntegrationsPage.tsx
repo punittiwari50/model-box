@@ -863,6 +863,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     if (isTelemetryVerified && !cliScriptError && !actionError) {
       return true;
     }
+    if (oauthSession?.accessToken && !oauthSession.accessToken.includes("invalid") && !cliScriptError && !actionError) {
+      return true;
+    }
     if (!isCurrentAccountVerifiedAndActive) {
       return false;
     }
@@ -871,31 +874,25 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       !oauthSession.accessToken.includes("invalid") &&
       !oauthSession.accessToken.startsWith("token_") &&
       !cliScriptError &&
-      !actionError &&
-      !isVerifyingAuthCode
+      !actionError
     );
-  }, [isCurrentAccountVerifiedAndActive, oauthSession, cliScriptError, actionError, isVerifyingAuthCode, verificationTelemetry, testResult]);
+  }, [isCurrentAccountVerifiedAndActive, oauthSession, cliScriptError, actionError, verificationTelemetry, testResult]);
 
   // Determine current effective OAuth step (1: Provider, 2: Redirect & Consent, 3: Token Vault)
   const effectiveOAuthStep: 1 | 2 | 3 = useMemo(() => {
     if (activeOAuthStep === 1) return 1;
-    // When authentication failed, timed out, or unverified, NEVER show step 3; resume at step 2
-    if (cliScriptError || actionError || !isAccountVerified) {
-      return 2;
-    }
-    if (activeOAuthStep === 3 && isAccountVerified) {
+    if (activeOAuthStep === 3) {
+      if (cliScriptError || actionError) return 2;
       return 3;
     }
-    if (activeOAuthStep === 2) return 2;
-    if (isAccountVerified) return 3;
     return 2;
-  }, [activeOAuthStep, isAccountVerified, cliScriptError, actionError]);
+  }, [activeOAuthStep, cliScriptError, actionError]);
 
   useEffect(() => {
-    if (activeOAuthStep === 3 && !isAccountVerified) {
+    if (activeOAuthStep === 3 && (cliScriptError || actionError)) {
       setActiveOAuthStep(2);
     }
-  }, [activeOAuthStep, isAccountVerified]);
+  }, [activeOAuthStep, cliScriptError, actionError]);
 
   const activeVerifiedAccount = useMemo(() => {
     return (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive);
@@ -2750,12 +2747,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                   : "pending"
                                 }`}
                               onClick={() => {
-                                if (isAccountVerified) setActiveOAuthStep(3);
+                                if (isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken)) setActiveOAuthStep(3);
                               }}
-                              disabled={!isAccountVerified}
+                              disabled={!(isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken))}
                               style={{
-                                cursor: isAccountVerified ? "pointer" : "not-allowed",
-                                opacity: isAccountVerified ? 1 : 0.55,
+                                cursor: (isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken)) ? "pointer" : "not-allowed",
+                                opacity: (isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken)) ? 1 : 0.55,
                               }}
                             >
                               <span className="step-circle stage-indicator">
@@ -3660,10 +3657,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                 </button>
                                 <button
                                   type="button"
-                                  className={`btn-oauth-action ${isAccountVerified ? "btn-browser-auth" : "btn-disabled"}`}
-                                  disabled={!isAccountVerified}
+                                  className={`btn-oauth-action ${(isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken)) ? "btn-browser-auth" : "btn-disabled"}`}
+                                  disabled={!(isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken))}
                                   onClick={() => {
-                                    if (isAccountVerified) {
+                                    if (isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken)) {
                                       setActiveOAuthStep(3);
                                     }
                                   }}
@@ -3672,23 +3669,21 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                       ? "Verification in progress..."
                                       : cliScriptError || actionError
                                         ? "Verification failed. Re-verify code to proceed."
-                                        : isAccountVerified
+                                        : (isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken))
                                           ? "OAuth session verified. Click to proceed to Token Vault."
                                           : redirectAuthCode.trim() && !verificationTelemetry
                                             ? "Authorization code pending verification. Click 'Verify & Save' first."
-                                            : !isAccountVerified
-                                              ? "Verification required before proceeding to Token Vault."
-                                              : "Next: Token Vault & Verification"
+                                            : "Verification required before proceeding to Token Vault."
                                   }
                                   style={{
-                                    cursor: isAccountVerified ? "pointer" : "not-allowed",
-                                    opacity: isAccountVerified ? 1 : 0.5,
+                                    cursor: (isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken)) ? "pointer" : "not-allowed",
+                                    opacity: (isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken)) ? 1 : 0.5,
                                   }}
                                 >
                                   <span>
                                     {isVerifyingAuthCode
                                       ? "Verifying..."
-                                      : isAccountVerified
+                                      : (isAccountVerified || verificationTelemetry?.status === "success" || Boolean(oauthSession?.accessToken))
                                         ? "✔ Next: Token Vault & Verification →"
                                         : "Next: Token Vault & Verification →"}
                                   </span>

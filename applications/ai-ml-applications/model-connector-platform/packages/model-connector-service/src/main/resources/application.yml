@@ -25,7 +25,6 @@ datasource:
     port: "${POSTGRES_PORT:5432}"
     database: "${POSTGRES_DB:model_connector_db}"
     username: "${POSTGRES_USER:postgres}"
-    password: "${POSTGRES_PASSWORD:postgres}"
     password: "${POSTGRES_PASSWORD:-}"
     ssl: "${POSTGRES_SSL:false}"
     pool:

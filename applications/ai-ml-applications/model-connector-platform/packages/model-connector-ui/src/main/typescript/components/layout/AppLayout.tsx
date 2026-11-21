@@ -59,7 +59,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onSwitchDeviceMode={onSwitchDeviceMode}
         />
 
-        <div className={`desktop-view-container app-content-area ${isMobileMode ? "mobile-content-area" : ""}`}>
+        <div className={`desktop-view-container app-content-area ${state.activeTab === "chat" ? "is-chat-tab" : ""} ${isMobileMode ? "mobile-content-area" : ""}`}>
           {state.activeTab === "chat" && <ChatPage state={state} />}
           {state.activeTab === "models" && (
             <ModelsPage state={state} externalSearchQuery={globalSearch} />

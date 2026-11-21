@@ -42,7 +42,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-model_connectors}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_vault_pw_2026_sec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -83,8 +83,8 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT:-5432}
       - POSTGRES_DB=${POSTGRES_DB:-model_connectors}
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_vault_pw_2026_sec}
-      - MODEL_BOX_POSTGRES_DSN=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_vault_pw_2026_sec}@${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}:5432/${POSTGRES_DB:-model_connectors}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+      - MODEL_BOX_POSTGRES_DSN=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-}@${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}:5432/${POSTGRES_DB:-model_connectors}
     depends_on:
       vault:
         condition: service_healthy

@@ -307,10 +307,17 @@
     .chat-panel-header {
       background: var(--theme-bg-surface);
       border-bottom: 1px solid var(--theme-border-subtle);
-      padding: var(--space-2) var(--space-3);
+      padding: 10px 16px;
       position: sticky;
       top: 0;
       z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+      box-sizing: border-box;
+      width: 100%;
 
       .chat-header-row-primary {
         display: flex;
@@ -318,6 +325,7 @@
         justify-content: space-between;
         gap: var(--space-2);
         flex-wrap: wrap;
+        width: 100%;
 
         @include respond-to("md") {
           gap: var(--space-2);
@@ -327,8 +335,10 @@
       .chat-header-left {
         display: flex;
         align-items: center;
-        gap: var(--space-2);
-        flex-shrink: 0;
+        gap: 8px;
+        flex-wrap: wrap;
+        min-width: 0;
+        flex: 1 1 auto;
 
         .chat-view-mode-segmented {
           display: inline-flex;
@@ -1865,8 +1875,13 @@
       font-weight: 600;
       color: var(--theme-text-primary);
 
-      &.accent { color: var(--theme-primary); }
-      &.success { color: var(--theme-success-text); }
+      &.accent {
+        color: var(--theme-primary);
+      }
+
+      &.success {
+        color: var(--theme-success-text);
+      }
     }
   }
 
@@ -2010,7 +2025,8 @@
   width: 100%;
   border-collapse: collapse;
 
-  th, td {
+  th,
+  td {
     vertical-align: middle;
   }
 
@@ -2861,5 +2877,7 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -11,7 +11,7 @@ import {
 
 describe("OAuthProviderUrlStrategy Polymorphic Dispatch Tests", () => {
   const googleLoginUrl =
-    "https://accounts.google.com/o/oauth2/auth?client_id=1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fantigravity.google%2Foauth-callback&response_type=code&scope=openid%20profile%20email";
+    "https://accounts.google.com/o/oauth2/auth?client_id=synthetic-gemini-client-id-000000000000.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fantigravity.google%2Foauth-callback&response_type=code&scope=openid%20profile%20email";
   const openAiUrl = "https://auth0.openai.com/authorize?client_id=chatgpt-cli&response_type=code";
   const anthropicUrl = "https://console.anthropic.com/oauth/authorize?client_id=claude-cli&response_type=code";
 

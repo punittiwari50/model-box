@@ -146,74 +146,138 @@
     .matrix-table-container {
       overflow-x: auto;
     }
+  }
 
-    .rbac-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: var(--font-sm);
+  .rbac-table-container {
+    overflow-x: auto;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
 
-      th {
-        text-align: left;
-        padding: 10px 12px;
-        background: var(--theme-bg-table-header);
-        color: var(--theme-text-secondary);
-        font-weight: 600;
-        border-bottom: 1px solid var(--theme-border-default);
+  .table-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    color: var(--theme-primary, #6366f1);
+    font-weight: 600;
+    font-size: var(--font-sm, 0.875rem);
+    text-align: left;
+    white-space: nowrap;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: var(--theme-primary-hover, #4f46e5);
+    }
+
+    .user-avatar-icon {
+      font-size: 1.15rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .user-name-text {
+      white-space: nowrap;
+      font-weight: 600;
+    }
+  }
+
+  .rbac-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-sm);
+
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      background: var(--theme-bg-table-header);
+      color: var(--theme-text-secondary);
+      font-weight: 700;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--theme-border-default);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--theme-border-subtle);
+      color: var(--theme-text-primary);
+      vertical-align: middle;
+      white-space: nowrap;
+
+      code {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.8rem;
+        background: var(--theme-bg-muted);
+        padding: 2px 6px;
+        border-radius: var(--radius-sm, 4px);
+      }
+    }
+
+    .table-actions-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .current-user-row {
+      background: var(--theme-bg-row-selected);
+    }
+
+    .user-avatar-tag {
+      margin-right: 6px;
+    }
+
+    .role-pill {
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: var(--theme-primary-soft);
+      color: var(--theme-primary);
+      border: 1px solid var(--theme-primary-border);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .pass-pill {
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      background: var(--theme-warning-soft);
+      color: var(--theme-warning-text);
+      border: 1px solid var(--theme-warning-border);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .status-check {
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+
+      &.green {
+        background: var(--theme-success-soft);
+        color: var(--theme-success-text);
       }
 
-      td {
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--theme-border-subtle);
-        color: var(--theme-text-primary);
+      &.red {
+        background: var(--theme-danger-soft);
+        color: var(--theme-danger-text);
       }
 
-      .current-user-row {
-        background: var(--theme-bg-row-selected);
-      }
-
-      .user-avatar-tag {
-        margin-right: 6px;
-      }
-
-      .role-pill {
-        font-size: 0.7rem;
-        font-weight: 600;
-        background: var(--theme-primary-soft);
-        color: var(--theme-primary);
-        border: 1px solid var(--theme-primary-border);
-        padding: 2px 8px;
-        border-radius: var(--radius-full);
-      }
-
-      .pass-pill {
-        font-size: 0.72rem;
-        font-family: var(--font-mono);
-        background: var(--theme-warning-soft);
-        color: var(--theme-warning-text);
-        border: 1px solid var(--theme-warning-border);
-        padding: 2px 8px;
-        border-radius: var(--radius-full);
-      }
-
-      .status-check {
-        font-size: 0.74rem;
-        font-weight: 600;
-        padding: 2px 8px;
-        border-radius: var(--radius-full);
-
-        &.green {
-          background: var(--theme-success-soft);
-          color: var(--theme-success-text);
-        }
-
-        &.red {
-          background: var(--theme-danger-soft);
-          color: var(--theme-danger-text);
-        }
-
-        &.gray {
-          color: var(--theme-text-muted);
-        }
+      &.gray {
+        color: var(--theme-text-muted);
       }
     }
   }

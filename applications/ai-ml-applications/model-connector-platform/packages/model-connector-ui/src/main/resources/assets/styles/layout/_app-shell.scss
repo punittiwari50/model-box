@@ -862,6 +862,19 @@
     padding: var(--space-3);
     overflow-y: visible;
   }
+
+  &.is-chat-tab {
+    overflow: hidden;
+    height: calc(100vh - var(--header-height));
+    max-height: calc(100vh - var(--header-height));
+    padding-bottom: var(--space-2);
+
+    @media (max-width: 1024px) {
+      height: auto;
+      max-height: none;
+      overflow-y: auto;
+    }
+  }
 }
 
 .desktop-nav-item {

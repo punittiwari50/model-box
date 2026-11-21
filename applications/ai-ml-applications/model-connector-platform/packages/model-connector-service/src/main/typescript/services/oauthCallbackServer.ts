@@ -205,7 +205,7 @@ export class UpstreamProviderCodeExchangeStrategy implements IOAuthCodeExchangeS
           return {
             accessToken,
             refreshToken: (parsed.refresh_token as string) || `rt_${ctx.provider}`,
-            userEmail: ctx.emailHint?.trim() || (parsed.email as string) || "<user-email>",
+            userEmail: ctx.emailHint?.trim() || (parsed.email as string) || DEFAULT_PROVIDER_ACCOUNTS[ctx.provider]?.[0]?.email || "admin@modelbox.internal",
             authorizedTimestamp: new Date().toISOString(),
           };
         }

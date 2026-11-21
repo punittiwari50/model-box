@@ -128,6 +128,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
 
   const handleSelectSessionFromList = (sessionId: string) => {
     state.setActiveSessionId(sessionId);
+    const targetSession = state.sessions.find((s) => s.sessionId === sessionId);
+    if (targetSession?.model) {
+      state.setSelectedModel(targetSession.model);
+    }
     setChatViewMode("chat");
   };
 
