@@ -107,7 +107,7 @@ apiRouter.put(
 apiRouter.post(
   "/models/:modelId/accounts/:accountId/activate",
   requirePermission(RbacPermission.INTEGRATIONS_UPDATE, RbacPermission.MODELS_MANAGE),
-  (req, res) => accountController.activateAccount(req, res),
+  (req, res, next) => accountController.activateAccount(req, res).catch(next),
 );
 apiRouter.post(
   "/models/:modelId/accounts/:accountId/deactivate",

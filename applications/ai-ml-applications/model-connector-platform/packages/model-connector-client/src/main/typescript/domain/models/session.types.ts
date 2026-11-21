@@ -48,4 +48,6 @@ export interface UpstreamAuditLog {
   readonly correlationId?: string;
   readonly traceId?: string;
   readonly spanId?: string;
+  readonly strategyMode?: string;
+  readonly errorMessage?: string;
 }

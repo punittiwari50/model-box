@@ -164,7 +164,7 @@ export class ApiService {
     config?: Record<string, unknown>;
     effortTier?: "low" | "medium" | "high";
     userEmail?: string;
-    mode?: "chat" | "ask" | "agent" | "gemini";
+    mode?: "chat" | "ask" | "agent";
     sessionId?: string;
   }): Promise<TestConnectionResult> {
     const res = await this.fetchWithTelemetry(`${API_BASE}/models/config/test-connection`, {
@@ -205,10 +205,12 @@ export class ApiService {
     modelId: string,
     input: string,
     userEmail?: string,
+    clientId?: string,
+    clientSecret?: string,
   ): Promise<{
     success: boolean;
-    session: any;
-    message: string;
+    session?: any;
+    message?: string;
     errorCode?: string;
     account?: any;
     syncedAccounts?: any[];
@@ -217,17 +219,30 @@ export class ApiService {
       changedFiles: string[];
       gitCommitHash?: string;
     };
+    correlationId?: string;
+    traceId?: string;
   }> {
     const res = await fetch(`${API_BASE}/models/${encodeURIComponent(modelId)}/verify-oauth-manual`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input, userEmail }),
+      body: JSON.stringify({ input, userEmail, clientId, clientSecret }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    const correlationId = res.headers.get("x-correlation-id") || data.correlationId;
+    const traceId = res.headers.get("x-trace-id") || data.traceId;
     if (!res.ok) {
-      throw new Error(data.message || "Failed to execute manual OAuth verification");
+      const err = new Error(data.message || `Failed to execute manual OAuth verification (HTTP ${res.status})`);
+      (err as any).correlationId = correlationId;
+      (err as any).traceId = traceId;
+      (err as any).errorCode = data.errorCode || `HTTP_${res.status}`;
+      (err as any).details = data.details;
+      throw err;
     }
-    return data;
+    return {
+      ...data,
+      correlationId: correlationId || data.correlationId,
+      traceId: traceId || data.traceId,
+    };
   }
 
   public static async exchangeModelOAuthToken(
@@ -647,6 +662,8 @@ export class ApiService {
       isNewAccount: boolean;
     }>;
     message: string;
+    correlationId?: string;
+    traceId?: string;
   }> {
     const res = await fetch(`${API_BASE}/models/${encodeURIComponent(modelId)}/vcs/verify`, {
       method: "POST",
@@ -654,8 +671,19 @@ export class ApiService {
       body: JSON.stringify({ userEmail }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || "Failed to verify credentials directory");
-    return data;
+    const correlationId = res.headers.get("x-correlation-id") || data.correlationId;
+    const traceId = res.headers.get("x-trace-id") || data.traceId;
+    if (!res.ok) {
+      const err = new Error(data?.message || "Failed to verify credentials directory");
+      (err as any).correlationId = correlationId;
+      (err as any).traceId = traceId;
+      throw err;
+    }
+    return {
+      ...data,
+      correlationId: correlationId || data.correlationId,
+      traceId: traceId || data.traceId,
+    };
   }
 
   public static async fetchVcsStatus(modelId: string): Promise<{
@@ -769,7 +797,7 @@ export class ApiService {
       {
         userId: "usr-admin",
         fullName: "Platform Administrator",
-        userEmail: "<user-email>",
+        userEmail: "admin@modelbox.internal",
         companyId: "acme-corp",
         companyName: "Acme Global Technologies",
         roleId: "SUPER_ADMIN",
@@ -779,7 +807,7 @@ export class ApiService {
       {
         userId: "usr-dev",
         fullName: "AI/ML Engineer",
-        userEmail: "<user-email-dev>",
+        userEmail: "developer@modelbox.internal",
         companyId: "acme-corp",
         companyName: "Acme Global Technologies",
         roleId: "DEVELOPER",
@@ -789,7 +817,7 @@ export class ApiService {
       {
         userId: "usr-analyst",
         fullName: "Business Analyst",
-        userEmail: "<user-email-analyst>",
+        userEmail: "analyst@modelbox.internal",
         companyId: "acme-corp",
         companyName: "Acme Global Technologies",
         roleId: "ANALYST",
@@ -799,7 +827,7 @@ export class ApiService {
       {
         userId: "usr-globex",
         fullName: "Company Administrator",
-        userEmail: "<user-email-admin>",
+        userEmail: "enterprise@modelbox.internal",
         companyId: "globex-inc",
         companyName: "Globex Robotics Inc",
         roleId: "COMPANY_ADMIN",

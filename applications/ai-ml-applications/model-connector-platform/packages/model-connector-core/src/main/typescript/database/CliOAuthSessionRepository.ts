@@ -4,6 +4,7 @@ import { fileUtils } from "@/utils/file/fileUtils.js";
 import { pathUtils } from "@/utils/file/pathUtils.js";
 import { processUtils } from "@/utils/process/processUtils.js";
 import { logger } from "@/logging/logger.js";
+import { oauthProviderUrlStrategyRegistry } from "@/auth/oauthUrlStrategies.js";
 
 export type CliOAuthSessionStatus = "PENDING" | "COMPLETED" | "EXPIRED" | "FAILED";
 
@@ -489,9 +490,9 @@ export class CliOAuthSessionRepository {
   private mapRowToSession(row: Record<string, unknown>): CliOAuthSession {
     const provider = String(row.PROVIDER ?? "").toLowerCase();
     const modelId = String(row.MODEL_ID ?? "").toLowerCase();
-    const isGoogle = provider === "google" || modelId.includes("gemini");
     const rawUrl = this.sanitizeStoredOAuthUrl(row.OAUTH_URL);
-    const safeUrl = (!isGoogle && rawUrl.includes("accounts.google.com")) ? "" : rawUrl;
+    const strategy = oauthProviderUrlStrategyRegistry.getStrategy(modelId, provider);
+    const safeUrl = strategy.isValidOAuthUrl(rawUrl) ? rawUrl : "";
 
     return {
       sessionId: String(row.SESSION_ID ?? ""),

@@ -17,6 +17,7 @@ export interface ModelAccount {
   customLocation?: string;
   credentialsFileContent?: string;
   authMethod?: string;
+  status?: string;
   createdTimestamp: string;
   updatedTimestamp: string;
 }
@@ -359,7 +360,7 @@ export class AccountRepository {
       userEmail: params.userEmail,
       authType: "cli_oauth",
       credentialValue: params.tokens?.access_token || params.fileContent,
-      isActive: params.isActive ?? true,
+      isActive: params.isActive ?? false,
       configJson: JSON.stringify(configPayload),
     });
   }
@@ -407,7 +408,7 @@ export class AccountRepository {
       userEmail: defaultEmail,
       authType: "cli_oauth",
       credentialValue: "",
-      isActive: true,
+      isActive: false, // Strict Invariant: Never active until verified with 2xx response
       authCode,
       configJson: JSON.stringify({ authCode, provider: "google" }),
     });
@@ -463,6 +464,10 @@ export class AccountRepository {
       : parsedCfg.authCode
         ? String(parsedCfg.authCode)
         : undefined;
+    const resolvedStatus =
+      parsedCfg.verificationStatus ||
+      parsedCfg.status ||
+      (row.isActive ? (parsedCfg.status === "VERIFIED" ? "VERIFIED" : "UNVERIFIED") : "UNVERIFIED");
     return {
       accountId: String(row.accountId),
       modelId: String(row.modelId),
@@ -473,6 +478,7 @@ export class AccountRepository {
       isActive: Boolean(row.isActive),
       configJson: row.configJson ? String(row.configJson) : undefined,
       authCode,
+      status: String(resolvedStatus),
       customLocation: parsedCfg.customLocation ? String(parsedCfg.customLocation) : undefined,
       credentialsFileContent: parsedCfg.credentialsFileContent ? String(parsedCfg.credentialsFileContent) : undefined,
       authMethod: parsedCfg.authMethod ? String(parsedCfg.authMethod) : undefined,

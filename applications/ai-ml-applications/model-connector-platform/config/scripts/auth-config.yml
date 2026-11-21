@@ -4,6 +4,7 @@
 # ==============================================================================
 features:
   default_google_cli: "antigravity"
+  cli_timeout_seconds: 600
 
 oauth:
   google_base_url: "https://accounts.google.com/o/oauth2/v2/auth"

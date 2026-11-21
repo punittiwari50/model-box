@@ -9,10 +9,11 @@ import { DatabaseCleanUpGuard } from "@/runner/DatabaseCleanUpGuard.js";
  */
 export class UC10_RealOllamaDockerExecution extends AbstractUsecaseTest {
   private static readonly OLLAMA_CANDIDATES = Object.freeze([
+    "http://ollama-model-service-cpu:11434",
+    "http://ollama:11434",
     "http://host.docker.internal:11435",
     "http://127.0.0.1:11435",
     "http://localhost:11435",
-    "http://ollama:11434",
   ]);
 
   public constructor() {

@@ -125,8 +125,8 @@ export class Logger {
     const sanitizedMsg =
       typeof message === "string"
         ? message
-            .replace(BEARER_REGEX, "Bearer [REDACTED]")
-            .replace(API_KEY_QUERY_REGEX, "key=[REDACTED]")
+          .replace(BEARER_REGEX, "Bearer [REDACTED]")
+          .replace(API_KEY_QUERY_REGEX, "key=[REDACTED]")
         : message;
 
     return `${timestamp} [${level}] [${component}]${traceMeta} ${sanitizedMsg}${detailsStr}`;

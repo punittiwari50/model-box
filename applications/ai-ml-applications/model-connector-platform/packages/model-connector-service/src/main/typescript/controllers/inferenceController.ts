@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { inferenceService } from "@/services/inferenceService";
 import { HttpStatus, HttpHeader } from "@/constants/index";
-import { accountRepository, type ExecutionRequest, type StreamChunk } from "@model-box/model-connector-client";
+import type { ExecutionRequest, StreamChunk } from "@model-box/model-connector-client";
 
 export class InferenceController {
   public async chat(req: Request, res: Response): Promise<void> {
@@ -10,14 +10,6 @@ export class InferenceController {
       const response = await inferenceService.executeChat(payload);
       res.status(HttpStatus.OK).json({ success: true, ...response });
     } catch (err: any) {
-      try {
-        const payload = this.extractExecutionPayload(req);
-        if (payload.model) {
-          accountRepository.deactivateActiveAccount(payload.model);
-        }
-      } catch {
-        // Safe deactivation on inference exception
-      }
       const statusCode = Number(err.statusCode) || HttpStatus.INTERNAL_SERVER_ERROR;
       res.status(statusCode).json({
         success: false,
@@ -41,13 +33,6 @@ export class InferenceController {
       res.write("event: done\ndata: [DONE]\n\n");
       res.end();
     } catch (err: any) {
-      try {
-        if (payload.model) {
-          accountRepository.deactivateActiveAccount(payload.model);
-        }
-      } catch {
-        // Safe deactivation on stream inference exception
-      }
       res.write(`event: error\ndata: ${JSON.stringify({ message: err.message })}\n\n`);
       res.end();
     }

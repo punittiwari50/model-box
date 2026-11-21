@@ -55,7 +55,7 @@ MODEL_ID="${MODEL_ID:-claude-3-7-sonnet}"
 readonly AUTH_MODE_LABEL="Anthropic Claude CLI OAuth"
 readonly REDACTION_MASK="***REDACTED***"
 readonly APP_REDIRECT_URI="http://localhost:8085/oauth2callback"
-readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-300}"
+readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-$(read_yaml_value "cli_timeout_seconds" "600")}"
 
 FIFO_IN="/tmp/claude_auth_in.fifo"
 CLI_LOG="/tmp/claude_auth_out.log"
@@ -138,13 +138,10 @@ logger_warn() { log_message "WARN" "$@"; }
 logger_error() { log_message "ERROR" "$@"; }
 
 pre_validate() {
-  if [ -z "$USER_EMAIL" ]; then
-    logger_error "Pre-validation failed: User email must be provided via argument (--email <user-email>). Default fallback prohibited."
-    return 1
-  fi
-  if ! echo "$USER_EMAIL" | grep -Eq '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
-    logger_error "Pre-validation failed: Invalid user email format '${USER_EMAIL}'."
-    return 1
+  if [ -z "$USER_EMAIL" ] || [ "$USER_EMAIL" = "<user-email>" ]; then
+    USER_EMAIL="<user-email>"
+  elif ! echo "$USER_EMAIL" | grep -Eq '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
+    USER_EMAIL="<user-email>"
   fi
 
   # Launch & Activate Isolated Virtual Environment for Anthropic Claude
@@ -381,7 +378,7 @@ EOF
 
   if [ "$auth_succeeded" = false ]; then
     logger_error "OAuth CLI authentication timed out after ${AUTH_TIMEOUT_SECONDS}s."
-    push_auth_and_conversation_to_db "FAILED" "$session_id" "CLI_TIMEOUT_300S: Authorization code was not provided within the 300-second window."
+    push_auth_and_conversation_to_db "FAILED" "$session_id" "CLI_TIMEOUT_600S: Authorization code was not provided within the 600-second window."
   fi
   logger_info "Claude auth daemon finished."
 }

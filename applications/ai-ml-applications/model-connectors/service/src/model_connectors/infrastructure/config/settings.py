@@ -80,8 +80,8 @@ class SecurityConfig:
     api_key_header: str = SecurityConstants.HEADER_API_KEY
     bearer_token_prefix: str = SecurityConstants.BEARER_PREFIX
     session_cookie_name: str = SecurityConstants.DEFAULT_COOKIE_NAME
-    hmac_secret: str = "model-box-default-secure-hmac-secret-change-in-prod"
-    token_encryption_key: str = "model-box-32-byte-hex-encryption-key!!"
+    hmac_secret: str = ""
+    token_encryption_key: str = ""
     allowed_roles: tuple[str, ...] = (
         SecurityConstants.ROLE_ADMIN,
         SecurityConstants.ROLE_ML_ENGINEER,
@@ -296,7 +296,7 @@ class AppConfig:
             hmac_secret=str(
                 environment.get_property(
                     ConfigKeyConstants.SECURITY_HMAC_SECRET,
-                    "model-box-default-secure-hmac-secret-change-in-prod",
+                    "",
                 )
             ),
             audit_logging=bool(

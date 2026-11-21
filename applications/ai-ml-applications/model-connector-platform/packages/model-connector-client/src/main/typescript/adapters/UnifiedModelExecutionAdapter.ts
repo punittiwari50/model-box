@@ -2,7 +2,7 @@ import { HttpTransport } from "@/strategies/api/HttpTransport.js";
 import { DefaultEndpoint, ModelCatalogDefaults } from "@/domain/constants/index.js";
 import type { ModelDescriptor } from "@/domain/models/model.types.js";
 import type { UpstreamAuthStatus, UpstreamAuditLog } from "@/domain/models/session.types.js";
-import { environment, ModelCatalog, ModelFamily } from "@model-box/model-connector-core";
+import { environment, ModelCatalog, ModelFamily, processUtils } from "@model-box/model-connector-core";
 import { ModelConnectorException } from "@/domain/errors/domainExceptions.js";
 import { SimulationPolicyFactory } from "@/domain/policies/SimulationPolicyFactory.js";
 import {
@@ -57,7 +57,7 @@ export class UnifiedModelExecutionAdapter {
     } catch {
       return {
         status: "DEGRADED",
-        service: "model-connector-platform",
+        service: processUtils.getEnv("CONTAINER_NAME", processUtils.getEnv("SERVICE_NAME", "model-connector-service")),
         uptimeSeconds: 0,
         supportedFamilies: Object.values(ModelFamily),
       };

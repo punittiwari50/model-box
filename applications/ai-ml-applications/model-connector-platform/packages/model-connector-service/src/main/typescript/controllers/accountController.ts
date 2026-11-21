@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { accountRepository, type AuthType } from "@/repositories/accountRepository";
 import { HttpStatus } from "@/constants/index";
+import { modelAuthenticationFlowCoordinator } from "@model-box/model-connector-client";
 
 export class AccountController {
   public listAccountsByModel(req: Request, res: Response): void {
@@ -50,7 +51,7 @@ export class AccountController {
       userEmail,
       authType: authType as AuthType,
       credentialValue,
-      isActive: Boolean(isActive ?? true),
+      isActive: Boolean(isActive ?? false),
       authCode,
       configJson: resolvedConfigJson,
     });
@@ -99,7 +100,7 @@ export class AccountController {
     let configObj: Record<string, unknown> = {};
     if (config && typeof config === "object") configObj = { ...config };
     else if (configJson) {
-      try { configObj = JSON.parse(configJson); } catch {}
+      try { configObj = JSON.parse(configJson); } catch { }
     }
     if (customLocation) configObj.customLocation = customLocation;
     if (credentialsFileContent) configObj.credentialsFileContent = credentialsFileContent;
@@ -108,11 +109,10 @@ export class AccountController {
     return Object.keys(configObj).length > 0 ? JSON.stringify(configObj) : undefined;
   }
 
-  public activateAccount(req: Request, res: Response): void {
+  public async activateAccount(req: Request, res: Response): Promise<void> {
     const { modelId, accountId } = req.params;
-    const activated = accountRepository.setActiveAccount(modelId, accountId);
-
-    if (!activated) {
+    const account = accountRepository.getAccount(accountId);
+    if (!account || account.modelId.toLowerCase() !== modelId.toLowerCase()) {
       res.status(HttpStatus.NOT_FOUND).json({
         success: false,
         message: `Account '${accountId}' for model '${modelId}' not found.`,
@@ -121,9 +121,48 @@ export class AccountController {
       return;
     }
 
+    if (!account.credentialValue && !account.authCode) {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        message: `Cannot activate unverified account without valid credentials. Run connection test first.`,
+        correlationId: req.correlationId,
+      });
+      return;
+    }
+
+    const testResult = await modelAuthenticationFlowCoordinator.verifyConnection(account.authType, {
+      modelId,
+      credentialValue: account.credentialValue || account.authCode || "",
+      userPrompt: "Hi , whats date time now ?",
+      startTime: Date.now(),
+      correlationId: req.correlationId,
+      userEmail: account.userEmail,
+    });
+
+    if (testResult.status !== "VERIFIED") {
+      accountRepository.deactivateAccount(modelId, accountId);
+      res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        message: testResult.errorMessage || `Connection verification failed with status ${testResult.status}. Account cannot enter active stage without verified 2xx response.`,
+        details: testResult.details,
+        correlationId: req.correlationId,
+      });
+      return;
+    }
+
+    const activated = accountRepository.setActiveAccount(modelId, accountId);
+    if (!activated) {
+      res.status(HttpStatus.NOT_FOUND).json({
+        success: false,
+        message: `Account '${accountId}' for model '${modelId}' could not be activated.`,
+        correlationId: req.correlationId,
+      });
+      return;
+    }
+
     res.status(HttpStatus.OK).json({
       success: true,
-      message: `Account '${accountId}' set as active for '${modelId}'.`,
+      message: `Account '${accountId}' set as active for '${modelId}' (Verified & Tested with 2xx response).`,
       correlationId: req.correlationId,
     });
   }
@@ -175,8 +214,15 @@ export class AccountController {
       }
     }
 
+    const resolvedStatus =
+      acc.status ||
+      parsedConfig?.verificationStatus ||
+      parsedConfig?.status ||
+      (acc.isActive ? (parsedConfig?.status === "VERIFIED" ? "VERIFIED" : "UNVERIFIED") : "UNVERIFIED");
+
     return {
       ...acc,
+      status: resolvedStatus,
       maskedCredential: masked,
       credentialValue: val,
       config: parsedConfig,

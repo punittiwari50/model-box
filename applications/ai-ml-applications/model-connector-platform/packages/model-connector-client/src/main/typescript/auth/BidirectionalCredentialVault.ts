@@ -199,7 +199,7 @@ export class BidirectionalCredentialVault {
         userEmail: params.userEmail,
         authType: "cli_oauth",
         credentialValue: params.outcome.accessToken,
-        isActive: true,
+        isActive: false, // Invariant: Must not be active stage until connection is verified with 2xx response
         authCode,
         configJson,
       });
@@ -211,7 +211,7 @@ export class BidirectionalCredentialVault {
       userEmail: params.userEmail,
       authType: "cli_oauth",
       credentialValue: params.outcome.accessToken,
-      isActive: true,
+      isActive: false, // Invariant: Must not be active stage until connection is verified with 2xx response
       authCode,
       configJson,
     });

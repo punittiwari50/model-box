@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import type { ModelConnectorState } from "@/utils/hooks/useModelConnectorState";
-import { ModelAccountsModal } from "@/components/models/ModelAccountsModal";
+import { ModelDetailPage } from "@/components/models/ModelDetailPage";
 import { PageHeader, StatCard, StatCardGrid } from "@/components/common";
 import { CategoryMapper, modelFilterStrategy } from "@/utils";
 import { ControlPanel, ModelCardGrid, ModelListView, type ViewType } from "@/components/views";
@@ -25,6 +25,10 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
     id: string;
     name: string;
   } | null>(null);
+
+  useEffect(() => {
+    setSelectedModelForAccounts(null);
+  }, [state.activeTab, state.tabResetNonce]);
 
   useEffect(() => {
     if (externalSearchQuery !== undefined) {
@@ -105,6 +109,21 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
     await state.handleNewSession(modelId);
     state.setActiveTab("chat");
   };
+
+  if (selectedModelForAccounts) {
+    return (
+      <ModelDetailPage
+        modelId={selectedModelForAccounts.id}
+        modelName={selectedModelForAccounts.name}
+        state={state}
+        onBack={() => setSelectedModelForAccounts(null)}
+        onChatSelect={(id) => void handleStartSessionForModel(id)}
+        onAccountChange={() => {
+          void state.refreshModelAccounts();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="desktop-model-catalog page-stack" data-testid="desktop-model-catalog">
@@ -227,17 +246,7 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
         </div>
       )}
 
-      {selectedModelForAccounts && (
-        <ModelAccountsModal
-          modelId={selectedModelForAccounts.id}
-          modelName={selectedModelForAccounts.name}
-          isOpen={Boolean(selectedModelForAccounts)}
-          onClose={() => setSelectedModelForAccounts(null)}
-          onAccountChange={() => {
-            void state.refreshModelAccounts();
-          }}
-        />
-      )}
+
     </div>
   );
 };

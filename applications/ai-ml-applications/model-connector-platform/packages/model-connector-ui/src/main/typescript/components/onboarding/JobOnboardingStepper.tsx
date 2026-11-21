@@ -186,7 +186,7 @@ export const JobOnboardingStepper: React.FC = () => {
               <h5>Extracted Form Fields:</h5>
               <ul>
                 <li><strong>Candidate:</strong> Candidate Profile</li>
-                <li><strong>Contact:</strong> <user-email> • +1-555-0199</li>
+                <li><strong>Contact:</strong> {"<user-email>"} • +1-555-0199</li>
                 <li><strong>Experience:</strong> Senior Cloud Architect (Global Tech Inc, 2020-Present)</li>
                 <li><strong>Tailored Bullets:</strong> Synthesized 3 impact points aligning with job description</li>
               </ul>

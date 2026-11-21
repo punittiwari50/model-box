@@ -18,6 +18,7 @@ import { UC09_ResponsiveMultiDeviceContinuity } from "@/usecases/impl/UC09_Respo
 import { UC10_RealOllamaDockerExecution } from "@/usecases/impl/UC10_RealOllamaDockerExecution.js";
 import { UC11_UxViewsAndThemeSuite } from "@/usecases/impl/UC11_UxViewsAndThemeSuite.js";
 import { UC12_ResponsiveMenuButtonFunctionalSuite } from "@/usecases/impl/UC12_ResponsiveMenuButtonFunctionalSuite.js";
+import { UC13_ChatResponsivenessAndSettingsSuite } from "@/usecases/impl/UC13_ChatResponsivenessAndSettingsSuite.js";
 
 export function createDefaultUsecases() {
   return Object.freeze([
@@ -33,6 +34,7 @@ export function createDefaultUsecases() {
     new UC10_RealOllamaDockerExecution(),
     new UC11_UxViewsAndThemeSuite(),
     new UC12_ResponsiveMenuButtonFunctionalSuite(),
+    new UC13_ChatResponsivenessAndSettingsSuite(),
   ]);
 }
 
@@ -41,7 +43,14 @@ export async function runUsecasesCli(): Promise<void> {
   const defaultDir = pathUtils.resolve(processUtils.cwd(), "reports");
   const outputDir = processUtils.getEnv("REPORT_OUTPUT_DIR", defaultDir);
 
-  const runner = new UsecaseRunner(createDefaultUsecases(), config, outputDir);
+  const filterArg = process.argv.slice(2).find((arg) => arg.startsWith("--usecase="))?.split("=")[1]
+    || processUtils.getEnv("USECASE_FILTER", "");
+  const allCases = createDefaultUsecases();
+  const casesToRun = filterArg
+    ? allCases.filter((u) => u.usecaseId.toLowerCase() === filterArg.toLowerCase())
+    : allCases;
+
+  const runner = new UsecaseRunner(casesToRun, config, outputDir);
   try {
     const summary = await runner.run();
     if (summary.failedUsecases > 0) {

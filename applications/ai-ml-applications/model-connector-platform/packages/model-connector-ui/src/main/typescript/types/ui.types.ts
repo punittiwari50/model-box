@@ -94,7 +94,7 @@ export interface ChatMessage {
   readonly executedCall?: string;
   readonly executedCommand?: string;
   readonly effortTier?: "low" | "medium" | "high";
-  readonly mode?: "chat" | "ask" | "agent" | "gemini";
+  readonly mode?: "chat" | "ask" | "agent";
 }
 
 export interface UiModel {
@@ -213,7 +213,7 @@ export interface TestConnectionResult {
   readonly cliName?: string;
   readonly cliVersion?: string;
   readonly effortTier?: "low" | "medium" | "high";
-  readonly mode?: "chat" | "ask" | "agent" | "gemini";
+  readonly mode?: "chat" | "ask" | "agent";
   readonly tokenMetrics?: TokenMetrics;
   readonly executedCall?: string;
   readonly executedCommand?: string;

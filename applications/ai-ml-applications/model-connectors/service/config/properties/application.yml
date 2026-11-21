@@ -24,7 +24,7 @@ storage:
   yaml:
     config_dir: "./config/connections"
   postgres:
-    dsn: "postgresql://postgres:postgres@localhost:5432/model_connectors"
+    dsn: "${POSTGRES_DSN:-postgresql://postgres@localhost:5432/model_connectors}"
     min_pool_size: 2
     max_pool_size: 10
     connection_timeout_seconds: 15.0
@@ -72,8 +72,8 @@ security:
   api_key_header: "X-API-Key"
   bearer_token_prefix: "Bearer "
   session_cookie_name: "session_cookie"
-  hmac_secret: "model-box-default-secure-hmac-secret-change-in-prod"
-  token_encryption_key: "model-box-32-byte-hex-encryption-key!!"
+  hmac_secret: "${HMAC_SECRET:-}"
+  token_encryption_key: "${TOKEN_ENCRYPTION_KEY:-}"
   allowed_roles:
     - "admin"
     - "ml-engineer"

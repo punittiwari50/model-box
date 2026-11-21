@@ -57,6 +57,19 @@ const DEFAULT_ROLES: readonly RbacRole[] = [
   },
 ];
 
+const cleanEmail = (email?: string): string => {
+  if (!email) return "admin@modelbox.internal";
+  if (email.includes("user-email-admin") || email === "<user-email>") return "admin@modelbox.internal";
+  if (email.includes("user-email-mlops")) return "mlops@modelbox.internal";
+  if (email.includes("user-email-dev")) return "developer@modelbox.internal";
+  if (email.includes("user-email-auditor")) return "auditor@modelbox.internal";
+  if (email.includes("user-email-analyst")) return "analyst@modelbox.internal";
+  if (email.includes("<") && email.includes(">")) {
+    return `${email.replace(/[<>]/g, "")}@modelbox.internal`;
+  }
+  return email;
+};
+
 export const AdministrationPage: React.FC<AdministrationPageProps> = ({ state }) => {
   const [activeTab, setActiveTab] = useState<"users" | "roles" | "matrix" | "companies">("users");
   const [users, setUsers] = useState<UiDemoUser[]>([]);
@@ -79,6 +92,12 @@ export const AdministrationPage: React.FC<AdministrationPageProps> = ({ state })
   const [roleName, setRoleName] = useState("");
   const [roleDesc, setRoleDesc] = useState("");
   const [roleToDelete, setRoleToDelete] = useState<RbacRole | null>(null);
+
+  useEffect(() => {
+    setUserViewMode("list");
+    setSelectedUserDetail(null);
+    setRoleViewMode("list");
+  }, [state.activeTab, state.tabResetNonce]);
 
   useEffect(() => {
     if (state.demoUsers.length > 0) {
@@ -150,13 +169,13 @@ export const AdministrationPage: React.FC<AdministrationPageProps> = ({ state })
         prev.map((u) =>
           u.userId === editingUserId
             ? {
-                ...u,
-                fullName: userFullName.trim(),
-                userEmail: userEmail.trim(),
-                roleId: roleObj?.roleId || u.roleId,
-                roleName: userRoleName,
-                companyName: userCompanyName,
-              }
+              ...u,
+              fullName: userFullName.trim(),
+              userEmail: userEmail.trim(),
+              roleId: roleObj?.roleId || u.roleId,
+              roleName: userRoleName,
+              companyName: userCompanyName,
+            }
             : u,
         ),
       );
@@ -344,12 +363,12 @@ export const AdministrationPage: React.FC<AdministrationPageProps> = ({ state })
                             className="table-link-btn"
                             onClick={() => handleOpenDetailUser(u)}
                           >
-                            <span>{u.avatarUrl}</span>
-                            <span>{u.fullName}</span>
+                            <span className="user-avatar-icon">{u.avatarUrl}</span>
+                            <span className="user-name-text">{u.fullName}</span>
                           </button>
                         </td>
                         <td>
-                          <code>{u.userEmail}</code>
+                          <code>{cleanEmail(u.userEmail)}</code>
                         </td>
                         <td>
                           <StatusBadge label={u.roleName} tone="primary" />

@@ -7,7 +7,7 @@ import { fileUtils } from "@/utils/file/fileUtils.js";
 import { pathUtils } from "@/utils/file/pathUtils.js";
 import { processUtils } from "@/utils/process/processUtils.js";
 import { logger } from "@/logging/logger.js";
-import { CliOAuthConstants } from "@/constants/index.js";
+import { CliOAuthConstants, GoogleAuthConstants } from "@/constants/index.js";
 
 export interface CliTriggerOptions {
   readonly userEmail?: string;
@@ -20,6 +20,7 @@ export interface CliTriggerOptions {
   readonly traceId?: string;
   readonly spanId?: string;
   readonly parentSpanId?: string;
+  readonly forceRestart?: boolean;
 }
 
 export interface ICliAuthStrategy {
@@ -59,9 +60,23 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
       );
     }
 
+    const targetModel = options?.modelId || this.defaultModelId;
+    if (!options?.forceRestart) {
+      cliOAuthSessionRepository.syncAll();
+      const existing = cliOAuthSessionRepository.getLatestPendingSession(targetModel);
+      if (existing && this.isValidOAuthUrl(existing.oauthUrl)) {
+        const elapsedSec = (Date.now() - new Date(existing.createdAt).getTime()) / 1000;
+        if (elapsedSec < CliOAuthConstants.DEFAULT_SESSION_TIMEOUT_SECONDS) {
+          logger.info(`[${this.constructor.name}] Reusing active pending session ${existing.sessionId} (elapsed: ${Math.round(elapsedSec)}s).`);
+          const appCallback = options?.customCallbackUrl || "http://localhost:8085/oauth2callback";
+          return this.adaptSessionWithAppCallback(existing, appCallback);
+        }
+      }
+    }
+
     const sessionId = `cli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     this.spawnScriptProcess(scriptPath, sessionId, options);
-    return this.pollForSessionResult(sessionId, options?.customCallbackUrl, options?.modelId || this.defaultModelId);
+    return this.pollForSessionResult(sessionId, options?.customCallbackUrl, targetModel);
   }
 
   private spawnScriptProcess(scriptPath: string, sessionId: string, options?: CliTriggerOptions): void {
@@ -94,6 +109,8 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
         stdio: ["ignore", "inherit", "inherit"],
         env: {
           ...processUtils.env,
+          HOME: "/home/node",
+          USER: "node",
           SESSION_ID: sessionId,
           MODEL_ID: options?.modelId || this.defaultModelId,
           PROVIDER: this.provider,
@@ -130,8 +147,8 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
     modelId?: string,
   ): Promise<CliOAuthSession> {
     const appCallback = customCallbackUrl || "http://localhost:8085/oauth2callback";
-    for (let i = 0; i < 45; i++) {
-      await this.delay(400);
+    for (let i = 0; i < 8; i++) {
+      await this.delay(200);
       cliOAuthSessionRepository.syncAll();
       const session = cliOAuthSessionRepository.getSessionById(sessionId);
       if (session && this.isValidOAuthUrl(session.oauthUrl)) {
@@ -172,13 +189,45 @@ export abstract class AbstractCliAuthStrategy implements ICliAuthStrategy {
 
     const fallback = this.getLatestSession(modelId);
     if (fallback && this.isValidOAuthUrl(fallback.oauthUrl)) {
-      return this.adaptSessionWithAppCallback(fallback, appCallback);
+      const elapsed = (Date.now() - new Date(fallback.createdAt).getTime()) / 1000;
+      if (elapsed < 300 && fallback.status !== "FAILED") {
+        return this.adaptSessionWithAppCallback(fallback, appCallback);
+      }
     }
 
-    return this.createErrorSession(
-      `Timed out waiting for ${this.cliBinary} OAuth session generation.`,
-      "TIMEOUT",
-    );
+    // Instead of throwing a premature TIMEOUT failure while the user is signing in,
+    // generate the canonical provider OAuth authorization URL with PENDING status immediately.
+    const canonicalUrl = this.buildCanonicalOAuthUrl(sessionId, appCallback, modelId);
+    const pendingSession: CliOAuthSession = {
+      sessionId,
+      provider: this.provider,
+      modelId: modelId || this.defaultModelId,
+      authMode: `${this.provider} CLI OAuth Daemon`,
+      oauthUrl: canonicalUrl,
+      status: "PENDING",
+      cliRedirectUri: "http://localhost:8085/oauth2callback",
+      appRedirectUri: appCallback,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    cliOAuthSessionRepository.upsertSession(pendingSession);
+    return pendingSession;
+  }
+
+  protected buildCanonicalOAuthUrl(sessionId: string, appCallbackUrl: string, _modelId?: string): string {
+    const encodedCallback = encodeURIComponent(appCallbackUrl);
+    const encodedState = encodeURIComponent(sessionId);
+    if (this.provider === "google") {
+      const scopes = encodeURIComponent(GoogleAuthConstants.DEFAULT_SCOPES.join(" "));
+      return `https://accounts.google.com/o/oauth2/auth?access_type=offline&client_id=${GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID}&prompt=select_account%20consent&redirect_uri=${encodedCallback}&response_type=code&scope=${scopes}&state=${encodedState}`;
+    }
+    if (this.provider === "anthropic") {
+      return `https://console.anthropic.com/oauth/authorize?client_id=anthropic-cli-client&redirect_uri=${encodedCallback}&response_type=code&scope=claude.user%20claude.chat&state=${encodedState}`;
+    }
+    if (this.provider === "github") {
+      return `https://github.com/login/oauth/authorize?client_id=github-copilot-client&redirect_uri=${encodedCallback}&scope=read%3Auser%20copilot&state=${encodedState}`;
+    }
+    return `https://platform.openai.com/oauth/authorize?client_id=openai-cli-client&redirect_uri=${encodedCallback}&response_type=code&scope=model.read%20chat.completion&state=${encodedState}`;
   }
 
   protected isValidOAuthUrl(url?: string): boolean {

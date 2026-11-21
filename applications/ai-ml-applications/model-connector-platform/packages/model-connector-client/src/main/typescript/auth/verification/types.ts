@@ -7,7 +7,7 @@ export interface VerificationTokenMetrics {
   readonly percentLeft: number;
 }
 
-export type ModelInteractionMode = "chat" | "ask" | "agent" | "gemini";
+export type ModelInteractionMode = "chat" | "ask" | "agent";
 
 export interface ConnectionTestResult {
   readonly status: "VERIFIED" | "FAILED" | "DEGRADED";

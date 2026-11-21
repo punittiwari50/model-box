@@ -74,15 +74,48 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </button>
 
         <nav className="header-breadcrumbs" aria-label="Breadcrumb">
-          <span className="root-crumb">Home</span>
+          <span
+            className="root-crumb clickable-crumb"
+            role="button"
+            tabIndex={0}
+            onClick={() => state.setActiveTab("chat")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") state.setActiveTab("chat");
+            }}
+            title="Navigate to Home (Chat)"
+          >
+            Home
+          </span>
           <span className="separator" aria-hidden="true">
             ›
           </span>
-          <span className="root-crumb hide-xs">{crumb.parent}</span>
+          <span
+            className="root-crumb hide-xs clickable-crumb"
+            role="button"
+            tabIndex={0}
+            onClick={() => state.setActiveTab(state.activeTab)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") state.setActiveTab(state.activeTab);
+            }}
+            title={`Navigate to ${crumb.parent}`}
+          >
+            {crumb.parent}
+          </span>
           <span className="separator hide-xs" aria-hidden="true">
             ›
           </span>
-          <span className="active-crumb">{crumb.label}</span>
+          <span
+            className="active-crumb clickable-crumb"
+            role="button"
+            tabIndex={0}
+            onClick={() => state.setActiveTab(state.activeTab)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") state.setActiveTab(state.activeTab);
+            }}
+            title={`Refresh and reset ${crumb.label}`}
+          >
+            {crumb.label}
+          </span>
         </nav>
 
         <StatusBadge

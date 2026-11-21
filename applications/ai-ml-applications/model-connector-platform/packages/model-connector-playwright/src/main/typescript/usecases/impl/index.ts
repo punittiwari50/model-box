@@ -11,4 +11,5 @@ export * from "@/usecases/impl/UC09_ResponsiveMultiDeviceContinuity.js";
 export * from "@/usecases/impl/UC10_RealOllamaDockerExecution.js";
 export * from "@/usecases/impl/UC11_UxViewsAndThemeSuite.js";
 export * from "@/usecases/impl/UC12_ResponsiveMenuButtonFunctionalSuite.js";
+export * from "@/usecases/impl/UC13_ChatResponsivenessAndSettingsSuite.js";
 

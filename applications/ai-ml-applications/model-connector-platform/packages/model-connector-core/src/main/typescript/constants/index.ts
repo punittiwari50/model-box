@@ -450,9 +450,28 @@ export const CliOAuthConstants = Object.freeze({
   DEFAULT_BINARY_NAME: "antigravity",
   DEFAULT_MODEL_ID: "gemini-3.8-flash",
   DEFAULT_PROVIDER: "google",
+  DEFAULT_SESSION_TIMEOUT_SECONDS: 600,
   AUTH_MODE_OAUTH: "1. Google OAuth",
   REDACTION_MASK: "***REDACTED***",
   AUTH_CODE_TRIGGER_FILE: "/tmp/antigravity_auth_code.txt",
+});
+
+/**
+ * Centralized OAuth host domains and provider keywords for Strategy Pattern dispatch.
+ * Adheres to STD-COD-002, STD-COD-004, and STD-COD-005.
+ */
+export const OAuthStrategyConstants = Object.freeze({
+  GOOGLE_HOSTS: Object.freeze(["accounts.google.com", "antigravity.google", "google.com"]),
+  OPENAI_HOSTS: Object.freeze(["auth0.openai.com", "auth.openai.com", "platform.openai.com", "chatgpt.com", "openai.com"]),
+  ANTHROPIC_HOSTS: Object.freeze(["console.anthropic.com", "claude.ai", "anthropic.com"]),
+  COPILOT_HOSTS: Object.freeze(["github.com"]),
+  GOOGLE_KEYWORDS: Object.freeze(["gemini", "google", "antigravity"]),
+  OPENAI_KEYWORDS: Object.freeze(["chatgpt", "gpt", "openai", "codex"]),
+  ANTHROPIC_KEYWORDS: Object.freeze(["claude", "anthropic"]),
+  COPILOT_KEYWORDS: Object.freeze(["copilot", "github"]),
+  DEFAULT_RESPONSE_TYPE: "code",
+  DEFAULT_ACCESS_TYPE: "offline",
+  DEFAULT_PROMPT: "consent",
 });
 
 /**

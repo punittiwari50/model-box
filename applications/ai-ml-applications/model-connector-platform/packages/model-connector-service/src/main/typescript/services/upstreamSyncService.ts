@@ -6,7 +6,7 @@ export class UpstreamSyncService {
   public async getUpstreamHealth(_correlationId?: string): Promise<Record<string, unknown>> {
     return {
       status: "ONLINE",
-      service: "model-connector-platform",
+      service: process.env.CONTAINER_NAME || process.env.SERVICE_NAME || "model-connector-service",
       upstreamBridge: "STANDALONE_DIRECT",
       uptimeSeconds: Math.floor(process.uptime()),
     };

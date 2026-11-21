@@ -1,7 +1,7 @@
 import {
-  GoogleAuthConstants,
   CliAuthStrategyFactory,
   directoryAccountSyncService,
+  oauthProviderUrlStrategyRegistry,
 } from "@model-box/model-connector-core";
 import {
   accountRepository,
@@ -152,7 +152,7 @@ export class ModelAuthenticationFlowCoordinator {
           userEmail,
           authType: "cli_oauth",
           credentialValue: accessToken,
-          isActive: true,
+          isActive: false, // Invariant: Never active until verified with 2xx response
           configJson,
         }) || match
       );
@@ -163,7 +163,7 @@ export class ModelAuthenticationFlowCoordinator {
       userEmail,
       authType: "cli_oauth",
       credentialValue: accessToken,
-      isActive: true,
+      isActive: false, // Invariant: Never active until verified with 2xx response
       configJson,
     });
   }
@@ -201,21 +201,30 @@ export class ModelAuthenticationFlowCoordinator {
   ): Promise<ConnectionTestResult> {
     const strategy = this.verificationRegistry.resolve(authType);
     const testResult = await strategy.verify(ctx);
-    this.deactivateAccountOnFailure(ctx.modelId, ctx.credentialValue, testResult.status);
+    if (testResult.status === "VERIFIED") {
+      this.activateAccountOnSuccess(ctx.modelId, ctx.credentialValue, ctx.userEmail);
+    } else {
+      this.deactivateAccountOnFailure(ctx.modelId, ctx.credentialValue, testResult.status);
+    }
     return testResult;
   }
 
-  public deactivateAccountOnFailure(modelId: string, credentialValue: string, status: string): void {
+  public activateAccountOnSuccess(modelId: string, credentialValue?: string, userEmail?: string): void {
+    const match = accountRepository.findMatchingAccount(modelId, undefined, userEmail);
+    if (match) {
+      accountRepository.updateAccount(match.accountId, {
+        isActive: true,
+        credentialValue: credentialValue && !credentialValue.startsWith("4/") ? credentialValue : match.credentialValue,
+      });
+      accountRepository.setActiveAccount(modelId, match.accountId);
+    }
+  }
+
+  public deactivateAccountOnFailure(modelId: string, _credentialValue?: string, status?: string): void {
     if (status === "VERIFIED") return;
     const accounts = accountRepository.listAccountsByModel(modelId);
     for (const acc of accounts) {
-      const match =
-        acc.credentialValue === credentialValue ||
-        (credentialValue && acc.credentialValue.includes(credentialValue.slice(0, 16))) ||
-        acc.isActive;
-      if (match) {
-        accountRepository.updateAccount(acc.accountId, { isActive: false });
-      }
+      accountRepository.updateAccount(acc.accountId, { isActive: false });
     }
   }
 
@@ -262,43 +271,18 @@ export class ModelAuthenticationFlowCoordinator {
     modelId: string,
     session: { oauthUrl?: string; appRedirectUri?: string },
   ): string {
-    const descriptor = this.oauthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
     const oauthConfig = this.oauthProviderService.getOAuthConfigForModel(modelId);
-    const isGoogle = descriptor.provider === "google" || modelId.toLowerCase().includes("gemini");
-    const googleFallbackAuthUrl =
-      isGoogle
-        ? (oauthConfig.authorizationUrl.includes("accounts.google.com")
-            ? oauthConfig.authorizationUrl
-            : this.oauthProviderService.getOAuthConfigForModel(
-                modelId,
-                oauthConfig.redirectUri,
-                GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID,
-              ).authorizationUrl)
-        : "";
-    const isGoogleSessionUrl = Boolean(session.oauthUrl && session.oauthUrl.includes("accounts.google.com"));
-    const validSessionUrl = !isGoogle && isGoogleSessionUrl ? "" : session.oauthUrl;
-    const candidate =
-      validSessionUrl ||
-      googleFallbackAuthUrl ||
-      oauthConfig.authorizationUrl ||
-      session.appRedirectUri ||
-      "";
-    return this.ensureValidAuthorizationUrl(candidate, modelId);
+    const strategy = oauthProviderUrlStrategyRegistry.getStrategy(modelId);
+    return strategy.resolveEffectiveAuthUrl(
+      session.oauthUrl || session.appRedirectUri || "",
+      oauthConfig.authorizationUrl,
+      { modelId, defaultRedirectUri: oauthConfig.redirectUri },
+    );
   }
 
-  private ensureValidAuthorizationUrl(url: string, modelId?: string): string {
-    if (!url || !url.trim()) return "";
-    let cleanUrl = url.trim().replace(/^["']|["']$/g, "").replace(/[\r\n]/g, "");
-    const isGoogle = modelId ? (modelId.toLowerCase().includes("gemini") || modelId.toLowerCase().includes("google")) : cleanUrl.includes("accounts.google.com");
-    if (!isGoogle && cleanUrl.includes("accounts.google.com") && modelId) {
-      const oauthConfig = this.oauthProviderService.getOAuthConfigForModel(modelId);
-      return oauthConfig.authorizationUrl;
-    }
-    if (!cleanUrl.includes("response_type=") && cleanUrl.includes("accounts.google.com")) {
-      const sep = cleanUrl.includes("?") ? "&" : "?";
-      cleanUrl = `${cleanUrl}${sep}response_type=code&access_type=offline&prompt=consent`;
-    }
-    return cleanUrl;
+  public ensureValidAuthorizationUrl(url: string, modelId?: string): string {
+    const strategy = oauthProviderUrlStrategyRegistry.getStrategy(modelId || "default");
+    return strategy.normalizeAuthorizationUrl(url, { modelId });
   }
 
   public saveAuthenticatedCredentials(params: BidirectionalSaveParams): BidirectionalSaveResult {

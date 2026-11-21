@@ -972,12 +972,39 @@
     font-size: 0.78rem;
     width: 100%;
 
+    .vcs-dir-info {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .vcs-badge-group {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 8px;
       font-size: 0.78rem;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 580px) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+
+      .vcs-dir-info {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .vcs-badge-group {
+        width: 100%;
+        justify-content: flex-start;
+      }
     }
 
     .vcs-folder-icon,

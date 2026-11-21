@@ -92,10 +92,10 @@ ON CONFLICT (ROLE_ID, PERMISSION_ID) DO NOTHING;
 -- 5. USERS
 INSERT INTO USERS (USER_ID, COMPANY_ID, ROLE_ID, FULL_NAME, USER_EMAIL, PASSWORD_HASH, AVATAR_URL, IS_ACTIVE, CREATED_TIMESTAMP, UPDATED_TIMESTAMP)
 VALUES
-    ('usr-admin', 'comp-platform', 'role-admin', 'Platform Administrator', '<user-email-admin>', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', '👤', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('usr-mlops', 'acme-corp', 'role-mlops', 'MLOps Lead', '<user-email-mlops>', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', '⚡', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('usr-dev', 'acme-corp', 'role-developer', 'AI Developer', '<user-email-dev>', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', '👩‍💻', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('usr-auditor', 'research-lab', 'role-viewer', 'Compliance Auditor', '<user-email-auditor>', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', '🔍', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ('usr-admin', 'comp-platform', 'role-admin', 'Platform Administrator', 'admin@modelbox.internal', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', '👤', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('usr-mlops', 'acme-corp', 'role-mlops', 'MLOps Lead', 'mlops@modelbox.internal', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', '⚡', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('usr-dev', 'acme-corp', 'role-developer', 'AI Developer', 'developer@modelbox.internal', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', '👩‍💻', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('usr-auditor', 'research-lab', 'role-viewer', 'Compliance Auditor', 'auditor@modelbox.internal', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', '🔍', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (USER_ID) DO NOTHING;
 
 -- 6. MENUS

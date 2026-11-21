@@ -200,6 +200,31 @@
         }
       }
 
+      .protocol-fields-container {
+        background: var(--theme-bg-muted);
+        border: 1px solid var(--theme-border-subtle);
+        border-radius: var(--radius-lg);
+        padding: 14px;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 14px !important;
+      }
+
+      .oauth-dedicated-container {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 14px !important;
+      }
+
       .protocol-fields-container,
       .oauth-dedicated-container {
         background: var(--theme-bg-muted);

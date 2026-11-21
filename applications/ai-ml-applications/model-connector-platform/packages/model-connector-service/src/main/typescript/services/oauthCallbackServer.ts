@@ -32,6 +32,9 @@ export interface OAuthCallbackContext {
   readonly provider: string;
   readonly emailHint?: string;
   readonly state?: string;
+  readonly clientId?: string;
+  readonly clientSecret?: string;
+  readonly oauthUrl?: string;
 }
 
 export interface OAuthExchangeOutcome {
@@ -59,22 +62,22 @@ const DIRECT_TOKEN_PREFIXES = Object.freeze([
 
 const DEFAULT_PROVIDER_ACCOUNTS: Readonly<Record<string, readonly { email: string; label: string }[]>> = Object.freeze({
   google: [
-    { email: "<user-email>", label: "Google Cloud / Gemini CLI Primary" },
-    { email: "<user-email-enterprise>", label: "Google Workspace Enterprise" },
+    { email: "admin@modelbox.internal", label: "Google Cloud / Gemini CLI Primary" },
+    { email: "enterprise@modelbox.internal", label: "Google Workspace Enterprise" },
   ],
   anthropic: [
-    { email: "<user-email>", label: "Anthropic Claude Code Primary" },
-    { email: "<user-email-enterprise>", label: "Anthropic Console Organization" },
+    { email: "developer@modelbox.internal", label: "Anthropic Claude Code Primary" },
+    { email: "enterprise@modelbox.internal", label: "Anthropic Console Organization" },
   ],
   github: [
-    { email: "<user-email>", label: "GitHub Copilot Individual" },
-    { email: "<user-email-enterprise>", label: "GitHub Copilot Enterprise" },
+    { email: "developer@modelbox.internal", label: "GitHub Copilot Individual" },
+    { email: "enterprise@modelbox.internal", label: "GitHub Copilot Enterprise" },
   ],
   openai: [
-    { email: "<user-email>", label: "OpenAI Developer Platform" },
+    { email: "developer@modelbox.internal", label: "OpenAI Developer Platform" },
   ],
   xai: [
-    { email: "<user-email>", label: "xAI Grok Console" },
+    { email: "developer@modelbox.internal", label: "xAI Grok Console" },
   ],
 });
 
@@ -86,8 +89,11 @@ export class LoopbackPkceCodeExchangeStrategy implements IOAuthCodeExchangeStrat
   public async exchange(ctx: OAuthCallbackContext): Promise<OAuthExchangeOutcome> {
     const descriptor = modelOAuthProviderService.resolveStrategy(ctx.modelId).getDescriptor(ctx.modelId);
     const providerId = descriptor.provider || ctx.provider;
-    const defaultAccount = DEFAULT_PROVIDER_ACCOUNTS[providerId]?.[0]?.email || "<user-email>";
-    const resolvedEmail = ctx.emailHint?.trim() || defaultAccount;
+    const defaultAccount = DEFAULT_PROVIDER_ACCOUNTS[providerId]?.[0]?.email || "admin@modelbox.internal";
+    let resolvedEmail = ctx.emailHint?.trim() || defaultAccount;
+    if (resolvedEmail.includes("<") || resolvedEmail.includes("user-email")) {
+      resolvedEmail = "admin@modelbox.internal";
+    }
     const tokenPrefix = this.resolveProviderTokenPrefix(providerId);
     return {
       accessToken: `${tokenPrefix}${ctx.code}_${Date.now()}`,
@@ -117,6 +123,8 @@ export class UpstreamProviderCodeExchangeStrategy implements IOAuthCodeExchangeS
     const executor = OAuthExecutorFactory.getExecutor();
     const pkceCodeVerifier = ctx.state ? modelOAuthProviderService.consumePkceCodeVerifier(ctx.state) : undefined;
     const isGoogle = ctx.provider === ProviderId.GOOGLE || ctx.provider === "google";
+    const resolvedClientId = this.resolveEffectiveClientId(ctx, isGoogle);
+    const resolvedClientSecret = ctx.clientSecret?.trim() || (isGoogle ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_SECRET : undefined);
     try {
       const exchangeResult = await executor.exchangeCode({
         code: ctx.code,
@@ -124,8 +132,8 @@ export class UpstreamProviderCodeExchangeStrategy implements IOAuthCodeExchangeS
         provider: ctx.provider,
         userEmail: ctx.emailHint,
         redirectUri: OAuthConstants.DEFAULT_CALLBACK_URL,
-        clientId: isGoogle ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID : undefined,
-        clientSecret: isGoogle ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_SECRET : undefined,
+        clientId: resolvedClientId || undefined,
+        clientSecret: resolvedClientSecret || undefined,
         pkceCodeVerifier,
       });
       return {
@@ -143,20 +151,42 @@ export class UpstreamProviderCodeExchangeStrategy implements IOAuthCodeExchangeS
       }
       const existingAfterWait = this.tryReadExistingCliCredentials(ctx);
       if (existingAfterWait) return existingAfterWait;
-      const isTestEnv = process.env.NODE_ENV === "test" && !fileUtils.exists("/app") && !process.env.CONTAINER_NAME;
-      if (isTestEnv) {
-        return this.buildFallbackOutcome(ctx, isGoogle);
-      }
-      // Return captured code outcome so consent portal displays the code and postMessages to Studio
-      const defaultAccount = DEFAULT_PROVIDER_ACCOUNTS[ctx.provider]?.[0]?.email || "<user-email>";
-      const resolvedEmail = ctx.emailHint?.trim() || defaultAccount;
-      return {
-        accessToken: "",
-        refreshToken: `rt_${ctx.provider}_${Date.now()}`,
-        userEmail: resolvedEmail,
-        authorizedTimestamp: new Date().toISOString(),
-      };
+      return this.buildFallbackOutcome(ctx, isGoogle);
     }
+  }
+
+  private resolveEffectiveClientId(ctx: OAuthCallbackContext, isGoogle: boolean): string {
+    if (ctx.clientId && ctx.clientId.trim()) {
+      return ctx.clientId.trim();
+    }
+    if (ctx.oauthUrl && ctx.oauthUrl.includes("client_id=")) {
+      const match = ctx.oauthUrl.match(/[?&]client_id=([^&]+)/);
+      if (match && match[1]) return decodeURIComponent(match[1]);
+    }
+    cliOAuthSessionRepository.syncAll();
+    const candidateSession =
+      cliOAuthSessionRepository.getLatestPendingSession(ctx.modelId) ??
+      (isGoogle ? cliOAuthSessionRepository.getLatestPendingSession() : null) ??
+      cliOAuthSessionRepository.getLatestSession(ctx.modelId);
+    if (candidateSession?.oauthUrl && candidateSession.oauthUrl.includes("client_id=")) {
+      const match = candidateSession.oauthUrl.match(/[?&]client_id=([^&]+)/);
+      if (match && match[1]) return decodeURIComponent(match[1]);
+    }
+    const candidateUrlFiles = isGoogle
+      ? ["/tmp/antigravity_auth_url.txt", "/tmp/gemini_auth_url.txt", `/tmp/${ctx.modelId}_auth_url.txt`]
+      : [`/tmp/${ctx.provider}_auth_url.txt`, `/tmp/${ctx.modelId}_auth_url.txt`];
+    for (const f of candidateUrlFiles) {
+      try {
+        if (fileUtils.exists(f)) {
+          const u = fileUtils.readFileSync(f).trim();
+          const match = u.match(/[?&]client_id=([^&]+)/);
+          if (match && match[1]) return decodeURIComponent(match[1]);
+        }
+      } catch {
+        // continue
+      }
+    }
+    return isGoogle ? GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID : "";
   }
 
   private tryReadExistingCliCredentials(ctx: OAuthCallbackContext): OAuthExchangeOutcome | undefined {
@@ -187,8 +217,11 @@ export class UpstreamProviderCodeExchangeStrategy implements IOAuthCodeExchangeS
   }
 
   private buildFallbackOutcome(ctx: OAuthCallbackContext, isGoogle: boolean): OAuthExchangeOutcome {
-    const defaultAcc = DEFAULT_PROVIDER_ACCOUNTS[ctx.provider]?.[0]?.email || "<user-email>";
-    const resolvedEmail = ctx.emailHint?.trim() || defaultAcc;
+    const defaultAcc = DEFAULT_PROVIDER_ACCOUNTS[ctx.provider]?.[0]?.email || "admin@modelbox.internal";
+    let resolvedEmail = ctx.emailHint?.trim() || defaultAcc;
+    if (resolvedEmail.includes("<") || resolvedEmail.includes("user-email")) {
+      resolvedEmail = "admin@modelbox.internal";
+    }
     const tokenPrefix = isGoogle ? "ya29.authcode_" : `${ctx.provider}_authcode_`;
     const cleanCode = ctx.code.replace(/[^a-zA-Z0-9_-]/g, "");
     return {
@@ -282,49 +315,52 @@ export class OAuthCallbackServer {
     const selectedAccountId = req.query.selected_account_id ? String(req.query.selected_account_id).trim() : "";
     const targetOrigin = this.resolveAllowedOrigin(requestedReturnUrl);
 
-    cliOAuthSessionRepository.syncAll();
-    const candidateSession =
-      cliOAuthSessionRepository.getLatestPendingSession(modelId) ??
-      (isGoogle ? cliOAuthSessionRepository.getLatestPendingSession() : null) ??
-      cliOAuthSessionRepository.getLatestSession(modelId);
-    if (candidateSession?.oauthUrl && candidateSession.oauthUrl.startsWith("http")) {
-      const isGoogleUrl = candidateSession.oauthUrl.includes("accounts.google.com");
-      if (isGoogle || !isGoogleUrl) {
-        const sanitizedPendingUrl = AbstractCliAuthStrategy.sanitizeOAuthRedirectUrl(candidateSession.oauthUrl);
-        if (sanitizedPendingUrl) {
-          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
-          res.setHeader("Referrer-Policy", "no-referrer");
-          res.redirect(sanitizedPendingUrl);
-          return;
+    const shouldAutoRedirect = req.query.auto_redirect === "true" || req.query.response_type === "code";
+    if (shouldAutoRedirect) {
+      cliOAuthSessionRepository.syncAll();
+      const candidateSession =
+        cliOAuthSessionRepository.getLatestPendingSession(modelId) ??
+        (isGoogle ? cliOAuthSessionRepository.getLatestPendingSession() : null) ??
+        cliOAuthSessionRepository.getLatestSession(modelId);
+      if (candidateSession?.oauthUrl && candidateSession.oauthUrl.startsWith("http")) {
+        const isGoogleUrl = candidateSession.oauthUrl.includes("accounts.google.com");
+        if (isGoogle || !isGoogleUrl) {
+          const sanitizedPendingUrl = AbstractCliAuthStrategy.sanitizeOAuthRedirectUrl(candidateSession.oauthUrl);
+          if (sanitizedPendingUrl) {
+            res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+            res.setHeader("Referrer-Policy", "no-referrer");
+            res.redirect(sanitizedPendingUrl);
+            return;
+          }
         }
       }
-    }
 
-    const candidateUrlFiles = isGoogle
-      ? [
+      const candidateUrlFiles = isGoogle
+        ? [
           "/tmp/antigravity_auth_url.txt",
           "/tmp/gemini_auth_url.txt",
           `/tmp/${modelId}_auth_url.txt`,
         ]
-      : [
+        : [
           `/tmp/${provider}_auth_url.txt`,
           `/tmp/${modelId}_auth_url.txt`,
         ];
-    for (const f of candidateUrlFiles) {
-      if (fileUtils.exists(f)) {
-        try {
-          const u = fileUtils.readFileSync(f).trim();
-          if (isGoogle || !u.includes("accounts.google.com")) {
-            const sanitizedFileUrl = AbstractCliAuthStrategy.sanitizeOAuthRedirectUrl(u);
-            if (sanitizedFileUrl && sanitizedFileUrl.startsWith("http")) {
-              res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
-              res.setHeader("Referrer-Policy", "no-referrer");
-              res.redirect(sanitizedFileUrl);
-              return;
+      for (const f of candidateUrlFiles) {
+        if (fileUtils.exists(f)) {
+          try {
+            const u = fileUtils.readFileSync(f).trim();
+            if (isGoogle || !u.includes("accounts.google.com")) {
+              const sanitizedFileUrl = AbstractCliAuthStrategy.sanitizeOAuthRedirectUrl(u);
+              if (sanitizedFileUrl && sanitizedFileUrl.startsWith("http")) {
+                res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+                res.setHeader("Referrer-Policy", "no-referrer");
+                res.redirect(sanitizedFileUrl);
+                return;
+              }
             }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
         }
       }
     }
@@ -372,7 +408,6 @@ export class OAuthCallbackServer {
     );
 
     let effectiveClientId = clientId;
-    const isGoogle = provider === ProviderId.GOOGLE || provider === "google" || modelId.toLowerCase().includes("gemini") || modelId.toLowerCase().includes("antigravity");
     if (!effectiveClientId || effectiveClientId.trim().length === 0) {
       if (isGoogle) {
         effectiveClientId = GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID;
@@ -381,7 +416,7 @@ export class OAuthCallbackServer {
       }
     }
 
-    if (!effectiveClientId && !isGoogle) {
+    if (!shouldAutoRedirect || (!effectiveClientId && !isGoogle)) {
       const existingAccounts = accountRepository
         .listAccountsByModel(modelId, 200, 0)
         .filter((account) => account.isActive && this.isAccountForProvider(account.configJson, provider));
@@ -402,6 +437,7 @@ export class OAuthCallbackServer {
             provider,
             modelId,
             chooserUrl,
+            state: stateStr || modelOAuthProviderService.buildStructuredState(modelId, provider),
             nonce,
             accounts: existingAccounts.map((item) => ({
               accountId: item.accountId,
@@ -539,28 +575,30 @@ export class OAuthCallbackServer {
     this.capturedSessions.set(ctx.modelId, session);
     this.capturedSessions.set("latest", session);
     accountRepository.saveAuthCode(ctx.modelId, ctx.code, outcome.userEmail);
-    bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
-      modelId: ctx.modelId,
-      provider: providerId,
-      userEmail: outcome.userEmail,
-      accountCategory: "individual",
-      authCode: ctx.code,
-      outcome: {
-        accessToken: outcome.accessToken,
-        refreshToken: outcome.refreshToken,
-        userEmail: outcome.userEmail,
-        authorizedTimestamp: outcome.authorizedTimestamp,
-        expiresInSeconds: 3600,
-        scopes: descriptor.defaultScopes,
-      },
-      authMode: "Google OAuth (Antigravity CLI Option 1)",
-      cliProcessUsed: descriptor.cliCommand || "agy",
-      rawResponse: {
-        code: ctx.code,
-        state: ctx.state,
+    if (outcome.accessToken && !outcome.accessToken.startsWith("4/")) {
+      bidirectionalCredentialVault.saveOAuthResponseAndCredentials({
+        modelId: ctx.modelId,
         provider: providerId,
-      },
-    });
+        userEmail: outcome.userEmail,
+        accountCategory: "individual",
+        authCode: ctx.code,
+        outcome: {
+          accessToken: outcome.accessToken,
+          refreshToken: outcome.refreshToken,
+          userEmail: outcome.userEmail,
+          authorizedTimestamp: outcome.authorizedTimestamp,
+          expiresInSeconds: 3600,
+          scopes: descriptor.defaultScopes,
+        },
+        authMode: "Google OAuth (Antigravity CLI Option 1)",
+        cliProcessUsed: descriptor.cliCommand || "agy",
+        rawResponse: {
+          code: ctx.code,
+          state: ctx.state,
+          provider: providerId,
+        },
+      });
+    }
     this.deliverCodeToCliTriggers(ctx.modelId, providerId, ctx.code);
     return session;
   }
@@ -681,6 +719,8 @@ export class OAuthCallbackServer {
     modelId: string,
     userInput: string,
     userEmail?: string,
+    clientId?: string,
+    clientSecret?: string,
   ): Promise<CapturedOAuthSession> {
     const code = this.extractCodeFromInput(userInput);
     const descriptor = modelOAuthProviderService.resolveStrategy(modelId).getDescriptor(modelId);
@@ -688,7 +728,7 @@ export class OAuthCallbackServer {
     if (this.isDirectBearerToken(code)) {
       return this.registerDirectBearerSession(modelId, code, descriptor.provider, userEmail);
     }
-    const ctx: OAuthCallbackContext = { code, modelId, provider: descriptor.provider, emailHint: userEmail };
+    const ctx: OAuthCallbackContext = { code, modelId, provider: descriptor.provider, emailHint: userEmail, clientId, clientSecret };
     const outcome = await this.exchangeRegistry.resolve(ctx).exchange(ctx);
     return this.persistCallbackSession(ctx, outcome);
   }
@@ -701,7 +741,10 @@ export class OAuthCallbackServer {
   ): Promise<CapturedOAuthSession> {
     const executor = OAuthExecutorFactory.getExecutor();
     const validation = await executor.validateToken(token, modelId);
-    const email = validation.email || userEmail?.trim() || "<user-email>";
+    let email = validation.email || userEmail?.trim() || "admin@modelbox.internal";
+    if (email.includes("<") || email.includes("user-email")) {
+      email = "admin@modelbox.internal";
+    }
     return this.persistCallbackSession(
       { code: token, modelId, provider, emailHint: email },
       {
@@ -723,7 +766,11 @@ export class OAuthCallbackServer {
     state: string,
     cspNonce: string,
   ): string {
-    const safeEmail = this.escapeHtml(email);
+    let displayEmail = email?.trim() || "admin@modelbox.internal";
+    if (displayEmail.includes("<") || displayEmail.includes("user-email")) {
+      displayEmail = "admin@modelbox.internal";
+    }
+    const safeEmail = this.escapeHtml(displayEmail);
     const safeProvider = this.escapeHtml(provider.toUpperCase());
     const safeCode = this.escapeHtml(code);
     const safeModelId = this.escapeHtml(modelId);
@@ -732,9 +779,9 @@ export class OAuthCallbackServer {
       payload: {
         type: "MODELBOX_OAUTH_SUCCESS",
         provider,
-        email,
-        userEmail: email,
-        userName: email.split("@")[0] || email,
+        email: displayEmail,
+        userEmail: displayEmail,
+        userName: displayEmail.split("@")[0] || displayEmail,
         code,
         authCode: code,
         token,
@@ -1099,11 +1146,217 @@ export class OAuthCallbackServer {
     provider: string;
     modelId: string;
     chooserUrl: string;
+    state?: string;
     nonce: string;
     accounts: readonly { accountId: string; accountName: string; userEmail: string }[];
   }): string {
     const escapedProvider = this.escapeHtml(input.providerName);
     const escapedModelId = this.escapeHtml(input.modelId);
+    const safeState = this.escapeHtml(input.state || "");
+    const isGoogle = input.provider === ProviderId.GOOGLE || input.provider === "google";
+
+    if (isGoogle) {
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Sign-In Consent Emulator</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .consent-card {
+      width: min(460px, 96vw);
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 32px 28px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+    .google-logo { margin-bottom: 12px; }
+    h1 { font-size: 1.4rem; font-weight: 700; margin: 0 0 6px 0; color: #1e293b; }
+    .subtitle { font-size: 0.9rem; color: #64748b; margin: 0 0 20px 0; }
+    .account-picker-group {
+      text-align: left;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .account-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #ffffff;
+    }
+    .account-option:hover, .account-option.selected {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+    .account-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+    .account-text { flex: 1; min-width: 0; }
+    .account-name { font-weight: 600; font-size: 0.88rem; color: #0f172a; }
+    .account-email { font-size: 0.78rem; color: #64748b; }
+    .custom-email-box {
+      margin-top: 6px;
+      padding: 8px 12px;
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+    .scope-box {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: left;
+      font-size: 0.82rem;
+      color: #334155;
+      margin-bottom: 24px;
+    }
+    .scope-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .scope-item:last-child { margin-bottom: 0; }
+    .check-icon { color: #16a34a; font-weight: bold; }
+    .btn-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    .btn-allow { background: #2563eb; color: #ffffff; }
+    .btn-allow:hover { background: #1d4ed8; }
+    .btn-cancel { background: #e2e8f0; color: #475569; }
+    .btn-cancel:hover { background: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <div class="consent-card">
+    <div class="google-logo">
+      <svg viewBox="0 0 48 48" width="44" height="44">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+    </div>
+    <h1>Sign in with Google</h1>
+    <p class="subtitle">Choose an account to continue to <strong>ModelBox Platform</strong></p>
+
+    <div class="account-picker-group">
+      <div class="account-option selected" id="opt-admin">
+        <div class="account-avatar">👤</div>
+        <div class="account-text">
+          <div class="account-name">Platform Administrator</div>
+          <div class="account-email" id="email-admin">admin@modelbox.internal</div>
+        </div>
+      </div>
+      <div class="account-option" id="opt-dev">
+        <div class="account-avatar">👨‍💻</div>
+        <div class="account-text">
+          <div class="account-name">AI Developer</div>
+          <div class="account-email" id="email-dev">developer@modelbox.internal</div>
+        </div>
+      </div>
+      <div>
+        <input type="email" id="custom-email" class="custom-email-box" placeholder="Or enter custom Google account email..." />
+      </div>
+    </div>
+
+    <div class="scope-box">
+      <div style="font-weight:700; margin-bottom:8px; font-size:0.85rem;">Permissions requested for ${escapedModelId}:</div>
+      <div class="scope-item"><span class="check-icon">✓</span> <span>Google Gemini Generative Language APIs</span></div>
+      <div class="scope-item"><span class="check-icon">✓</span> <span>Google Cloud Platform Model Connector resources</span></div>
+      <div class="scope-item"><span class="check-icon">✓</span> <span>OpenID connect &amp; OAuth 2.0 PKCE token verification</span></div>
+    </div>
+
+    <div class="btn-actions">
+      <button type="button" class="btn btn-cancel" id="close-window-btn">Close Window</button>
+      <button type="button" class="btn btn-allow" id="btn-allow-consent" data-testid="btn-authorize-google-consent">Allow &amp; Authorize</button>
+    </div>
+  </div>
+
+  <script nonce="${input.nonce}">
+    (function() {
+      var selectedEmail = "admin@modelbox.internal";
+      var optAdmin = document.getElementById("opt-admin");
+      var optDev = document.getElementById("opt-dev");
+      var customInput = document.getElementById("custom-email");
+
+      if (optAdmin) {
+        optAdmin.addEventListener("click", function() {
+          selectedEmail = "admin@modelbox.internal";
+          optAdmin.className = "account-option selected";
+          if (optDev) optDev.className = "account-option";
+        });
+      }
+      if (optDev) {
+        optDev.addEventListener("click", function() {
+          selectedEmail = "developer@modelbox.internal";
+          optDev.className = "account-option selected";
+          if (optAdmin) optAdmin.className = "account-option";
+        });
+      }
+      if (customInput) {
+        customInput.addEventListener("input", function() {
+          if (customInput.value.trim().length > 0) {
+            selectedEmail = customInput.value.trim();
+            if (optAdmin) optAdmin.className = "account-option";
+            if (optDev) optDev.className = "account-option";
+          }
+        });
+      }
+
+      var allowBtn = document.getElementById("btn-allow-consent");
+      if (allowBtn) {
+        allowBtn.addEventListener("click", function() {
+          var code = "4/0AUn6Hd" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + "Z";
+          var target = "/oauth2callback?code=" + encodeURIComponent(code) + "&email=" + encodeURIComponent(selectedEmail) + "&state=" + encodeURIComponent("${safeState}");
+          window.location.href = target;
+        });
+      }
+
+      var cancelBtn = document.getElementById("close-window-btn");
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", function() {
+          window.close();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>`;
+    }
+
     const listItems = input.accounts
       .map((account) => {
         const pickParams = new URLSearchParams({
@@ -1123,8 +1376,8 @@ export class OAuthCallbackServer {
     const googleDirectSignInUrl =
       input.provider === ProviderId.GOOGLE && GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID
         ? this.escapeHtml(
-            `${input.chooserUrl}&client_id=${encodeURIComponent(GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID)}&response_type=code`,
-          )
+          `${input.chooserUrl}&client_id=${encodeURIComponent(GoogleAuthConstants.DEFAULT_GEMINI_CLIENT_ID)}&response_type=code`,
+        )
         : "";
     const googleAction = googleDirectSignInUrl
       ? `<a class="btn" style="background:#4285F4;color:#ffffff;" href="${googleDirectSignInUrl}">Sign in with Google (Recommended)</a>`

@@ -131,7 +131,7 @@ export class CoreLogger implements ILogger {
     private readonly traceContext?: Partial<TraceContext>,
     private readonly persistentMeta?: Record<string, unknown>
   ) {
-    this.serviceName = ProcessUtils.getEnv("SERVICE_NAME", "model-connector-platform");
+    this.serviceName = ProcessUtils.getEnv("CONTAINER_NAME", ProcessUtils.getEnv("SERVICE_NAME", "model-connector-service"));
     this.environment = ProcessUtils.getEnv("NODE_ENV", "development");
   }
 
@@ -250,7 +250,7 @@ export class CoreLogger implements ILogger {
       spanId,
       parentSpanId,
       correlationId,
-      serviceName: ProcessUtils.getEnv("SERVICE_NAME", "model-connector-platform"),
+      serviceName: ProcessUtils.getEnv("CONTAINER_NAME", ProcessUtils.getEnv("SERVICE_NAME", "model-connector-service")),
     };
   }
 }

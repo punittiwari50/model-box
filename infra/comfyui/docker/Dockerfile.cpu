@@ -1,13 +1,14 @@
-FROM python:3-slim
+FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PIP_NO_CACHE_DIR=1
 ENV PYTHONUNBUFFERED=1
 
-ARG TORCH_VERSION=2.14.0
+ARG TORCH_VERSION=2.5.1
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        build-essential \
         ca-certificates \
         curl \
         ffmpeg \
@@ -22,7 +23,7 @@ WORKDIR /opt/comfyui
 COPY applications/ai-ml-applications/repo_comfyui/ /opt/comfyui/
 
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==${TORCH_VERSION} torchvision torchaudio \
+    && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio \
     && python -m pip install -r requirements.txt \
     && python -m pip install PyOpenGL PyOpenGL-accelerate psycopg[binary]
 

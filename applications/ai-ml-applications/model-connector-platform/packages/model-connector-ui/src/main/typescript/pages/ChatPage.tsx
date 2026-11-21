@@ -1,13 +1,10 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { ModelConnectorState } from "@/utils/hooks/useModelConnectorState";
-import type { UiModel } from "@/types/ui.types";
-import { ModelCatalog } from "@/constants/providerConfigConstants";
 import {
-  SearchableModelDropdown,
   StatusBadge,
-  SegmentedControl,
   EmptyState,
 } from "@/components/common";
+import { ChatSettingsDrawer } from "@/components/chat/ChatSettingsDrawer";
 
 interface ChatPageProps {
   readonly state: ModelConnectorState;
@@ -15,20 +12,19 @@ interface ChatPageProps {
 
 export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
   const [inputPrompt, setInputPrompt] = useState("");
-  const [filterRegisteredOnly, setFilterRegisteredOnly] = useState<boolean>(true);
-  const [copiedSession, setCopiedSession] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
+
+  // Hyperparameters & Configuration state (Requirement 8)
+  const [temperature, setTemperature] = useState<number>(0.7);
+  const [topP, setTopP] = useState<number>(0.95);
+  const [maxTokens, setMaxTokens] = useState<number>(4096);
+  const [presencePenalty, setPresencePenalty] = useState<number>(0.0);
+  const [systemPrompt, setSystemPrompt] = useState<string>("");
 
   // UX 1: View mode (active conversation vs full chat history list view)
   const [chatViewMode, setChatViewMode] = useState<"chat" | "history">("chat");
   const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState<boolean>(true);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
-
-  // UX 1: 1k+ Models Picker Modal / Popover state
-  const [is1kModelPickerOpen, setIs1kModelPickerOpen] = useState(false);
-  const [modelSearch1kQuery, setModelSearch1kQuery] = useState("");
-  const [categoryFilter1k, setCategoryFilter1k] = useState<string>("all");
-  const modelPickerRef = useRef<HTMLDivElement>(null);
 
   // UX 4: Interactive selected message turn for telemetry
   const [selectedTurnId, setSelectedTurnId] = useState<string | null>(null);
@@ -55,8 +51,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
     }
   };
 
-  const activeSessionObj = state.sessions.find((s) => s.sessionId === state.activeSessionId);
-
   // Helper: Detect if a model is Gemini
   const isGemini = (modelId: string, family?: string): boolean => {
     const fam = (family || "").toLowerCase();
@@ -64,87 +58,21 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
     return fam.includes("gemini") || mid.includes("gemini");
   };
 
-  // Helper: Verify if a Gemini model has an available, active and verified account
-  const hasVerifiedGeminiAccount = (modelId: string): boolean => {
-    return (state.modelAccounts || []).some(
-      (a) =>
-        a.modelId === modelId &&
-        a.isActive &&
-        (a.status === "VERIFIED" ||
-          a.status === "ACTIVE" ||
-          Boolean(a.credentials?.accessToken || a.credentials?.apiKey)),
-    );
-  };
-
-  const registeredModelMap = useMemo(() => {
-    const map = new Map<string, (typeof state.modelAccounts)[0]>();
-    for (const acc of state.modelAccounts || []) {
-      if (acc.isActive || !map.has(acc.modelId)) {
-        map.set(acc.modelId, acc);
+  // Requirement 3: Set initial default reasoning effort to "low" when switching to Gemini
+  const previousModelRef = React.useRef(state.selectedModel);
+  useEffect(() => {
+    if (previousModelRef.current !== state.selectedModel) {
+      previousModelRef.current = state.selectedModel;
+      if (isGemini(state.selectedModel)) {
+        state.setReasoningEffort("low");
       }
     }
-    return map;
-  }, [state.modelAccounts]);
+  }, [state.selectedModel, state.setReasoningEffort]);
 
-  const registeredModels = useMemo(() => {
-    return state.models
-      .filter((m) => {
-        const hasAccount = registeredModelMap.has(m.id);
-        const mid = m.id.toLowerCase();
-        const fam = m.family?.toLowerCase() || "";
-        const isOllama =
-          fam.includes("ollama") ||
-          mid.includes("llama") ||
-          mid.includes("ollama") ||
-          mid.includes("deepseek");
-
-        // Requirement 3: For Gemini models, ONLY include authenticated and verified models
-        if (isGemini(m.id, m.family)) {
-          return hasVerifiedGeminiAccount(m.id);
-        }
-        return hasAccount || isOllama;
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [state.models, registeredModelMap, state.modelAccounts]);
-
-  const registeredModelIdsSet = useMemo(
-    () => new Set(registeredModels.map((m) => m.id)),
-    [registeredModels],
+  const activeModel = useMemo(
+    () => state.models.find((m) => m.id === state.selectedModel),
+    [state.models, state.selectedModel],
   );
-
-  // Requirement 3: Gemini dropdown ONLY has visible available authenticated and verified accounts
-  const displayModels = useMemo(() => {
-    const baseList =
-      filterRegisteredOnly && registeredModels.length > 0 ? registeredModels : state.models;
-    return baseList
-      .filter((m) => {
-        if (isGemini(m.id, m.family)) {
-          return hasVerifiedGeminiAccount(m.id);
-        }
-        return true;
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [filterRegisteredOnly, registeredModels, state.models, state.modelAccounts]);
-
-  // Requirement 3: Whenever Gemini is active, automatically select low reasoning effort and chat mode
-  const isCurrentModelGemini = useMemo(
-    () => isGemini(state.selectedModel),
-    [state.selectedModel],
-  );
-
-  useEffect(() => {
-    if (isCurrentModelGemini && state.reasoningEffort !== "low") {
-      state.setReasoningEffort("low");
-    }
-  }, [isCurrentModelGemini, state.reasoningEffort, state.setReasoningEffort]);
-
-  const handleSelectModel = (modelId: string) => {
-    state.setSelectedModel(modelId);
-    if (isGemini(modelId)) {
-      state.setReasoningEffort("low");
-    }
-    setIs1kModelPickerOpen(false);
-  };
 
   const activeAccount = useMemo(
     () => state.modelAccounts.find((a) => a.modelId === state.selectedModel && a.isActive),
@@ -167,17 +95,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
         return state.messages[i];
       }
     }
-    return null;
+    return undefined;
   }, [state.messages, selectedTurnId]);
-
-  const latestUserPrompt = useMemo(() => {
-    for (let i = state.messages.length - 1; i >= 0; i--) {
-      if (state.messages[i].role === "user") {
-        return state.messages[i].content;
-      }
-    }
-    return "Hi , whats date time now ?";
-  }, [state.messages]);
 
   // Filtered Sessions for Chat History List View
   const filteredSessions = useMemo(() => {
@@ -191,48 +110,21 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
     );
   }, [state.sessions, historySearchQuery]);
 
-  // 1k+ Models Filtering for Quick Search Dropdown
-  const filtered1kModels = useMemo(() => {
-    const q = modelSearch1kQuery.trim().toLowerCase();
-    return state.models
-      .filter((m) => {
-        // Enforce Gemini verified filter
-        if (isGemini(m.id, m.family) && !hasVerifiedGeminiAccount(m.id)) {
-          return false;
-        }
-        if (categoryFilter1k !== "all" && m.family?.toLowerCase() !== categoryFilter1k) {
-          return false;
-        }
-        if (!q) return true;
-        return (
-          m.name.toLowerCase().includes(q) ||
-          m.id.toLowerCase().includes(q) ||
-          (m.family && m.family.toLowerCase().includes(q))
-        );
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [state.models, modelSearch1kQuery, categoryFilter1k, state.modelAccounts]);
-
-  // Curated Quick Switcher Chips: Active model always first, followed by top 3-4 verified
-  const curatedSwitcherModels = useMemo(() => {
-    const list: UiModel[] = [];
-    const active = state.models.find((m) => m.id === state.selectedModel);
-    if (active) list.push(active);
-
-    for (const m of registeredModels) {
-      if (m.id !== state.selectedModel && list.length < 5) {
-        list.push(m);
+  const isSessionFallbackActive = useMemo(() => {
+    for (let i = state.messages.length - 1; i >= 0; i--) {
+      const m = state.messages[i];
+      if (
+        Boolean((m as any).metadata?.fallbackUsed) ||
+        Boolean((m as any).fallbackUsed) ||
+        m.content?.includes("Fallback from") ||
+        m.content?.includes("Model Fallback Notification") ||
+        (m.role === "assistant" && (m.model?.includes("llama") || m.model?.includes("ollama")) && state.selectedModel?.includes("gemini"))
+      ) {
+        return true;
       }
     }
-    return list;
-  }, [state.models, state.selectedModel, registeredModels]);
-
-  const copySessionId = () => {
-    if (!state.activeSessionId || typeof navigator === "undefined") return;
-    copyToClipboard(state.activeSessionId, "sessionId");
-    setCopiedSession(true);
-    setTimeout(() => setCopiedSession(false), 2000);
-  };
+    return false;
+  }, [state.messages, state.selectedModel]);
 
   const handleSelectSessionFromList = (sessionId: string) => {
     state.setActiveSessionId(sessionId);
@@ -320,6 +212,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
                         <span className="session-dot" />
                         {s.model}
                       </span>
+                      {isActive && <span className="active-session-pill">Active</span>}
                       <button
                         type="button"
                         className="btn-session-delete"
@@ -368,10 +261,47 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
 
             <span className="chat-header-icon" aria-hidden="true">💬</span>
             <div className="chat-header-title-block">
-              <strong className="chat-model-title">{state.selectedModel}</strong>
-              <span className="chat-strategy-subtitle">
-                via {state.effectiveStrategy.toUpperCase()}
-              </span>
+              <label htmlFor="chat-header-model-select" className="visually-hidden">Active Model</label>
+              <select
+                id="chat-header-model-select"
+                className="chat-model-select"
+                value={state.selectedModel}
+                onChange={(e) => state.setSelectedModel(e.target.value)}
+                title="Select model to chat with"
+                aria-label="Select Model"
+              >
+                {state.models.length > 0 ? (
+                  state.models.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name || m.id} ({m.family || "model"}) {m.status === "ACTIVE" ? "• Active" : ""}
+                    </option>
+                  ))
+                ) : (
+                  <option value={state.selectedModel}>{state.selectedModel}</option>
+                )}
+              </select>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span className="chat-strategy-subtitle">
+                  via {state.effectiveStrategy.toUpperCase()}
+                </span>
+                {isSessionFallbackActive && (
+                  <span
+                    className="fallback-indicator-badge"
+                    style={{
+                      fontSize: "0.68rem",
+                      fontWeight: 700,
+                      background: "#fef3c7",
+                      color: "#92400e",
+                      border: "1px solid #fde68a",
+                      padding: "1px 6px",
+                      borderRadius: "4px",
+                    }}
+                    title="Conversation automatically routed to local Ollama fallback container"
+                  >
+                    ⚡ Ollama Fallback Active
+                  </span>
+                )}
+              </div>
             </div>
 
             <button
@@ -385,26 +315,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
           </div>
 
           <div className="chat-header-right">
-            {/* View Mode Toggle: Active Chat vs Chat History List View */}
-            <div className="chat-view-mode-toggle">
-              <button
-                type="button"
-                className={`view-mode-btn ${chatViewMode === "chat" ? "active" : ""}`}
-                onClick={() => setChatViewMode("chat")}
-                title="View active chat conversation"
-              >
-                💬 Chat
-              </button>
-              <button
-                type="button"
-                className={`view-mode-btn ${chatViewMode === "history" ? "active" : ""}`}
-                onClick={() => setChatViewMode("history")}
-                title="View all conversation history in a list view"
-              >
-                📜 List View ({state.sessions.length})
-              </button>
-            </div>
-
             {activeAccount ? (
               <StatusBadge
                 label={`AUTH: ${activeAccount.authType === "cli_oauth" || activeAccount.authType === "oauth"
@@ -429,144 +339,12 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
 
             <button
               type="button"
-              className="btn-ui-secondary btn-xs chat-inspector-toggle"
+              className="btn-ui-secondary btn-xs chat-inspector-toggle btn-toggle-inspector"
               onClick={() => setMobileInspectorOpen((prev) => !prev)}
+              title="Open Settings & Telemetry"
             >
-              {mobileInspectorOpen ? "Hide Settings" : "⚙️ Model"}
+              ⚙️ <span className="inspector-btn-text">{mobileInspectorOpen ? "Close Settings" : "Settings"}</span>
             </button>
-          </div>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* UX 1: Responsive Multi-Model Quick Switcher (Accommodates 1k+ Models)     */}
-        {/* ========================================================================= */}
-        <div className="chat-quick-switcher-bar" data-testid="chat-quick-switcher-bar">
-          <div className="switcher-label-group">
-            <span className="switcher-label">Models:</span>
-            <span className="switcher-count-pill">
-              {registeredModels.length} Verified · {state.models.length}+ Available
-            </span>
-          </div>
-
-          {/* Curated Pinned Model Chips */}
-          <div className="switcher-pills">
-            {curatedSwitcherModels.map((rm) => {
-              const isSelected = state.selectedModel === rm.id;
-              const acc = registeredModelMap.get(rm.id);
-              const authTag =
-                acc?.authType === "cli_oauth" || acc?.authType === "oauth"
-                  ? "CLI"
-                  : acc?.authType || (rm.family === "ollama" ? "Ollama" : "Active");
-              return (
-                <button
-                  key={rm.id}
-                  type="button"
-                  className={`registered-model-chip ${isSelected ? "active" : ""}`}
-                  onClick={() => handleSelectModel(rm.id)}
-                  title={`Switch to ${rm.name} (${authTag.toUpperCase()})`}
-                >
-                  <span className="chip-dot" aria-hidden="true" />
-                  <span className="chip-name">{rm.name}</span>
-                  <span className="chip-auth">({authTag})</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quick Search & Dropdown Picker for 1k+ Models */}
-          <div className="switcher-1k-picker-wrapper" ref={modelPickerRef}>
-            <button
-              type="button"
-              className={`btn-browse-1k-models ${is1kModelPickerOpen ? "open" : ""}`}
-              onClick={() => setIs1kModelPickerOpen((prev) => !prev)}
-              title="Search and select from 1,000+ available models"
-            >
-              <span>🔍 Find 1k+ Models ▾</span>
-            </button>
-
-            {is1kModelPickerOpen && (
-              <div className="model-picker-1k-popover" role="dialog" aria-label="1k+ Model Selector">
-                <div className="popover-header">
-                  <strong>Select Model ({filtered1kModels.length})</strong>
-                  <button
-                    type="button"
-                    className="popover-close-btn"
-                    onClick={() => setIs1kModelPickerOpen(false)}
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="popover-search-row">
-                  <input
-                    type="text"
-                    className="popover-search-input"
-                    placeholder="Search 1,000+ models by name, ID, or provider..."
-                    value={modelSearch1kQuery}
-                    onChange={(e) => setModelSearch1kQuery(e.target.value)}
-                    autoFocus
-                  />
-                  {modelSearch1kQuery && (
-                    <button
-                      type="button"
-                      className="popover-clear-btn"
-                      onClick={() => setModelSearch1kQuery("")}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                <div className="popover-category-tabs">
-                  {["all", "gemini", "ollama", "openai", "anthropic", "meta"].map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      className={`popover-cat-btn ${categoryFilter1k === cat ? "active" : ""}`}
-                      onClick={() => setCategoryFilter1k(cat)}
-                    >
-                      {cat.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="popover-model-list">
-                  {filtered1kModels.length === 0 ? (
-                    <div className="popover-empty">
-                      No matching models found for &apos;{modelSearch1kQuery}&apos;
-                    </div>
-                  ) : (
-                    filtered1kModels.map((m) => {
-                      const isSelected = m.id === state.selectedModel;
-                      const isVerified = hasVerifiedGeminiAccount(m.id) || registeredModelIdsSet.has(m.id);
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          className={`popover-model-item ${isSelected ? "selected" : ""}`}
-                          onClick={() => handleSelectModel(m.id)}
-                        >
-                          <div className="item-main">
-                            <span className="item-name">{m.name}</span>
-                            <span className="item-meta">
-                              {m.family || "AI"} • <code>{m.id}</code>
-                            </span>
-                          </div>
-                          <div className="item-badges">
-                            {isVerified ? (
-                              <span className="badge-verified">✓ Verified</span>
-                            ) : (
-                              <span className="badge-unconfigured">⚪ Ready</span>
-                            )}
-                            <span className="badge-family">{m.family?.toUpperCase() || "LLM"}</span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -827,349 +605,28 @@ export const ChatPage: React.FC<ChatPageProps> = ({ state }) => {
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. Inspector Panel: UX 2 (Model Selection) & UX 3 (Session Telemetry)      */}
+      {/* 3. Settings & Telemetry Slide-over Drawer / Modal (Requirements 1, 2, 8)  */}
       {/* ========================================================================= */}
-      <aside className={`chat-inspector-panel ${mobileInspectorOpen ? "mobile-open" : ""}`}>
-        {/* --------------------------------------------------------------------- */}
-        {/* UX 2: Model Selection (Verified Gemini Filter & Low Effort / Chat Mode)*/}
-        {/* --------------------------------------------------------------------- */}
-        <div className="inspector-card" data-testid="inspector-model-selection">
-          <div className="inspector-card-header">
-            <h4>Model Selection</h4>
-            {registeredModels.length > 0 && (
-              <SegmentedControl
-                ariaLabel="Filter model list"
-                value={filterRegisteredOnly ? "registered" : "all"}
-                onChange={(val) => setFilterRegisteredOnly(val === "registered")}
-                options={[
-                  { value: "registered", label: `Registered (${registeredModels.length})` },
-                  { value: "all", label: `All (${state.models.length})` },
-                ]}
-              />
-            )}
-          </div>
-
-          <div className="spec-field-block">
-            <label className="spec-label">
-              Active Model (
-              {filterRegisteredOnly && registeredModels.length > 0
-                ? "Registered Only"
-                : "All Models"}
-              ):
-            </label>
-            {/* SearchableModelDropdown strictly filtered: Gemini models only visible if authenticated & verified */}
-            <SearchableModelDropdown
-              models={displayModels}
-              selectedModelId={state.selectedModel}
-              onSelectModel={handleSelectModel}
-              registeredModelIds={registeredModelIdsSet}
-              recommendedModelId={ModelCatalog.GEMINI_3_8_FLASH}
-              placeholder="Type to filter model name..."
-            />
-          </div>
-
-          {/* Interaction Mode (Requirement 3: Default to Chat Mode) */}
-          <div className="spec-field-block">
-            <div className="spec-label-row">
-              <label className="spec-label">Interaction Mode:</label>
-              <span className="mode-pill-current">💬 CHAT (DEFAULT)</span>
-            </div>
-            <div className="mode-segmented-control-mini">
-              <button
-                type="button"
-                className="mode-mini-btn active"
-                title="Chat mode: multi-turn conversational session (Default)"
-              >
-                💬 Chat (Default)
-              </button>
-              <button
-                type="button"
-                className="mode-mini-btn"
-                onClick={() => state.setReasoningEffort("low")}
-                title="Ask mode: single prompt query"
-              >
-                ❓ Ask
-              </button>
-              <button
-                type="button"
-                className="mode-mini-btn"
-                onClick={() => state.setReasoningEffort("low")}
-                title="Agent mode: autonomous tools loop"
-              >
-                🤖 Agent
-              </button>
-            </div>
-          </div>
-
-          {/* Reasoning Effort (Requirement 3: Select Low for Gemini) */}
-          <div className="spec-field-block">
-            <div className="spec-label-row">
-              <label className="spec-label">Reasoning Effort:</label>
-              <span className="effort-indicator">
-                {state.reasoningEffort.toUpperCase()}
-                {state.reasoningEffort === "low" ? " (LOWEST)" : ""}
-              </span>
-            </div>
-            <div className="effort-grid">
-              {(["low", "medium", "high"] as const).map((tier) => (
-                <button
-                  key={tier}
-                  type="button"
-                  className={`effort-btn tier-${tier} ${state.reasoningEffort === tier ? "active" : ""
-                    }`}
-                  onClick={() => state.setReasoningEffort(tier)}
-                >
-                  {tier === "low"
-                    ? `⚡ Low ${isCurrentModelGemini ? "(Lowest - Preferred)" : ""}`
-                    : tier === "medium"
-                      ? "⚖️ Med"
-                      : "🧠 High"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="spec-field-block">
-            <label className="spec-label">Registered Authentication:</label>
-            {activeAccount ? (
-              <div className="inspector-auth-box is-connected">
-                <div className="auth-box-row">
-                  <span className="auth-type-label">
-                    🟢{" "}
-                    {activeAccount.authType === "cli_oauth"
-                      ? "CLI OAuth 2.0"
-                      : activeAccount.authType.toUpperCase()}
-                  </span>
-                  <StatusBadge label="Active" tone="success" />
-                </div>
-                <span className="auth-account-email truncate">
-                  {activeAccount.userEmail || activeAccount.accountName || "Account Connected"}
-                </span>
-              </div>
-            ) : (
-              <div className="inspector-auth-box is-missing">
-                <span className="auth-missing-text">⚠️ No Credentials Bound</span>
-                <button
-                  type="button"
-                  className="btn-ui-secondary btn-xs"
-                  onClick={() => state.setActiveTab("model-config")}
-                >
-                  Setup
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* --------------------------------------------------------------------- */}
-        {/* UX 3: Session & Telemetry for Selected Chat (Requirement 4)           */}
-        {/* --------------------------------------------------------------------- */}
-        <div className="inspector-card chat-telemetry-inspector-card" data-testid="inspector-session-telemetry">
-          <h4>Session &amp; Telemetry</h4>
-
-          {/* Telemetry Status Banner */}
-          <div className="chat-telemetry-status-banner">
-            <span className="status-pill-badge verified">
-              {telemetryMessage?.content.startsWith("⚠️ Error") ? "✕ FAILED" : "✓ VERIFIED"}
-            </span>
-            <span className="proto-pill-badge">
-              {(telemetryMessage?.strategy || state.effectiveStrategy).toUpperCase()}
-            </span>
-            <span className="mode-pill-badge">💬 CHAT (DEFAULT)</span>
-            <span className="effort-pill-badge">
-              ⚖️ {(telemetryMessage?.effortTier || state.reasoningEffort).toUpperCase()}
-            </span>
-            <span className="latency-pill-badge">
-              ⚡ {telemetryMessage?.latencyMs ? `${telemetryMessage.latencyMs}ms` : "15274ms"}
-            </span>
-          </div>
-
-          {/* Executed Call / Terminal Command Block with Copy */}
-          <div className="telemetry-executed-call-card">
-            <div className="executed-call-header">
-              <span className="call-header-title">
-                {state.effectiveStrategy === "cli" || state.effectiveStrategy === "oauth"
-                  ? "💻 EXECUTED CLI TERMINAL COMMAND"
-                  : "🌐 EXECUTED API HTTP CALL"}
-              </span>
-              <button
-                type="button"
-                className="btn-copy-small"
-                onClick={() => {
-                  const cmd =
-                    telemetryMessage?.executedCommand ||
-                    telemetryMessage?.executedCall ||
-                    `antigravity --dangerously-skip-permissions -p "${latestUserPrompt}" --model ${state.selectedModel}`;
-                  copyToClipboard(cmd, "executedCmd");
-                }}
-                title="Copy executed command"
-              >
-                {copiedField === "executedCmd" ? "✔ Copied" : "📋 Copy"}
-              </button>
-            </div>
-            <code className="executed-call-code">
-              {telemetryMessage?.executedCommand ||
-                telemetryMessage?.executedCall ||
-                `antigravity --dangerously-skip-permissions -p "${latestUserPrompt}" --model ${state.selectedModel}`}
-            </code>
-          </div>
-
-          {/* W3C OTEL Trace Telemetry Table */}
-          <div className="telemetry-trace-table-container">
-            <div className="trace-table-title">📡 TRACE TELEMETRY (W3C OTEL)</div>
-            <div className="trace-rows-list">
-              <div className="trace-row">
-                <span className="trace-label">Trace ID:</span>
-                <code className="trace-code" title={telemetryMessage?.traceId || state.activeSessionId}>
-                  {(telemetryMessage?.traceId || state.activeSessionId || "36d0fe4fd4a75c4093eb41bef3aa103e").substring(0, 20)}...
-                </code>
-                <button
-                  type="button"
-                  className="btn-copy-mini"
-                  onClick={() =>
-                    copyToClipboard(
-                      telemetryMessage?.traceId || state.activeSessionId || "36d0fe4fd4a75c4093eb41bef3aa103e",
-                      "traceId",
-                    )
-                  }
-                >
-                  {copiedField === "traceId" ? "✔" : "📋"}
-                </button>
-              </div>
-
-              <div className="trace-row">
-                <span className="trace-label">Span ID:</span>
-                <code className="trace-code">
-                  {(telemetryMessage?.spanId || "26236154f71356dc")}
-                </code>
-                <button
-                  type="button"
-                  className="btn-copy-mini"
-                  onClick={() =>
-                    copyToClipboard(telemetryMessage?.spanId || "26236154f71356dc", "spanId")
-                  }
-                >
-                  {copiedField === "spanId" ? "✔" : "📋"}
-                </button>
-              </div>
-
-              <div className="trace-row">
-                <span className="trace-label">Correlation ID:</span>
-                <code className="trace-code" title={telemetryMessage?.correlationId || state.activeSessionId}>
-                  {(telemetryMessage?.correlationId || state.activeSessionId || "4c25923b-3067-4034-a7d6-d505f90174ee").substring(0, 20)}...
-                </code>
-                <button
-                  type="button"
-                  className="btn-copy-mini"
-                  onClick={() =>
-                    copyToClipboard(
-                      telemetryMessage?.correlationId || state.activeSessionId || "4c25923b-3067-4034-a7d6-d505f90174ee",
-                      "corrId",
-                    )
-                  }
-                >
-                  {copiedField === "corrId" ? "✔" : "📋"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Docker Log Filter Box */}
-          <div className="telemetry-docker-log-card">
-            <div className="docker-filter-header">
-              <span className="filter-title">🐳 DOCKER LOG FILTER</span>
-              <button
-                type="button"
-                className="btn-copy-small"
-                onClick={() => {
-                  const filterCmd = `docker logs model-connector-service 2>&1 | grep ${telemetryMessage?.traceId || state.activeSessionId || "model-connector"
-                    }`;
-                  copyToClipboard(filterCmd, "dockerLog");
-                }}
-              >
-                {copiedField === "dockerLog" ? "✔ Copied" : "📋 Copy Filter"}
-              </button>
-            </div>
-            <code className="docker-filter-code">
-              docker logs model-connector-service 2&gt;&amp;1 | grep{" "}
-              {telemetryMessage?.traceId || state.activeSessionId || "36d0fe4fd4a75c4093eb41bef3aa103e"}
-            </code>
-          </div>
-
-          {/* Session Identification & Stats */}
-          <div className="spec-field-block">
-            <span className="spec-label">Active Session ID:</span>
-            <div className="session-copy-row">
-              <code className="session-id-code" title={state.activeSessionId}>
-                {state.activeSessionId || "None (Fresh)"}
-              </code>
-              <button
-                type="button"
-                className="btn-ui-secondary btn-xs"
-                onClick={copySessionId}
-                title="Copy Session ID"
-              >
-                {copiedSession ? "✔" : "📋"}
-              </button>
-            </div>
-          </div>
-
-          <div className="spec-row">
-            <span className="spec-label">Turns Count:</span>
-            <span className="spec-val">
-              {activeSessionObj?.turnCount || state.messages.length}
-            </span>
-          </div>
-
-          <div className="spec-row">
-            <span className="spec-label">Tokens Consumed:</span>
-            <span className="spec-val accent">⚡ {totalSessionTokens}</span>
-          </div>
-
-          {activeAccount?.userEmail && (
-            <div className="spec-row">
-              <span className="spec-label">Account Principal:</span>
-              <span className="spec-val" style={{ fontSize: "0.72rem", color: "#64748b" }}>
-                🔒 {activeAccount.userEmail}
-              </span>
-            </div>
-          )}
-
-          {activeSessionObj?.lastActiveAt && (
-            <div className="spec-row">
-              <span className="spec-label">Last Active:</span>
-              <span className="spec-val">
-                {new Date(activeSessionObj.lastActiveAt).toLocaleString()}
-              </span>
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="desktop-new-session-btn"
-            onClick={() => void state.handleNewSession()}
-          >
-            + Spawn Fresh Session
-          </button>
-
-          <div className="inspector-shortcuts-grid">
-            <button
-              type="button"
-              className="btn-ui-secondary btn-xs"
-              onClick={() => state.setActiveTab("model-config")}
-            >
-              ⚙️ Config Studio
-            </button>
-            <button
-              type="button"
-              className="btn-ui-secondary btn-xs"
-              onClick={() => state.setActiveTab("upstream")}
-            >
-              📊 Telemetry Logs
-            </button>
-          </div>
-        </div>
-      </aside>
+      <ChatSettingsDrawer
+        isOpen={mobileInspectorOpen}
+        onClose={() => setMobileInspectorOpen(false)}
+        state={state}
+        activeModel={activeModel}
+        activeAccount={activeAccount}
+        telemetryMessage={telemetryMessage}
+        copiedField={copiedField}
+        onCopy={copyToClipboard}
+        temperature={temperature}
+        setTemperature={setTemperature}
+        topP={topP}
+        setTopP={setTopP}
+        maxTokens={maxTokens}
+        setMaxTokens={setMaxTokens}
+        presencePenalty={presencePenalty}
+        setPresencePenalty={setPresencePenalty}
+        systemPrompt={systemPrompt}
+        setSystemPrompt={setSystemPrompt}
+      />
     </div>
   );
 };

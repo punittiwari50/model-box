@@ -174,9 +174,9 @@ export const ModelCardGrid: React.FC<ModelCardGridProps> = ({
                       ? onManageAccountsClick(item.targetModelId, item.cardTitle)
                       : onModelClick(item.targetModelId)
                   }
-                  title={`Inspect or configure ${item.cardTitle}`}
+                  title={`Manage credentials and accounts for ${item.cardTitle}`}
                 >
-                  Details
+                  Manage
                 </button>
                 {onChatSelect && (
                   <button
@@ -185,14 +185,18 @@ export const ModelCardGrid: React.FC<ModelCardGridProps> = ({
                     onClick={() => onChatSelect(item.targetModelId)}
                     title={`Launch chat with ${item.cardTitle}`}
                   >
-                    {item.accountCount > 0 ? "Manage" : "Connect"}
+                    ?? Chat
                   </button>
                 )}
               </>
             }
             accentClass={`group-${item.familyKey}`}
             selected={item.isSelected}
-            onClick={() => onModelClick(item.targetModelId)}
+            onClick={() =>
+              onManageAccountsClick
+                ? onManageAccountsClick(item.targetModelId, item.cardTitle)
+                : onModelClick(item.targetModelId)
+            }
             testId={`model-card-${item.id}`}
             titleTooltip={`Click to open configuration for ${item.cardTitle}`}
           />

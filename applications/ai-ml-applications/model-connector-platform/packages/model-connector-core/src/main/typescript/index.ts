@@ -18,4 +18,5 @@ export * from "@/rest/index.js";
 export * from "@/database/index.js";
 export * from "@/cache/index.js";
 export * from "@/auth/cliAuthStrategies.js";
+export * from "@/auth/oauthUrlStrategies.js";
 export * from "@/vcs/index.js";

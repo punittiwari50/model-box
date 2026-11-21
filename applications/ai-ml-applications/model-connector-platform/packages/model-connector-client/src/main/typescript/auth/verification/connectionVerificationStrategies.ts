@@ -1,5 +1,6 @@
 import {
   childProcessUtils,
+  fileUtils,
   modelProviderConfigService,
   ollamaModelDiscoveryCache,
   processUtils,
@@ -652,10 +653,24 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
     };
   }
 
+  private resolveAntigravityModel(modelId: string): string {
+    const m = (modelId || "").toLowerCase().trim();
+    if (m.includes("2.5-pro") || m.includes("2-5-pro")) return "gemini-2.5-pro";
+    if (m.includes("2.5-flash") || m.includes("2-5-flash")) return "gemini-2.5-flash";
+    if (m.includes("3.8") || m.includes("3-8") || m.includes("gemini") || m.includes("google")) return "gemini-3.8-flash";
+    if (m.includes("opus")) return "claude-opus-4-6";
+    if (m.includes("claude") || m.includes("sonnet")) return "claude-sonnet-4-6";
+    if (m.includes("gpt-oss")) return "gpt-oss-120b-maas";
+    return m || "gemini-3.8-flash";
+  }
+
   public buildCliPlan(modelId: string, sanitizedPrompt: string, credential: string, mode: ModelInteractionMode = "chat"): CliExecutionPlan {
     const cfg = this.configRegistry.getProviderConfig(ProviderId.GOOGLE);
     const baseEnv: Record<string, string | undefined> = {
       ...processUtils.env,
+      HOME: "/home/node",
+      USER: "node",
+      XDG_CONFIG_HOME: "/home/node/.config",
       GEMINI_CLI_TRUST_WORKSPACE: "true",
       GOOGLE_APPLICATION_CREDENTIALS: "/app/config/data/credentials/google_oauth_creds.json",
       GEMINI_CLI_AUTH_DIR: "/app/config/data/credentials",
@@ -665,43 +680,49 @@ export class GeminiProviderVerificationStrategy implements IProviderVerification
     if (isOAuth) {
       baseEnv.GOOGLE_GENAI_USE_GCA = "true";
       baseEnv.GOOGLE_CLOUD_ACCESS_TOKEN = token.replace(/^Bearer\s+/i, "").trim();
-    } else if (token && !token.startsWith("4/")) {
-      baseEnv.GEMINI_API_KEY = token;
-      baseEnv.GOOGLE_API_KEY = token;
+    } else {
+      for (const cf of ["/home/node/.gemini/antigravity-cli/credentials.json", "/app/config/data/credentials/antigravity-cli/credentials.json"]) {
+        try {
+          if (fileUtils.exists(cf)) {
+            const parsed = JSON.parse(fileUtils.readFileSync(cf));
+            const tok = parsed.access_token || parsed.accessToken;
+            if (tok && typeof tok === "string" && (tok.startsWith("ya29.") || tok.startsWith("Bearer "))) {
+              baseEnv.GOOGLE_GENAI_USE_GCA = "true";
+              baseEnv.GOOGLE_CLOUD_ACCESS_TOKEN = tok.replace(/^Bearer\s+/i, "").trim();
+              break;
+            }
+          }
+        } catch {}
+      }
+      if (token && !token.startsWith("4/")) {
+        baseEnv.GEMINI_API_KEY = token;
+        baseEnv.GOOGLE_API_KEY = token;
+      }
     }
     const isAntigravity = cfg.cliExecutable.includes("antigravity") || cfg.cliExecutable.includes("agy");
+    const targetCliModel = this.resolveAntigravityModel(modelId);
 
     let cmd: string;
     if (isAntigravity) {
       switch (mode) {
         case "agent":
-          cmd = `${cfg.cliExecutable} --dangerously-skip-permissions --agent -p "${sanitizedPrompt}" --model ${modelId}`;
+          cmd = `${cfg.cliExecutable} --dangerously-skip-permissions --agent -p "${sanitizedPrompt}" --model ${targetCliModel}`;
           break;
         case "ask":
-          cmd = `${cfg.cliExecutable} --dangerously-skip-permissions -p "${sanitizedPrompt}" --model ${modelId}`;
-          break;
-        case "gemini":
-          cmd = `${cfg.cliExecutable} --dangerously-skip-permissions -p "${sanitizedPrompt}" --model ${modelId}`;
-          break;
         case "chat":
         default:
-          cmd = `${cfg.cliExecutable} --dangerously-skip-permissions -p "${sanitizedPrompt}" --model ${modelId}`;
+          cmd = `${cfg.cliExecutable} --dangerously-skip-permissions -p "${sanitizedPrompt}" --model ${targetCliModel}`;
           break;
       }
     } else {
       switch (mode) {
         case "agent":
-          cmd = `${cfg.cliExecutable} --agent -p "${sanitizedPrompt}" --skip-trust -m ${modelId}`;
+          cmd = `${cfg.cliExecutable} --agent -p "${sanitizedPrompt}" --skip-trust -m ${targetCliModel}`;
           break;
         case "ask":
-          cmd = `${cfg.cliExecutable} -p "${sanitizedPrompt}" --skip-trust -m ${modelId}`;
-          break;
-        case "gemini":
-          cmd = `${cfg.cliExecutable} -p "${sanitizedPrompt}" --skip-trust -m ${modelId}`;
-          break;
         case "chat":
         default:
-          cmd = `${cfg.cliExecutable} -p "${sanitizedPrompt}" --skip-trust -m ${modelId}`;
+          cmd = `${cfg.cliExecutable} -p "${sanitizedPrompt}" --skip-trust -m ${targetCliModel}`;
           break;
       }
     }
@@ -1134,10 +1155,41 @@ export class CliProtocolVerificationStrategy implements IProtocolVerificationStr
 
   private resolveEffectiveCliCredential(modelId: string, credentialValue: string): string {
     const trimmed = (credentialValue || "").trim();
-    if (this.isNonCommandCredential(trimmed)) return trimmed;
+    if (this.isNonCommandCredential(trimmed) && (trimmed.startsWith("ya29.") || trimmed.startsWith("Bearer ") || !trimmed.startsWith("4/"))) {
+      return trimmed;
+    }
     const activeAccount = accountRepository.getActiveAccount(modelId);
     const accCred = (activeAccount?.credentialValue || "").trim();
-    return this.isNonCommandCredential(accCred) ? accCred : "";
+    if (this.isNonCommandCredential(accCred) && (accCred.startsWith("ya29.") || accCred.startsWith("Bearer "))) {
+      return accCred;
+    }
+    const candidateFiles = [
+      "/home/node/.gemini/antigravity-cli/antigravity-oauth-token",
+      "/app/config/data/credentials/antigravity-cli/antigravity-oauth-token",
+      "/app/config/data/credentials/google_oauth_creds.json",
+      "/app/config/data/credentials/gemini_oauth_creds.json",
+      "/home/node/.gemini/oauth_creds.json",
+      "/root/.gemini/antigravity-cli/antigravity-oauth-token",
+    ];
+    for (const credsPath of candidateFiles) {
+      try {
+        if (fileUtils.exists(credsPath)) {
+          const rawText = fileUtils.readFileSync(credsPath);
+          if (rawText.includes("access_token")) {
+            const raw = JSON.parse(rawText);
+            const token = raw?.access_token || raw?.accessToken;
+            if (token && typeof token === "string" && (token.startsWith("ya29.") || token.startsWith("Bearer "))) {
+              return token;
+            }
+          } else if (rawText.startsWith("ya29.") || rawText.startsWith("Bearer ")) {
+            return rawText.trim();
+          }
+        }
+      } catch {
+        // Graceful fallback
+      }
+    }
+    return this.isNonCommandCredential(trimmed) ? trimmed : "";
   }
 
   private isNonCommandCredential(value: string): boolean {

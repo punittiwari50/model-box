@@ -38,11 +38,12 @@ export class GeminiModelPropertyResolver implements IModelPropertyResolver {
 
   public buildApiRequest(model: string, apiKey: string, prompt: string): ApiRequestSpec {
     const baseUrl = this.resolveBaseUrl();
+    const cleanModel = this.normalizeModel(model);
     const isOAuth = apiKey.startsWith("ya29.") || apiKey.startsWith("Bearer ");
     const cleanToken = apiKey.startsWith("Bearer ") ? apiKey.slice(7) : apiKey;
     const endpoint = isOAuth
-      ? `${baseUrl}/v1beta/models/${model}:generateContent`
-      : `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      ? `${baseUrl}/v1beta/models/${cleanModel}:generateContent`
+      : `${baseUrl}/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`;
     const headers: Record<string, string> = {
       [HttpHeader.CONTENT_TYPE]: "application/json",
     };
@@ -75,8 +76,17 @@ export class GeminiModelPropertyResolver implements IModelPropertyResolver {
       environment.getProperty("gemini.cli.command", DefaultCliCommand.GEMINI),
     );
     const isAntigravity = binary.includes("antigravity") || binary.includes("agy");
-    const args = this.buildCliArgs(isAntigravity, model, sessionId);
+    const normalizedModel = this.normalizeModel(model);
+    const args = this.buildCliArgs(isAntigravity, normalizedModel, sessionId);
     return { binary, args, env: this.buildCliEnv(credentialValue) };
+  }
+
+  private normalizeModel(model: string): string {
+    const m = (model || "").toLowerCase().trim();
+    if (m.includes("2.5-pro") || m.includes("2-5-pro")) return "gemini-2.5-pro";
+    if (m.includes("2.5-flash") || m.includes("2-5-flash")) return "gemini-2.5-flash";
+    if (m.includes("3.8") || m.includes("3-8") || m.includes("gemini") || m.includes("google")) return "gemini-3.8-flash";
+    return m.replace(/\s*\([^)]*\)/g, "").trim() || "gemini-3.8-flash";
   }
 
   private buildCliArgs(isAntigravity: boolean, model: string, sessionId?: string): string[] {
@@ -94,6 +104,9 @@ export class GeminiModelPropertyResolver implements IModelPropertyResolver {
 
   private buildCliEnv(credentialValue?: string): Readonly<Record<string, string>> {
     const envVars: Record<string, string> = {
+      HOME: "/home/node",
+      USER: "node",
+      XDG_CONFIG_HOME: "/home/node/.config",
       GEMINI_CLI_TRUST_WORKSPACE: "true",
     };
     const token = credentialValue?.trim() || this.resolveApiKey("");

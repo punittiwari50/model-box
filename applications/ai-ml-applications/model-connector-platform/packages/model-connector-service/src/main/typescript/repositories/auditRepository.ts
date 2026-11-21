@@ -131,10 +131,12 @@ export class AuditRepository {
         correlation_id: string;
         trace_id: string;
         span_id: string;
+        strategy_mode?: string;
+        error_message?: string;
       }>(
         `SELECT AUDIT_LOG_ID, ACTION_NAME, MODEL_ID, EXECUTION_STATUS, LATENCY_MS,
                 CREATED_TIMESTAMP, CLIENT_IP, PROMPT_MESSAGE, SESSION_ID,
-                CORRELATION_ID, TRACE_ID, SPAN_ID
+                CORRELATION_ID, TRACE_ID, SPAN_ID, STRATEGY_MODE, ERROR_MESSAGE
          FROM AUDIT_LOGS
          ORDER BY CREATED_TIMESTAMP DESC
          LIMIT $1 OFFSET $2`,
@@ -161,7 +163,9 @@ export class AuditRepository {
                SESSION_ID as session_id,
                CORRELATION_ID as correlation_id,
                TRACE_ID as trace_id,
-               SPAN_ID as span_id
+               SPAN_ID as span_id,
+               STRATEGY_MODE as strategy_mode,
+               ERROR_MESSAGE as error_message
         FROM AUDIT_LOGS
         ORDER BY CREATED_TIMESTAMP DESC
         LIMIT ? OFFSET ?
@@ -197,6 +201,8 @@ export class AuditRepository {
       correlationId: r.correlation_id ? String(r.correlation_id) : undefined,
       traceId: r.trace_id ? String(r.trace_id) : undefined,
       spanId: r.span_id ? String(r.span_id) : undefined,
+      strategyMode: r.strategy_mode ? String(r.strategy_mode) : undefined,
+      errorMessage: r.error_message ? String(r.error_message) : undefined,
     };
   }
 }

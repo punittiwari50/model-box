@@ -42,10 +42,29 @@ export class InferenceService {
         accountId: request.accountId || activeAccount?.accountId,
       });
     } catch (err: unknown) {
-      if (this.isClientOrAuthError(err)) {
-        accountRepository.deactivateActiveAccount(model);
-      }
       const latencyMs = Date.now() - startTime;
+      const errorMsg = (err as any)?.message || String(err);
+
+      // Persist failed assistant turn in database so error chat conversation is retained in history
+      try {
+        sessionRepository.saveMessage({
+          sessionId,
+          role: "assistant",
+          content: `⚠️ Error: ${errorMsg}`,
+          model,
+          strategy: effectiveStrategy,
+          latencyMs,
+        });
+        sessionRepository.updateSessionOnMessage(
+          sessionId,
+          model,
+          effectiveStrategy,
+          request.prompt,
+        );
+      } catch {
+        // Safe error turn persistence
+      }
+
       await auditRepository.saveAuditLog({
         correlationId: request.correlationId || randomUUID(),
         traceId: request.traceId,
@@ -58,7 +77,7 @@ export class InferenceService {
         executionStatus: "FAILED",
         clientIp: request.clientIp,
         promptMessage: request.prompt,
-        errorMessage: (err as any)?.message || String(err),
+        errorMessage: errorMsg,
       });
       throw err;
     }
@@ -135,9 +154,6 @@ export class InferenceService {
         onChunk,
       );
     } catch (err: unknown) {
-      if (this.isClientOrAuthError(err)) {
-        accountRepository.deactivateActiveAccount(model);
-      }
       const latencyMs = Date.now() - startTime;
       await auditRepository.saveAuditLog({
         correlationId: request.correlationId || randomUUID(),
@@ -233,28 +249,6 @@ export class InferenceService {
       fallbackReason,
       fallbackProvider: response.fallbackProvider || (isFallback ? "ollama" : undefined),
     };
-  }
-
-  private isClientOrAuthError(err: unknown): boolean {
-    if (!err) return false;
-    const anyErr = err as any;
-    const status = anyErr.status ?? anyErr.statusCode ?? anyErr.response?.status;
-    if (typeof status === "number" && status >= 400 && status < 500) return true;
-    const msg = (anyErr.message || String(err)).toLowerCase();
-    return (
-      msg.includes("400") ||
-      msg.includes("401") ||
-      msg.includes("403") ||
-      msg.includes("404") ||
-      msg.includes("unauthorized") ||
-      msg.includes("unauthenticated") ||
-      msg.includes("invalid_grant") ||
-      msg.includes("invalid_request") ||
-      msg.includes("authentication required") ||
-      msg.includes("invalid api key") ||
-      msg.includes("invalid token") ||
-      msg.includes("permission_denied")
-    );
   }
 }
 

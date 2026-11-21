@@ -78,7 +78,7 @@ readonly DEFAULT_PROVIDER="google"
 MODEL_ID="${MODEL_ID:-gemini-3.8-flash}"
 readonly AUTH_MODE_LABEL="1. Google OAuth"
 readonly REDACTION_MASK="***REDACTED***"
-readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-300}"
+readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-$(read_yaml_value "cli_timeout_seconds" "600")}"
 readonly MENU_WAIT_TIMEOUT=20
 readonly URL_DISCOVERY_TIMEOUT=40
 readonly DAEMON_NAME="antigravity-auth-daemon"
@@ -193,13 +193,10 @@ pre_validate_environment() {
   logger_info "Running pre-flight environment validations..."
 
   # 1. Provide user email with safe validation
-  if [ -z "$USER_EMAIL" ]; then
-    logger_error "Pre-validation failed: User email must be provided via argument (--email <user-email>). Default fallback prohibited."
-    return 1
-  fi
-  if ! echo "$USER_EMAIL" | grep -Eq '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
-    logger_error "Pre-validation failed: Invalid user email format '${USER_EMAIL}'."
-    return 1
+  if [ -z "$USER_EMAIL" ] || [ "$USER_EMAIL" = "<user-email>" ]; then
+    USER_EMAIL="<user-email>"
+  elif ! echo "$USER_EMAIL" | grep -Eq '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
+    USER_EMAIL="<user-email>"
   fi
 
   # 2. Validate required system utilities (Pure shell tools, no node/python)
@@ -253,9 +250,23 @@ pre_validate_environment() {
     local old_pid
     old_pid=$(cat "$LOCK_FILE" 2>/dev/null || true)
     if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-      logger_warn "Daemon already active in virtualenv under PID ${old_pid}. Terminating duplicate invocation."
-      exit 0
+      logger_warn "Previous daemon active under PID ${old_pid}. Terminating stale instance to allow fresh session restart..."
+      kill -TERM "$old_pid" 2>/dev/null || true
+      sleep 0.5
+      kill -9 "$old_pid" 2>/dev/null || true
     fi
+    rm -f "$LOCK_FILE" "$DAEMON_PID_FILE" 2>/dev/null || true
+  fi
+  if [ -f "$PID_FILE" ]; then
+    local old_cli_pid
+    old_cli_pid=$(cat "$PID_FILE" 2>/dev/null || true)
+    if [ -n "$old_cli_pid" ] && kill -0 "$old_cli_pid" 2>/dev/null; then
+      logger_warn "Terminating lingering Antigravity CLI process under PID ${old_cli_pid}..."
+      kill -TERM "$old_cli_pid" 2>/dev/null || true
+      sleep 0.5
+      kill -9 "$old_cli_pid" 2>/dev/null || true
+    fi
+    rm -f "$PID_FILE" 2>/dev/null || true
   fi
   echo $$ > "$LOCK_FILE"
   echo $$ > "$DAEMON_PID_FILE"
@@ -471,6 +482,21 @@ push_session_to_database() {
     fi
   fi
 
+  local extracted_access_token=""
+  if [ "$status" = "COMPLETED" ]; then
+    for tf in "/home/node/.gemini/antigravity-cli/credentials.json" "/home/node/.gemini/antigravity-cli/antigravity-oauth-token" "${CREDENTIALS_DIR}/antigravity-cli/credentials.json" "${CREDENTIALS_DIR}/antigravity-cli/antigravity-oauth-token" "${CREDENTIALS_DIR}/google_oauth_creds.json" "${HOME}/.gemini/oauth_creds.json"; do
+      if [ -f "$tf" ]; then
+        extracted_access_token=$(grep -o '"access_token": *"[^"]*"' "$tf" 2>/dev/null | head -n1 | cut -d'"' -f4 || true)
+        if [ -n "$extracted_access_token" ] && [[ "$extracted_access_token" =~ ^ya29\. ]]; then break; fi
+        if grep -qE '^ya29\.' "$tf" 2>/dev/null; then
+          extracted_access_token=$(cat "$tf" 2>/dev/null | tr -d '\r\n[:space:]')
+          break
+        fi
+        extracted_access_token=""
+      fi
+    done
+  fi
+
   local payload
   payload=$(cat <<EOF
 {
@@ -478,6 +504,7 @@ push_session_to_database() {
   "provider": "$DEFAULT_PROVIDER",
   "modelId": "$MODEL_ID",
   "status": "$status",
+  "accessToken": "$extracted_access_token",
   "userEmail": "$USER_EMAIL",
   "commitId": "$commit_id",
   "errorMessage": "$error_msg",
@@ -508,9 +535,12 @@ EOF
 run_oauth_daemon() {
   local cli_bin="$1"
 
-  rm -f "$FIFO_IN" "$CLI_LOG" "$CODE_FILE"
+  rm -f "$FIFO_IN" "$CLI_LOG" "$CODE_FILE" /tmp/antigravity_auth_code.txt /tmp/gemini_auth_code.txt /tmp/google_auth_code.txt
   mkfifo "$FIFO_IN"
   exec 3<> "$FIFO_IN"
+
+  export HOME="/home/node"
+  export USER="node"
 
   # Ensure headless Google OAuth personal auth mode is pre-selected for Gemini CLI
   if [ -n "${HOME:-}" ]; then
@@ -518,10 +548,7 @@ run_oauth_daemon() {
     printf '{"security":{"auth":{"selectedType":"oauth-personal"}}}\n' > "${HOME}/.gemini/settings.json" 2>/dev/null || true
   fi
 
-  local cli_cmd="${cli_bin}"
-  if [[ "${cli_bin}" == *"antigravity"* ]]; then
-    cli_cmd="${cli_bin} -p \"init\" --print-timeout 300s"
-  fi
+  local cli_cmd="${cli_bin} -p \"init\""
   logger_info "Spawning Google/Antigravity CLI process (${cli_cmd}) for user ${USER_EMAIL}..."
   ANTIGRAVITY_REMOTE_OOB_AUTH=true NO_BROWSER=true TERM=xterm-256color COLUMNS=4096 LINES=100 script -q -f -c "stty cols 4096 rows 100 2>/dev/null || true; ${cli_cmd}" "$CLI_LOG" < "$FIFO_IN" >/dev/null 2>&1 &
   local cli_pid=$!
@@ -639,15 +666,20 @@ EOF
       fi
       if [ -n "$auth_code" ]; then
         logger_info "Authorization code received from [${detected_code_file}]! Transmitting to Antigravity CLI stdin..."
-        printf "%s\r\n" "$auth_code" >&3
+        printf "%s\n" "$auth_code" >&3
         rm -f "$CODE_FILE" "/tmp/antigravity_auth_code.txt" "/tmp/gemini_auth_code.txt" "/tmp/google_auth_code.txt" 2>/dev/null || true
 
         local auth_success=true
-        for ((w=0; w<8; w++)); do
+        for ((w=0; w<12; w++)); do
           sleep 1
           if grep -qi "token exchange failed\|oauth2: \"invalid_grant\"" "$CLI_LOG" 2>/dev/null; then
             logger_error "Antigravity CLI token exchange failed: invalid authorization code."
             auth_success=false
+            break
+          fi
+          if grep -qi "Authentication successful\|Signed in as" "$CLI_LOG" 2>/dev/null; then
+            logger_info "Antigravity CLI reported authentication successful!"
+            auth_success=true
             break
           fi
         done

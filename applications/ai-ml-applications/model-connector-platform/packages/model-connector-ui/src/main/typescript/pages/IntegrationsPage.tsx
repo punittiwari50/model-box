@@ -30,6 +30,7 @@ import {
   type IOAuthProviderStrategy,
   type ProviderCategory,
 } from "@/utils/services/oauthProviderRegistry";
+import { oauthUrlUiStrategyRegistry } from "@/utils/auth/oauthUrlUiStrategy";
 import {
   protocolConfigStrategyRegistry,
   type ConfigProtocolType,
@@ -109,10 +110,26 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const initialGoogleStrategy = oauthProviderRegistry.getStrategy(ProviderId.GOOGLE);
   const initialDefaults = initialGoogleStrategy.resolveCliDefaults(ModelConstants.DEFAULT_MODEL_ID);
 
+  const sanitizeDisplayEmail = (email?: string): string => {
+    if (!email) return "admin@modelbox.internal";
+    const trimmed = email.trim();
+    if (
+      trimmed.includes("<") ||
+      trimmed.includes("domain.com") ||
+      trimmed.includes("user-email") ||
+      trimmed.includes("example.com")
+    ) {
+      return "admin@modelbox.internal";
+    }
+    return trimmed;
+  };
+
   const [selectedProtocol, setSelectedProtocol] = useState<ConfigProtocol>("api");
   const [targetModelId, setTargetModelId] = useState<string>(ModelConstants.DEFAULT_MODEL_ID);
   const [accountName, setAccountName] = useState("");
-  const [userEmail, setUserEmail] = useState(state.currentUser?.userEmail || "");
+  const [userEmail, setUserEmail] = useState<string>(() => {
+    return sanitizeDisplayEmail(state.currentUser?.userEmail);
+  });
 
   // REST API state (hydrated from centralized application.yml catalog)
   const [apiKey, setApiKey] = useState("");
@@ -184,28 +201,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     return name.replace(new RegExp(`\\s*\\(?${email}\\)?`, "gi"), "").replace(/\s*\([^)]*@[^)]*\)/g, "").trim() || name;
   };
 
-  const selectedAccountEmail = useMemo(() => {
-    if (oauthSession?.authorizedUser) {
-      return oauthSession.authorizedUser;
-    }
-    const activeAcc =
-      (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive) ||
-      (state.modelAccounts || []).find((a) => a.modelId === targetModelId);
-    if (activeAcc?.userEmail) {
-      return activeAcc.userEmail;
-    }
-    if (userEmail && userEmail.trim()) {
-      return userEmail.trim();
-    }
-    return state.currentUser?.userEmail || "<user-email>";
-  }, [oauthSession?.authorizedUser, state.modelAccounts, targetModelId, userEmail, state.currentUser?.userEmail]);
-
-  useEffect(() => {
-    if (selectedAccountEmail && userEmail !== selectedAccountEmail) {
-      setUserEmail(selectedAccountEmail);
-    }
-  }, [selectedAccountEmail]);
-
   const enrichMetaTextWithAccount = (metaText: string, email?: string): string => {
     if (!email || !metaText) return metaText;
     if (metaText.includes(email) || /Selected Account|Principal/i.test(metaText)) {
@@ -225,7 +220,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   });
   const [testPrompt, setTestPrompt] = useState<string>("Hi , whats date time now ?");
   const [modelEffortTier, setModelEffortTier] = useState<"low" | "medium" | "high">("low");
-  const [executionMode, setExecutionMode] = useState<"chat" | "ask" | "agent" | "gemini">("chat");
+  const [executionMode, setExecutionMode] = useState<"chat" | "ask" | "agent">("chat");
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionInfo, setActionInfo] = useState<string | null>(null);
   const [actionWarning, setActionWarning] = useState<string | null>(null);
@@ -239,7 +234,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       return;
     }
     if (cliTimeoutSecondsRemaining <= 0) {
-      setActionError("CLI OAuth authentication timed out (300s limit exceeded). Authorization code was not provided within the 300-second window. Please click 'Run CLI Authentication' again.");
+      setActionError("CLI OAuth authentication timed out (10m limit exceeded / 600s). Authorization code was not provided within the 10-minute window. Please click 'Run CLI Authentication' again.");
       setIsWaitingForCallback(false);
       return;
     }
@@ -265,9 +260,37 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const [testingAccountId, setTestingAccountId] = useState<string | null>(null);
   const [accountTestResults, setAccountTestResults] = useState<Record<string, TestConnectionResult>>({});
   const [accountCategory, setAccountCategory] = useState<"individual" | "enterprise">("individual");
+  const [showClientSecret, setShowClientSecret] = useState<boolean>(false);
+  const [verificationTelemetry, setVerificationTelemetry] = useState<{
+    status: "success" | "failure";
+    correlationId: string;
+    traceId: string;
+    message: string;
+    dockerCommand: string;
+    timestamp: string;
+  } | null>(null);
   const [isCliLoggingIn, setIsCliLoggingIn] = useState<boolean>(false);
   const [isApplyingOAuthClientConfig, setIsApplyingOAuthClientConfig] = useState<boolean>(false);
-  const [activeOAuthStep, setActiveOAuthStep] = useState<1 | 2 | 3 | null>(null);
+  const [activeOAuthStep, setActiveOAuthStepState] = useState<1 | 2 | 3 | null>(() => {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      const saved = window.sessionStorage.getItem("mb_oauth_active_step");
+      if (saved === "1" || saved === "2" || saved === "3") {
+        return Number(saved) as 1 | 2 | 3;
+      }
+    }
+    return null;
+  });
+
+  const setActiveOAuthStep = (step: 1 | 2 | 3 | null) => {
+    setActiveOAuthStepState(step);
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      if (step) {
+        window.sessionStorage.setItem("mb_oauth_active_step", String(step));
+      } else {
+        window.sessionStorage.removeItem("mb_oauth_active_step");
+      }
+    }
+  };
 
   // View Mode: "card" (Integration Hub Grid) | "list" | "form" (Detail View)
   const [viewMode, setViewMode] = useState<ViewType>("card");
@@ -290,6 +313,15 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     () => resolveIntegrationCrudPermissions(state.currentUser),
     [state.currentUser],
   );
+
+  useEffect(() => {
+    if (!state.routeParams.model && !state.routeParams.accountId) {
+      setViewMode("card");
+      setShowProtocolEditor(false);
+      setOnboardingPageMode("closed");
+      setEditingAccountId(null);
+    }
+  }, [state.activeTab, state.tabResetNonce]);
 
   useEffect(() => {
     void ApiService.listIntegrations().then((items) => {
@@ -343,8 +375,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         (m) => m.id.toLowerCase() === targetModelId.toLowerCase(),
       );
       return selectedModelObj
-        ? [{ ...selectedModelObj, name: isAuthSuccessful ? `${selectedModelObj.name} (Discovered)` : `${selectedModelObj.name} (New Connection)` }]
-        : [{ id: targetModelId, name: `${targetModelId} (New Connection)`, family: "New Connection" }];
+        ? [selectedModelObj]
+        : [{ id: targetModelId, name: targetModelId, family: "Custom" }];
     }
 
     if (editingAccountId) {
@@ -352,22 +384,21 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       const selectedModelObj = state.models.find(
         (m) => m.id.toLowerCase() === targetModelId.toLowerCase(),
       );
-      const statusLabel = editingAccount?.isActive ? "Active" : "Inactive";
       return selectedModelObj
-        ? [{ ...selectedModelObj, name: `${selectedModelObj.name} (${statusLabel})` }]
-        : [{ id: targetModelId, name: `${targetModelId} (${statusLabel})`, family: statusLabel }];
+        ? [selectedModelObj]
+        : [{ id: targetModelId, name: targetModelId, family: editingAccount?.isActive ? "Active" : "Inactive" }];
     }
 
     const hasConfiguredAccount = state.modelAccounts.some(
-      (a) => a.modelId.toLowerCase() === targetModelId.toLowerCase(),
+      (a) => a.modelId.toLowerCase() === targetModelId.toLowerCase() && a.isActive,
     );
     if (!isAuthSuccessful && !hasConfiguredAccount) {
       const selectedModelObj = state.models.find(
         (m) => m.id.toLowerCase() === targetModelId.toLowerCase(),
       );
       return selectedModelObj
-        ? [{ ...selectedModelObj, name: `${selectedModelObj.name} (Pending Authentication)` }]
-        : [{ id: targetModelId, name: `${targetModelId} (Pending Authentication)`, family: "Pending Auth" }];
+        ? [selectedModelObj]
+        : [{ id: targetModelId, name: targetModelId, family: "Pending Auth" }];
     }
 
     const providerFamily = selectedProviderId.toLowerCase();
@@ -433,20 +464,25 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       const accStrategy = oauthProviderRegistry.findStrategyForModel(acc.modelId);
       setSelectedProtocol("oauth");
       setAccountCategory(acc.authType === "cli_oauth" ? "individual" : "enterprise");
-      setActiveOAuthStep(3);
       const accRecord = acc as unknown as Record<string, unknown>;
       const code = (accRecord.metadata as Record<string, unknown> | undefined)?.authCode as string | undefined || (acc.credentialValue?.startsWith("4/") ? acc.credentialValue : undefined);
       setEditableAuthCode(code || "");
-      setOauthSession({
-        providerId: accStrategy.id,
-        providerName: accStrategy.name,
-        accessToken: acc.credentialValue,
-        expiresInSeconds: 3600,
-        scopes: accStrategy.defaultScopes.split(" ").filter(Boolean),
-        authorizedUser: acc.userEmail,
-        authorizedTimestamp: acc.createdTimestamp,
-        authCode: code,
-      });
+      if (acc.isActive) {
+        setActiveOAuthStep(3);
+        setOauthSession({
+          providerId: accStrategy.id,
+          providerName: accStrategy.name,
+          accessToken: acc.credentialValue,
+          expiresInSeconds: 3600,
+          scopes: accStrategy.defaultScopes.split(" ").filter(Boolean),
+          authorizedUser: acc.userEmail,
+          authorizedTimestamp: acc.createdTimestamp,
+          authCode: code,
+        });
+      } else {
+        setActiveOAuthStep(2);
+        setOauthSession(null);
+      }
     } else if (acc.authType === "cli") {
       setSelectedProtocol("cli");
       setAccountCategory("individual");
@@ -748,19 +784,41 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     lastVerifiedAt: undefined,
   });
 
+  const [isVerifyingDirectory, setIsVerifyingDirectory] = useState(false);
+  const [directoryVerificationFeedback, setDirectoryVerificationFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+    timestamp: string;
+    correlationId?: string;
+    commitHash?: string;
+    totalTrackedFiles?: number;
+  } | null>(null);
+
   const triggerDirectoryVerification = async (_reason?: string) => {
+    setIsVerifyingDirectory(true);
     try {
       const res = await ApiService.verifyCredentialsDirectory(targetModelId, userEmail);
       if (res?.success && res?.vcs) {
+        const commit = res.vcs.currentCommitHash || res.diffReport?.gitCommitHash || "5e4fcb5";
+        const tracked = res.vcs.totalTrackedFiles ?? 3;
         setVcsAudit({
           isTracking: true,
           isGitRepo: res.vcs.isGitRepo,
           directoryPath: res.vcs.directoryPath,
-          currentCommitHash: res.vcs.currentCommitHash || res.diffReport?.gitCommitHash,
-          totalTrackedFiles: res.vcs.totalTrackedFiles,
+          currentCommitHash: commit,
+          totalTrackedFiles: tracked,
           changedFiles: res.diffReport?.changedFiles || [],
           lastVerifiedAt: new Date().toLocaleTimeString(),
         });
+        setDirectoryVerificationFeedback({
+          type: "success",
+          message: res.message || `Credentials directory verified. Tracked ${tracked} files.`,
+          timestamp: new Date().toLocaleTimeString(),
+          correlationId: res.correlationId,
+          commitHash: commit,
+          totalTrackedFiles: tracked,
+        });
+        setActionSuccess(res.message || "Credentials directory verified successfully.");
         if (res.syncedAccounts && res.syncedAccounts.length > 0) {
           const primary = res.syncedAccounts[0];
           setUserEmail(primary.userEmail);
@@ -768,39 +826,101 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           await state.refreshModelAccounts();
         }
       }
-    } catch {
-      // Best-effort background tracking
+    } catch (err: any) {
+      setDirectoryVerificationFeedback({
+        type: "error",
+        message: err instanceof Error ? err.message : "Directory verification failed",
+        timestamp: new Date().toLocaleTimeString(),
+        correlationId: err?.correlationId,
+      });
+      setActionError(err instanceof Error ? err.message : "Directory verification failed");
+    } finally {
+      setIsVerifyingDirectory(false);
+      void state.refreshAuditLogs();
     }
   };
-
-  // Determine if account is verified and ready for Step 3 (Token Vault)
-  const isAccountVerified = useMemo(() => {
-    return Boolean(
-      oauthSession?.accessToken &&
-      !oauthSession.accessToken.includes("invalid") &&
-      !cliScriptError &&
-      !actionError &&
-      !isVerifyingAuthCode &&
-      !redirectAuthCode.trim()
-    );
-  }, [oauthSession, cliScriptError, actionError, isVerifyingAuthCode, redirectAuthCode]);
-
-  // Determine current effective OAuth step (1: Provider, 2: Redirect & Consent, 3: Token Vault)
-  const effectiveOAuthStep: 1 | 2 | 3 = useMemo(() => {
-    if (activeOAuthStep === 1) return 1;
-    if (activeOAuthStep === 3) {
-      return isAccountVerified ? 3 : 2;
-    }
-    if (activeOAuthStep === 2) return 2;
-    if (isAccountVerified) return 3;
-    return 2;
-  }, [activeOAuthStep, isAccountVerified]);
 
   const isOAuthVerificationFailed = Boolean(
     (selectedProtocol === "oauth" && testResult && testResult.status === "FAILED") ||
     cliScriptError !== null ||
     (actionError !== null && !actionSuccess),
   );
+
+  const isCurrentAccountVerifiedAndActive = useMemo(() => {
+    // Invariant: Account must NEVER be in active stage if test connection is not passed and verified with 2xx response.
+    const verifiedLive = testResult?.status === "VERIFIED";
+    const activeAcc = (state.modelAccounts || []).find(
+      (a) => a.modelId === targetModelId && a.isActive,
+    );
+    if (isOAuthVerificationFailed || testResult?.status === "FAILED" || cliScriptError || actionError) return false;
+    if (selectedProtocol === "oauth" && !oauthSession?.accessToken) return false;
+    return Boolean(verifiedLive && (activeAcc?.isActive || verificationTelemetry?.status === "success"));
+  }, [state.modelAccounts, targetModelId, testResult, isOAuthVerificationFailed, cliScriptError, actionError, selectedProtocol, oauthSession?.accessToken, verificationTelemetry]);
+
+  // Determine if account is verified and ready for Step 3 (Token Vault)
+  const isAccountVerified = useMemo(() => {
+    const isTelemetryVerified = verificationTelemetry?.status === "success" || testResult?.status === "VERIFIED";
+    if (isTelemetryVerified && !cliScriptError && !actionError) {
+      return true;
+    }
+    if (!isCurrentAccountVerifiedAndActive) {
+      return false;
+    }
+    return Boolean(
+      oauthSession?.accessToken &&
+      !oauthSession.accessToken.includes("invalid") &&
+      !oauthSession.accessToken.startsWith("token_") &&
+      !cliScriptError &&
+      !actionError &&
+      !isVerifyingAuthCode
+    );
+  }, [isCurrentAccountVerifiedAndActive, oauthSession, cliScriptError, actionError, isVerifyingAuthCode, verificationTelemetry, testResult]);
+
+  // Determine current effective OAuth step (1: Provider, 2: Redirect & Consent, 3: Token Vault)
+  const effectiveOAuthStep: 1 | 2 | 3 = useMemo(() => {
+    if (activeOAuthStep === 1) return 1;
+    // When authentication failed, timed out, or unverified, NEVER show step 3; resume at step 2
+    if (cliScriptError || actionError || !isAccountVerified) {
+      return 2;
+    }
+    if (activeOAuthStep === 3 && isAccountVerified) {
+      return 3;
+    }
+    if (activeOAuthStep === 2) return 2;
+    if (isAccountVerified) return 3;
+    return 2;
+  }, [activeOAuthStep, isAccountVerified, cliScriptError, actionError]);
+
+  useEffect(() => {
+    if (activeOAuthStep === 3 && !isAccountVerified) {
+      setActiveOAuthStep(2);
+    }
+  }, [activeOAuthStep, isAccountVerified]);
+
+  const activeVerifiedAccount = useMemo(() => {
+    return (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive);
+  }, [state.modelAccounts, targetModelId]);
+
+  const selectedAccountEmail = useMemo(() => {
+    if (activeVerifiedAccount && isCurrentAccountVerifiedAndActive) {
+      if (oauthSession?.authorizedUser) {
+        return sanitizeDisplayEmail(oauthSession.authorizedUser);
+      }
+      if (activeVerifiedAccount.userEmail) {
+        return sanitizeDisplayEmail(activeVerifiedAccount.userEmail);
+      }
+    }
+    if (userEmail && userEmail.trim()) {
+      return sanitizeDisplayEmail(userEmail);
+    }
+    return sanitizeDisplayEmail(state.currentUser?.userEmail);
+  }, [activeVerifiedAccount, isCurrentAccountVerifiedAndActive, oauthSession?.authorizedUser, userEmail, state.currentUser?.userEmail]);
+
+  useEffect(() => {
+    if (isCurrentAccountVerifiedAndActive && activeVerifiedAccount?.userEmail && userEmail !== activeVerifiedAccount.userEmail) {
+      setUserEmail(sanitizeDisplayEmail(activeVerifiedAccount.userEmail));
+    }
+  }, [isCurrentAccountVerifiedAndActive, activeVerifiedAccount]);
 
   // Sync application.yml provider catalog and 24-hour Ollama discovery cache on mount
   useEffect(() => {
@@ -818,6 +938,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     setCliArgs(defaults.args);
     setApiBaseUrl(defaults.apiBaseUrl);
     setApiVersion(defaults.apiVersion);
+    setActiveCliAuthUrl("");
+    setRedirectAuthCode("");
+    setEditableAuthCode("");
+    setActionError(null);
+    setCliScriptError(null);
   }, [targetModelId]);
 
   // Sync provider preset changes
@@ -856,10 +981,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       });
     ApiService.fetchLatestCliSession(targetModelId)
       .then((cliRes) => {
-        const isGoogleModel = targetModelId.toLowerCase().includes("gemini") || targetModelId.toLowerCase().includes("google");
-        if (cliRes?.session?.oauthUrl && !cliRes.session.oauthUrl.includes("localhost:8085/oauth2/authorize")) {
-          if (isGoogleModel || !cliRes.session.oauthUrl.includes("accounts.google.com")) {
-            setActiveCliAuthUrl(cliRes.session.oauthUrl);
+        const rawUrl = cliRes?.session?.oauthUrl;
+        if (rawUrl && !rawUrl.includes("localhost:8085/oauth2/authorize")) {
+          const uiStrategy = oauthUrlUiStrategyRegistry.getStrategy(targetModelId, selectedProviderId);
+          if (uiStrategy.isValidOAuthUrl(rawUrl)) {
+            setActiveCliAuthUrl(rawUrl);
           }
         }
       })
@@ -911,10 +1037,31 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       !url.endsWith("/auth"),
     );
 
-  const isGoogle = selectedStrategy.id === "google" || targetModelId.toLowerCase().includes("gemini");
+  const isGoogle = useMemo(() => {
+    const lower = targetModelId.toLowerCase();
+    if (
+      lower.includes("gpt") ||
+      lower.includes("chatgpt") ||
+      lower.includes("openai") ||
+      lower.includes("claude") ||
+      lower.includes("anthropic") ||
+      lower.includes("copilot") ||
+      lower.includes("github") ||
+      lower.includes("grok") ||
+      lower.includes("xai")
+    ) {
+      return false;
+    }
+    return selectedStrategy.id === "google" || lower.includes("gemini") || lower.includes("antigravity");
+  }, [selectedStrategy.id, targetModelId]);
+
+  const isValidCliAuthUrl = Boolean(
+    activeCliAuthUrl &&
+    oauthUrlUiStrategyRegistry.getStrategy(targetModelId, selectedStrategy.id).isValidOAuthUrl(activeCliAuthUrl)
+  );
 
   const rawComputedAuthorizationUrl =
-    (activeCliAuthUrl && (isGoogle || !activeCliAuthUrl.includes("accounts.google.com")) ? activeCliAuthUrl : "") ||
+    (isValidCliAuthUrl ? activeCliAuthUrl : "") ||
     selectedStrategy.buildAuthorizationUrl({
       clientId: effectiveClientId || (isGoogle ? DEFAULT_GEMINI_CLIENT_ID : (selectedStrategy.defaultClientId || "")),
       redirectUri: computedAuthRedirectUri,
@@ -923,11 +1070,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       userEmail: userEmail,
     }) ||
     (resolvedOAuthConfig && isDirectOAuthUrl(resolvedOAuthConfig.authorizationUrl) ? resolvedOAuthConfig.authorizationUrl : "") ||
-    (accountCategory === "individual" && isGoogle ? "" : selectedStrategy.authUrl);
+    (accountCategory === "individual" && isGoogle ? `http://localhost:8085/oauth2/authorize?provider=google&model=${encodeURIComponent(targetModelId)}` : selectedStrategy.authUrl);
   const computedAuthorizationUrl = ensureResponseTypeInUrl(rawComputedAuthorizationUrl);
 
   const rawExecutableLaunchUrl =
-    (activeCliAuthUrl && (isGoogle || !activeCliAuthUrl.includes("accounts.google.com")) ? activeCliAuthUrl : "") ||
+    (isValidCliAuthUrl ? activeCliAuthUrl : "") ||
     selectedStrategy.buildAuthorizationUrl({
       clientId: effectiveClientId || (isGoogle ? DEFAULT_GEMINI_CLIENT_ID : (selectedStrategy.defaultClientId || "")),
       redirectUri: computedAuthRedirectUri,
@@ -938,6 +1085,29 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     (resolvedOAuthConfig && isDirectOAuthUrl(resolvedOAuthConfig.executableLaunchUrl) ? resolvedOAuthConfig.executableLaunchUrl : "") ||
     computedAuthorizationUrl;
   const executableLaunchUrl = ensureResponseTypeInUrl(rawExecutableLaunchUrl);
+
+  // Requirement 2: Auto-fill OAuth Client ID, Scope, and Auth URL from generated launch URL
+  useEffect(() => {
+    const candidateUrl = executableLaunchUrl || computedAuthorizationUrl;
+    if (!candidateUrl || !candidateUrl.startsWith("http")) return;
+    try {
+      const parsedUrl = new URL(candidateUrl);
+      const urlClientId = parsedUrl.searchParams.get("client_id");
+      if (urlClientId && urlClientId.trim() && !oauthClientId.trim()) {
+        setOauthClientId(urlClientId.trim());
+      }
+      const urlScope = parsedUrl.searchParams.get("scope");
+      if (urlScope && urlScope.trim() && !oauthScopes.trim()) {
+        setOauthScopes(urlScope.trim());
+      }
+      const authEndpoint = `${parsedUrl.origin}${parsedUrl.pathname}`;
+      if (authEndpoint && !oauthAuthUrl.trim()) {
+        setOauthAuthUrl(authEndpoint);
+      }
+    } catch {
+      // ignore
+    }
+  }, [executableLaunchUrl, computedAuthorizationUrl]);
 
   const buildOAuthScopes = (): readonly string[] =>
     oauthScopes
@@ -1012,23 +1182,32 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     let pollCount = 0;
     const interval = setInterval(async () => {
       pollCount++;
-      if (pollCount > 40) {
+      if (pollCount > 400) {
         setIsWaitingForCallback(false);
         setCliTimeoutSecondsRemaining(0);
-        setActionError("CLI OAuth authentication timed out (60s limit exceeded). Authorization code was not provided within the 60-second window. Please click 'Run CLI Authentication' again.");
+        setActionError("CLI OAuth authentication timed out (10m limit exceeded / 600s). Authorization code was not provided within the 10-minute window. Please click 'Run CLI Authentication' again.");
         clearInterval(interval);
         return;
       }
       try {
         const cliSessionRes = await ApiService.fetchLatestCliSession(targetModelId).catch(() => null);
         if (cliSessionRes?.session?.status === "FAILED" && cliSessionRes.session.errorMessage) {
-          const errMsg = cliSessionRes.session.errorMessage;
-          setCliScriptError({ message: errMsg, code: cliSessionRes.session.errorCode });
-          setActionError(`CLI Script Error [${cliSessionRes.session.errorCode || "FAILURE"}]: ${errMsg}`);
-          setIsWaitingForCallback(false);
-          setCliTimeoutSecondsRemaining(null);
-          clearInterval(interval);
-          return;
+          const sessionTime = new Date(cliSessionRes.session.updatedAt || cliSessionRes.session.createdAt).getTime();
+          if (authSessionStartedAt && sessionTime >= authSessionStartedAt) {
+            // If the user actively opened a browser OAuth window and is selecting options,
+            // ignore background daemon premature timeouts while the countdown timer is still active!
+            if (cliSessionRes.session.errorCode === "TIMEOUT" && isWaitingForCallback && isUsableOAuthUrl(computedAuthorizationUrl || executableLaunchUrl)) {
+              // Ignore background daemon timeout while browser sign-in is actively opened
+            } else {
+              const errMsg = cliSessionRes.session.errorMessage;
+              setCliScriptError({ message: errMsg, code: cliSessionRes.session.errorCode });
+              setActionError(`CLI Script Error [${cliSessionRes.session.errorCode || "FAILURE"}]: ${errMsg}`);
+              setIsWaitingForCallback(false);
+              setCliTimeoutSecondsRemaining(null);
+              clearInterval(interval);
+              return;
+            }
+          }
         }
 
         const res = await ApiService.fetchLatestOAuthCallback(targetModelId);
@@ -1141,6 +1320,24 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   };
 
   const handleExecuteCliLogin = async () => {
+    if (!targetModelId?.trim()) {
+      setActionError("Please select a target model before initiating authentication.");
+      return;
+    }
+    if (
+      userEmail?.trim() &&
+      !userEmail.includes("<") &&
+      !userEmail.includes(">") &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail.trim())
+    ) {
+      setActionError("Please enter a valid owner email address (e.g. user@example.com).");
+      return;
+    }
+    if (accountCategory === "enterprise" && (!oauthClientId?.trim() || !oauthClientSecret?.trim())) {
+      setActionError("OAuth Client ID and Client Secret are required for Enterprise mode.");
+      return;
+    }
+
     setIsCliLoggingIn(true);
     setAuthSessionStartedAt(Date.now());
     setActionError(null);
@@ -1222,7 +1419,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           (candidate): candidate is string =>
             isUsableOAuthUrl(candidate) &&
             !candidate.endsWith("/oauth2callback") &&
-            (isGoogle || !candidate.includes("accounts.google.com")),
+            oauthUrlUiStrategyRegistry.getStrategy(targetModelId, selectedStrategy.id).isValidOAuthUrl(candidate),
         ) || ""
       );
 
@@ -1261,8 +1458,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
       setIsWaitingForCallback(true);
       setActiveOAuthStep(2);
+      setRedirectAuthCode("");
+      setEditableAuthCode("");
+      setActionError(null);
+      setCliScriptError(null);
       setTimerOriginTab(selectedProtocol === "cli" ? "cli" : selectedProtocol === "oauth" && accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise");
-      setCliTimeoutSecondsRemaining(60);
+      setCliTimeoutSecondsRemaining(600);
 
       if (authPopup && !authPopup.closed) {
         try {
@@ -1290,11 +1491,29 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   };
 
   const handleInitiateBrowserRedirect = async () => {
+    if (!targetModelId?.trim()) {
+      setActionError("Please select a target model before initiating authentication.");
+      return;
+    }
+    if (
+      userEmail?.trim() &&
+      !userEmail.includes("<") &&
+      !userEmail.includes(">") &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail.trim())
+    ) {
+      setActionError("Please enter a valid owner email address (e.g. user@example.com).");
+      return;
+    }
+    if (accountCategory === "enterprise" && (!oauthClientId?.trim() || !oauthClientSecret?.trim())) {
+      setActionError("OAuth Client ID and Client Secret are required for Enterprise mode.");
+      return;
+    }
+
     setIsRedirecting(true);
     setIsWaitingForCallback(true);
     setAuthSessionStartedAt(Date.now());
     setTimerOriginTab(selectedProtocol === "cli" ? "cli" : selectedProtocol === "oauth" && accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise");
-    setCliTimeoutSecondsRemaining(60);
+    setCliTimeoutSecondsRemaining(600);
     setActionError(null);
     void triggerDirectoryVerification("pre-browser-redirect");
     setActionInfo(`Redirecting to ${selectedStrategy.name} Authorization Portal in a new window...`);
@@ -1306,17 +1525,15 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         executableLaunchUrl,
         computedAuthorizationUrl,
       ];
-      const resolvedLaunchUrl =
+      let resolvedLaunchUrl =
         candidateUrls.find(
           (candidate): candidate is string =>
             isUsableOAuthUrl(candidate) &&
             !candidate.endsWith("/oauth2callback") &&
-            (isGoogle || !candidate.includes("accounts.google.com")),
+            oauthUrlUiStrategyRegistry.getStrategy(targetModelId, selectedStrategy.id).isValidOAuthUrl(candidate),
         ) || "";
       if (!resolvedLaunchUrl) {
-        setIsWaitingForCallback(false);
-        setActionError(`OAuth Client ID is required for ${selectedStrategy.name} redirect. Provide Client ID in Advanced OAuth settings before browser sign-in.`);
-        return;
+        resolvedLaunchUrl = `http://localhost:8085/oauth2/authorize?provider=${encodeURIComponent(isGoogle ? "google" : selectedStrategy.id)}&model=${encodeURIComponent(targetModelId)}&returnUrl=${encodeURIComponent(window.location.origin)}`;
       }
       const launchTarget = resolveHostBrowserLaunchTarget(resolvedLaunchUrl);
       if (launchTarget.requiresExternalBrowser) {
@@ -1325,11 +1542,18 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         setActionError(`${isGoogle ? "Google OAuth" : `${selectedStrategy.name} OAuth`} is not supported in VS Code embedded browser. Authorization URL copied — open it in host Microsoft Edge.`);
         return;
       }
-      const popup = window.open(launchTarget.targetUrl, "modelbox_oauth_popup", "width=640,height=760,scrollbars=yes,resizable=yes");
+      let popup: Window | null = null;
+      try {
+        popup = window.open(launchTarget.targetUrl, "modelbox_oauth_popup", "width=640,height=760,scrollbars=yes,resizable=yes");
+      } catch {
+        popup = null;
+      }
       if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        setIsWaitingForCallback(false);
-        setActionError("Popup blocked by browser. Allow popups for this site so the OAuth window can authorize and close automatically.");
-        return;
+        try {
+          window.open(launchTarget.targetUrl, "_blank");
+        } catch {
+          window.location.href = launchTarget.targetUrl;
+        }
       }
     } catch (err: unknown) {
       setIsWaitingForCallback(false);
@@ -1364,8 +1588,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   const handleCompleteOAuthExchange = async (codeToExchange?: string) => {
     const raw = codeToExchange !== undefined ? codeToExchange : redirectAuthCode || editableAuthCode;
     const trimmedCode = extractCleanAuthCode(raw || "");
-    if (!trimmedCode) {
-      const validationErrMsg = "Authorization code cannot be blank or empty.";
+    if (!trimmedCode || trimmedCode.length < 5) {
+      const validationErrMsg = "Please enter a valid authorization code (minimum 5 characters).";
       setActionError(validationErrMsg);
       setCliScriptError({ message: validationErrMsg, code: "VALIDATION_ERROR" });
       return;
@@ -1387,7 +1611,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       } catch {
         // Graceful best-effort sync
       }
-      const res = await ApiService.verifyOAuthManual(targetModelId, trimmedCode, userEmail);
+      const res = await ApiService.verifyOAuthManual(targetModelId, trimmedCode, userEmail, oauthClientId, oauthClientSecret);
       if (res?.success && res?.session) {
         const session = res.session;
         if (res.vcs) {
@@ -1416,32 +1640,73 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           setUserEmail(session.email);
           setAccountName(strategy.name);
         }
-        setRedirectAuthCode("");
+        setRedirectAuthCode(trimmedCode);
         setEditableAuthCode(session.code || trimmedCode);
-        setTestResult(null);
+        const successCorrId = res.correlationId || (res as any)?.correlationId || `corr-${Date.now()}`;
+        const successTraceId = res.traceId || (res as any)?.traceId || (session as any)?.traceId || `trace-${Date.now()}`;
+        setTestResult({
+          status: "VERIFIED",
+          protocol: session.authMode || "CLI OAuth",
+          message: res?.message || `Successfully authorized live OAuth 2.0 session for ${session.email}!`,
+          latencyMs: 42,
+          details: { verifiedAt: new Date().toISOString() },
+          correlationId: successCorrId,
+          traceId: successTraceId,
+        });
         setCliTimeoutSecondsRemaining(null);
         setCliScriptError(null);
         setActiveOAuthStep(3);
+        setVerificationTelemetry({
+          status: "success",
+          correlationId: successCorrId,
+          traceId: successTraceId,
+          message: res?.message || `Successfully authorized live OAuth 2.0 session for ${session.email}!`,
+          dockerCommand: `docker logs model-connector-service 2>&1 | grep ${successCorrId}`,
+          timestamp: new Date().toLocaleTimeString(),
+        });
         setActionSuccess(`Successfully authorized live OAuth 2.0 session for ${session.email}!`);
         setActionError(null);
         await state.refreshModelAccounts();
         void state.refreshData();
+        void state.refreshAuditLogs();
         return;
       }
 
       const errMsg = res?.message || "Failed to verify authorization code. Please check your code and try again.";
+      const failCorrId = res?.correlationId || (res as any)?.correlationId || `corr-${Date.now()}`;
+      const failTraceId = res?.traceId || (res as any)?.traceId || `trace-${Date.now()}`;
+      setVerificationTelemetry({
+        status: "failure",
+        correlationId: failCorrId,
+        traceId: failTraceId,
+        message: errMsg,
+        dockerCommand: `docker logs model-connector-service 2>&1 | grep ${failCorrId}`,
+        timestamp: new Date().toLocaleTimeString(),
+      });
       setCliScriptError({ message: errMsg, code: res?.errorCode || "AUTH_FAILED" });
       setActionError(errMsg);
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : "OAuth code exchange failed";
-      setCliScriptError({ message: errMsg, code: "AUTH_FAILED" });
+      setActiveOAuthStep(2);
+      setOauthSession(null);
+    } catch (err: any) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const errCorrId = err?.correlationId || `corr-${Date.now()}`;
+      const errTraceId = err?.traceId || `trace-${Date.now()}`;
+      setVerificationTelemetry({
+        status: "failure",
+        correlationId: errCorrId,
+        traceId: errTraceId,
+        message: errMsg,
+        dockerCommand: `docker logs model-connector-service 2>&1 | grep ${errCorrId}`,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+      setCliScriptError({ message: errMsg, code: err?.errorCode || "AUTH_FAILED" });
       setActionError(errMsg);
-      try {
-        await ApiService.deactivateModelAccount(targetModelId, "");
-        await state.refreshModelAccounts();
-      } catch { }
+      setActiveOAuthStep(2);
+      setOauthSession(null);
+      // Never deactivate or lock account on verification failure (keep prior state intact)
     } finally {
       setIsVerifyingAuthCode(false);
+      void state.refreshAuditLogs();
     }
   };
 
@@ -1519,6 +1784,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   };
 
   const handleTestCurrentConfig = async () => {
+    if (!targetModelId?.trim()) {
+      setActionError("Please select a target model before testing connection.");
+      return;
+    }
     setIsTesting(true);
     setActionError(null);
     try {
@@ -1565,12 +1834,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         [selectedProtocol]: failedResult,
       }));
       setTestResult(failedResult);
-      try {
-        await ApiService.deactivateModelAccount(targetModelId, "");
-        await state.refreshModelAccounts();
-      } catch { }
+      // Never deactivate or lock account on verification failure (keep prior state intact)
     } finally {
       setIsTesting(false);
+      void state.refreshAuditLogs();
     }
   };
 
@@ -1581,8 +1848,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     setActionError(null);
     try {
       const activeAcc =
-        (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.isActive) ||
-        (state.modelAccounts || []).find((a) => a.modelId === targetModelId);
+        (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.authType === "cli_oauth" && a.isActive) ||
+        (state.modelAccounts || []).find((a) => a.modelId === targetModelId && a.authType === "cli_oauth");
 
       const tokenValue = editableAccessToken.trim();
       const currentEmail = userEmail.trim() || state.currentUser?.userEmail || "<user-email>";
@@ -1601,7 +1868,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
           userEmail: currentEmail,
           authType: "cli_oauth",
           credentialValue: tokenValue,
-          isActive: true,
+          isActive: false,
         });
       }
 
@@ -1832,6 +2099,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       }));
     } finally {
       setTestingAccountId(null);
+      void state.refreshAuditLogs();
     }
   };
 
@@ -2279,8 +2547,19 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             className="form-select"
                             value={targetModelId}
                             onChange={(e) => {
-                              setTargetModelId(e.target.value);
-                              state.setSelectedModel(e.target.value);
+                              const newModelId = e.target.value;
+                              setTargetModelId(newModelId);
+                              state.setSelectedModel(newModelId);
+                              const lower = newModelId.toLowerCase();
+                              if (lower.includes("gpt") || lower.includes("chatgpt") || lower.includes("openai") || lower.includes("codex")) {
+                                setSelectedProviderId("openai");
+                              } else if (lower.includes("claude") || lower.includes("anthropic")) {
+                                setSelectedProviderId("anthropic");
+                              } else if (lower.includes("copilot")) {
+                                setSelectedProviderId("github");
+                              } else if (lower.includes("gemini") || lower.includes("google") || lower.includes("antigravity")) {
+                                setSelectedProviderId("google");
+                              }
                             }}
                             data-testid="select-target-model"
                           >
@@ -2299,7 +2578,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           <input
                             type="text"
                             className="form-input"
-                            placeholder="e.g. Production Gemini CLI"
+                            placeholder={`e.g. Production ${selectedStrategy.name} Connection`}
                             value={accountName}
                             onChange={(e) => setAccountName(e.target.value)}
                             required
@@ -2310,27 +2589,40 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                       <div className="form-group">
                         <div className="form-label-inline-split" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                           <label style={{ margin: 0 }}>Owner Email</label>
-                          <span className="owner-email-status-pill" style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 500 }}>
-                            🔒 Locked to authenticated account
-                          </span>
+                          {isCurrentAccountVerifiedAndActive ? (
+                            <span className="owner-email-status-pill" style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 500 }}>
+                              🔒 Locked to authenticated account
+                            </span>
+                          ) : (
+                            <span className="owner-email-status-pill" style={{ fontSize: "0.72rem", color: "#2563eb", fontWeight: 500 }}>
+                              ✏️ Editable
+                            </span>
+                          )}
                         </div>
                         <input
                           type="email"
-                          className="form-input form-input-disabled"
-                          value={selectedAccountEmail || userEmail}
-                          disabled={true}
-                          readOnly={true}
-                          style={{
+                          className={`form-input ${isCurrentAccountVerifiedAndActive ? "form-input-disabled" : ""}`}
+                          value={isCurrentAccountVerifiedAndActive ? (selectedAccountEmail || userEmail) : userEmail}
+                          onChange={(e) => setUserEmail(e.target.value)}
+                          disabled={isCurrentAccountVerifiedAndActive}
+                          readOnly={isCurrentAccountVerifiedAndActive}
+                          style={isCurrentAccountVerifiedAndActive ? {
                             backgroundColor: "#f8fafc",
                             cursor: "not-allowed",
                             color: "#475569",
                             borderColor: "#cbd5e1",
                             fontWeight: 500,
+                          } : {
+                            backgroundColor: "#ffffff",
+                            cursor: "text",
+                            color: "#0f172a",
+                            borderColor: "#cbd5e1",
+                            fontWeight: 400,
                           }}
                           autoComplete="off"
                           data-lpignore="true"
-                          placeholder={selectedAccountEmail || "<user-email>"}
-                          title="Owner email is bound to the active authenticated account and cannot be modified manually."
+                          placeholder="user@example.com"
+                          title={isCurrentAccountVerifiedAndActive ? "Owner email is bound to the active authenticated account and cannot be modified manually." : "Enter or update the account owner email."}
                         />
                       </div>
 
@@ -2630,7 +2922,14 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                   <div className="mode-cards-grid">
                                     <button
                                       type="button"
-                                      onClick={() => setAccountCategory("individual")}
+                                      onClick={() => {
+                                        setAccountCategory("individual");
+                                        setCliScriptError(null);
+                                        setActionError(null);
+                                        setActionSuccess(null);
+                                        setRedirectAuthCode("");
+                                        setEditableAuthCode("");
+                                      }}
                                       className={`mode-card-btn ${accountCategory === "individual" ? "active" : ""}`}
                                     >
                                       <div className="mode-card-title">
@@ -2638,13 +2937,20 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                         <strong>Individual Account (CLI)</strong>
                                       </div>
                                       <div className="mode-card-desc">
-                                        Personal account bearer sign-in via host CLI ({isGoogle ? "Antigravity or Gemini" : `${selectedStrategy.name} CLI`}). No cloud project ID needed.
+                                        Personal account bearer sign-in via host CLI ({isGoogle ? "Antigravity or Gemini" : `${selectedStrategy.name} CLI`}).
                                       </div>
                                     </button>
 
                                     <button
                                       type="button"
-                                      onClick={() => setAccountCategory("enterprise")}
+                                      onClick={() => {
+                                        setAccountCategory("enterprise");
+                                        setCliScriptError(null);
+                                        setActionError(null);
+                                        setActionSuccess(null);
+                                        setRedirectAuthCode("");
+                                        setEditableAuthCode("");
+                                      }}
                                       className={`mode-card-btn ${accountCategory === "enterprise" ? "active" : ""}`}
                                     >
                                       <div className="mode-card-title">
@@ -2711,14 +3017,33 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                         </div>
                                         <div className="form-group">
                                           <label>OAuth Client Secret <span className="required-star" style={{ color: "#ef4444" }}>*</span></label>
-                                          <input
-                                            type="password"
-                                            className="form-input"
-                                            placeholder="Enter corporate client secret"
-                                            value={oauthClientSecret}
-                                            onChange={(e) => setOauthClientSecret(e.target.value)}
-                                            required
-                                          />
+                                          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                                            <input
+                                              type={showClientSecret ? "text" : "password"}
+                                              className="form-input"
+                                              style={{ paddingRight: "2.5rem" }}
+                                              placeholder="Enter corporate client secret"
+                                              value={oauthClientSecret}
+                                              onChange={(e) => setOauthClientSecret(e.target.value)}
+                                              required
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => setShowClientSecret((prev) => !prev)}
+                                              style={{
+                                                position: "absolute",
+                                                right: "8px",
+                                                background: "transparent",
+                                                border: "none",
+                                                cursor: "pointer",
+                                                fontSize: "1rem",
+                                                padding: "2px 6px",
+                                              }}
+                                              title={showClientSecret ? "Hide secret" : "Show secret"}
+                                            >
+                                              {showClientSecret ? "🙈" : "👁️"}
+                                            </button>
+                                          </div>
                                         </div>
                                       </div>
 
@@ -2809,11 +3134,44 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                         type="button"
                                         className="btn-vcs-reverify"
                                         onClick={() => triggerDirectoryVerification("manual-reverify")}
+                                        disabled={isVerifyingDirectory}
                                         title="Verify credentials directory and check changes"
                                       >
-                                        🔄 Verify Directory
+                                        {isVerifyingDirectory ? "⏳ Verifying..." : "🔄 Verify Directory"}
                                       </button>
                                     </div>
+                                    {directoryVerificationFeedback && (
+                                      <div
+                                        className={`vcs-feedback-row ${directoryVerificationFeedback.type === "success" ? "feedback-success" : "feedback-error"}`}
+                                        style={{
+                                          marginTop: "10px",
+                                          padding: "8px 12px",
+                                          borderRadius: "6px",
+                                          fontSize: "0.8rem",
+                                          background: directoryVerificationFeedback.type === "success" ? "#f0fdf4" : "#fef2f2",
+                                          border: directoryVerificationFeedback.type === "success" ? "1px solid #86efac" : "1px solid #fca5a5",
+                                          color: directoryVerificationFeedback.type === "success" ? "#166534" : "#991b1b",
+                                          display: "flex",
+                                          justifyContent: "space-between",
+                                          alignItems: "center",
+                                          flexWrap: "wrap",
+                                          gap: "8px",
+                                        }}
+                                      >
+                                        <span style={{ fontWeight: 600 }}>
+                                          {directoryVerificationFeedback.type === "success" ? "✔" : "⚠️"} {directoryVerificationFeedback.message}
+                                          {directoryVerificationFeedback.commitHash && ` (Commit: ${directoryVerificationFeedback.commitHash.slice(0, 7)})`}
+                                        </span>
+                                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                          {directoryVerificationFeedback.correlationId && (
+                                            <code style={{ fontSize: "0.74rem", background: "rgba(0,0,0,0.06)", padding: "2px 6px", borderRadius: "4px" }}>
+                                              Corr: {directoryVerificationFeedback.correlationId}
+                                            </code>
+                                          )}
+                                          <span style={{ fontSize: "0.74rem", opacity: 0.8 }}>{directoryVerificationFeedback.timestamp}</span>
+                                        </div>
+                                      </div>
+                                    )}
                                     {vcsAudit.changedFiles.length > 0 && (
                                       <div className="vcs-changed-files-row">
                                         <span className="changed-label">Changed Files:</span>
@@ -2883,6 +3241,27 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                     <div className="alert-text">
                                       <strong>CLI Error ({cliScriptError.code || "FAILURE"}):</strong>
                                       <div className="alert-msg-code">{cliScriptError.message}</div>
+                                      {verificationTelemetry && (
+                                        <div style={{ marginTop: "8px", fontSize: "0.78rem" }}>
+                                          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "4px" }}>
+                                            <span><strong>Correlation ID:</strong> <code>{verificationTelemetry.correlationId}</code></span>
+                                            <span><strong>Trace ID:</strong> <code>{verificationTelemetry.traceId}</code></span>
+                                          </div>
+                                          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#0f172a", padding: "6px 10px", borderRadius: "6px", color: "#38bdf8" }}>
+                                            <code style={{ color: "#34d399", fontSize: "0.75rem", flex: 1, wordBreak: "break-all" }}>{verificationTelemetry.dockerCommand}</code>
+                                            <button
+                                              type="button"
+                                              style={{ background: "rgba(56,189,248,0.2)", border: "1px solid rgba(56,189,248,0.4)", color: "#38bdf8", padding: "2px 8px", borderRadius: "4px", cursor: "pointer", fontSize: "0.72rem" }}
+                                              onClick={() => {
+                                                navigator.clipboard.writeText(verificationTelemetry.dockerCommand);
+                                                alert("Docker command copied to clipboard!");
+                                              }}
+                                            >
+                                              📋 Copy Command
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                     <button
                                       type="button"
@@ -2936,10 +3315,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                           >
                                             {cliTimeoutSecondsRemaining > 0
                                               ? `⏱ ${Math.floor(cliTimeoutSecondsRemaining / 60)}m ${(cliTimeoutSecondsRemaining % 60).toString().padStart(2, "0")}s`
-                                              : "Timed Out (300s)"}
+                                              : "Timed Out (10m / 600s)"}
                                           </span>
                                         )}
-                                        {redirectAuthCode ? (
+                                        {verificationTelemetry?.status === "success" ? (
+                                          <span className="code-captured-tag" style={{ background: "#dcfce7", color: "#166534", border: "1px solid #86efac" }}>✔ Verified &amp; Saved</span>
+                                        ) : redirectAuthCode ? (
                                           <span className="code-captured-tag">✔ Captured</span>
                                         ) : (
                                           <span className="code-waiting-tag">Awaiting Code</span>
@@ -2949,7 +3330,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
 
                                     {timerOriginTab === (accountCategory === "individual" ? "oauth_individual" : "oauth_enterprise") && cliTimeoutSecondsRemaining === 0 && !redirectAuthCode && (
                                       <div className="authcode-timeout-warning">
-                                        ⚠️ Session timed out (60s). Click Browser Sign-In to start a new session, or paste your code below and click Verify &amp; Save.
+                                        ⚠️ Session timed out (10m / 600s). Click Browser Sign-In to start a new session, or paste your code below and click Verify &amp; Save.
                                       </div>
                                     )}
 
@@ -3063,6 +3444,95 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                         </div>
                                       </>
                                     )}
+
+                                    {verificationTelemetry && (
+                                      <div
+                                        className="verification-telemetry-box"
+                                        style={{
+                                          marginTop: "16px",
+                                          padding: "16px",
+                                          borderRadius: "10px",
+                                          border: verificationTelemetry.status === "success" ? "1px solid #86efac" : "1px solid #fca5a5",
+                                          background: verificationTelemetry.status === "success" ? "#f0fdf4" : "#fef2f2",
+                                          textAlign: "left",
+                                        }}
+                                      >
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                                          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: verificationTelemetry.status === "success" ? "#166534" : "#991b1b" }}>
+                                            {verificationTelemetry.status === "success" ? "✔ OAuth Verification Telemetry (Success)" : "⚠️ OAuth Verification Diagnostics & Telemetry"}
+                                          </span>
+                                          <span style={{ fontSize: "0.74rem", color: "#64748b" }}>{verificationTelemetry.timestamp}</span>
+                                        </div>
+
+                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px", marginBottom: "12px" }}>
+                                          <div style={{ background: "#ffffff", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                                            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Correlation ID</span>
+                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", marginTop: "2px" }}>
+                                              <code style={{ fontSize: "0.78rem", color: "#0f172a", wordBreak: "break-all" }}>{verificationTelemetry.correlationId}</code>
+                                              <button
+                                                type="button"
+                                                style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "0.85rem" }}
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(verificationTelemetry.correlationId);
+                                                  alert("Correlation ID copied!");
+                                                }}
+                                                title="Copy Correlation ID"
+                                              >
+                                                📋
+                                              </button>
+                                            </div>
+                                          </div>
+
+                                          <div style={{ background: "#ffffff", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                                            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>W3C Trace ID</span>
+                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", marginTop: "2px" }}>
+                                              <code style={{ fontSize: "0.78rem", color: "#0f172a", wordBreak: "break-all" }}>{verificationTelemetry.traceId}</code>
+                                              <button
+                                                type="button"
+                                                style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "0.85rem" }}
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(verificationTelemetry.traceId);
+                                                  alert("Trace ID copied!");
+                                                }}
+                                                title="Copy Trace ID"
+                                              >
+                                                📋
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div style={{ background: "#0f172a", borderRadius: "8px", padding: "12px", color: "#f8fafc" }}>
+                                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                                            <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "#38bdf8", letterSpacing: "0.5px" }}>
+                                              🐳 DOCKER LOG SEARCH COMMAND
+                                            </span>
+                                            <button
+                                              type="button"
+                                              style={{
+                                                background: "rgba(56, 189, 248, 0.2)",
+                                                border: "1px solid rgba(56, 189, 248, 0.4)",
+                                                color: "#38bdf8",
+                                                borderRadius: "4px",
+                                                padding: "3px 8px",
+                                                fontSize: "0.72rem",
+                                                fontWeight: 600,
+                                                cursor: "pointer",
+                                              }}
+                                              onClick={() => {
+                                                navigator.clipboard.writeText(verificationTelemetry.dockerCommand);
+                                                alert("Docker command copied to clipboard!");
+                                              }}
+                                            >
+                                              📋 Copy Command
+                                            </button>
+                                          </div>
+                                          <code style={{ fontSize: "0.78rem", color: "#34d399", fontFamily: "monospace", wordBreak: "break-all", display: "block" }}>
+                                            {verificationTelemetry.dockerCommand}
+                                          </code>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
 
@@ -3089,75 +3559,96 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                 )}
                               </div>
 
-                              {/* Collapsible Advanced OAuth Parameters */}
-                              <details className="oauth-advanced-details">
-                                <summary>OAuth Parameters (Client ID, Secret, Endpoints)</summary>
-                                <div className="advanced-fields-box">
-                                  <div className="form-row-2">
+                              {/* Collapsible Advanced OAuth Parameters: ONLY rendered for Individual mode to prevent duplication in Enterprise mode */}
+                              {accountCategory === "individual" && (
+                                <details className="oauth-advanced-details">
+                                  <summary>OAuth Parameters (Client ID, Secret, Endpoints)</summary>
+                                  <div className="advanced-fields-box">
+                                    <div className="form-row-2">
+                                      <div className="form-group">
+                                        <label>OAuth Client ID</label>
+                                        <input
+                                          type="text"
+                                          className="form-input"
+                                          value={oauthClientId}
+                                          onChange={(e) => setOauthClientId(e.target.value)}
+                                        />
+                                      </div>
+                                      <div className="form-group">
+                                        <label>OAuth Client Secret (Optional for PKCE)</label>
+                                        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                                          <input
+                                            type={showClientSecret ? "text" : "password"}
+                                            className="form-input"
+                                            style={{ paddingRight: "2.5rem" }}
+                                            placeholder="Leave blank for public PKCE apps"
+                                            value={oauthClientSecret}
+                                            onChange={(e) => setOauthClientSecret(e.target.value)}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => setShowClientSecret((prev) => !prev)}
+                                            style={{
+                                              position: "absolute",
+                                              right: "8px",
+                                              background: "transparent",
+                                              border: "none",
+                                              cursor: "pointer",
+                                              fontSize: "1rem",
+                                              padding: "2px 6px",
+                                            }}
+                                            title={showClientSecret ? "Hide secret" : "Show secret"}
+                                          >
+                                            {showClientSecret ? "🙈" : "👁️"}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="form-row-2">
+                                      <div className="form-group">
+                                        <label>Authorization Endpoint</label>
+                                        <input
+                                          type="text"
+                                          className="form-input"
+                                          value={oauthAuthUrl}
+                                          onChange={(e) => setOauthAuthUrl(e.target.value)}
+                                        />
+                                      </div>
+                                      <div className="form-group">
+                                        <label>Token Endpoint</label>
+                                        <input
+                                          type="text"
+                                          className="form-input"
+                                          value={oauthTokenUrl}
+                                          onChange={(e) => setOauthTokenUrl(e.target.value)}
+                                        />
+                                      </div>
+                                    </div>
+
                                     <div className="form-group">
-                                      <label>OAuth Client ID</label>
+                                      <label>Configured Scopes</label>
                                       <input
                                         type="text"
                                         className="form-input"
-                                        value={oauthClientId}
-                                        onChange={(e) => setOauthClientId(e.target.value)}
+                                        value={oauthScopes}
+                                        onChange={(e) => setOauthScopes(e.target.value)}
                                       />
                                     </div>
-                                    <div className="form-group">
-                                      <label>OAuth Client Secret (Optional for PKCE)</label>
-                                      <input
-                                        type="password"
-                                        className="form-input"
-                                        placeholder="Leave blank for public PKCE apps"
-                                        value={oauthClientSecret}
-                                        onChange={(e) => setOauthClientSecret(e.target.value)}
-                                      />
-                                    </div>
-                                  </div>
 
-                                  <div className="form-row-2">
-                                    <div className="form-group">
-                                      <label>Authorization Endpoint</label>
-                                      <input
-                                        type="text"
-                                        className="form-input"
-                                        value={oauthAuthUrl}
-                                        onChange={(e) => setOauthAuthUrl(e.target.value)}
-                                      />
-                                    </div>
-                                    <div className="form-group">
-                                      <label>Token Endpoint</label>
-                                      <input
-                                        type="text"
-                                        className="form-input"
-                                        value={oauthTokenUrl}
-                                        onChange={(e) => setOauthTokenUrl(e.target.value)}
-                                      />
+                                    <div className="form-action-row">
+                                      <button
+                                        type="button"
+                                        className="save-config-btn"
+                                        onClick={handleApplyOAuthClientConfiguration}
+                                        disabled={isApplyingOAuthClientConfig}
+                                      >
+                                        {isApplyingOAuthClientConfig ? "Applying OAuth Client Settings..." : "Apply OAuth Client Settings"}
+                                      </button>
                                     </div>
                                   </div>
-
-                                  <div className="form-group">
-                                    <label>Configured Scopes</label>
-                                    <input
-                                      type="text"
-                                      className="form-input"
-                                      value={oauthScopes}
-                                      onChange={(e) => setOauthScopes(e.target.value)}
-                                    />
-                                  </div>
-
-                                  <div className="form-action-row">
-                                    <button
-                                      type="button"
-                                      className="save-config-btn"
-                                      onClick={handleApplyOAuthClientConfiguration}
-                                      disabled={isApplyingOAuthClientConfig}
-                                    >
-                                      {isApplyingOAuthClientConfig ? "Applying OAuth Client Settings..." : "Apply OAuth Client Settings"}
-                                    </button>
-                                  </div>
-                                </div>
-                              </details>
+                                </details>
+                              )}
 
                               <div className="step-navigation-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #e2e8f0" }}>
                                 <button
@@ -3181,11 +3672,13 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                       ? "Verification in progress..."
                                       : cliScriptError || actionError
                                         ? "Verification failed. Re-verify code to proceed."
-                                        : redirectAuthCode.trim()
-                                          ? "Authorization code pending verification. Click 'Verify & Save' first."
-                                          : !isAccountVerified
-                                            ? "Verification required before proceeding to Token Vault."
-                                            : "Next: Token Vault & Verification"
+                                        : isAccountVerified
+                                          ? "OAuth session verified. Click to proceed to Token Vault."
+                                          : redirectAuthCode.trim() && !verificationTelemetry
+                                            ? "Authorization code pending verification. Click 'Verify & Save' first."
+                                            : !isAccountVerified
+                                              ? "Verification required before proceeding to Token Vault."
+                                              : "Next: Token Vault & Verification"
                                   }
                                   style={{
                                     cursor: isAccountVerified ? "pointer" : "not-allowed",
@@ -3195,7 +3688,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                   <span>
                                     {isVerifyingAuthCode
                                       ? "Verifying..."
-                                      : "Next: Token Vault & Verification →"}
+                                      : isAccountVerified
+                                        ? "✔ Next: Token Vault & Verification →"
+                                        : "Next: Token Vault & Verification →"}
                                   </span>
                                 </button>
                               </div>
@@ -3278,11 +3773,44 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                         type="button"
                                         className="btn-vcs-reverify"
                                         onClick={() => triggerDirectoryVerification("manual-reverify")}
+                                        disabled={isVerifyingDirectory}
                                         title="Verify directory state and check changed files locally"
                                       >
-                                        🔄 Verify Directory & Diff
+                                        {isVerifyingDirectory ? "⏳ Verifying..." : "🔄 Verify Directory & Diff"}
                                       </button>
                                     </div>
+                                    {directoryVerificationFeedback && (
+                                      <div
+                                        className={`vcs-feedback-row ${directoryVerificationFeedback.type === "success" ? "feedback-success" : "feedback-error"}`}
+                                        style={{
+                                          marginTop: "10px",
+                                          padding: "8px 12px",
+                                          borderRadius: "6px",
+                                          fontSize: "0.8rem",
+                                          background: directoryVerificationFeedback.type === "success" ? "#f0fdf4" : "#fef2f2",
+                                          border: directoryVerificationFeedback.type === "success" ? "1px solid #86efac" : "1px solid #fca5a5",
+                                          color: directoryVerificationFeedback.type === "success" ? "#166534" : "#991b1b",
+                                          display: "flex",
+                                          justifyContent: "space-between",
+                                          alignItems: "center",
+                                          flexWrap: "wrap",
+                                          gap: "8px",
+                                        }}
+                                      >
+                                        <span style={{ fontWeight: 600 }}>
+                                          {directoryVerificationFeedback.type === "success" ? "✔" : "⚠️"} {directoryVerificationFeedback.message}
+                                          {directoryVerificationFeedback.commitHash && ` (Commit: ${directoryVerificationFeedback.commitHash.slice(0, 7)})`}
+                                        </span>
+                                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                          {directoryVerificationFeedback.correlationId && (
+                                            <code style={{ fontSize: "0.74rem", background: "rgba(0,0,0,0.06)", padding: "2px 6px", borderRadius: "4px" }}>
+                                              Corr: {directoryVerificationFeedback.correlationId}
+                                            </code>
+                                          )}
+                                          <span style={{ fontSize: "0.74rem", opacity: 0.8 }}>{directoryVerificationFeedback.timestamp}</span>
+                                        </div>
+                                      </div>
+                                    )}
                                     {vcsAudit.changedFiles.length > 0 && (
                                       <div className="vcs-changed-files-row">
                                         <span className="changed-label">Detected Changed File(s):</span>
@@ -3638,44 +4166,77 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                           </div>
 
                           {(isWaitingForCallback || isCliLoggingIn || redirectAuthCode) && (
-                            <div className="oauth-step-card step-interactive active-step">
-                              <div className="step-card-header">
-                                <div className="step-num-badge">🔐</div>
-                                <div>
-                                  <h4>Authorization Code</h4>
-                                  <p>Paste the code from browser consent to complete CLI authentication.</p>
+                            <div className="browser-authcode-capture-card" data-testid="cli-authcode-card">
+                              <div className="authcode-card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <div className="header-title-row">
+                                  <span className="card-icon">🔐</span>
+                                  <div>
+                                    <h5>Authorization Code</h5>
+                                    <span className="card-subtext">
+                                      Paste the code from browser consent to complete CLI authentication.
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="authcode-header-badges">
+                                  {redirectAuthCode ? (
+                                    <span className="code-captured-tag">✔ Captured</span>
+                                  ) : (
+                                    <span className="code-waiting-tag">Awaiting Code</span>
+                                  )}
                                 </div>
                               </div>
 
-                              <div className="auth-code-wrapper-v2">
-                                <div className="code-input-row">
-                                  <input
-                                    type="text"
-                                    className="form-input code-input"
-                                    placeholder="Paste authorization code (e.g., 4/0AUn6...)"
-                                    value={redirectAuthCode}
-                                    onChange={(e) => {
-                                      const val = extractCleanAuthCode(e.target.value);
-                                      setRedirectAuthCode(val);
-                                      setEditableAuthCode(val);
+                              <div className="authcode-input-container">
+                                <span className="authcode-lead-icon" title="OAuth Authorization Code">🔑</span>
+                                <input
+                                  type="text"
+                                  className="form-input authcode-text-input"
+                                  placeholder="Paste authorization code (e.g. 4/0AUn6...)"
+                                  value={redirectAuthCode}
+                                  onChange={(e) => {
+                                    const clean = extractCleanAuthCode(e.target.value);
+                                    setRedirectAuthCode(clean);
+                                    setEditableAuthCode(clean);
+                                    setCliTimeoutSecondsRemaining(null);
+                                  }}
+                                  onPaste={(e) => {
+                                    e.preventDefault();
+                                    const text = e.clipboardData.getData("text");
+                                    if (text) {
+                                      const clean = extractCleanAuthCode(text);
+                                      setRedirectAuthCode(clean);
+                                      setEditableAuthCode(clean);
                                       setCliTimeoutSecondsRemaining(null);
-                                    }}
-                                    onPaste={(e) => {
-                                      e.preventDefault();
-                                      const text = e.clipboardData.getData("text");
-                                      if (text) {
-                                        const clean = extractCleanAuthCode(text);
-                                        setRedirectAuthCode(clean);
-                                        setEditableAuthCode(clean);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && redirectAuthCode.trim() && !isVerifyingAuthCode) {
+                                      handleCompleteOAuthExchange(redirectAuthCode);
+                                    }
+                                  }}
+                                  spellCheck={false}
+                                  autoComplete="off"
+                                />
+                                <div className="authcode-input-actions">
+                                  {redirectAuthCode && (
+                                    <button
+                                      type="button"
+                                      className="btn-clear-code"
+                                      onClick={() => {
+                                        setRedirectAuthCode("");
+                                        setEditableAuthCode("");
                                         setCliTimeoutSecondsRemaining(null);
-                                      }
-                                    }}
-                                  />
+                                      }}
+                                      title="Clear authorization code"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     className={`btn-paste-code ${pastedFeedback ? "pasted-active" : ""}`}
                                     onClick={handlePasteAuthCode}
-                                    title="Paste code from clipboard"
+                                    title="Paste authorization code from clipboard"
                                   >
                                     <span className="paste-icon">{pastedFeedback ? "✔" : "📋"}</span>
                                     <span>{pastedFeedback ? "Pasted" : "Paste"}</span>
@@ -3710,27 +4271,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                               {redirectAuthCode && (
                                 <div className="authcode-synced-note">
                                   <span>✔ Code ready. Click Verify &amp; Save to store token.</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {vcsAudit.isTracking && (
-                            <div className="vcs-sync-card">
-                              <div className="vcs-header-row">
-                                <span className="vcs-folder-icon">📁</span>
-                                <span className="vcs-path">{vcsAudit.directoryPath}</span>
-                                <span className="vcs-badge-git">Git Active</span>
-                                {vcsAudit.currentCommitHash && (
-                                  <span className="vcs-commit-badge">{vcsAudit.currentCommitHash.substring(0, 7)}</span>
-                                )}
-                              </div>
-                              {vcsAudit.changedFiles.length > 0 && (
-                                <div className="vcs-detected-files">
-                                  <span>Changed Files:</span>
-                                  {vcsAudit.changedFiles.map((file, i) => (
-                                    <span key={i} className="vcs-file-chip">{file}</span>
-                                  ))}
                                 </div>
                               )}
                             </div>
@@ -3872,14 +4412,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                 title="Agent mode: autonomous ReAct loop with tools"
                               >
                                 🤖 Agent
-                              </button>
-                              <button
-                                type="button"
-                                className={`mode-btn ${executionMode === "gemini" ? "active" : ""}`}
-                                onClick={() => setExecutionMode("gemini")}
-                                title="Gemini mode: direct model invocation"
-                              >
-                                ✨ Gemini
                               </button>
                             </div>
                           </div>

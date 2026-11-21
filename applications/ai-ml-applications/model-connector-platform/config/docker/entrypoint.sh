@@ -3,8 +3,13 @@ set -e
 
 # Ensure runtime directories exist in bidirectional volume and have proper permissions
 mkdir -p /app/config/data /app/config/artifacts /app/config/data/logs /app/config/data/downloads /app/config/data/credentials /app/config/data/oauth_responses 2>/dev/null || true
-mkdir -p /home/node/.gemini/antigravity-cli /root/.gemini/antigravity-cli /home/node/.config/antigravity /root/.config/antigravity 2>/dev/null || true
-chmod -R 777 /app/config/data /app/config/artifacts 2>/dev/null || true
+mkdir -p /home/node/.gemini/antigravity-cli /home/node/.config/antigravity /root/.gemini/antigravity-cli /app/config/data/credentials /app/config/data/logs 2>/dev/null || true
+chmod 755 /root 2>/dev/null || true
+chown -R node:node /root/.gemini /home/node 2>/dev/null || true
+chmod -R 777 /app/config/data /app/config/artifacts /home/node/.gemini /home/node/.config /home/node /root/.gemini 2>/dev/null || true
+export HOME=/home/node
+export USER=node
+export XDG_CONFIG_HOME=/home/node/.config
 
 # Pre-configure automated headless tool permissions in Antigravity settings.json
 cat << 'EOF' > /tmp/antigravity_settings.json
@@ -60,13 +65,13 @@ unset NODE_VERSION
 # Launch background Model CLI OAuth dispatcher daemon as node user (Mode 1: Startup daemon)
 if [ -x "/app/config/scripts/model-cli-auth-launcher.sh" ]; then
     if [ "$(id -u)" = "0" ]; then
-        su -s /bin/sh node -c "/app/config/scripts/model-cli-auth-launcher.sh --startup &"
+        su -s /bin/sh node -c "export HOME=/home/node USER=node; /app/config/scripts/model-cli-auth-launcher.sh --startup &"
     else
         /app/config/scripts/model-cli-auth-launcher.sh --startup &
     fi
 elif [ -x "/app/config/scripts/antigravity-auth-daemon.sh" ]; then
     if [ "$(id -u)" = "0" ]; then
-        su -s /bin/sh node -c "/app/config/scripts/antigravity-auth-daemon.sh &"
+        su -s /bin/sh node -c "export HOME=/home/node USER=node; /app/config/scripts/antigravity-auth-daemon.sh &"
     else
         /app/config/scripts/antigravity-auth-daemon.sh &
     fi
@@ -74,8 +79,10 @@ fi
 
 # If running as root, drop privileges to node user
 if [ "$(id -u)" = "0" ]; then
-    chown -R node:node /app/config/data /app/config/artifacts 2>/dev/null || true
-    exec su -s /bin/sh node -c "unset NODE_VERSION; exec $*"
+    chown -R node:node /app/config/data /app/config/artifacts /home/node /root/.gemini 2>/dev/null || true
+    chmod -R 777 /home/node /root/.gemini 2>/dev/null || true
+    chmod 755 /root 2>/dev/null || true
+    exec su -s /bin/sh node -c "export HOME=/home/node USER=node XDG_CONFIG_HOME=/home/node/.config; unset NODE_VERSION; cd /app; exec $*"
 else
     exec "$@"
 fi

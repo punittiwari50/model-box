@@ -25,6 +25,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-model_connector_db}
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+      - POSTGRES_HOST_AUTH_METHOD=${POSTGRES_HOST_AUTH_METHOD:-trust}
       - PGDATA=/var/lib/postgresql/data/pgdata
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -43,6 +44,7 @@ services:
   # Database Management: pgAdmin 4 Web Console
   # --------------------------------------------------------------------------
   pgadmin:
+    profiles: ["pgadmin", "tools"]
     image: dpage/pgadmin4:latest
     container_name: model-connector-pgadmin
     restart: unless-stopped
@@ -204,6 +206,11 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
+      - CONTAINER_NAME=model-connector-service
+      - SERVICE_NAME=model-connector-service
+      - HOME=/home/node
+      - USER=node
+      - GEMINI_CLI_TRUST_WORKSPACE=true
       - NODE_ENV=production
       - PORT=8095
       - HOST=0.0.0.0

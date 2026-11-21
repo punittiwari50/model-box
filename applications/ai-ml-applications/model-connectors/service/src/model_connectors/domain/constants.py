@@ -35,7 +35,7 @@ class StorageConstants:
     DEFAULT_SQLITE_PATH: Final[str] = ":memory:"
     DEFAULT_YAML_DIR: Final[str] = "./config/connections"
     DEFAULT_POSTGRES_DSN: Final[str] = (
-        "postgresql://postgres:postgres@localhost:5432/model_connectors"
+        "postgresql://postgres@localhost:5432/model_connectors"
     )
 
 

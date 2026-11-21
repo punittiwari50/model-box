@@ -207,6 +207,17 @@ export class OAuthConnectorStrategy implements IConnectorStrategy {
     return null;
   }
 
+  private resolveNormalizedModel(modelId: string): string {
+    const m = (modelId || "").toLowerCase().trim();
+    if (m.includes("2.5-pro") || m.includes("2-5-pro")) return "gemini-2.5-pro";
+    if (m.includes("2.5-flash") || m.includes("2-5-flash")) return "gemini-2.5-flash";
+    if (m.includes("3.8") || m.includes("3-8") || m.includes("gemini") || m.includes("google") || m.includes("antigravity")) return "gemini-3.8-flash";
+    if (m.includes("opus")) return "claude-opus-4-6";
+    if (m.includes("claude") || m.includes("sonnet")) return "claude-sonnet-4-6";
+    if (m.includes("gpt-oss")) return "gpt-oss-120b-maas";
+    return m.replace(/\s*\([^)]*\)/g, "").trim() || "gemini-3.8-flash";
+  }
+
   private async tryExecuteCli(
     request: ExecutionRequest,
     model: string,
@@ -216,11 +227,12 @@ export class OAuthConnectorStrategy implements IConnectorStrategy {
     correlationId: string,
   ): Promise<ExecutionResponse | null> {
     try {
-      const isGemini = model.toLowerCase().includes("gemini");
+      const isGemini = model.toLowerCase().includes("gemini") || model.toLowerCase().includes("google") || model.toLowerCase().includes("antigravity");
       const binary = isGemini ? "antigravity" : "agy";
+      const cleanModel = this.resolveNormalizedModel(model);
       const result = await CliProcessManager.executeCommand(
         binary,
-        ["--dangerously-skip-permissions", "-p", request.prompt, "--model", model],
+        ["--dangerously-skip-permissions", "-p", request.prompt, "--model", cleanModel],
         undefined,
         45000,
         correlationId,

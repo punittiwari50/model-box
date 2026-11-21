@@ -59,6 +59,8 @@ export interface ModelConnectorState {
   readonly handleNewSession: (overrideModel?: string) => Promise<void>;
   readonly handleDeleteSession: (sessionId: string) => Promise<void>;
   readonly refreshData: () => Promise<void>;
+  readonly refreshAuditLogs: () => Promise<void>;
+  readonly tabResetNonce: number;
 }
 
 export function useModelConnectorState(): ModelConnectorState {
@@ -106,11 +108,30 @@ export function useModelConnectorState(): ModelConnectorState {
   // Model Accounts
   const [modelAccounts, setModelAccounts] = useState<UiModelAccount[]>([]);
   const [isStrategyManuallySelected, setIsStrategyManuallySelected] = useState<boolean>(false);
+  const [tabResetNonce, setTabResetNonce] = useState<number>(0);
+
+  const refreshAuditLogs = useCallback(async () => {
+    try {
+      const fetchedAudit = await ApiService.fetchUpstreamAudit();
+      setAuditLogs(fetchedAudit);
+    } catch {
+      // Graceful fallback
+    }
+  }, []);
 
   const handleSetActiveTab = useCallback(
     (tab: ActiveTab, params?: Record<string, string>) => {
       setActiveTabState(tab);
       setRouteParams(params || {});
+      setTabResetNonce((n) => n + 1);
+      if (!params?.recordId) {
+        setActiveAuditRecordId(null);
+      }
+      if (tab === "upstream") {
+        void ApiService.fetchUpstreamAudit()
+          .then((logs) => setAuditLogs(logs))
+          .catch(() => {});
+      }
       RouteSecurity.syncHash(tab, params);
     },
     [],
@@ -370,6 +391,7 @@ export function useModelConnectorState(): ModelConnectorState {
       // Sync updated turn count and timestamp from backend sessions
       const updatedSessions = await ApiService.fetchSessions();
       setSessions(updatedSessions);
+      void refreshAuditLogs();
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
       const errorMsg: ChatMessage = {
@@ -383,20 +405,14 @@ export function useModelConnectorState(): ModelConnectorState {
       };
       setMessages((prev) => [...prev, errorMsg]);
 
-      // Automatically convert active account for this model to inactive on exception
-      const activeForModel = modelAccounts.filter(
-        (acc) => acc.modelId === selectedModel && acc.isActive,
-      );
-      for (const acc of activeForModel) {
-        try {
-          await ApiService.deactivateModelAccount(acc.modelId, acc.accountId);
-        } catch {
-          // Deactivation error safely caught
-        }
+      // Sync updated turn count and timestamp from backend sessions (including the recorded error turn)
+      try {
+        const updatedSessions = await ApiService.fetchSessions();
+        setSessions(updatedSessions);
+      } catch {
+        // Safe sync
       }
-      if (activeForModel.length > 0) {
-        await refreshModelAccounts();
-      }
+      void refreshAuditLogs();
     } finally {
       setIsLoading(false);
     }
@@ -472,5 +488,7 @@ export function useModelConnectorState(): ModelConnectorState {
     handleNewSession,
     handleDeleteSession,
     refreshData: loadInitialData,
+    refreshAuditLogs,
+    tabResetNonce,
   };
 }

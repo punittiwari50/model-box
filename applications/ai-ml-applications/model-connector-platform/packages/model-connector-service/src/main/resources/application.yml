@@ -26,6 +26,7 @@ datasource:
     database: "${POSTGRES_DB:model_connector_db}"
     username: "${POSTGRES_USER:postgres}"
     password: "${POSTGRES_PASSWORD:postgres}"
+    password: "${POSTGRES_PASSWORD:-}"
     ssl: "${POSTGRES_SSL:false}"
     pool:
       min: 2

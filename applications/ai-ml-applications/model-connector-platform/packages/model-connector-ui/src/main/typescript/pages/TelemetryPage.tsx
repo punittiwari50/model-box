@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { ModelConnectorState } from "@/utils/hooks/useModelConnectorState";
 import type { UiAuditRecord } from "@/types/ui.types";
 import {
@@ -15,22 +15,106 @@ interface TelemetryPageProps {
   readonly state: ModelConnectorState;
 }
 
+type StatusFilterType = "ALL" | "SUCCESS" | "FAILED";
+
 export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
   const [auditPage, setAuditPage] = useState(1);
   const [activeRecordId, setActiveRecordId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    return state.routeParams.traceId || state.routeParams.correlationId || "";
+  });
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>("ALL");
+  const [modelFilter, setModelFilter] = useState<string>("ALL");
   const pageSize = 5;
+
+  // Auto-refresh audit logs on mount or navigation to this tab
+  useEffect(() => {
+    void state.refreshAuditLogs();
+  }, [state.activeTab]);
+
+  // Reset detail inspector when top navigation menu or tabResetNonce changes
+  useEffect(() => {
+    setActiveRecordId(null);
+  }, [state.activeTab, state.tabResetNonce]);
+
+  // Sync external routeParams if traceId or correlationId is passed
+  useEffect(() => {
+    const routeTrace = state.routeParams.traceId || state.routeParams.correlationId;
+    if (routeTrace && routeTrace !== searchQuery) {
+      setSearchQuery(routeTrace);
+      setAuditPage(1);
+    }
+  }, [state.routeParams.traceId, state.routeParams.correlationId]);
+
+  const isSuccessStatus = (status: string) => status === "SUCCESS" || status === "VERIFIED";
+
+  // Unique model list for dropdown filter
+  const availableModels = useMemo(() => {
+    const set = new Set<string>();
+    for (const log of state.auditLogs) {
+      if (log.modelUsed) set.add(log.modelUsed);
+    }
+    return Array.from(set).sort();
+  }, [state.auditLogs]);
+
+  // Filtered audit records based on Trace ID, Correlation ID, Model, Action, Status, and Query
+  const filteredAudit = useMemo(() => {
+    let logs = state.auditLogs;
+
+    if (statusFilter === "SUCCESS") {
+      logs = logs.filter((l) => isSuccessStatus(l.status));
+    } else if (statusFilter === "FAILED") {
+      logs = logs.filter((l) => !isSuccessStatus(l.status));
+    }
+
+    if (modelFilter !== "ALL") {
+      logs = logs.filter((l) => (l.modelUsed || "").toLowerCase() === modelFilter.toLowerCase());
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      logs = logs.filter((l) => {
+        const traceMatch = (l.traceId || "").toLowerCase().includes(q);
+        const corrMatch = (l.correlationId || "").toLowerCase().includes(q);
+        const spanMatch = (l.spanId || "").toLowerCase().includes(q);
+        const sessMatch = (l.sessionId || "").toLowerCase().includes(q);
+        const modelMatch = (l.modelUsed || "").toLowerCase().includes(q);
+        const actionMatch = (l.action || "").toLowerCase().includes(q);
+        const msgMatch = (l.message || "").toLowerCase().includes(q);
+        const statusMatch = (l.status || "").toLowerCase().includes(q);
+        const stratMatch = (l.strategyMode || "").toLowerCase().includes(q);
+        const idMatch = (l.id || "").toLowerCase().includes(q);
+        return (
+          traceMatch ||
+          corrMatch ||
+          spanMatch ||
+          sessMatch ||
+          modelMatch ||
+          actionMatch ||
+          msgMatch ||
+          statusMatch ||
+          stratMatch ||
+          idMatch
+        );
+      });
+    }
+
+    return logs;
+  }, [state.auditLogs, statusFilter, modelFilter, searchQuery]);
 
   const inspectingRecordId = state.activeAuditRecordId || activeRecordId;
   const activeRecord: UiAuditRecord | null = inspectingRecordId
     ? state.auditLogs.find((a) => a.id === inspectingRecordId) || null
     : null;
 
-  const paginatedAudit = state.auditLogs.slice((auditPage - 1) * pageSize, auditPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil(filteredAudit.length / pageSize));
+  const paginatedAudit = filteredAudit.slice((auditPage - 1) * pageSize, auditPage * pageSize);
 
   const selectedRecord: UiAuditRecord | null =
     (activeRecordId ? state.auditLogs.find((a) => a.id === activeRecordId) : null) ||
     paginatedAudit[0] ||
+    filteredAudit[0] ||
     state.auditLogs[0] ||
     null;
 
@@ -49,7 +133,17 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
     }
   };
 
-  const isSuccessStatus = (status: string) => status === "SUCCESS" || status === "VERIFIED";
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("ALL");
+    setModelFilter("ALL");
+    setAuditPage(1);
+  };
+
+  const isTraceSearch = Boolean(
+    searchQuery.trim() &&
+    (searchQuery.length >= 12 || /^[a-f0-9-]+$/i.test(searchQuery.trim())),
+  );
 
   // When a record is selected for inspection, render the full Detail Page (Not a Modal!)
   if (activeRecord) {
@@ -74,7 +168,8 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
           <button
             type="button"
             className="btn-ui-secondary"
-            onClick={() => void state.refreshData()}
+            onClick={() => void state.refreshAuditLogs()}
+            title="Refresh latest telemetry trace logs from server"
           >
             🔄 Refresh Logs
           </button>
@@ -112,21 +207,148 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
         />
       </StatCardGrid>
 
+      {/* Search Toolbar for Trace ID, Correlation ID, Model & Status */}
+      <section className="telemetry-filter-bar ui-surface-card">
+        <div className="telemetry-search-group">
+          <div className="telemetry-search-input-wrapper">
+            <span className="search-icon" aria-hidden="true">🔍</span>
+            <input
+              type="text"
+              className="telemetry-search-input"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setAuditPage(1);
+              }}
+              placeholder="Search by W3C Trace ID, Correlation ID, Model, Action..."
+              data-testid="telemetry-trace-search-input"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => {
+                  setSearchQuery("");
+                  setAuditPage(1);
+                }}
+                title="Clear search query"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {isTraceSearch && (
+            <span className="trace-search-badge" title="Searching across W3C Trace IDs and Correlation IDs">
+              ⚡ Trace ID Filter Active
+            </span>
+          )}
+        </div>
+
+        <div className="telemetry-filter-controls">
+          <div className="status-filter-pills" role="radiogroup" aria-label="Filter by execution status">
+            <button
+              type="button"
+              className={`filter-pill-btn ${statusFilter === "ALL" ? "active" : ""}`}
+              onClick={() => {
+                setStatusFilter("ALL");
+                setAuditPage(1);
+              }}
+            >
+              All ({state.auditLogs.length})
+            </button>
+            <button
+              type="button"
+              className={`filter-pill-btn success ${statusFilter === "SUCCESS" ? "active" : ""}`}
+              onClick={() => {
+                setStatusFilter("SUCCESS");
+                setAuditPage(1);
+              }}
+            >
+              ✔ Success ({state.auditLogs.filter((l) => isSuccessStatus(l.status)).length})
+            </button>
+            <button
+              type="button"
+              className={`filter-pill-btn danger ${statusFilter === "FAILED" ? "active" : ""}`}
+              onClick={() => {
+                setStatusFilter("FAILED");
+                setAuditPage(1);
+              }}
+            >
+              ⚠️ Failed ({state.auditLogs.filter((l) => !isSuccessStatus(l.status)).length})
+            </button>
+          </div>
+
+          {availableModels.length > 0 && (
+            <div className="model-filter-wrapper">
+              <label htmlFor="telemetry-model-select" className="filter-label">Model:</label>
+              <select
+                id="telemetry-model-select"
+                className="telemetry-model-select"
+                value={modelFilter}
+                onChange={(e) => {
+                  setModelFilter(e.target.value);
+                  setAuditPage(1);
+                }}
+              >
+                <option value="ALL">All Models</option>
+                {availableModels.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {(searchQuery || statusFilter !== "ALL" || modelFilter !== "ALL") && (
+            <button
+              type="button"
+              className="btn-ui-ghost btn-xs clear-all-filter-btn"
+              onClick={handleClearFilters}
+              title="Reset all search filters"
+            >
+              ✕ Reset Filters
+            </button>
+          )}
+        </div>
+
+        <div className="telemetry-results-summary">
+          <span>
+            Showing <strong>{filteredAudit.length}</strong> of <strong>{state.auditLogs.length}</strong> telemetry records
+          </span>
+        </div>
+      </section>
+
+      {/* Main Table */}
       <section className="audit-table-card ui-surface-card">
         <div className="section-card-header">
           <div>
             <h3>Distributed Audit &amp; Trace Log Trail</h3>
             <p className="section-subtitle">
-              Select any record to inspect W3C Trace ID, Span ID, Session ID, and request payload details below.
+              Select any record or click Inspect to view full W3C Trace ID, Span ID, Session ID, and request/response payloads.
             </p>
           </div>
         </div>
 
-        {paginatedAudit.length === 0 ? (
+        {filteredAudit.length === 0 ? (
           <EmptyState
             icon="📡"
-            title="No Audit Trail Records"
-            description="Execute a chat prompt or test connection to generate live trace logs."
+            title={state.auditLogs.length === 0 ? "No Audit Trail Records" : "No Matching Telemetry Records"}
+            description={
+              state.auditLogs.length === 0
+                ? "Execute a chat prompt or test connection to generate live trace logs."
+                : `No logs matched query "${searchQuery || statusFilter}". Try adjusting your filters.`
+            }
+            action={
+              (searchQuery || statusFilter !== "ALL" || modelFilter !== "ALL") ? (
+                <button
+                  type="button"
+                  className="btn-ui-secondary btn-sm"
+                  onClick={handleClearFilters}
+                >
+                  Clear Filters
+                </button>
+              ) : undefined
+            }
           />
         ) : (
           <div className="telemetry-table-wrapper">
@@ -135,6 +357,7 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
                 <tr>
                   <th>Action</th>
                   <th>Model</th>
+                  <th>W3C Trace ID</th>
                   <th>Session ID</th>
                   <th>Message / Task</th>
                   <th>Status</th>
@@ -151,6 +374,7 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
                   const displaySessionId =
                     a.sessionId ||
                     `sess-${(a.modelUsed || "default").replace(/[^a-zA-Z0-9]/g, "-")}-${(a.correlationId || a.id || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8)}`;
+                  const displayTraceId = a.traceId || a.correlationId || "—";
 
                   return (
                     <tr
@@ -164,11 +388,33 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
                     >
                       <td className="font-mono col-strong">{a.action || "INFERENCE"}</td>
                       <td>{a.modelUsed || "default"}</td>
+                      <td className="col-trace-cell">
+                        <div className="trace-id-row">
+                          <code className="font-mono trace-id-text" title={displayTraceId}>
+                            {displayTraceId.length > 20
+                              ? `${displayTraceId.slice(0, 16)}...`
+                              : displayTraceId}
+                          </code>
+                          {displayTraceId !== "—" && (
+                            <button
+                              type="button"
+                              className="btn-copy-mini"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopy(displayTraceId, `trace-${a.id}`);
+                              }}
+                              title="Copy W3C Trace ID"
+                            >
+                              {copiedId === `trace-${a.id}` ? "✔" : "📋"}
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td className="col-session-cell">
                         <div className="session-id-row">
                           <code className="font-mono session-id-text" title={displaySessionId}>
-                            {displaySessionId.length > 22
-                              ? `${displaySessionId.slice(0, 18)}...`
+                            {displaySessionId.length > 20
+                              ? `${displaySessionId.slice(0, 16)}...`
                               : displaySessionId}
                           </code>
                           <button
@@ -176,11 +422,11 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
                             className="btn-copy-mini"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleCopy(displaySessionId, a.id);
+                              handleCopy(displaySessionId, `sess-${a.id}`);
                             }}
                             title="Copy Session ID"
                           >
-                            {copiedId === a.id ? "✔" : "📋"}
+                            {copiedId === `sess-${a.id}` ? "✔" : "📋"}
                           </button>
                         </div>
                       </td>
@@ -206,7 +452,7 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
                             setActiveRecordId(a.id);
                             state.setActiveAuditRecordId(a.id);
                           }}
-                          title="Open full Detail Page (Not a Modal)"
+                          title="Open full Detail Page"
                         >
                           🔬 Inspect
                         </button>
@@ -219,18 +465,21 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
           </div>
         )}
 
-        <Pagination
-          currentPage={auditPage}
-          totalPages={Math.max(1, Math.ceil(state.auditLogs.length / pageSize))}
-          totalItems={state.auditLogs.length}
-          pageSize={pageSize}
-          onPageChange={setAuditPage}
-          itemName="records"
-          className="audit-pagination"
-          ariaLabel="Audit Log Telemetry Navigation"
-        />
+        {filteredAudit.length > pageSize && (
+          <Pagination
+            currentPage={auditPage}
+            totalPages={totalPages}
+            totalItems={filteredAudit.length}
+            pageSize={pageSize}
+            onPageChange={setAuditPage}
+            itemName="records"
+            className="audit-pagination"
+            ariaLabel="Audit Log Telemetry Navigation"
+          />
+        )}
       </section>
 
+      {/* Selected Record Quick Details */}
       {selectedRecord && (
         <section className="audit-detail-panel-card ui-surface-card">
           <div className="detail-panel-header">
@@ -246,7 +495,7 @@ export const TelemetryPage: React.FC<TelemetryPageProps> = ({ state }) => {
                 showDot
               />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <button
                 type="button"
                 className="btn-ui-primary btn-sm"

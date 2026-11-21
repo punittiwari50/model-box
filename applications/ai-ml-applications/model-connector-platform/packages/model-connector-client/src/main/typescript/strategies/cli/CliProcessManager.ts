@@ -104,9 +104,16 @@ export class CliProcessManager {
     let stderrData = "";
     let isTimedOut = false;
 
+    const resolvedHome = processUtils.getEnv("HOME", "/home/node");
+    const isolatedHome = resolvedHome === "/root" ? "/home/node" : resolvedHome;
+    const defaultEnv: Record<string, string> = {
+      HOME: isolatedHome,
+      USER: processUtils.getEnv("USER", "node"),
+      XDG_CONFIG_HOME: processUtils.getEnv("XDG_CONFIG_HOME", `${isolatedHome}/.config`),
+    };
     const child = childProcessUtils.spawn(ctx.command, ctx.args, {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...processUtils.env, ...(ctx.customEnv || {}) },
+      env: { ...processUtils.env, ...defaultEnv, ...(ctx.customEnv || {}) },
     });
 
     const timer = setTimeout(() => {
