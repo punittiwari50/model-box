@@ -1,0 +1,15 @@
+// ==============================================================================
+// Integrations Hub, Connection Studio & Multi-Protocol Configuration Styles
+// Path: src/main/resources/assets/styles/pages/_integrations-hub.scss
+// Conforms to node.md Section 21: Modular SCSS Architecture, Zero Deep Nesting
+// ==============================================================================
+@use "@/styles/abstracts/tokens" as *;
+@use "@/styles/abstracts/mixins" as *;
+
+// 1. Modular Domain Subcomponents
+@forward "./integrations/config-page-header";
+@forward "./integrations/protocol-forms";
+@forward "./integrations/oauth-flow";
+@forward "./integrations/oauth-authenticated";
+@forward "./integrations/account-catalog";
+@forward "./integrations/testing-telemetry";

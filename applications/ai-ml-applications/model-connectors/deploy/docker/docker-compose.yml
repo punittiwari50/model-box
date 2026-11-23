@@ -1,0 +1,194 @@
+# ==============================================================================
+# ModelBox Connectors Orchestration Docker Compose
+# Decoupled microservices: Vault, Service (FastAPI), UI (React/Node), and Database (PostgreSQL)
+# Parameterized via model-box-service.env and *-secure.env files.
+# Sensitive values are injected via vault and *-secure.env (never committed).
+# ==============================================================================
+
+name: model-connectors-parent
+
+services:
+  vault:
+    container_name: ${VAULT_CONTAINER_NAME:-model-connectors-vault}
+    image: ${VAULT_IMAGE_NAME:-model-connectors-vault:latest}
+    build:
+      context: .
+      dockerfile: vault.Dockerfile
+    restart: unless-stopped
+    environment:
+      VAULT_MASTER_TOKEN: ${VAULT_MASTER_TOKEN:-${VAULT_DEV_ROOT_TOKEN_ID:-modelbox-vault-root-token}}
+      VAULT_ADDR: "http://127.0.0.1:8200"
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - model-connectors-vault-data:/vault/file
+    networks:
+      - model-box-net
+    healthcheck:
+      test: [ "CMD", "vault", "status", "-address=http://127.0.0.1:8200" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  postgres:
+    container_name: ${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}
+    image: ${POSTGRES_IMAGE_NAME:-postgres:17-alpine}
+    restart: ${POSTGRES_RESTART:-unless-stopped}
+    env_file:
+      - ./model-box-db-secure.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-model_connectors}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - model-connectors-postgres-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - model-box-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-model_connectors}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  service:
+    container_name: ${SERVICE_CONTAINER_NAME:-model-connectors-service}
+    image: ${SERVICE_IMAGE_NAME:-model-connectors-service:latest}
+    build:
+      context: ../../service
+      dockerfile: deploy/docker/Dockerfile
+    restart: ${SERVICE_RESTART:-unless-stopped}
+    ports:
+      - "${MODEL_CONNECTORS_PORT:-8000}:${SERVICE_INTERNAL_PORT:-8000}"
+    env_file:
+      - ./model-box-service.env
+      - ./model-box-service-secure.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
+      - APP_HOST=${APP_HOST:-0.0.0.0}
+      - APP_PORT=${APP_PORT:-8000}
+      - VAULT_ADDR=http://${VAULT_CONTAINER_NAME:-model-connectors-vault}:8200
+      - VAULT_TOKEN=${VAULT_DEV_ROOT_TOKEN_ID:-modelbox-vault-root-token}
+      - POSTGRES_HOST=${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-model_connectors}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+      - MODEL_BOX_POSTGRES_DSN=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-}@${POSTGRES_CONTAINER_NAME:-model-connectors-postgres}:5432/${POSTGRES_DB:-model_connectors}
+    depends_on:
+      vault:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - model-box-net
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${APP_PORT:-8000}/health')" ]
+      interval: ${SERVICE_HEALTHCHECK_INTERVAL:-15s}
+      timeout: ${SERVICE_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${SERVICE_HEALTHCHECK_RETRIES:-3}
+      start_period: ${SERVICE_HEALTHCHECK_START_PERIOD:-10s}
+
+  ui:
+    container_name: ${UI_CONTAINER_NAME:-model-connectors-ui}
+    image: ${UI_IMAGE_NAME:-model-connectors-ui:latest}
+    build:
+      context: ../../ui
+      dockerfile: deploy/docker/Dockerfile
+    restart: ${UI_RESTART:-unless-stopped}
+    ports:
+      - "${MODEL_CONNECTORS_UI_PORT:-3000}:${UI_INTERNAL_PORT:-3000}"
+    env_file:
+      - ./model-box-ui.env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-3000}
+      - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://model-connectors-service:8000}
+    depends_on:
+      - service
+    networks:
+      - model-box-net
+
+  modelbox-playwright-mcp:
+    container_name: ${PLAYWRIGHT_MCP_CONTAINER_NAME:-modelbox-playwright-mcp}
+    image: ${PLAYWRIGHT_MCP_IMAGE_NAME:-modelbox-playwright-mcp:latest}
+    build:
+      context: ../../../playwright-mcp-engine
+      dockerfile: config/deploy/Dockerfile
+    restart: ${PLAYWRIGHT_MCP_RESTART:-unless-stopped}
+    init: true
+    ipc: host
+    shm_size: ${PLAYWRIGHT_MCP_SHM_SIZE:-2gb}
+    ports:
+      - "${PLAYWRIGHT_MCP_PORT:-8940}:8940"
+      - "${PLAYWRIGHT_MCP_FALLBACK_PORT:-8931}:8940"
+      - "${PLAYWRIGHT_VNC_PORT:-6080}:6080"
+    env_file:
+      - ./model-box-service.env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - HOST=0.0.0.0
+      - PORT=${PLAYWRIGHT_MCP_PORT:-8940}
+      - MCP_PORT=${PLAYWRIGHT_MCP_PORT:-8940}
+      - PLAYWRIGHT_HEADLESS=${PLAYWRIGHT_MCP_HEADLESS:-true}
+      - PLAYWRIGHT_MAX_CONCURRENCY=${PLAYWRIGHT_MAX_CONCURRENCY:-25}
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - UV_THREADPOOL_SIZE=64
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - OLLAMA_BASE_URL=${MODEL_BOX_OLLAMA_URL:-http://ollama-model-service-gpu:11434}
+      - OLLAMA_DEFAULT_MODEL=${MODEL_BOX_OLLAMA_MODEL:-llama3.2:latest}
+      - OLLAMA_TIMEOUT_MS=${PLAYWRIGHT_OLLAMA_TIMEOUT_MS:-180000}
+      - COMFYUI_BASE_URL=${MODEL_BOX_COMFYUI_URL:-http://comfyui-model-service-gpu:8188}
+    volumes:
+      - type: bind
+        source: ${PLAYWRIGHT_MCP_BROWSERS_PATH:-../../../playwright-mcp-engine/browsers}
+        target: /ms-playwright
+        bind:
+          create_host_path: true
+        read_only: false
+      - type: bind
+        source: ${PLAYWRIGHT_MCP_WORKFLOWS_PATH:-../../../playwright-mcp-engine/workflows}
+        target: /app/workflows
+        bind:
+          create_host_path: true
+        read_only: false
+      - type: bind
+        source: ${PLAYWRIGHT_MCP_DOWNLOADS_PATH:-../../../playwright-mcp-engine/downloads}
+        target: /app/downloads
+        bind:
+          create_host_path: true
+        read_only: false
+    networks:
+      model-box-net:
+        aliases:
+          - playwright-mcp
+          - modelbox-playwright-mcp
+    healthcheck:
+      test: ["CMD", "node", "-e", "import('node:http').then(h => h.get('http://localhost:8940/health', r => { r.destroy(); process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1)))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+
+volumes:
+  model-connectors-postgres-data:
+    name: ${POSTGRES_VOLUME_NAME:-model-connectors-postgres-data}
+  model-connectors-vault-data:
+    name: ${VAULT_VOLUME_NAME:-model-connectors-vault-data}
+
+networks:
+  model-box-net:
+    name: ${SHARED_NETWORK_NAME:-model-box-net}
+    external: true

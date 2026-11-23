@@ -1,0 +1,28 @@
+# Subproject Docker Compose for Service Python Microservice
+name: model-connectors-service
+
+services:
+  service:
+    container_name: model-connectors-service
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${MODEL_CONNECTORS_PORT:-8000}:8000"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+    networks:
+      - model-box-net
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  model-box-net:
+    external: true

@@ -15,7 +15,7 @@ name: model-box
 services:
   ollama:
     container_name: ollama-model-service-gpu
-    image: ${COMPOSE_OLLAMA_IMAGE:-ollama/ollama:latest}
+    image: ${COMPOSE_OLLAMA_IMAGE:-model-box-ollama:latest}
     init: true
     restart: unless-stopped
     stop_grace_period: 60s
@@ -61,7 +61,11 @@ services:
       retries: 5
       start_period: 20s
     networks:
-      - model-box-net
+      model-box-net:
+        aliases:
+          - ollama-model-service-gpu
+          - ollama-model-service
+          - ollama
     logging:
       driver: "json-file"
       options:
@@ -69,6 +73,11 @@ services:
         max-file: "3"
         mode: "non-blocking"
         max-buffer-size: "4m"
+    build:
+      context: ../../..
+      dockerfile: infra/ollama/docker/Dockerfile.ollama
+      args:
+        BASE_IMAGE: ${OLLAMA_BASE_IMAGE:-ollama/ollama:latest}
 
 networks:
   model-box-net:

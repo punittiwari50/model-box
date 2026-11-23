@@ -6,7 +6,7 @@
     ServiceNames = @('gatling-service', 'report-service')
     SharedNetworkName = 'model-box_default'
     DefaultAction = 'BuildAndUp'
-    LogDirectoryName = 'logs'
+    LogDirectoryName = 'infra\logs'
     LogFilePrefix = 'performance-stack'
     RequiredBinaries = @('docker')
     ReportUiHostPort = 8080

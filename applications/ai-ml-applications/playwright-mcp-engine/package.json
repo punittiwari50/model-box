@@ -1,0 +1,59 @@
+{
+  "name": "playwright-mcp-engine",
+  "version": "1.0.0",
+  "description": "Enterprise high-concurrency JSON-driven Playwright application and MCP server for dynamic workflow execution, endpoint cataloging, auth sniffing, and code generation with Ollama and ComfyUI connectors",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "bin": {
+    "playwright-mcp-engine": "dist/index.js"
+  },
+  "scripts": {
+    "clean": "tsx config/scripts/clean.ts",
+    "typecheck": "tsc -p config/tsconfig.json --noEmit",
+    "build": "tsc -p config/tsconfig.json && tsc-alias -p config/tsconfig.json",
+    "start": "tsx --tsconfig config/tsconfig.json src/index.ts",
+    "start:prod": "node dist/index.js",
+    "dev": "tsx watch --tsconfig config/tsconfig.json src/index.ts",
+    "mcp": "tsx --tsconfig config/tsconfig.json src/index.ts --mcp",
+    "mcp:prod": "node dist/index.js --mcp",
+    "cli": "tsx --tsconfig config/tsconfig.json src/index.ts --cli",
+    "cli:prod": "node dist/index.js --cli",
+    "verify:imports": "tsx --tsconfig config/tsconfig.json config/scripts/verify-imports.ts",
+    "test:workflow": "tsx --tsconfig config/tsconfig.json config/scripts/run-example.ts"
+  },
+  "keywords": [
+    "playwright",
+    "mcp",
+    "model-context-protocol",
+    "automation",
+    "workflow-engine",
+    "endpoint-scanner",
+    "concurrency",
+    "circuit-breaker",
+    "ollama",
+    "comfyui"
+  ],
+  "author": "ModelBox Team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "playwright": "^1.50.1",
+    "axios": "^1.8.2",
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.2",
+    "commander": "^13.1.0",
+    "chalk": "^5.4.1",
+    "ws": "^8.18.1",
+    "tree-kill": "^1.2.2",
+    "pg": "^8.13.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "tsx": "^4.19.3",
+    "tsc-alias": "^1.8.11",
+    "@types/node": "^22.13.10",
+    "@types/ws": "^8.5.14",
+    "@types/pg": "^8.11.11"
+  }
+}

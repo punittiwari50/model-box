@@ -1,0 +1,537 @@
+import { coreDatabaseManager, randomUUID } from "@model-box/model-connector-core";
+import { GoogleAuthConstants, ProviderId, ModelConstants } from "@/domain/constants/index.js";
+import type { GeminiOAuthCredentialFile } from "@/domain/models/geminiOAuth.types.js";
+
+export type AuthType = "api_key" | "cookie" | "cli_oauth" | "api" | "cli" | "oauth";
+
+export interface ModelAccount {
+  accountId: string;
+  modelId: string;
+  accountName: string;
+  userEmail: string;
+  authType: AuthType;
+  credentialValue: string;
+  isActive: boolean;
+  configJson?: string;
+  authCode?: string;
+  customLocation?: string;
+  credentialsFileContent?: string;
+  authMethod?: string;
+  status?: string;
+  createdTimestamp: string;
+  updatedTimestamp: string;
+}
+
+const MAX_LIMIT = 500;
+const DEFAULT_LIMIT = 100;
+
+function sanitizeLimit(limit?: number): number {
+  if (!Number.isFinite(limit)) return DEFAULT_LIMIT;
+  const n = Math.floor(Number(limit));
+  if (n < 1) return 1;
+  if (n > MAX_LIMIT) return MAX_LIMIT;
+  return n;
+}
+
+function sanitizeOffset(offset?: number): number {
+  if (!Number.isFinite(offset)) return 0;
+  const n = Math.floor(Number(offset));
+  return n < 0 ? 0 : n;
+}
+
+export class AccountRepository {
+  public listAccountsByModel(modelId: string, limit?: number, offset?: number): ModelAccount[] {
+    const db = coreDatabaseManager.getDatabase();
+    const rows = db
+      .prepare(
+        `SELECT ACCOUNT_ID as accountId,
+                MODEL_ID as modelId,
+                ACCOUNT_NAME as accountName,
+                USER_EMAIL as userEmail,
+                AUTH_TYPE as authType,
+                CREDENTIAL_VALUE as credentialValue,
+                IS_ACTIVE as isActive,
+                CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
+                CREATED_TIMESTAMP as createdTimestamp,
+                UPDATED_TIMESTAMP as updatedTimestamp
+         FROM MODEL_ACCOUNTS
+         WHERE MODEL_ID = ?
+         ORDER BY CREATED_TIMESTAMP ASC, ACCOUNT_ID ASC
+         LIMIT ? OFFSET ?`,
+      )
+      .all(modelId, sanitizeLimit(limit), sanitizeOffset(offset)) as any[];
+    return this.deduplicateAccounts(rows.map((r) => this.mapRowToAccount(r)));
+  }
+
+  public listAllAccounts(limit?: number, offset?: number): ModelAccount[] {
+    const db = coreDatabaseManager.getDatabase();
+    const rows = db
+      .prepare(
+        `SELECT ACCOUNT_ID as accountId,
+                MODEL_ID as modelId,
+                ACCOUNT_NAME as accountName,
+                USER_EMAIL as userEmail,
+                AUTH_TYPE as authType,
+                CREDENTIAL_VALUE as credentialValue,
+                IS_ACTIVE as isActive,
+                CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
+                CREATED_TIMESTAMP as createdTimestamp,
+                UPDATED_TIMESTAMP as updatedTimestamp
+         FROM MODEL_ACCOUNTS
+         ORDER BY MODEL_ID ASC, CREATED_TIMESTAMP ASC, ACCOUNT_ID ASC
+         LIMIT ? OFFSET ?`,
+      )
+      .all(sanitizeLimit(limit), sanitizeOffset(offset)) as any[];
+    return this.deduplicateAccounts(rows.map((r) => this.mapRowToAccount(r)));
+  }
+
+  private deduplicateAccounts(accounts: ModelAccount[]): ModelAccount[] {
+    const seen = new Map<string, ModelAccount>();
+    for (const acc of accounts) {
+      const cleanEmail = (acc.userEmail || "").trim().toLowerCase();
+      const cleanName = (acc.accountName || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s*\([^)]*\)/g, "")
+        .trim();
+      const key = `${acc.modelId}:${acc.authType}:${cleanEmail || cleanName}`;
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, acc);
+      } else {
+        if (!existing.isActive && acc.isActive) {
+          seen.set(key, acc);
+        } else if (existing.isActive === acc.isActive) {
+          const tExisting = new Date(existing.updatedTimestamp || 0).getTime();
+          const tAcc = new Date(acc.updatedTimestamp || 0).getTime();
+          if (tAcc > tExisting) {
+            seen.set(key, acc);
+          }
+        }
+      }
+    }
+    return Array.from(seen.values());
+  }
+
+  public getAccount(accountId: string): ModelAccount | undefined {
+    const db = coreDatabaseManager.getDatabase();
+    const row = db
+      .prepare(
+        `SELECT ACCOUNT_ID as accountId,
+                MODEL_ID as modelId,
+                ACCOUNT_NAME as accountName,
+                USER_EMAIL as userEmail,
+                AUTH_TYPE as authType,
+                CREDENTIAL_VALUE as credentialValue,
+                IS_ACTIVE as isActive,
+                CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
+                CREATED_TIMESTAMP as createdTimestamp,
+                UPDATED_TIMESTAMP as updatedTimestamp
+         FROM MODEL_ACCOUNTS
+         WHERE ACCOUNT_ID = ?`,
+      )
+      .get(accountId) as any;
+    return row ? this.mapRowToAccount(row) : undefined;
+  }
+
+  public getActiveAccount(modelId: string): ModelAccount | undefined {
+    const db = coreDatabaseManager.getDatabase();
+    const row = db
+      .prepare(
+        `SELECT ACCOUNT_ID as accountId,
+                MODEL_ID as modelId,
+                ACCOUNT_NAME as accountName,
+                USER_EMAIL as userEmail,
+                AUTH_TYPE as authType,
+                CREDENTIAL_VALUE as credentialValue,
+                IS_ACTIVE as isActive,
+                CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
+                CREATED_TIMESTAMP as createdTimestamp,
+                UPDATED_TIMESTAMP as updatedTimestamp
+         FROM MODEL_ACCOUNTS
+         WHERE MODEL_ID = ? AND IS_ACTIVE = 1
+         ORDER BY UPDATED_TIMESTAMP DESC
+         LIMIT 1`,
+      )
+      .get(modelId) as any;
+    return row ? this.mapRowToAccount(row) : undefined;
+  }
+
+  public getLatestAccount(modelId: string): ModelAccount | undefined {
+    const db = coreDatabaseManager.getDatabase();
+    const row = db
+      .prepare(
+        `SELECT ACCOUNT_ID as accountId,
+                MODEL_ID as modelId,
+                ACCOUNT_NAME as accountName,
+                USER_EMAIL as userEmail,
+                AUTH_TYPE as authType,
+                CREDENTIAL_VALUE as credentialValue,
+                IS_ACTIVE as isActive,
+                CONFIG_JSON as configJson,
+                AUTH_CODE as authCode,
+                CREATED_TIMESTAMP as createdTimestamp,
+                UPDATED_TIMESTAMP as updatedTimestamp
+         FROM MODEL_ACCOUNTS
+         WHERE MODEL_ID = ?
+         ORDER BY UPDATED_TIMESTAMP DESC
+         LIMIT 1`,
+      )
+      .get(modelId) as any;
+    return row ? this.mapRowToAccount(row) : undefined;
+  }
+
+  public createAccount(data: {
+    accountId?: string;
+    modelId: string;
+    accountName: string;
+    userEmail: string;
+    authType: AuthType;
+    credentialValue: string;
+    isActive?: boolean;
+    configJson?: string;
+    authCode?: string;
+  }): ModelAccount {
+    const existing = this.findMatchingAccount(data.modelId, data.accountName, data.userEmail, data.accountId);
+    if (existing) {
+      const updated = this.updateAccount(existing.accountId, {
+        accountName: data.accountName,
+        userEmail: data.userEmail,
+        authType: data.authType,
+        credentialValue: data.credentialValue,
+        isActive: data.isActive,
+        configJson: data.configJson,
+        authCode: data.authCode,
+      });
+      if (updated) {
+        return updated;
+      }
+    }
+
+    const db = coreDatabaseManager.getDatabase();
+    const accountId = data.accountId || randomUUID();
+    const now = new Date().toISOString();
+    const active = data.isActive ? 1 : 0;
+    if (active) {
+      db.prepare(`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0 WHERE MODEL_ID = ?`).run(data.modelId);
+    }
+    db.prepare(
+      `INSERT INTO MODEL_ACCOUNTS (
+         ACCOUNT_ID, MODEL_ID, ACCOUNT_NAME, USER_EMAIL,
+         AUTH_TYPE, CREDENTIAL_VALUE, IS_ACTIVE, CONFIG_JSON, AUTH_CODE, CREATED_TIMESTAMP, UPDATED_TIMESTAMP
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      accountId,
+      data.modelId,
+      data.accountName,
+      data.userEmail,
+      data.authType,
+      data.credentialValue,
+      active,
+      data.configJson || null,
+      data.authCode || null,
+      now,
+      now,
+    );
+    return this.getAccount(accountId)!;
+  }
+
+  public findMatchingAccount(
+    modelId: string,
+    accountName?: string,
+    userEmail?: string,
+    accountId?: string,
+  ): ModelAccount | undefined {
+    if (accountId) {
+      const acc = this.getAccount(accountId);
+      if (acc) return acc;
+    }
+    const db = coreDatabaseManager.getDatabase();
+    const hasName = Boolean(accountName && accountName.trim().length > 0);
+    const hasEmail = Boolean(userEmail && userEmail.trim().length > 0);
+    if (hasName && hasEmail) {
+      const row = db
+        .prepare(
+          `SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS
+           WHERE MODEL_ID = ? AND LOWER(ACCOUNT_NAME) = LOWER(?) AND LOWER(USER_EMAIL) = LOWER(?)
+           LIMIT 1`,
+        )
+        .get(modelId, accountName!.trim(), userEmail!.trim()) as any;
+      if (row?.accountId) {
+        return this.getAccount(row.accountId);
+      }
+    }
+    if (hasEmail) {
+      const row = db
+        .prepare(
+          `SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS WHERE MODEL_ID = ? AND LOWER(USER_EMAIL) = LOWER(?) LIMIT 1`,
+        )
+        .get(modelId, userEmail!.trim()) as any;
+      if (row?.accountId) {
+        return this.getAccount(row.accountId);
+      }
+    }
+    if (hasName) {
+      const row = db
+        .prepare(
+          `SELECT ACCOUNT_ID as accountId FROM MODEL_ACCOUNTS WHERE MODEL_ID = ? AND LOWER(ACCOUNT_NAME) = LOWER(?) LIMIT 1`,
+        )
+        .get(modelId, accountName!.trim()) as any;
+      if (row?.accountId) {
+        return this.getAccount(row.accountId);
+      }
+    }
+    return undefined;
+  }
+
+  public updateAccount(
+    accountId: string,
+    data: {
+      accountName?: string;
+      userEmail?: string;
+      authType?: AuthType;
+      credentialValue?: string;
+      isActive?: boolean;
+      configJson?: string;
+      authCode?: string;
+    },
+  ): ModelAccount | undefined {
+    const existing = this.getAccount(accountId);
+    if (!existing) return undefined;
+    const db = coreDatabaseManager.getDatabase();
+    const now = new Date().toISOString();
+    const nextActive = data.isActive !== undefined ? (data.isActive ? 1 : 0) : existing.isActive ? 1 : 0;
+    if (nextActive) {
+      db.prepare(`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0 WHERE MODEL_ID = ?`).run(existing.modelId);
+    }
+    db.prepare(
+      `UPDATE MODEL_ACCOUNTS
+       SET ACCOUNT_NAME = ?,
+           USER_EMAIL = ?,
+           AUTH_TYPE = ?,
+           CREDENTIAL_VALUE = ?,
+           IS_ACTIVE = ?,
+           CONFIG_JSON = ?,
+           AUTH_CODE = ?,
+           UPDATED_TIMESTAMP = ?
+       WHERE ACCOUNT_ID = ?`,
+    ).run(
+      data.accountName ?? existing.accountName,
+      data.userEmail ?? existing.userEmail,
+      data.authType ?? existing.authType,
+      data.credentialValue ?? existing.credentialValue,
+      nextActive,
+      data.configJson !== undefined ? data.configJson : existing.configJson || null,
+      data.authCode !== undefined ? data.authCode : existing.authCode || null,
+      now,
+      accountId,
+    );
+    return this.getAccount(accountId);
+  }
+
+  public saveGoogleOAuthCredentialFile(params: {
+    accountId: string;
+    fileContent: string;
+    customLocation?: string;
+    tokens?: GeminiOAuthCredentialFile;
+  }): ModelAccount | undefined {
+    const existing = this.getAccount(params.accountId);
+    if (!existing) return undefined;
+    const existingCfg = this.parseJsonSafe(existing.configJson);
+    const updatedCfg = {
+      ...existingCfg,
+      authMethod: GoogleAuthConstants.SIGN_IN_WITH_GOOGLE,
+      authProvider: ProviderId.GOOGLE,
+      credentialsFileContent: params.fileContent,
+      credentialsFileName: GoogleAuthConstants.DEFAULT_GEMINI_OAUTH_FILE,
+      ...(params.customLocation ? { customLocation: params.customLocation } : {}),
+      ...(params.tokens ? { tokens: params.tokens } : {}),
+      lastSyncedAt: new Date().toISOString(),
+    };
+    const tokenVal = params.tokens?.access_token || existing.credentialValue;
+    return this.updateAccount(params.accountId, {
+      credentialValue: tokenVal,
+      configJson: JSON.stringify(updatedCfg),
+    });
+  }
+
+  public createGoogleOAuthAccount(params: {
+    modelId?: string;
+    accountName: string;
+    userEmail: string;
+    fileContent: string;
+    customLocation?: string;
+    tokens?: GeminiOAuthCredentialFile;
+    isActive?: boolean;
+  }): ModelAccount {
+    const modelId = params.modelId || ModelConstants.DEFAULT_MODEL_ID;
+    const configPayload = {
+      authProvider: ProviderId.GOOGLE,
+      authMethod: GoogleAuthConstants.SIGN_IN_WITH_GOOGLE,
+      credentialsFileContent: params.fileContent,
+      credentialsFileName: GoogleAuthConstants.DEFAULT_GEMINI_OAUTH_FILE,
+      customLocation: params.customLocation,
+      tokens: params.tokens,
+      lastSyncedAt: new Date().toISOString(),
+    };
+    return this.createAccount({
+      modelId,
+      accountName: params.accountName,
+      userEmail: params.userEmail,
+      authType: "cli_oauth",
+      credentialValue: params.tokens?.access_token || params.fileContent,
+      isActive: params.isActive ?? false,
+      configJson: JSON.stringify(configPayload),
+    });
+  }
+
+  public getGoogleOAuthAccount(
+    modelId: string,
+    userEmail?: string,
+    accountId?: string,
+  ): ModelAccount | undefined {
+    if (accountId) {
+      return this.getAccount(accountId);
+    }
+    if (userEmail) {
+      const db = coreDatabaseManager.getDatabase();
+      const row = db
+        .prepare(
+          `SELECT ACCOUNT_ID as accountId, MODEL_ID as modelId, ACCOUNT_NAME as accountName,
+                  USER_EMAIL as userEmail, AUTH_TYPE as authType, CREDENTIAL_VALUE as credentialValue,
+                  IS_ACTIVE as isActive, CONFIG_JSON as configJson, AUTH_CODE as authCode, CREATED_TIMESTAMP as createdTimestamp,
+                  UPDATED_TIMESTAMP as updatedTimestamp
+           FROM MODEL_ACCOUNTS
+           WHERE MODEL_ID = ? AND LOWER(USER_EMAIL) = LOWER(?)
+           ORDER BY IS_ACTIVE DESC, UPDATED_TIMESTAMP DESC LIMIT 1`,
+        )
+        .get(modelId, userEmail.trim()) as any;
+      if (row) return this.mapRowToAccount(row);
+    }
+    return this.getActiveAccount(modelId);
+  }
+
+  public saveAuthCode(modelId: string, authCode: string, userEmail?: string): ModelAccount {
+    const existing = this.findMatchingAccount(modelId, undefined, userEmail);
+    if (existing) {
+      const cfg = this.parseJsonSafe(existing.configJson);
+      cfg.authCode = authCode;
+      return this.updateAccount(existing.accountId, {
+        authCode,
+        configJson: JSON.stringify(cfg),
+      })!;
+    }
+    const cleanEmail =
+      userEmail && !userEmail.includes("<") && !userEmail.includes("user-email")
+        ? userEmail.trim()
+        : "";
+    return this.createAccount({
+      modelId,
+      accountName: cleanEmail
+        ? `Google Cloud / Gemini CLI (${cleanEmail})`
+        : "Google Cloud / Gemini CLI",
+      userEmail: cleanEmail,
+      authType: "cli_oauth",
+      credentialValue: "",
+      isActive: false, // Strict Invariant: Never active until verified with 2xx response
+      authCode,
+      configJson: JSON.stringify({ authCode, provider: "google" }),
+    });
+  }
+
+  public setActiveAccount(modelId: string, accountId: string): boolean {
+    const db = coreDatabaseManager.getDatabase();
+    const now = new Date().toISOString();
+    db.prepare(`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0, UPDATED_TIMESTAMP = ? WHERE MODEL_ID = ?`).run(now, modelId);
+    const res = db
+      .prepare(`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 1, UPDATED_TIMESTAMP = ? WHERE ACCOUNT_ID = ? AND MODEL_ID = ?`)
+      .run(now, accountId, modelId);
+    return res.changes > 0;
+  }
+
+  public deactivateAccount(modelId: string, accountId: string): boolean {
+    const db = coreDatabaseManager.getDatabase();
+    const now = new Date().toISOString();
+    const res = db
+      .prepare(`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0, UPDATED_TIMESTAMP = ? WHERE ACCOUNT_ID = ? AND MODEL_ID = ?`)
+      .run(now, accountId, modelId);
+    return res.changes > 0;
+  }
+
+  public deactivateActiveAccount(modelId: string): boolean {
+    const db = coreDatabaseManager.getDatabase();
+    const now = new Date().toISOString();
+    const res = db
+      .prepare(`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0, UPDATED_TIMESTAMP = ? WHERE MODEL_ID = ? AND IS_ACTIVE = 1`)
+      .run(now, modelId);
+    return res.changes > 0;
+  }
+
+  public deactivateAllAccounts(): number {
+    const db = coreDatabaseManager.getDatabase();
+    const now = new Date().toISOString();
+    const res = db.prepare(`UPDATE MODEL_ACCOUNTS SET IS_ACTIVE = 0, UPDATED_TIMESTAMP = ? WHERE IS_ACTIVE = 1`).run(now);
+    return Number(res.changes);
+  }
+
+  public deleteAccount(accountId: string): boolean {
+    const db = coreDatabaseManager.getDatabase();
+    const res = db.prepare(`DELETE FROM MODEL_ACCOUNTS WHERE ACCOUNT_ID = ?`).run(accountId);
+    return res.changes > 0;
+  }
+
+  private parseJsonSafe(raw?: string): Record<string, unknown> {
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+
+  private mapRowToAccount(row: any): ModelAccount {
+    const parsedCfg = this.parseJsonSafe(row.configJson);
+    const authCode = row.authCode
+      ? String(row.authCode)
+      : parsedCfg.authCode
+        ? String(parsedCfg.authCode)
+        : undefined;
+    const resolvedStatus =
+      parsedCfg.verificationStatus ||
+      parsedCfg.status ||
+      (row.isActive ? (parsedCfg.status === "VERIFIED" ? "VERIFIED" : "UNVERIFIED") : "UNVERIFIED");
+    const rawEmail = String(row.userEmail || "");
+    const cleanEmail = rawEmail.includes("<") || rawEmail.includes("user-email") ? "" : rawEmail;
+    const rawName = String(row.accountName || "");
+    const cleanName = rawName
+      .replace(/\s*\(\s*<user-email>\s*\)/gi, "")
+      .replace(/\s*\(\s*<user-email-enterprise>\s*\)/gi, "")
+      .replace(/\s*\(<[^>]*>\)/gi, "")
+      .replace(/<[^>]*>/gi, "")
+      .trim();
+
+    return {
+      accountId: String(row.accountId),
+      modelId: String(row.modelId),
+      accountName: cleanName || (cleanEmail ? `${row.modelId} (${cleanEmail})` : String(row.modelId)),
+      userEmail: cleanEmail,
+      authType: row.authType as AuthType,
+      credentialValue: String(row.credentialValue || ""),
+      isActive: Boolean(row.isActive),
+      configJson: row.configJson ? String(row.configJson) : undefined,
+      authCode,
+      status: String(resolvedStatus),
+      customLocation: parsedCfg.customLocation ? String(parsedCfg.customLocation) : undefined,
+      credentialsFileContent: parsedCfg.credentialsFileContent ? String(parsedCfg.credentialsFileContent) : undefined,
+      authMethod: parsedCfg.authMethod ? String(parsedCfg.authMethod) : undefined,
+      createdTimestamp: String(row.createdTimestamp),
+      updatedTimestamp: String(row.updatedTimestamp),
+    };
+  }
+}
+
+export const accountRepository = new AccountRepository();

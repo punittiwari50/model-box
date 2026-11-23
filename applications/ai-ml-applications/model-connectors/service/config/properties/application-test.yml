@@ -1,0 +1,22 @@
+# ==============================================================================
+# ModelBox Connectors Application Configuration: TEST Profile
+# Overrides application.yml for automated unit and integration tests
+# ==============================================================================
+
+server:
+  host: "127.0.0.1"
+  port: 8999
+
+storage:
+  default_backend: "IN_MEMORY"
+  sqlite:
+    db_path: ":memory:"
+
+rate_limits:
+  default_token_capacity: 500000
+  default_refill_rate_per_sec: 100000.0
+  compaction_token_threshold: 2000
+
+security:
+  enabled: false
+  auth_method: "NONE"

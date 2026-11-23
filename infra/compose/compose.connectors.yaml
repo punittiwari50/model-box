@@ -1,0 +1,49 @@
+name: model-box
+
+services:
+  vault:
+    extends:
+      file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
+      service: vault
+    env_file:
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-service.env
+
+  postgres:
+    extends:
+      file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
+      service: postgres
+    env_file:
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-service.env
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-db-secure.env
+
+  service:
+    extends:
+      file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
+      service: service
+    env_file:
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-service.env
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-service-secure.env
+
+  ui:
+    extends:
+      file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
+      service: ui
+    env_file:
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-ui.env
+
+  modelbox-playwright-mcp:
+    extends:
+      file: ../../applications/ai-ml-applications/model-connectors/deploy/docker/docker-compose.yml
+      service: modelbox-playwright-mcp
+    env_file:
+      - ../../applications/ai-ml-applications/model-connectors/deploy/docker/model-box-service.env
+
+
+volumes:
+  model-connectors-postgres-data:
+    name: model-connectors-postgres-data
+
+networks:
+  model-box-net:
+    name: model-box-net
+    external: true

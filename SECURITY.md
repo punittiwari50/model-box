@@ -1,6 +1,6 @@
 # Security Policy
 
-Repository owner: @punit
+Repository owner: @maintainers
 
 ## Supported Versions
 
@@ -10,7 +10,7 @@ This project is currently maintained for the latest repository state and the act
 
 Please do not open a public GitHub issue for security vulnerabilities.
 
-Report suspected security issues privately to the repository maintainers via @punit or the repository security contact.
+Report suspected security issues privately to the repository maintainers or the repository security contact.
 
 Include:
 

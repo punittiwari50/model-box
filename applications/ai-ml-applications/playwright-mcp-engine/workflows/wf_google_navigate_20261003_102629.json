@@ -1,0 +1,33 @@
+{
+  "id": "wf-google-navigate-mus8yp85",
+  "name": "Automated Workflow for https://google.com",
+  "description": "Generated workflow with default schema attributes for Automated Workflow for https://google.com",
+  "version": "1.0.0",
+  "baseUrl": "https://google.com",
+  "variables": {},
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browserType": "chromium",
+  "headless": true,
+  "timeoutMs": 180000,
+  "stepTimeoutMs": 30000,
+  "retryConfig": {
+    "maxRetries": 3,
+    "initialDelayMs": 1000,
+    "backoffFactor": 2
+  },
+  "circuitBreakerDomain": "google.com",
+  "steps": [
+    {
+      "id": "step-1",
+      "action": "navigate",
+      "targetUrl": "https://google.com",
+      "description": "Navigate to https://google.com",
+      "timeoutMs": 10000,
+      "continueOnError": false,
+      "optional": false
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# Test configuration fixture for model-connector-client
+test:
+  mockResponses:
+    gemini:
+      text: "Mocked Gemini Response for Client Test"
+      finishReason: "STOP"
+  strategy: "API"
+  apiKey: "test-api-key-mock"

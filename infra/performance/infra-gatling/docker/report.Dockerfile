@@ -1,5 +1,4 @@
-# syntax=docker/dockerfile:1.7
-FROM nginx:1.27.3-alpine
+FROM nginx:alpine
 
 ARG APP_USER=report_svc
 ARG APP_UID=10002

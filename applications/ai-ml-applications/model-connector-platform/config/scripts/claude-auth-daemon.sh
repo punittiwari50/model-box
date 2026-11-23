@@ -1,0 +1,395 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Anthropic Claude Code CLI OAuth Automation Daemon
+# Architecture: OOP Shell Modules, DI, Strict Sanitization, Pure CLI/Shell
+# Constraints: Zero Node/Python/Java, YAML Config Driven, No Default Email
+# ==============================================================================
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/auth-config.yml"
+
+# Source Model Provider Virtual Environment Manager
+if [ -f "${SCRIPT_DIR}/model-provider-venv.sh" ]; then
+  # shellcheck source=/dev/null
+  source "${SCRIPT_DIR}/model-provider-venv.sh"
+fi
+
+read_yaml_value() {
+  local key="$1"
+  local default_val="${2:-}"
+  if [ -f "$CONFIG_FILE" ]; then
+    local line
+    line=$(grep -E "^[[:space:]]*${key}:" "$CONFIG_FILE" 2>/dev/null | head -n 1 || true)
+    if [ -n "$line" ]; then
+      local val="${line#*:}"
+      val="$(echo "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+      val="${val#\"}"
+      val="${val%\"}"
+      val="${val#\'}"
+      val="${val%\'}"
+      if [ -n "$val" ]; then
+        echo "$val"
+        return 0
+      fi
+    fi
+  fi
+  echo "$default_val"
+}
+
+readonly DATA_DIR="$(read_yaml_value "default_data_dir" "/app/config/data")"
+readonly LOGS_DIR="$(read_yaml_value "default_logs_dir" "${DATA_DIR}/logs")"
+readonly CREDENTIALS_DIR="$(read_yaml_value "default_credentials_dir" "${DATA_DIR}/credentials")"
+readonly RESPONSES_DIR="$(read_yaml_value "default_responses_dir" "${DATA_DIR}/oauth_responses")"
+readonly JSON_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.json"
+readonly CSV_SESSIONS_FILE="${DATA_DIR}/oauth_sessions.csv"
+readonly DAEMON_LOG_FILE="${LOGS_DIR}/claude_auth_daemon.log"
+
+readonly OAUTH_BASE_URL="$(read_yaml_value "anthropic_base_url" "https://claude.ai/oauth/authorize")"
+[ -z "${DATETIME_PATTERN:-}" ] && readonly DATETIME_PATTERN="$(read_yaml_value "datetime_pattern" "%Y-%m-%dT%H:%M:%SZ")"
+[ -z "${BACKEND_API_URL:-}" ] && readonly BACKEND_API_URL="$(read_yaml_value "backend_api_url" "http://localhost:8095/api/v1")"
+
+readonly BINARY_NAME="claude"
+readonly DEFAULT_PROVIDER="anthropic"
+MODEL_ID="${MODEL_ID:-claude-3-7-sonnet}"
+readonly AUTH_MODE_LABEL="Anthropic Claude CLI OAuth"
+readonly REDACTION_MASK="***REDACTED***"
+readonly APP_REDIRECT_URI="http://localhost:8085/oauth2callback"
+readonly AUTH_TIMEOUT_SECONDS="${AUTH_TIMEOUT_SECONDS:-$(read_yaml_value "cli_timeout_seconds" "600")}"
+
+FIFO_IN="/tmp/claude_auth_in.fifo"
+CLI_LOG="/tmp/claude_auth_out.log"
+CODE_FILE="/tmp/claude_auth_code.txt"
+PID_FILE="/tmp/claude_auth.pid"
+LOCK_FILE="/tmp/claude_auth.lock"
+
+USER_EMAIL=""
+CLIENT_ID="default"
+IS_STARTUP=false
+readonly DAEMON_NAME="claude-auth-daemon"
+
+CORRELATION_ID="${CORRELATION_ID:-}"
+TRACE_ID="${TRACE_ID:-}"
+SPAN_ID="${SPAN_ID:-}"
+PARENT_SPAN_ID="${PARENT_SPAN_ID:-}"
+
+init_trace_context() {
+  if [ -n "${TRACEPARENT:-}" ]; then
+    local tp_trace tp_parent
+    tp_trace=$(echo "$TRACEPARENT" | cut -d'-' -f2 2>/dev/null || true)
+    tp_parent=$(echo "$TRACEPARENT" | cut -d'-' -f3 2>/dev/null || true)
+    [ -z "$TRACE_ID" ] && [ -n "$tp_trace" ] && TRACE_ID="$tp_trace"
+    [ -z "$PARENT_SPAN_ID" ] && [ -n "$tp_parent" ] && PARENT_SPAN_ID="$tp_parent"
+  fi
+
+  if [ -z "$CORRELATION_ID" ]; then
+    if [ -r /proc/sys/kernel/random/uuid ]; then
+      CORRELATION_ID="$(cat /proc/sys/kernel/random/uuid 2>/dev/null || true)"
+    fi
+    if [ -z "$CORRELATION_ID" ]; then
+      CORRELATION_ID="$(od -x /dev/urandom 2>/dev/null | head -1 | awk '{print $2$3"-"$4"-"$5"-"$6"-"$7$8$9}' || date +%s%N)"
+    fi
+  fi
+
+  if [ -z "$TRACE_ID" ] || [ "${#TRACE_ID}" -ne 32 ]; then
+    TRACE_ID="$(tr -dc 'a-f0-9' < /dev/urandom 2>/dev/null | head -c 32 || printf "%032x" "$$$(date +%s)")"
+  fi
+
+  if [ -z "$SPAN_ID" ] || [ "${#SPAN_ID}" -ne 16 ]; then
+    SPAN_ID="$(tr -dc 'a-f0-9' < /dev/urandom 2>/dev/null | head -c 16 || printf "%016x" "$$")"
+  fi
+}
+
+sanitize_log_message() {
+  local raw="$1"
+  echo "$raw" | sed \
+    -e 's/client_id=[^& "'\'']*/client_id='"${REDACTION_MASK}"'/g' \
+    -e 's/client_secret=[^& "'\'']*/client_secret='"${REDACTION_MASK}"'/g' \
+    -e 's/code_challenge=[^& "'\'']*/code_challenge='"${REDACTION_MASK}"'/g' \
+    -e 's/state=[^& "'\'']*/state='"${REDACTION_MASK}"'/g' \
+    -e 's/auth_code=[^& "'\'']*/auth_code='"${REDACTION_MASK}"'/g'
+}
+
+log_message() {
+  local level="$1"; shift
+  local msg="$*"
+  local sanitized
+  sanitized=$(sanitize_log_message "$msg")
+  local ts
+  ts=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+  local level_lower
+  level_lower=$(echo "$level" | tr '[:upper:]' '[:lower:]')
+
+  local json_line="{\"timestamp\":\"$ts\",\"level\":\"$level_lower\",\"serviceName\":\"$DAEMON_NAME\",\"environment\":\"${NODE_ENV:-production}\",\"message\":\"$sanitized\""
+  [ -n "$TRACE_ID" ] && json_line="${json_line},\"traceId\":\"$TRACE_ID\""
+  [ -n "$SPAN_ID" ] && json_line="${json_line},\"spanId\":\"$SPAN_ID\""
+  [ -n "$PARENT_SPAN_ID" ] && json_line="${json_line},\"parentSpanId\":\"$PARENT_SPAN_ID\""
+  [ -n "$CORRELATION_ID" ] && json_line="${json_line},\"correlationId\":\"$CORRELATION_ID\""
+  json_line="${json_line}}"
+
+  echo "$json_line" >&2
+  if [ -d "$LOGS_DIR" ]; then
+    echo "$json_line" >> "$DAEMON_LOG_FILE" 2>/dev/null || true
+  fi
+}
+
+logger_info() { log_message "INFO" "$@"; }
+logger_warn() { log_message "WARN" "$@"; }
+logger_error() { log_message "ERROR" "$@"; }
+
+pre_validate() {
+  if [ -z "$USER_EMAIL" ] || [ "$USER_EMAIL" = "<user-email>" ]; then
+    USER_EMAIL=""
+  elif ! echo "$USER_EMAIL" | grep -Eq '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
+    USER_EMAIL=""
+  fi
+
+  # Launch & Activate Isolated Virtual Environment for Anthropic Claude
+  if command -v model_venv_activate >/dev/null 2>&1; then
+    model_venv_activate "$DEFAULT_PROVIDER" "$USER_EMAIL" "$CLIENT_ID"
+    FIFO_IN="${VENV_FIFO_IN}"
+    CLI_LOG="${VENV_CLI_LOG}"
+    CODE_FILE="${VENV_CODE_FILE}"
+    PID_FILE="${VENV_PID_FILE}"
+    LOCK_FILE="${VENV_LOCK_FILE}"
+    logger_info "Activated Claude isolated virtual environment: ${MODEL_VENV_PATH}"
+
+    if [ -z "${MODEL_ID:-}" ] || [ "$MODEL_ID" = "claude-3-7-sonnet" ]; then
+      local venv_model
+      venv_model=$(model_venv_get_model "$DEFAULT_PROVIDER" "$USER_EMAIL" "$CLIENT_ID" 2>/dev/null | grep -o '"activeModel":"[^"]*' | cut -d'"' -f4 || echo "")
+      if [ -n "$venv_model" ]; then
+        MODEL_ID="$venv_model"
+      fi
+    fi
+  fi
+
+  mkdir -p "$DATA_DIR" "$LOGS_DIR" "$CREDENTIALS_DIR" "$RESPONSES_DIR"
+  logger_info "Pre-validation succeeded for user: ${USER_EMAIL}"
+  return 0
+}
+
+save_session() {
+  local session_json="$1"
+  local session_id="$2"
+  local s_file="${RESPONSES_DIR}/oauth_session_${session_id}.json"
+  echo "$session_json" > "$s_file"
+
+  if [ ! -f "$JSON_SESSIONS_FILE" ]; then
+    echo "{\"version\":\"1.0\",\"updatedAt\":\"$(date -u +"${DATETIME_PATTERN}")\",\"latestSessionId\":\"${session_id}\",\"sessions\":[${session_json}]}" > "$JSON_SESSIONS_FILE"
+  fi
+}
+
+push_auth_and_conversation_to_db() {
+  local status="$1"
+  local session_id="$2"
+  local error_msg="${3:-}"
+
+  git config --global --add safe.directory "$CREDENTIALS_DIR" 2>/dev/null || true
+  if [ ! -d "${CREDENTIALS_DIR}/.git" ]; then
+    git -C "$CREDENTIALS_DIR" init -q 2>/dev/null || true
+    git -C "$CREDENTIALS_DIR" config user.name "ModelBox Bot" 2>/dev/null || true
+    git -C "$CREDENTIALS_DIR" config user.email "${USER_EMAIL:-noreply@localhost}" 2>/dev/null || true
+  fi
+
+  local commit_msg="auth(${status,,}): user=${USER_EMAIL:-anonymous} provider=${DEFAULT_PROVIDER} model=${MODEL_ID} session=${session_id}"
+  if [ -n "$error_msg" ]; then
+    commit_msg="${commit_msg} error=${error_msg}"
+  fi
+
+  git -C "$CREDENTIALS_DIR" add -A 2>/dev/null || true
+  git -C "$CREDENTIALS_DIR" commit --allow-empty -q -m "$commit_msg" 2>/dev/null || true
+  local commit_id
+  commit_id=$(git -C "$CREDENTIALS_DIR" rev-parse HEAD 2>/dev/null || echo "commit-local")
+
+  local auth_file="${RESPONSES_DIR}/oauth_session_${session_id}.json"
+  local auth_content=""
+  if [ -f "$auth_file" ]; then
+    auth_content=$(cat "$auth_file" 2>/dev/null | tr -d '\r\n' | sed 's/"/\\"/g' || true)
+  fi
+
+  local payload
+  payload=$(cat <<EOF
+{
+  "sessionId": "$session_id",
+  "provider": "$DEFAULT_PROVIDER",
+  "modelId": "$MODEL_ID",
+  "status": "$status",
+  "userEmail": "$USER_EMAIL",
+  "commitId": "$commit_id",
+  "errorMessage": "$error_msg",
+  "authFileContent": "$auth_content"
+}
+EOF
+)
+
+  curl -s -X POST "${BACKEND_API_URL}/auth/cli-session/sync" \
+    -H "Content-Type: application/json" \
+    -H "x-correlation-id: ${CORRELATION_ID:-}" \
+    -H "x-trace-id: ${TRACE_ID:-}" \
+    -d "$payload" \
+    --max-time 10 2>/dev/null || true
+
+  logger_info "Pushed authentication and conversation record for ${USER_EMAIL} to database."
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --startup)
+        IS_STARTUP=true
+        shift
+        ;;
+      --email|-e)
+        USER_EMAIL="${2:-}"
+        shift 2
+        ;;
+      --email=*)
+        USER_EMAIL="${1#*=}"
+        shift
+        ;;
+      --client|-c|--client-id)
+        CLIENT_ID="${2:-default}"
+        shift 2
+        ;;
+      --client=*|--client-id=*)
+        CLIENT_ID="${1#*=}"
+        shift
+        ;;
+      --model|-m|--model-id)
+        MODEL_ID="${2:-}"
+        shift 2
+        ;;
+      --model=*|--model-id=*)
+        MODEL_ID="${1#*=}"
+        shift
+        ;;
+      --correlation-id)
+        CORRELATION_ID="${2:-}"
+        shift 2
+        ;;
+      --correlation-id=*)
+        CORRELATION_ID="${1#*=}"
+        shift
+        ;;
+      --trace-id)
+        TRACE_ID="${2:-}"
+        shift 2
+        ;;
+      --trace-id=*)
+        TRACE_ID="${1#*=}"
+        shift
+        ;;
+      --span-id)
+        SPAN_ID="${2:-}"
+        shift 2
+        ;;
+      --span-id=*)
+        SPAN_ID="${1#*=}"
+        shift
+        ;;
+      --parent-span-id)
+        PARENT_SPAN_ID="${2:-}"
+        shift 2
+        ;;
+      --parent-span-id=*)
+        PARENT_SPAN_ID="${1#*=}"
+        shift
+        ;;
+      *)
+        if [ -z "$USER_EMAIL" ] && [[ "$1" =~ @ ]]; then
+          USER_EMAIL="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$USER_EMAIL" ] && [ -n "${USER_EMAIL_ARG:-}" ]; then
+    USER_EMAIL="$USER_EMAIL_ARG"
+  fi
+}
+
+main() {
+  parse_args "$@"
+  init_trace_context
+  if [ "$IS_STARTUP" = "true" ] && [ -z "$USER_EMAIL" ]; then
+    logger_info "Container boot: No user email provided at startup. Ready for on-demand invocation."
+    exit 0
+  fi
+  pre_validate
+  logger_info "Initiating Anthropic Claude CLI Authentication for user ${USER_EMAIL}..."
+  local session_id
+  session_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || date +%s%N)
+  local now
+  now=$(date -u +"${DATETIME_PATTERN}" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
+  local state
+  state=$(tr -dc 'a-f0-9' < /dev/urandom 2>/dev/null | head -c 32 || date +%s%N)
+
+  local oauth_url
+  if [ -n "$CLIENT_ID" ] && [ "$CLIENT_ID" != "default" ]; then
+    oauth_url="${OAUTH_BASE_URL}?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${APP_REDIRECT_URI}&state=${state}&scope=org%3Aread%20model%3Aread"
+  else
+    oauth_url="http://localhost:8085/oauth2/authorize?provider=anthropic&model=${MODEL_ID}&state=${state}&returnUrl=http://localhost:3005"
+  fi
+
+  local session_json
+  session_json=$(cat <<EOF
+{
+  "sessionId": "$session_id",
+  "provider": "$DEFAULT_PROVIDER",
+  "modelId": "$MODEL_ID",
+  "authMode": "$AUTH_MODE_LABEL",
+  "oauthUrl": "$oauth_url",
+  "clientId": "anthropic-claude-cli",
+  "state": "$state",
+  "redirectUri": "$APP_REDIRECT_URI",
+  "cliRedirectUri": "https://claude.ai/oauth-callback",
+  "appRedirectUri": "$APP_REDIRECT_URI",
+  "authCode": "",
+  "userEmail": "$USER_EMAIL",
+  "status": "PENDING",
+  "createdAt": "$now",
+  "updatedAt": "$now"
+}
+EOF
+)
+
+  save_session "$session_json" "$session_id"
+  push_auth_and_conversation_to_db "PENDING" "$session_id" ""
+
+  rm -f "$FIFO_IN" "$CODE_FILE"
+  mkfifo "$FIFO_IN"
+  exec 3<> "$FIFO_IN"
+
+  local auth_succeeded=false
+  for ((s=0; s<AUTH_TIMEOUT_SECONDS; s+=2)); do
+    local detected_code_file=""
+    if [ -f "$CODE_FILE" ]; then
+      detected_code_file="$CODE_FILE"
+    elif [ -f "/tmp/claude_auth_code.txt" ]; then
+      detected_code_file="/tmp/claude_auth_code.txt"
+    fi
+    if [ -n "$detected_code_file" ]; then
+      local code
+      code=$(cat "$detected_code_file" 2>/dev/null | tr -d '\r\n[:space:]')
+      if [ -n "$code" ]; then
+        logger_info "Auth code received for Claude session [${session_id}]."
+        auth_succeeded=true
+        rm -f "$CODE_FILE" "/tmp/claude_auth_code.txt" 2>/dev/null || true
+        push_auth_and_conversation_to_db "COMPLETED" "$session_id" ""
+        break
+      fi
+    fi
+    sleep 2
+  done
+
+  if [ "$auth_succeeded" = false ]; then
+    logger_error "OAuth CLI authentication timed out after ${AUTH_TIMEOUT_SECONDS}s."
+    push_auth_and_conversation_to_db "FAILED" "$session_id" "CLI_TIMEOUT_600S: Authorization code was not provided within the 600-second window."
+  fi
+  logger_info "Claude auth daemon finished."
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

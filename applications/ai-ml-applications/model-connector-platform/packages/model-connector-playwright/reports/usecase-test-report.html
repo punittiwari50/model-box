@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Model Connector Platform - Use Case Test Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 24px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #58a6ff; font-size: 24px; border-bottom: 1px solid #30363d; padding-bottom: 12px; }
+    .metrics { display: flex; gap: 16px; margin: 20px 0; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; flex: 1; text-align: center; }
+    .card .val { font-size: 28px; font-weight: bold; color: #7ee787; }
+    .card .lbl { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 24px; background: #161b22; border-radius: 8px; overflow: hidden; }
+    th { background: #21262d; color: #f0f6fc; text-align: left; padding: 12px; font-size: 13px; }
+    td { padding: 12px; border-top: 1px solid #30363d; font-size: 13px; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; }
+    .pass { background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.4); }
+    .fail { background: rgba(218, 54, 51, 0.2); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.4); }
+    .steps { margin-top: 8px; font-size: 12px; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 Model Connector Platform — Use-Case Testing Dashboard</h1>
+    <div class="metrics">
+      <div class="card"><div class="val">10</div><div class="lbl">Total Use Cases</div></div>
+      <div class="card"><div class="val" style="color: #3fb950;">10</div><div class="lbl">Passed</div></div>
+      <div class="card"><div class="val" style="color: #8b949e;">0</div><div class="lbl">Failed</div></div>
+      <div class="card"><div class="val">100.0%</div><div class="lbl">Success Rate</div></div>
+      <div class="card"><div class="val">22.43s</div><div class="lbl">Duration</div></div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Use Case & Description</th><th>Category</th><th>Status</th><th>Latency</th></tr>
+      </thead>
+      <tbody>
+    <tr>
+      <td><strong>UC-01</strong></td>
+      <td><div><strong>Omni-Channel Execution Strategy Switching</strong></div><div style="color: #8b949e; font-size: 12px;">Verifies interactive chat container, user prompt input, and strategy switching (API, CLI, COOKIE)</div><div class="steps"><div>• Step 1: Navigate to AI Chat Workspace (382ms) - <em>Chat workspace container mounted</em></div><div>• Step 2: Input Inference Prompt (19ms) - <em>Prompt populated into chat textarea</em></div><div>• Step 3: Cycle Execution Strategy Pills (570ms) - <em>Successfully toggled 3 execution strategy pills (API, CLI, COOKIE)</em></div><div>• Step 4: Verify Send Trigger Readiness (8ms) - <em>Send action button attached and ready for model execution</em></div></div></td>
+      <td><code>Chat & Inference</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>979ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-02</strong></td>
+      <td><div><strong>Multi-Family Model Discovery & Real-Time Filtering</strong></div><div style="color: #8b949e; font-size: 12px;">Validates model family filtering (Google, Anthropic, Microsoft, OpenAI, xAI) and keyword search</div><div class="steps"><div>• Step 1: Navigate to Model Catalog (364ms) - <em>Model catalog mounted</em></div><div>• Step 2: Perform Keyword Search (185ms) - <em>Search filtering query executed and cleared</em></div><div>• Step 3: Verify Family Filter Tabs Activation (1010ms) - <em>Iterated through 7 family tabs and restored ALL filter</em></div></div></td>
+      <td><code>Catalog & Providers</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>1559ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-03</strong></td>
+      <td><div><strong>Multi-Protocol Authentication & Credential Onboarding</strong></div><div style="color: #8b949e; font-size: 12px;">Verifies configuration views for REST API, OAuth 2.0 PKCE redirect, CLI binary, and Cookie vault</div><div class="steps"><div>• Step 1: Navigate to Model Config Studio (382ms) - <em>Model Config Studio mounted</em></div><div>• Step 2: Verify Protocol Tab: REST API (263ms) - <em>Protocol 'REST API' activated without UI error</em></div><div>• Step 3: Verify Protocol Tab: OAuth 2.0 Redirect (256ms) - <em>Protocol 'OAuth 2.0 Redirect' activated without UI error</em></div><div>• Step 4: Verify Protocol Tab: CLI Binary (239ms) - <em>Protocol 'CLI Binary' activated without UI error</em></div><div>• Step 5: Verify Protocol Tab: Cookie Vault (245ms) - <em>Protocol 'Cookie Vault' activated without UI error</em></div><div>• Step 6: Restore REST API Default Tab (42ms) - <em>REST API selected as baseline protocol</em></div></div></td>
+      <td><code>Security & Configuration</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>1427ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-04</strong></td>
+      <td><div><strong>Distributed Multi-User Session Lineage</strong></div><div style="color: #8b949e; font-size: 12px;">Validates user session tracking, lineage table rendering, and new session creation action</div><div class="steps"><div>• Step 1: Navigate to Session History (343ms) - <em>Session History container mounted</em></div><div>• Step 2: Verify Lineage Table Render (3ms) - <em>Session lineage records table rendered</em></div><div>• Step 3: Verify Create Session Action Control (3ms) - <em>New session trigger action button verified</em></div><div>• Step 4: Ensure Test Data Cleanup (18ms) - <em>Teardown check complete. Test sessions purged: 0</em></div></div></td>
+      <td><code>Sessions & Auditing</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>367ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-05</strong></td>
+      <td><div><strong>Resilient DAG Workflow Execution & Resumption Integrity</strong></div><div style="color: #8b949e; font-size: 12px;">Validates DAG Canvas, Tabular steps switching, and cryptographic HMAC resumption tamper protection</div><div class="steps"><div>• Step 1: Navigate to Executive Workflows (353ms) - <em>Executive Workflows view mounted</em></div><div>• Step 2: Toggle Tabular Steps View Mode (163ms) - <em>Tabular execution mode toggled</em></div><div>• Step 3: Toggle DAG Graph View Mode (196ms) - <em>DAG canvas view mode restored</em></div><div>• Step 4: Execute Cryptographic Resumption Integrity Guard (222ms) - <em>HMAC cryptographic integrity validated</em></div></div></td>
+      <td><code>Workflows & Orchestration</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>934ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-06</strong></td>
+      <td><div><strong>Domain Application Stepper Wizard Onboarding</strong></div><div style="color: #8b949e; font-size: 12px;">Validates domain stepper wizard flows across Job Portal, Apps Builder, and Storyteller Studio</div><div class="steps"><div>• Step 1: Navigate to Provider Onboarding (343ms) - <em>Provider Onboarding page mounted</em></div><div>• Step 2: Activate Domain Wizard: Job Portal (227ms) - <em>Domain 'Job Portal' flow host rendered cleanly</em></div><div>• Step 3: Activate Domain Wizard: Apps Builder (238ms) - <em>Domain 'Apps Builder' flow host rendered cleanly</em></div><div>• Step 4: Activate Domain Wizard: Storyteller Studio (233ms) - <em>Domain 'Storyteller Studio' flow host rendered cleanly</em></div></div></td>
+      <td><code>Onboarding & Domains</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>1041ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-07</strong></td>
+      <td><div><strong>Multi-Tenant RBAC Governance & Permissions Matrix</strong></div><div style="color: #8b949e; font-size: 12px;">Validates multi-tenant governance metrics and dynamic role-to-menu authorization matrix</div><div class="steps"><div>• Step 1: Navigate to Access & RBAC (344ms) - <em>Access & RBAC page mounted</em></div><div>• Step 2: Verify Governance Metrics Cards (2ms) - <em>3 governance metric cards verified</em></div><div>• Step 3: Verify Dynamic Role-to-Menu Matrix (3ms) - <em>Role-to-menu dynamic authorization table validated</em></div></div></td>
+      <td><code>Governance & Security</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>349ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-08</strong></td>
+      <td><div><strong>Telemetry Monitoring & Upstream Audit Trail</strong></div><div style="color: #8b949e; font-size: 12px;">Validates 4 system telemetry metric cards and real-time audit log event trail</div><div class="steps"><div>• Step 1: Navigate to Telemetry & Upstream (336ms) - <em>Telemetry & Upstream view mounted</em></div><div>• Step 2: Verify 4 Real-Time Metrics Cards (2ms) - <em>4 telemetry metric cards verified</em></div><div>• Step 3: Verify Audit Event Log Trail (4ms) - <em>Live transaction audit trail table verified</em></div></div></td>
+      <td><code>Observability & Health</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>342ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-09</strong></td>
+      <td><div><strong>Responsive Multi-Device Layout Continuity</strong></div><div style="color: #8b949e; font-size: 12px;">Validates seamless transition between desktop studio and mobile layout with bottom navigation</div><div class="steps"><div>• Step 1: Switch to Mobile View Mode (347ms) - <em>Mobile responsive layout mounted</em></div><div>• Step 2: Traverse Mobile Bottom Navigation Tabs (821ms) - <em>Clicked through 4 mobile navigation pills</em></div><div>• Step 3: Restore Desktop Studio View (4ms) - <em>Successfully restored Desktop Studio</em></div></div></td>
+      <td><code>UX & Responsiveness</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>1172ms</td>
+    </tr>
+    <tr>
+      <td><strong>UC-10</strong></td>
+      <td><div><strong>Local Ollama Docker Container Execution & Verification</strong></div><div style="color: #8b949e; font-size: 12px;">Directly validates real-time communication, model inventory, and non-mock AI generation from local Ollama Docker container</div><div class="steps"><div>• Step 1: Discover Live Ollama Docker Endpoint (4705ms) - <em>Connected to live Ollama container at http://host.docker.internal:11435 with 16 models.</em></div><div>• Step 2: Select Operational Model from Inventory (0ms) - <em>Selected model 'tinyllama:latest' for real inference execution.</em></div><div>• Step 3: Execute Live Non-Mock Completion on Ollama (8625ms) - <em>Real AI response verified (11 chars, 3 tokens generated).</em></div><div>• Step 4: Ensure Clean Database State (4ms) - <em>Database teardown complete. Zero dummy test records left in table (purged: 0).</em></div></div></td>
+      <td><code>Local AI & Fallback Runtime</code></td>
+      <td><span class="badge pass">✔ PASSED</span></td>
+      <td>13334ms</td>
+    </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

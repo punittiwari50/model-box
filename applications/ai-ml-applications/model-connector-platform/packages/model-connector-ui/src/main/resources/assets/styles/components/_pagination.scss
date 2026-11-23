@@ -1,0 +1,133 @@
+// ==============================================================================
+// SCSS Pagination: Theme-Aware Universal Accessible Pagination Controls
+// Path: src/main/resources/assets/styles/components/_pagination.scss
+// ==============================================================================
+@use "@/styles/abstracts/tokens" as *;
+@use "@/styles/abstracts/mixins" as *;
+
+.pagination-container {
+  @include theme-card;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-4);
+  font-size: var(--font-sm);
+  color: var(--theme-text-secondary);
+  width: 100%;
+
+  .pagination-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+
+    .pagination-info {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+      color: var(--theme-text-secondary);
+      font-size: var(--font-sm);
+
+      .pagination-highlight {
+        color: var(--theme-text-primary);
+        font-weight: 700;
+      }
+    }
+
+    .pagination-size-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--font-xs);
+
+      label {
+        color: var(--theme-text-muted);
+      }
+
+      .pagination-select {
+        background: var(--theme-bg-input);
+        border: 1px solid var(--theme-border-default);
+        color: var(--theme-text-primary);
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-xs);
+      }
+    }
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+
+    .pagination-pages {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pagination-btn,
+    .pagination-page-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      height: 32px;
+      padding: 0 10px;
+      border-radius: var(--radius-sm);
+      background: var(--theme-bg-muted);
+      border: 1px solid var(--theme-border-subtle);
+      color: var(--theme-text-secondary);
+      font-size: var(--font-xs);
+      font-weight: 600;
+      transition: all var(--transition-fast);
+
+      &.pagination-prev,
+      &.pagination-next {
+        padding: 0 12px;
+      }
+
+      &:hover:not(:disabled) {
+        background: var(--theme-bg-subtle);
+        color: var(--theme-text-primary);
+      }
+
+      &.active {
+        background: var(--theme-primary);
+        border-color: var(--theme-primary);
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+    }
+
+    .pagination-ellipsis {
+      min-width: 20px;
+      text-align: center;
+      color: var(--theme-text-muted);
+      font-weight: 700;
+    }
+  }
+
+  @include respond-to("sm") {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+.category-inner-pagination {
+  margin-top: 0;
+  border: none;
+  border-top: 1px solid var(--theme-border-subtle);
+  border-radius: 0;
+  box-shadow: none;
+}

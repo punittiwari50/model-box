@@ -2,11 +2,14 @@
 
 This directory stores runtime artifacts only (Compose files, env files, and local volume placeholders).
 
+> **Master Guide Reference**: All end-to-end clean build procedures, GPU/CPU mode switching, volume persistence, and teardown commands across Ollama and ComfyUI are consolidated into the single authoritative document:  
+> 👉 [**Docker Compose Deployment Master Guide**](../../../docs/docker-compose-deployment-guide.md)
+
 Operational content has been consolidated into centralized project docs:
 
-1. Manual runtime commands and rebuild workflow: [../../../docs/docker-operations.md](../../../docs/docker-operations.md)
-2. Endpoint usage and payload examples: [../../../docs/ollama-endpoints.md](../../../docs/ollama-endpoints.md)
-3. Documentation policy and ownership: [../../../docs/README.md](../../../docs/README.md)
+1. Unified Clean Build & Deployment Master Runbook: [../../../docs/docker-compose-deployment-guide.md](../../../docs/docker-compose-deployment-guide.md)
+2. Manual runtime commands and model operations: [../../../docs/docker-operations.md](../../../docs/docker-operations.md)
+3. Endpoint usage and payload examples: [../../../docs/ollama-endpoints.md](../../../docs/ollama-endpoints.md)
 
 ## Quick Commands
 
@@ -52,7 +55,7 @@ docker volume ls --filter "name=*ollama*" -q | xargs -r docker volume rm -f
 | `COMPOSE_MEM_LIMIT` | Memory limit | `8g`, `16g`, `24g`, `32g` | `24g` |
 | `COMPOSE_SHM_SIZE` | Shared memory | `1g`, `2g`, `4g` | `2g` |
 
-**Host Path:** `C:/volume-docker_ollama` → Container: `/models`
+**Host Path:** `COMPOSE_OLLAMA_MODELS_HOST` → Container: `/models`
 
 ### GPU Mode Properties (`ollama-gpu.env`)
 
@@ -72,7 +75,7 @@ docker volume ls --filter "name=*ollama*" -q | xargs -r docker volume rm -f
 | `NVIDIA_VISIBLE_DEVICES` | GPU device access | `0`, `1`, `2`, `all` | `0` |
 | `NVIDIA_DRIVER_CAPABILITIES` | GPU capabilities | `compute,utility`, `graphics,compute,utility` | `compute,utility` |
 
-**Host Path:** `C:/volume-docker_ollama` → Container: `/models`
+**Host Path:** `COMPOSE_OLLAMA_MODELS_HOST` → Container: `/models`
 
 **GPU Requirements:** NVIDIA Container Toolkit, NVIDIA GPU, `gpus: all` in compose
 
@@ -92,7 +95,7 @@ Operational notes:
 
 1. GPU mode (`ollama-gpu.env`) adds NVIDIA runtime settings: `NVIDIA_VISIBLE_DEVICES=0` and `NVIDIA_DRIVER_CAPABILITIES=compute,utility`. Requires host with NVIDIA Container Toolkit configured.
 2. CPU mode (`ollama-cpu.env`) omits GPU-specific variables and is the fallback for non-GPU or validation runs.
-3. Both modes keep the same persistent host model directory (`C:/volume-docker_ollama`) mounted at `/models` as a bidirectional read-write bind mount.
+3. Both modes keep the same persistent host model directory (configured via `COMPOSE_OLLAMA_MODELS_HOST`) mounted at `/models` as a bidirectional read-write bind mount.
 4. See `.env.example` for base configuration and `ollama-gpu.env`/`ollama-cpu.env` for mode-specific overrides.
 
 Consolidated model store (2026-09-27):

@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ModelBox | Enterprise Model Connectors & Token Governor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(18, 24, 38, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-violet: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --font-ui: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.10) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.06) 0px, transparent 60%);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      background: rgba(11, 15, 25, 0.85);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .storage-pill {
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+    }
+
+    main {
+      flex: 1;
+      padding: 24px 32px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 360px 1fr 380px;
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      backdrop-filter: blur(20px);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Token Governor Meter */
+    .token-meter-card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .metric-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      margin-top: 4px;
+      color: var(--accent-cyan);
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));
+      width: 100%;
+      transition: width 0.4s ease;
+    }
+
+    .wait-time-banner {
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+
+    .wait-time-banner.throttled {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.4);
+      color: var(--accent-rose);
+    }
+
+    /* Connectors List */
+    .connector-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .connector-card:hover, .connector-card.active {
+      background: rgba(6, 182, 212, 0.08);
+      border-color: rgba(6, 182, 212, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .connector-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .conn-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .protocol-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      font-family: var(--font-mono);
+    }
+
+    .conn-endpoint {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Chat & Interaction Arena */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      gap: 16px;
+    }
+
+    .messages-stream {
+      flex: 1;
+      min-height: 400px;
+      max-height: 540px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding-right: 8px;
+    }
+
+    .message-bubble {
+      padding: 14px 18px;
+      border-radius: 12px;
+      max-width: 85%;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .message-user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(139, 92, 246, 0.25));
+      border: 1px solid rgba(6, 182, 212, 0.4);
+    }
+
+    .message-assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+    }
+
+    .msg-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .input-box {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 70px;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      resize: none;
+    }
+
+    .input-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), #0284c7);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Compaction & Session Cards */
+    .session-meta-box {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .compaction-card {
+      background: rgba(139, 92, 246, 0.08);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* Model Discovery & Selection Bar */
+    .model-bar {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      backdrop-filter: blur(12px);
+    }
+
+    .model-bar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .model-select-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .model-select {
+      width: 100%;
+      background: rgba(11, 15, 25, 0.95);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      border-radius: 8px;
+      color: #fff;
+      padding: 9px 14px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: all 0.2s ease;
+    }
+
+    .model-select:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+    }
+
+    .model-select:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.45);
+    }
+
+    .model-select-arrow {
+      position: absolute;
+      right: 14px;
+      pointer-events: none;
+      color: var(--accent-cyan);
+      font-size: 11px;
+    }
+
+    .model-meta-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+
+    .model-badge {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    .model-badge.highlight {
+      color: var(--accent-cyan);
+      border-color: rgba(6, 182, 212, 0.4);
+      background: rgba(6, 182, 212, 0.12);
+      font-weight: 600;
+    }
+
+    .model-badge.emerald {
+      color: var(--accent-emerald);
+      border-color: rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.12);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-icon">MB</div>
+      <div>
+        <div class="brand-title">ModelBox Connectors</div>
+        <div style="font-size: 12px; color: var(--text-muted);">AI Model Gateway & Token Governor</div>
+      </div>
+      <div class="brand-badge">LangGraph Powered</div>
+    </div>
+    <div class="header-actions">
+      <div class="storage-pill">
+        <span class="dot"></span>
+        <span id="activeStorage">Storage: In-Memory SQLite</span>
+      </div>
+      <button class="btn btn-secondary" onclick="probeAllHealth()">⚡ Probe Health</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Model Connectors & Protocols -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Model Connectors</div>
+        <button class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="loadConnections()">Refresh</button>
+      </div>
+
+      <div id="connectorsList" style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- Populated dynamically -->
+      </div>
+
+      <div class="token-meter-card">
+        <div style="font-weight: 600; font-size: 13px; display: flex; justify-content: space-between;">
+          <span>Token Bucket Governor</span>
+          <span id="rateLimitRpm" style="color: var(--text-muted); font-size: 11px;">Refill: 1k/s</span>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-box">
+            <div class="metric-label">Consumed (Total)</div>
+            <div class="metric-value" id="tokensConsumed">0</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Available</div>
+            <div class="metric-value" id="tokensAvailable" style="color: var(--accent-emerald);">100k</div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+            <span>Capacity</span>
+            <span id="capacityPercent">100%</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="bucketProgress" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="wait-time-banner" id="waitBanner">
+          <span>Replenish Wait Time:</span>
+          <span style="font-weight: 700; font-family: var(--font-mono);" id="waitTimeDisplay">0s (Ready)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Column: Interactive Prompt & Inference Stream -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" id="chatTitle">Ollama Docker</div>
+        <div style="font-size: 12px; color: var(--text-muted);" id="activeEndpoint">http://127.0.0.1:11435</div>
+      </div>
+
+      <!-- Live Model Discovery & Selector -->
+      <div class="model-bar">
+        <div class="model-bar-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: 600; font-size: 13px; color: var(--text-main);">🎯 Active Model</span>
+            <span id="modelCountBadge" class="model-badge highlight">Discovering models...</span>
+          </div>
+          <button class="btn btn-secondary" style="font-size: 11px; padding: 2px 8px;" onclick="fetchAvailableModels(activeConnection)">🔄 Refresh</button>
+        </div>
+        <div class="model-select-wrap">
+          <select id="modelSelector" class="model-select" onchange="onModelSelected(this.value)">
+            <option value="">Querying runtime models...</option>
+          </select>
+          <span class="model-select-arrow">▼</span>
+        </div>
+        <div class="model-meta-badges" id="modelMetaBadges">
+          <!-- Dynamic specs populated via JS -->
+        </div>
+      </div>
+
+      <div class="chat-container">
+        <div class="messages-stream" id="messagesStream">
+          <div class="message-bubble message-assistant">
+            <div>Welcome to <strong>ModelBox Connectors</strong>. Connect through REST, WebSocket (ComfyUI), gRPC, or Cookie Session authentication. Token consumption is continuously governed.</div>
+            <div class="msg-meta">
+              <span>Status: Ready</span>
+              <span>Tokens: 0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-box">
+          <textarea id="promptInput" placeholder="Enter prompt or instructions for the AI model..."></textarea>
+          <div class="input-actions">
+            <div style="font-size: 12px; color: var(--text-muted);" id="inputMeta">
+              Session: <span id="currentSessionShort" style="color: var(--accent-cyan); font-family: var(--font-mono);">default</span>
+            </div>
+            <button class="btn btn-primary" id="btnSend" onclick="sendInference()">
+              <span>Execute Inference</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Session, Cookies & Compact History -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Session & Cookies</div>
+        <button class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="createNewSession()">+ New</button>
+      </div>
+
+      <div class="session-meta-box">
+        <div class="meta-row">
+          <span style="color: var(--text-muted);">Session ID:</span>
+          <span id="sessIdText" style="font-family: var(--font-mono); font-weight: 600;">sess-init</span>
+        </div>
+        <div class="meta-row">
+          <span style="color: var(--text-muted);">User ID:</span>
+          <span id="userIdText" style="font-family: var(--font-mono);">engineer-01</span>
+        </div>
+        <div class="meta-row">
+          <span style="color: var(--text-muted);">Cookie ID:</span>
+          <span id="cookieIdText" style="font-family: var(--font-mono); color: var(--accent-cyan);">cookie-auth-token-123</span>
+        </div>
+      </div>
+
+      <div class="panel-header" style="margin-top: 10px;">
+        <div class="panel-title" style="font-size: 13px;">Compacted Conversation</div>
+        <button class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="triggerCompaction()">Compact Now</button>
+      </div>
+
+      <div id="compactionContainer">
+        <div class="compaction-card" id="compactionContent">
+          No compacted history yet. Long conversations are automatically compacted when token budget threshold is exceeded.
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let activeConnection = 'ollama-docker';
+    let currentSessionId = 'sess-' + Math.random().toString(36).substring(2, 10);
+    const userId = 'engineer-01';
+    const cookieId = 'cookie-session-' + Math.random().toString(36).substring(2, 12);
+    let discoveredModels = [];
+    let selectedModelName = '';
+
+    document.getElementById('sessIdText').innerText = currentSessionId;
+    document.getElementById('currentSessionShort').innerText = currentSessionId.substring(0, 12);
+    document.getElementById('userIdText').innerText = userId;
+    document.getElementById('cookieIdText').innerText = cookieId;
+
+    async function init() {
+      await loadConnections();
+      await fetchAvailableModels(activeConnection, 'llama3.2:latest');
+      await updateTokenMetrics();
+      setInterval(updateTokenMetrics, 3000);
+    }
+
+    async function loadConnections() {
+      try {
+        const res = await fetch('/api/v1/connections');
+        const list = await res.json();
+        const container = document.getElementById('connectorsList');
+        container.innerHTML = '';
+
+        list.forEach(c => {
+          const card = document.createElement('div');
+          card.className = 'connector-card' + (c.connection_id === activeConnection ? ' active' : '');
+          card.onclick = () => selectConnector(c);
+          card.innerHTML = `
+            <div class="connector-header">
+              <span class="conn-title">${c.name}</span>
+              <span class="protocol-tag">${c.protocol}</span>
+            </div>
+            <div class="conn-endpoint">${c.endpoint_url}</div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function selectConnector(conn) {
+      activeConnection = conn.connection_id;
+      document.getElementById('chatTitle').innerText = conn.name;
+      document.getElementById('activeEndpoint').innerText = conn.endpoint_url;
+      loadConnections();
+      await fetchAvailableModels(activeConnection, conn.model_name);
+      updateTokenMetrics();
+    }
+
+    async function fetchAvailableModels(connectionId, preferredModel = '') {
+      const select = document.getElementById('modelSelector');
+      const badge = document.getElementById('modelCountBadge');
+      badge.innerText = 'Scanning...';
+      badge.className = 'model-badge highlight';
+
+      try {
+        const res = await fetch(`/api/v1/connections/${connectionId}/models`);
+        if (!res.ok) {
+          throw new Error('Failed to load models');
+        }
+        discoveredModels = await res.json();
+        select.innerHTML = '';
+
+        if (!discoveredModels || discoveredModels.length === 0) {
+          badge.innerText = '0 Models';
+          select.innerHTML = '<option value="">No models detected</option>';
+          updateModelBadges(null);
+          return;
+        }
+
+        const supportedCount = discoveredModels.filter(m => m.is_supported !== false).length;
+        badge.innerText = `${discoveredModels.length} Models (${supportedCount} Ready)`;
+        badge.className = 'model-badge emerald';
+
+        discoveredModels.forEach((m) => {
+          const opt = document.createElement('option');
+          opt.value = m.name;
+          const paramInfo = m.parameter_size && m.parameter_size !== 'N/A' ? ` [${m.parameter_size}]` : '';
+          const quantInfo = m.quantization && m.quantization !== 'N/A' ? ` (${m.quantization})` : '';
+          const noteInfo = m.status_note ? ` ⚠️ ${m.status_note}` : '';
+          opt.innerText = `${m.name}${paramInfo}${quantInfo}${noteInfo}`;
+          if (m.is_supported === false) {
+            opt.style.color = '#f87171';
+          }
+          select.appendChild(opt);
+        });
+
+        // Determine which model to select initially: prioritize supported models
+        let match = discoveredModels.find(m => m.name === preferredModel && m.is_supported !== false);
+        if (!match && selectedModelName) {
+          match = discoveredModels.find(m => m.name === selectedModelName && m.is_supported !== false);
+        }
+        if (!match) {
+          match = discoveredModels.find(m => m.is_supported !== false);
+        }
+        if (!match) {
+          match = discoveredModels[0];
+        }
+
+        selectedModelName = match ? match.name : '';
+        select.value = selectedModelName;
+        updateModelBadges(match);
+      } catch (err) {
+        console.error('Error fetching models:', err);
+        badge.innerText = 'Discovery Offline';
+        badge.className = 'model-badge';
+        select.innerHTML = `<option value="">Default Model</option>`;
+        updateModelBadges(null);
+      }
+    }
+
+    function onModelSelected(modelName) {
+      selectedModelName = modelName;
+      const modelObj = discoveredModels.find(m => m.name === modelName);
+      updateModelBadges(modelObj);
+    }
+
+    function updateModelBadges(model) {
+      const container = document.getElementById('modelMetaBadges');
+      container.innerHTML = '';
+      if (!model) return;
+
+      if (model.parameter_size && model.parameter_size !== 'N/A') {
+        const b = document.createElement('span');
+        b.className = 'model-badge highlight';
+        b.innerText = `Params: ${model.parameter_size}`;
+        container.appendChild(b);
+      }
+
+      if (model.quantization && model.quantization !== 'N/A') {
+        const b = document.createElement('span');
+        b.className = 'model-badge';
+        b.innerText = `Quant: ${model.quantization}`;
+        container.appendChild(b);
+      }
+
+      if (model.size_mb) {
+        const b = document.createElement('span');
+        b.className = 'model-badge';
+        const sizeGb = (model.size_mb / 1024).toFixed(2);
+        b.innerText = `Size: ${sizeGb} GB`;
+        container.appendChild(b);
+      }
+
+      if (model.family && model.family !== 'N/A') {
+        const b = document.createElement('span');
+        b.className = 'model-badge';
+        b.innerText = `Family: ${model.family}`;
+        container.appendChild(b);
+      }
+
+      if (model.capabilities && model.capabilities.length > 0) {
+        model.capabilities.forEach(cap => {
+          const b = document.createElement('span');
+          b.className = 'model-badge emerald';
+          b.innerText = `✨ ${cap}`;
+          container.appendChild(b);
+        });
+      }
+    }
+
+    async function sendInference() {
+      const promptInput = document.getElementById('promptInput');
+      const prompt = promptInput.value.trim();
+      if (!prompt) return;
+
+      const btn = document.getElementById('btnSend');
+      btn.disabled = true;
+      btn.innerHTML = '<span>Processing...</span>';
+
+      // Append User message
+      appendMessage('user', prompt, 'user');
+      promptInput.value = '';
+
+      try {
+        const res = await fetch('/api/v1/inference', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: currentSessionId,
+            user_id: userId,
+            cookie_id: cookieId,
+            prompt: prompt,
+            connection_id: activeConnection,
+            model_name: selectedModelName
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          const sourceTag = `${activeConnection} (${data.model_name || selectedModelName})`;
+          appendMessage('assistant', data.content, sourceTag, data.token_status.tokens_consumed_request, data.execution_duration_ms);
+          await updateTokenMetrics();
+          await checkCompaction();
+        } else {
+          appendMessage('assistant', `⚠️ Error: ${data.detail || 'Request failed'}`, activeConnection);
+        }
+      } catch (err) {
+        appendMessage('assistant', `⚠️ Connection failure: ${err.message}`, activeConnection);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Execute Inference</span><span>→</span>';
+      }
+    }
+
+    function appendMessage(role, content, source, tokens = 0, duration = 0) {
+      const stream = document.getElementById('messagesStream');
+      const bubble = document.createElement('div');
+      bubble.className = `message-bubble message-${role}`;
+      bubble.innerHTML = `
+        <div>${content}</div>
+        <div class="msg-meta">
+          <span>${source}</span>
+          ${tokens > 0 ? `<span>Tokens: ${tokens}</span>` : ''}
+          ${duration > 0 ? `<span>${duration.toFixed(0)}ms</span>` : ''}
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    async function checkCompaction() {
+      try {
+        const res = await fetch(`/api/v1/sessions/${currentSessionId}/compaction`);
+        const data = await res.json();
+        if (data) {
+          document.getElementById('compactionContent').innerHTML = `
+            <strong>Compaction ID:</strong> ${data.compaction_id}<br>
+            <strong>Summary:</strong> ${data.summary_content}<br>
+            <div style="margin-top: 6px; font-size: 11px; color: var(--text-muted);">
+              Saved tokens: ${data.original_token_count} → ${data.compacted_token_count} (${(data.compaction_ratio * 100).toFixed(0)}% ratio)
+            </div>
+          `;
+        }
+      } catch (e) {}
+    }
+
+    async function triggerCompaction() {
+      try {
+        const res = await fetch(`/api/v1/sessions/${currentSessionId}/compact`, { method: 'POST' });
+        await checkCompaction();
+      } catch (e) {}
+    }
+
+    async function createNewSession() {
+      currentSessionId = 'sess-' + Math.random().toString(36).substring(2, 10);
+      document.getElementById('sessIdText').innerText = currentSessionId;
+      document.getElementById('currentSessionShort').innerText = currentSessionId.substring(0, 12);
+      document.getElementById('messagesStream').innerHTML = `
+        <div class="message-bubble message-assistant">
+          <div>New session <strong>${currentSessionId}</strong> initialized. Connected to user <em>${userId}</em> and cookie <em>${cookieId}</em>.</div>
+        </div>
+      `;
+    }
+
+    async function probeAllHealth() {
+      for (const conn of defaultConnections) {
+        try {
+          const res = await fetch(`/api/v1/connections/${conn.connection_id}/health`);
+          const data = await res.json();
+          console.log(`Health for ${conn.connection_id}:`, data);
+        } catch (e) {}
+      }
+      alert('Endpoint health probe complete. Check console logs for status.');
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>

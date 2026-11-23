@@ -1,0 +1,45 @@
+name: model-box
+
+services:
+  comfyui:
+    extends:
+      file: ../comfyui/docker/compose.cpu.yaml
+      service: comfyui
+    environment:
+      COMFYUI_DATABASE_URL: ${COMFYUI_DATABASE_URL:-}
+      COMFYUI_ENABLE_ASSETS: ${COMFYUI_ENABLE_ASSETS:-0}
+
+  comfyui-postgres:
+    profiles: ["postgres"]
+    build:
+      context: ../comfyui/postgres
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-comfyui}
+      POSTGRES_USER: ${POSTGRES_USER:-comfyui}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comfyui}
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=age
+    ports:
+      - "${POSTGRES_BIND_IP:-127.0.0.1}:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - comfyui-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-comfyui} -d ${POSTGRES_DB:-comfyui}"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+    networks:
+      - model-box-net
+
+networks:
+  model-box-net:
+    name: model-box-net
+    external: true
+
+volumes:
+  comfyui-postgres-data:
