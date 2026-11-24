@@ -314,6 +314,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     message: string;
     dockerCommand: string;
     timestamp: string;
+    latencyMs?: number;
   } | null>(null);
   const [isCliLoggingIn, setIsCliLoggingIn] = useState<boolean>(false);
   const [isVerifyingBinaryPath, setIsVerifyingBinaryPath] = useState<boolean>(false);
@@ -1149,11 +1150,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     }
   };
 
-  useEffect(() => {
-    if (!isGoogle && selectedProtocol === "cli") {
-      setSelectedProtocol("oauth");
-    }
-  }, [isGoogle, selectedProtocol]);
 
   useEffect(() => {
     if (selectedProtocol !== "oauth") {
@@ -1899,8 +1895,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     setCliTimeoutSecondsRemaining(null);
     setCliScriptError(null);
     setActionError(null);
+    setVerificationTelemetry(null);
     const strategy = oauthProviderRegistry.getStrategy(selectedProviderId);
     setIsVerifyingAuthCode(true);
+    const startTime = Date.now();
     try {
       try {
         const cliSessionRes = await ApiService.fetchLatestCliSession(targetModelId);
@@ -1914,6 +1912,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         // Graceful best-effort sync
       }
       const res = await ApiService.verifyOAuthManual(targetModelId, trimmedCode, userEmail, oauthClientId, oauthClientSecret, editingAccountId);
+      const realLatency = Math.max(1, Date.now() - startTime);
       if (res?.success && res?.session) {
         const session = res.session;
         if (res.vcs) {
@@ -1956,7 +1955,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             protocol: session.authMode || "CLI OAuth",
             message: res?.message || `Account verified as INACTIVE. Token preserved for further processing.`,
             errorMessage: res?.message || (isGoogle ? "Authentication required: antigravity session has no active credentials." : "OAuth authentication unverified."),
-            latencyMs: 42,
+            latencyMs: realLatency,
             details: { verifiedAt: new Date().toISOString() },
             correlationId: successCorrId,
             traceId: successTraceId,
@@ -1967,8 +1966,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             correlationId: successCorrId,
             traceId: successTraceId,
             message: res?.message || `Account saved with INACTIVE status.`,
-            dockerCommand: `docker logs model-connector-service 2>&1 | grep ${successCorrId}`,
+            dockerCommand: getOsDockerCommand(successCorrId, dockerLogOs),
             timestamp: new Date().toLocaleTimeString(),
+            latencyMs: realLatency,
           });
           setActionInfo(res.message || `Account saved with INACTIVE status. Token preserved for further processing.`);
           setActionSuccess(null);
@@ -1979,7 +1979,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             status: "VERIFIED",
             protocol: session.authMode || "CLI OAuth",
             message: res?.message || `Successfully authorized live OAuth 2.0 session for ${session.email}!`,
-            latencyMs: 42,
+            latencyMs: realLatency,
             details: { verifiedAt: new Date().toISOString() },
             correlationId: successCorrId,
             traceId: successTraceId,
@@ -1991,8 +1991,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             correlationId: successCorrId,
             traceId: successTraceId,
             message: res?.message || `Successfully authorized live OAuth 2.0 session for ${session.email}!`,
-            dockerCommand: `docker logs model-connector-service 2>&1 | grep ${successCorrId}`,
+            dockerCommand: getOsDockerCommand(successCorrId, dockerLogOs),
             timestamp: new Date().toLocaleTimeString(),
+            latencyMs: realLatency,
           });
           setActionSuccess(`Successfully authorized live OAuth 2.0 session for ${session.email}!`);
           setActionInfo(null);
@@ -2012,14 +2013,16 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         correlationId: failCorrId,
         traceId: failTraceId,
         message: errMsg,
-        dockerCommand: `docker logs model-connector-service 2>&1 | grep ${failCorrId}`,
+        dockerCommand: getOsDockerCommand(failCorrId, dockerLogOs),
         timestamp: new Date().toLocaleTimeString(),
+        latencyMs: realLatency,
       });
       setCliScriptError({ message: errMsg, code: res?.errorCode || "AUTH_FAILED" });
       setActionError(errMsg);
       setActiveOAuthStep(2);
       setOauthSession(null);
     } catch (err: any) {
+      const realLatency = Math.max(1, Date.now() - startTime);
       const errMsg = err instanceof Error ? err.message : String(err);
       const errCorrId = err?.correlationId || `corr-${Date.now()}`;
       const errTraceId = err?.traceId || `trace-${Date.now()}`;
@@ -2028,8 +2031,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         correlationId: errCorrId,
         traceId: errTraceId,
         message: errMsg,
-        dockerCommand: `docker logs model-connector-service 2>&1 | grep ${errCorrId}`,
+        dockerCommand: getOsDockerCommand(errCorrId, dockerLogOs),
         timestamp: new Date().toLocaleTimeString(),
+        latencyMs: realLatency,
       });
       setCliScriptError({ message: errMsg, code: err?.errorCode || "AUTH_FAILED" });
       setActionError(errMsg);
@@ -2923,22 +2927,20 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         <span className="tab-hint">Web Consent</span>
                       </button>
 
-                      {isGoogle && (
-                        <button
-                          type="button"
-                          className={`protocol-tab-btn ${selectedProtocol === "cli" ? "active" : ""}`}
-                          onClick={() => {
-                            setSelectedProtocol("cli");
-                            setTestResult(testResultsByProtocol.cli);
-                            setActionError(null);
-                            setActionInfo(null);
-                          }}
-                        >
-                          <span className="tab-icon">💻</span>
-                          <span className="tab-label">CLI Binary</span>
-                          <span className="tab-hint">Host Terminal</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className={`protocol-tab-btn ${selectedProtocol === "cli" ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedProtocol("cli");
+                          setTestResult(testResultsByProtocol.cli);
+                          setActionError(null);
+                          setActionInfo(null);
+                        }}
+                      >
+                        <span className="tab-icon">💻</span>
+                        <span className="tab-label">CLI Binary</span>
+                        <span className="tab-hint">Host Terminal</span>
+                      </button>
 
                       <button
                         type="button"
@@ -4051,6 +4053,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                                 <span className="code-captured-tag" style={{ fontSize: "0.72rem" }}>
                                                   ✔ Ready For Verification
                                                 </span>
+                                              ) : isVerifyingAuthCode ? (
+                                                <span className="http-status-badge info" style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #93c5fd" }}>
+                                                  ⏳ Verifying...
+                                                </span>
                                               ) : !verificationTelemetry ? (
                                                 <span className="http-status-badge info" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>
                                                   HTTP 102 Pending Verification
@@ -4085,49 +4091,65 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                                                   nextStep: "Click 'Verify & Save' to validate credentials and activate Token Vault",
                                                 },
                                               }, null, 2)
-                                              : !verificationTelemetry
+                                              : isVerifyingAuthCode
                                                 ? JSON.stringify({
                                                   status: "102 Processing",
                                                   httpStatus: 102,
                                                   headers: {
                                                     "Content-Type": "application/json",
-                                                    "X-RateLimit-Remaining": "99",
-                                                    "X-Response-Time": "0ms",
+                                                    "X-Response-Time": "Measuring...",
                                                   },
                                                   body: {
-                                                    status: "PENDING_VERIFICATION",
+                                                    status: "VERIFYING_UPSTREAM",
                                                     token_type: "Bearer",
                                                     scope: selectedStrategy.defaultScopes,
-                                                    expires_in: 3600,
-                                                    verifiedUser: userEmail || selectedAccountEmail || "Pending Selection",
-                                                    tokenVault: "INACTIVE (Pending validation)",
-                                                    diagnosticMessage: "Authorization code captured. Click 'Verify & Save' to execute upstream token exchange and validate credentials.",
+                                                    provider: selectedProviderId,
+                                                    diagnosticMessage: "Exchanging authorization code and validating credentials with upstream identity provider...",
                                                   },
                                                 }, null, 2)
-                                                : JSON.stringify({
-                                                  status: verificationTelemetry.status === "failure" ? "400 Bad Request" : "200 OK",
-                                                  httpStatus: verificationTelemetry.status === "failure" ? 400 : 200,
-                                                  headers: {
-                                                    "Content-Type": "application/json",
-                                                    "X-RateLimit-Remaining": "99",
-                                                    "X-Response-Time": "42ms",
-                                                  },
-                                                  body: {
-                                                    status: verificationTelemetry.status === "failure" ? "UNVERIFIED" : "VALIDATED",
-                                                    token_type: "Bearer",
-                                                    scope: selectedStrategy.defaultScopes,
-                                                    expires_in: 3600,
-                                                    verifiedUser: userEmail || selectedAccountEmail,
-                                                    tokenVault: verificationTelemetry.status === "failure" ? "INACTIVE (Pending validation)" : "ACTIVE",
-                                                    diagnosticMessage: verificationTelemetry.message || "OAuth 2.0 PKCE credentials exchange ready.",
-                                                  },
-                                                }, null, 2)}
+                                                : !verificationTelemetry
+                                                  ? JSON.stringify({
+                                                    status: "102 Processing",
+                                                    httpStatus: 102,
+                                                    headers: {
+                                                      "Content-Type": "application/json",
+                                                      "X-RateLimit-Remaining": "99",
+                                                      "X-Response-Time": "0ms",
+                                                    },
+                                                    body: {
+                                                      status: "PENDING_VERIFICATION",
+                                                      token_type: "Bearer",
+                                                      scope: selectedStrategy.defaultScopes,
+                                                      expires_in: 3600,
+                                                      verifiedUser: userEmail || selectedAccountEmail || "Pending Selection",
+                                                      tokenVault: "INACTIVE (Pending validation)",
+                                                      diagnosticMessage: "Authorization code captured. Click 'Verify & Save' to execute upstream token exchange and validate credentials.",
+                                                    },
+                                                  }, null, 2)
+                                                  : JSON.stringify({
+                                                    status: verificationTelemetry.status === "failure" ? "400 Bad Request" : "200 OK",
+                                                    httpStatus: verificationTelemetry.status === "failure" ? 400 : 200,
+                                                    headers: {
+                                                      "Content-Type": "application/json",
+                                                      "X-RateLimit-Remaining": "99",
+                                                      "X-Response-Time": `${verificationTelemetry.latencyMs || testResult?.latencyMs || 0}ms`,
+                                                    },
+                                                    body: {
+                                                      status: verificationTelemetry.status === "failure" ? "UNVERIFIED" : "VALIDATED",
+                                                      token_type: "Bearer",
+                                                      scope: selectedStrategy.defaultScopes,
+                                                      expires_in: 3600,
+                                                      verifiedUser: userEmail || selectedAccountEmail,
+                                                      tokenVault: verificationTelemetry.status === "failure" ? "INACTIVE (Pending validation)" : "ACTIVE",
+                                                      diagnosticMessage: verificationTelemetry.message || "OAuth 2.0 PKCE credentials exchange ready.",
+                                                    },
+                                                  }, null, 2)}
                                           </pre>
                                         </div>
                                       </>
                                     )}
 
-                                    {verificationTelemetry && (
+                                    {!isVerifyingAuthCode && verificationTelemetry && (
                                       <div
                                         className="verification-telemetry-box"
                                         style={{
